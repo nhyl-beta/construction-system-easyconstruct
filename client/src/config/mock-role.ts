@@ -6,5 +6,5 @@ export type AppIdentity = {
 
 export const MOCK_IDENTITY: AppIdentity = {
   name: "Nhyl Cyrus Gervasio",
-  role: "project_manager",
+  role: "human_resources",
 };

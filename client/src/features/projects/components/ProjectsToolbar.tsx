@@ -22,6 +22,7 @@ export const ProjectsToolbar: React.FC<{
           <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
           <Input placeholder="Search by name or code…" value={query} onChange={(e) => setQuery((e.target as HTMLInputElement).value)} className="h-9 rounded-xl border-border bg-muted/40 pl-9" />
         </div>
+        
         <Button variant="outline" size="sm" className="rounded-xl"><Filter className="h-4 w-4" /> Filters</Button>
         <Button asChild className="rounded-xl"><Link to="/projects/new"><Plus className="h-4 w-4" /> New project</Link></Button>
 
