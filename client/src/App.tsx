@@ -16,50 +16,45 @@ import { Toaster } from "./components/refine-ui/notification/toaster";
 import { useNotificationProvider } from "./components/refine-ui/notification/use-notification-provider";
 import { ThemeProvider } from "./components/refine-ui/theme/theme-provider";
 
-import { resources } from "./providers/resources";
 import { accessControlProvider } from "./providers/access-control-provider";
+import { resources } from "./providers/resources";
 
 // ── Project Manager Pages ──
-import PMDashboard from "./pages/project-manager/pm-dashboard";
-import PMProjects from "./pages/project-manager/pm-projects";
-import PMWorkflows from "./pages/project-manager/pm-workflows";
-import PMApprovals from "./pages/project-manager/pm-approvals";
-import PMDocuments from "./pages/project-manager/pm-documents";
-import PMAiInsights from "./pages/project-manager/pm-ai-insights";
-import PMReports from "./pages/project-manager/pm-reports";
-import PMResources from "./pages/project-manager/pm-resources";
+import DashboardRouter from "@/pages/dashboard/index";
+import PMApprovals from "./pages/roles/project-manager/pm-approvals";
+import PMDocuments from "./pages/roles/project-manager/pm-documents";
+import PMProjects from "./pages/roles/project-manager/pm-projects";
+import PMWorkflows from "./pages/roles/project-manager/pm-workflows";
 
 // ── Human Resources Pages ──
-import HRDashboard from "./pages/human-resources/hr-dashboard";
-import HREmployees from "./pages/human-resources/hr-employees";
-import HRAttendance from "./pages/human-resources/hr-attendance";
-import HRPayroll from "./pages/human-resources/hr-payroll";
+import HRAttendance from "./pages/roles/human-resources/hr-attendance";
+import HREmployees from "./pages/roles/human-resources/hr-employees";
+import HRPayroll from "./pages/roles/human-resources/hr-payroll";
 
 // ── Finance Pages ──
-import FinanceBudget from "./pages/finance/finance-budget";
-import FinancePayrollReview from "./pages/finance/finance-payroll-review";
-import FinanceImpactReview from "./pages/finance/finance-impact-review";
+import FinanceBudget from "./pages/roles/finance/finance-budget";
+import FinanceImpactReview from "./pages/roles/finance/finance-impact-review";
+import FinancePayrollReview from "./pages/roles/finance/finance-payroll-review";
 
 // ── Architect Pages ──
-import ArchitectDesigns from "./pages/architect/architect-designs";
-import ArchitectProposals from "./pages/architect/architect-proposals";
+import ArchitectDesigns from "./pages/roles/architect/architect-designs";
+import ArchitectProposals from "./pages/roles/architect/architect-proposals";
 
 // ── Engineer Pages ──
-import EngineerProgress from "./pages/engineer/engineer-progress";
-import EngineerRequirements from "./pages/engineer/engineer-requirements";
-import EngineerIssues from "./pages/engineer/engineer-issues";
+import EngineerIssues from "./pages/roles/engineer/engineer-issues";
+import EngineerProgress from "./pages/roles/engineer/engineer-progress";
+import EngineerRequirements from "./pages/roles/engineer/engineer-requirements";
 
 // ── Site Personnel Pages ──
-import SPTasks from "./pages/site-personnel/sp-tasks";
+import SPTasks from "./pages/roles/site-personnel/sp-tasks";
 
 // ── Consultant Pages ──
-import ConsultantProposals from "./pages/consultant/consultant-proposals";
-import ConsultantAdvisoryDocs from "./pages/consultant/consultant-advisory-docs";
+import ConsultantAdvisoryDocs from "./pages/roles/consultant/consultant-advisory-docs";
 
 // ── Shared Pages ──
-import SharedAiInsights from "./pages/shared/shared-ai-insights";
-import SharedReports from "./pages/shared/shared-reports";
-import SharedResources from "./pages/shared/shared-resources";
+import SharedAiInsights from "./pages/roles/shared/shared-ai-insights";
+import SharedReports from "./pages/roles/shared/shared-reports";
+import SharedResources from "./pages/roles/shared/shared-resources";
 
 function App() {
   return (
@@ -87,8 +82,8 @@ function App() {
                   }
                 >
                   {/* ── Shared Routes ── */}
-                  <Route path="/" element={<PMDashboard />} />
-                  <Route path="/dashboard" element={<PMDashboard />} />
+                  <Route path="/" element={<DashboardRouter />} />
+                  <Route path="/dashboard" element={<DashboardRouter />} />
                   <Route path="/ai-insights" element={<SharedAiInsights />} />
                   <Route path="/reports" element={<SharedReports />} />
                   <Route path="/resources" element={<SharedResources />} />
@@ -106,8 +101,14 @@ function App() {
 
                   {/* ── Finance Routes ── */}
                   <Route path="/budget" element={<FinanceBudget />} />
-                  <Route path="/payroll-review" element={<FinancePayrollReview />} />
-                  <Route path="/impact-review" element={<FinanceImpactReview />} />
+                  <Route
+                    path="/payroll-review"
+                    element={<FinancePayrollReview />}
+                  />
+                  <Route
+                    path="/impact-review"
+                    element={<FinanceImpactReview />}
+                  />
 
                   {/* ── Architect Routes ── */}
                   <Route path="/designs" element={<ArchitectDesigns />} />
@@ -115,14 +116,20 @@ function App() {
 
                   {/* ── Engineer Routes ── */}
                   <Route path="/progress" element={<EngineerProgress />} />
-                  <Route path="/requirements" element={<EngineerRequirements />} />
+                  <Route
+                    path="/requirements"
+                    element={<EngineerRequirements />}
+                  />
                   <Route path="/issues" element={<EngineerIssues />} />
 
                   {/* ── Site Personnel Routes ── */}
                   <Route path="/tasks" element={<SPTasks />} />
 
                   {/* ── Consultant Routes ── */}
-                  <Route path="/advisory-docs" element={<ConsultantAdvisoryDocs />} />
+                  <Route
+                    path="/advisory-docs"
+                    element={<ConsultantAdvisoryDocs />}
+                  />
                 </Route>
               </Routes>
               <Toaster />
