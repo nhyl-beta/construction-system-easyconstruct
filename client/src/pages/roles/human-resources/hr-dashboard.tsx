@@ -71,6 +71,7 @@ import {
   type LucideIcon,
 } from "lucide-react";
 import { useMemo, useState } from "react";
+import { Link } from "react-router";
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Helpers
@@ -1237,8 +1238,10 @@ export default function HRDashboardPage() {
             <Button variant="outline" size="sm" className="rounded-xl">
               <Download className="h-4 w-4" /> Export
             </Button>
-            <Button size="sm" className="rounded-xl">
-              <Plus className="h-4 w-4" /> Add employee
+            <Button size="sm" className="rounded-xl" asChild>
+              <Link to="/employees/new">
+                <Plus className="h-4 w-4" /> Add employee
+              </Link>
             </Button>
           </div>
         </div>

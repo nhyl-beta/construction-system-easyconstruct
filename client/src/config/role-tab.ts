@@ -49,6 +49,7 @@ export type RoleConfig = {
   primaryAction: {
     label: string;
     icon: LucideIcon;
+    route?: string;
   };
   tabs: RoleTab[];
   sections: SidebarSection[];
@@ -64,7 +65,7 @@ export const ROLE_CONFIGS: Record<string, RoleConfig> = {
     accentBg: "bg-emerald-500",
     searchPlaceholder: "Search projects, workflows...",
     primaryAi: "Proposal Validation",
-    primaryAction: { label: "New Project", icon: Plus },
+    primaryAction: { label: "New Project", icon: Plus, route: "/projects/new" },
 
     tabs: [
       { label: "Projects", icon: FolderKanban, route: "/projects" },
@@ -107,6 +108,7 @@ export const ROLE_CONFIGS: Record<string, RoleConfig> = {
     primaryAction: {
       label: "Add Employee",
       icon: UserPlus,
+      route: "/employees/new",
     },
     tabs: [
       { label: "Employees", icon: Users, route: "/employees" },
@@ -149,6 +151,7 @@ export const ROLE_CONFIGS: Record<string, RoleConfig> = {
     primaryAction: {
       label: "New Budget",
       icon: Plus,
+      route: "/budget/new",
     },
     tabs: [
       {

@@ -20,7 +20,7 @@ import {
   useRefineOptions,
 } from "@refinedev/core";
 import { Bell, LogOutIcon, Search } from "lucide-react";
-import { useNavigate } from "react-router";
+import { Link, useNavigate } from "react-router";
 
 export const Header = () => {
   const { isMobile } = useSidebar();
@@ -109,10 +109,17 @@ function DesktopHeader() {
         >
           <Bell className="h-4 w-4" />
         </Button>
-        <Button size="sm" className="rounded-xl">
-          <ActionIcon className="h-4 w-4" />
-          <span className="hidden sm:inline">{config.primaryAction.label}</span>
-        </Button>
+
+        {config.primaryAction.route && (
+          <Button asChild size="sm" className="rounded-xl">
+            <Link to={config.primaryAction.route}>
+              <ActionIcon className="h-4 w-4" />
+              <span className="hidden sm:inline">
+                {config.primaryAction.label}
+              </span>
+            </Link>
+          </Button>
+        )}
         <UserDropdown />
       </header>
 
