@@ -1,14 +1,6 @@
-import express from "express";
+import app from "../src/app.js";
+import { env } from "./config/env.js";
 
-const app = express();
-const PORT = 8000;
-
-app.use(express.json());
-
-app.get("/", (req, res) => {
-  res.send("Hello, World!");
-});
-
-app.listen(PORT, () => {
-  console.log(`Server is running on http://localhost:${PORT}`);
+app.listen(env.PORT, () => {
+  console.log(`✅ Server running → http://localhost:${env.PORT}`);
 });

@@ -1,21 +1,49 @@
 {
   "compilerOptions": {
+    /* Project Structure */
     "rootDir": "./src",
     "outDir": "./dist",
 
+    /* Language & Environment */
     "target": "ES2022",
+    "lib": ["ES2022"],
 
+    /* Node.js ESM */
     "module": "NodeNext",
     "moduleResolution": "NodeNext",
 
+    /* Type Checking */
+    "strict": true,
+    "noImplicitReturns": true,
+    "noUncheckedIndexedAccess": true,
+    "forceConsistentCasingInFileNames": true,
+
+    /* Module Resolution */
+    "esModuleInterop": true,
+    "allowSyntheticDefaultImports": true,
+    "resolveJsonModule": true,
+
+    /* Node Types */
     "types": ["node"],
 
-    "strict": true,
+    /* Build */
+    "sourceMap": true,
+    "declaration": true,
+    "declarationMap": true,
 
-    "esModuleInterop": true,
+    /* Performance */
+    "skipLibCheck": true,
 
-    "skipLibCheck": true
+    /* Output */
+    "removeComments": false
   },
 
-  "include": ["src"]
-}claud
+  "include": [
+    "src",
+  ],
+
+  "exclude": [
+    "node_modules",
+    "dist"
+  ]
+}
