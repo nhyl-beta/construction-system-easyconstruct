@@ -18,6 +18,7 @@ import { ThemeProvider } from "./components/refine-ui/theme/theme-provider";
 
 import { accessControlProvider } from "./providers/access-control-provider";
 import { resources } from "./providers/resources";
+import { dataProvider } from "./providers/data";
 
 // ── Project Manager Pages ──
 import DashboardRouter from "@/pages/dashboard/index";
@@ -64,6 +65,7 @@ function App() {
           <DevtoolsProvider>
             <Refine
               resources={resources}
+              dataProvider={dataProvider}
               accessControlProvider={accessControlProvider}
               notificationProvider={useNotificationProvider()}
               routerProvider={routerProvider}
