@@ -29,3 +29,17 @@ export class UnauthorizedError extends AppError {
     this.name = 'UnauthorizedError';
   }
 }
+
+export class ForbiddenError extends AppError {
+  constructor(message = "Forbidden") {
+    super(403, "FORBIDDEN", message);
+    this.name = "ForbiddenError";
+  }
+}
+
+export class ConflictError extends AppError {
+  constructor(message: string) {
+    super(409, "CONFLICT", message);
+    this.name = "ConflictError";
+  }
+}

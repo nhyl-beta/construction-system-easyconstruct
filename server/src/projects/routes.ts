@@ -4,7 +4,7 @@ import { validate }    from "../middleware/validate.js";
 import {
   createProjectSchema,
   updateProjectSchema,
-} from "../validators/project-validators.js";
+} from "../validators/project-validator.js";
 
 const router = Router();
 

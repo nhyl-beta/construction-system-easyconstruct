@@ -9,16 +9,14 @@ import routerProvider, {
 
 import { BrowserRouter, Outlet, Route, Routes } from "react-router";
 
-import "./App.css";
-
 import { Layout } from "./components/refine-ui/layout/layout";
 import { Toaster } from "./components/refine-ui/notification/toaster";
 import { useNotificationProvider } from "./components/refine-ui/notification/use-notification-provider";
 import { ThemeProvider } from "./components/refine-ui/theme/theme-provider";
 
 import { accessControlProvider } from "./providers/access-control-provider";
-import { resources } from "./providers/resources";
 import { dataProvider } from "./providers/data";
+import { resources } from "./providers/resources";
 
 // ── Project Manager Pages ──
 import DashboardRouter from "@/pages/dashboard/index";
@@ -53,9 +51,13 @@ import SPTasks from "./pages/roles/site-personnel/sp-tasks";
 import ConsultantAdvisoryDocs from "./pages/roles/consultant/consultant-advisory-docs";
 
 // ── Shared Pages ──
+import EmployeeCreatePage from "@/features/employees/pages/EmployeeCreatePage";
+import ProjectCreatePage from "@/features/projects/pages/ProjectCreatePage";
 import SharedAiInsights from "./pages/roles/shared/shared-ai-insights";
 import SharedReports from "./pages/roles/shared/shared-reports";
 import SharedResources from "./pages/roles/shared/shared-resources";
+
+import "./App.css";
 
 function App() {
   return (
@@ -92,12 +94,26 @@ function App() {
 
                   {/* ── Project Manager Routes ── */}
                   <Route path="/projects" element={<PMProjects />} />
+                  <Route
+                    path="/projects/create"
+                    element={<ProjectCreatePage />}
+                  />
+                  <Route path="/projects/new" element={<ProjectCreatePage />} />
+
                   <Route path="/workflows" element={<PMWorkflows />} />
                   <Route path="/approvals" element={<PMApprovals />} />
                   <Route path="/documents" element={<PMDocuments />} />
 
                   {/* ── Human Resources Routes ── */}
                   <Route path="/employees" element={<HREmployees />} />
+                  <Route
+                    path="/employees/create"
+                    element={<EmployeeCreatePage />}
+                  />
+                  <Route
+                    path="/employees/new"
+                    element={<EmployeeCreatePage />}
+                  />
                   <Route path="/attendance" element={<HRAttendance />} />
                   <Route path="/payroll" element={<HRPayroll />} />
 

@@ -1,4 +1,3 @@
-// src/pages/human-resources/hr-dashboard.tsx
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -70,12 +69,10 @@ import {
   Wallet,
   type LucideIcon,
 } from "lucide-react";
+
 import { useMemo, useState } from "react";
 import { Link } from "react-router";
 
-// ─────────────────────────────────────────────────────────────────────────────
-// Helpers
-// ─────────────────────────────────────────────────────────────────────────────
 
 function toneBg(tone: ToneBg) {
   switch (tone) {
@@ -1225,6 +1222,7 @@ function ReportsSection() {
 
 export default function HRDashboardPage() {
   const [tab, setTab] = useState("overview");
+  const [showEmployeeModal, setShowEmployeeModal] = useState(false);
 
   return (
     <div className="flex-1 space-y-6 p-4 md:p-6">
@@ -1238,8 +1236,14 @@ export default function HRDashboardPage() {
             <Button variant="outline" size="sm" className="rounded-xl">
               <Download className="h-4 w-4" /> Export
             </Button>
-            <Button size="sm" className="rounded-xl" asChild>
-              <Link to="/employees/new">
+
+            <Button
+              size="sm"
+              className="rounded-xl"
+              onClick={() => setShowEmployeeModal(true)}
+              asChild
+            >
+              <Link to="/employees/create">
                 <Plus className="h-4 w-4" /> Add employee
               </Link>
             </Button>

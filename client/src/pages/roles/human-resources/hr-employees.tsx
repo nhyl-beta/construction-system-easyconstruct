@@ -1,4 +1,3 @@
-// src/pages/roles/human-resources/hr-employees.tsx
 import { Download, Filter, MoreHorizontal, Plus, Search } from "lucide-react";
 import { useMemo, useState } from "react";
 import { Link } from "react-router";
@@ -29,6 +28,7 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
+
 import { PageHeader, StatusBadge } from "@/pages/roles/shared/shared-hr";
 import { departments, employees, type Employee } from "@/providers/mock-data";
 
@@ -153,7 +153,7 @@ export default function HREmployeesPage() {
           </div>
           <div className="flex flex-wrap items-center gap-2">
             <Select value={dept} onValueChange={setDept}>
-              <SelectTrigger className="h-9 w-[170px] rounded-xl">
+              <SelectTrigger className="h-9 w-42.5 rounded-xl">
                 <Filter className="mr-1 h-3.5 w-3.5 text-muted-foreground" />
                 <SelectValue placeholder="Department" />
               </SelectTrigger>
@@ -167,7 +167,7 @@ export default function HREmployeesPage() {
               </SelectContent>
             </Select>
             <Select value={status} onValueChange={setStatus}>
-              <SelectTrigger className="h-9 w-[140px] rounded-xl">
+              <SelectTrigger className="h-9 w-35 rounded-xl">
                 <SelectValue placeholder="Status" />
               </SelectTrigger>
               <SelectContent>
@@ -215,7 +215,7 @@ export default function HREmployeesPage() {
                 <TableHead>Status</TableHead>
                 <TableHead className="text-right">Attendance</TableHead>
                 <TableHead className="text-right">Perf.</TableHead>
-                <TableHead className="w-[40px]" />
+                <TableHead className="w-10" />
               </TableRow>
             </TableHeader>
             <TableBody>

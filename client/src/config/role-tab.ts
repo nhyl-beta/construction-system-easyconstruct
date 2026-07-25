@@ -154,14 +154,14 @@ export const ROLE_CONFIGS: Record<string, RoleConfig> = {
       route: "/budget/new",
     },
     tabs: [
+      { label: "Approvals", icon: CheckSquare, route: "/approvals" },
+      { label: "Budget", icon: BarChart2, route: "/budget" },
       {
         label: "Payroll Review",
         icon: ClipboardList,
         route: "/payroll-review",
       },
-      { label: "Budget", icon: BarChart2, route: "/budget" },
       { label: "Impact Review", icon: ActivitySquare, route: "/impact-review" },
-      { label: "Approvals", icon: CheckSquare, route: "/approvals" },
     ],
 
     sections: [

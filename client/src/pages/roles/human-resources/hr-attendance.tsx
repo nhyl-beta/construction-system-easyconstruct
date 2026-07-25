@@ -1,4 +1,3 @@
-// src/pages/roles/human-resources/hr-attendance.tsx
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -12,12 +11,15 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
+
 import {
   KpiMini,
   PageHeader,
   StatusBadge,
 } from "@/pages/roles/shared/shared-hr";
+
 import { attendanceLogs } from "@/providers/mock-data";
+
 import { Camera, CheckCircle2, Clock, MapPin, ShieldCheck } from "lucide-react";
 
 export default function HRAttendancePage() {

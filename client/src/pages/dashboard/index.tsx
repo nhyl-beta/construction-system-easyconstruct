@@ -1,16 +1,16 @@
-// src/pages/dashboard/index.tsx
 import { MOCK_IDENTITY } from "@/config/mock-role";
 import HRDashboardPage from "@/pages/roles/human-resources/hr-dashboard";
 import PMDashboardPage from "@/pages/roles/project-manager/pm-dashboard";
+import FinanceDashboardPage from "../roles/finance/finance-dashboard";
+
+
 
 // ── Role → Dashboard map ──────────────────────────────────────────────────────
-// Add a new entry here whenever a new role dashboard is created.
-// No other file needs to change.
 
 const ROLE_DASHBOARD: Record<string, React.ComponentType> = {
   project_manager: PMDashboardPage,
   human_resources: HRDashboardPage,
-  // finance_manager: FinanceDashboardPage,
+  finance_manager: FinanceDashboardPage,
   // architect:       ArchitectDashboardPage,
   // engineer:        EngineerDashboardPage,
   // site_personnel:  SitePersonnelDashboardPage,
