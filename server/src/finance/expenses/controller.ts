@@ -1,6 +1,6 @@
 import type { NextFunction, Request, Response } from "express";
 import { sendSuccess } from "../../utils/response.js";
-import { expensesService } from "../expenses/services.js";
+import { expensesService } from "./services.js";
 
 export const expensesController = {
   async list(req: Request, res: Response, next: NextFunction) {

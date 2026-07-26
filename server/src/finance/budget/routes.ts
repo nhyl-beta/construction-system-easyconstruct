@@ -10,19 +10,11 @@ export const budgetsRoutes = Router();
 
 budgetsRoutes.get("/", controller.getAll);
 
-budgetsRoutes.post(
-  "/",
-  validate(createBudgetSchema),
-  controller.create,
-);
+budgetsRoutes.post("/", validate(createBudgetSchema), controller.create);
 
 budgetsRoutes.get("/:id", controller.getById);
 
-budgetsRoutes.patch(
-  "/:id",
-  validate(updateBudgetSchema),
-  controller.update,
-);
+budgetsRoutes.patch("/:id", validate(updateBudgetSchema), controller.update);
 
 budgetsRoutes.delete("/:id", controller.remove);
 

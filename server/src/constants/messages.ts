@@ -1,3 +1,6 @@
+import { notifications } from "../db/index.js";
+import { auditLogs } from "../db/schema/audit-logs.js";
+
 const createCrudMessages = (name: string) => ({
   retrieved: `${name}s retrieved`,
   single: `${name} retrieved`,
@@ -10,7 +13,11 @@ const createCrudMessages = (name: string) => ({
 export const MSG = {
   projects: createCrudMessages("Project"),
   budgets: createCrudMessages("Budget"),
+  budgetAllocations: createCrudMessages("Budget allocation"),
+  budgetAdjustments: createCrudMessages("Budget adjustment"),
+  budgetApprovalSteps: createCrudMessages("Budget approval step"),
   expenses: createCrudMessages("Expense"),
+  payrollBatches: createCrudMessages("Payroll batch"),
   purchaseRequests: createCrudMessages("Purchase request"),
   reimbursements: createCrudMessages("Reimbursement"),
   procurementOrders: createCrudMessages("Procurement order"),
@@ -19,4 +26,12 @@ export const MSG = {
   financialRisks: createCrudMessages("Financial risk"),
   cashFlow: createCrudMessages("Cash flow entry"),
   scheduledReports: createCrudMessages("Scheduled report"),
+  designs: createCrudMessages("Design"),
+  proposals: createCrudMessages("Proposal"),
+  designRevisions: createCrudMessages("Design revision"),
+  designReviews: createCrudMessages("Design review"),
+  architectDocuments: createCrudMessages("Architect document"),
+  blueprints: createCrudMessages("Blueprint"),
+  notifications: createCrudMessages("Notification"),
+  auditLogs: createCrudMessages("AuditLogs")
 } as const;

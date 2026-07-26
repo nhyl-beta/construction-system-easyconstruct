@@ -409,6 +409,7 @@ function StepBudget({
 // ── Step 4 — Team ─────────────────────────────────────────────────────────────
 
 function StepTeam({
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
   data,
   set,
 }: {

@@ -68,13 +68,15 @@ export function Sidebar() {
   const isActive = (route: string) => {
     if (!pathname) return false;
     return (
-      pathname === route ||
-      (route !== "/" && pathname.startsWith(route + "/"))
+      pathname === route || (route !== "/" && pathname.startsWith(route + "/"))
     );
   };
 
   return (
-    <ShadcnSidebar collapsible="icon" className={cn("border-r", "border-border")}>
+    <ShadcnSidebar
+      collapsible="icon"
+      className={cn("border-r", "border-border")}
+    >
       <SidebarRail />
 
       {/* ── Header ── */}
@@ -109,18 +111,15 @@ export function Sidebar() {
                         isActive={active}
                         tooltip={item.meta?.label ?? item.label ?? item.name}
                         onClick={() => navigate(item.route ?? "/")}
-                        className={cn(
-                          "cursor-pointer",
-                          "w-full",
-                          {
-                            // active state matches the green fill in the screenshot
-                            "bg-sidebar-primary text-sidebar-primary-foreground hover:bg-sidebar-primary/90 hover:text-sidebar-primary-foreground":
-                              active,
-                          },
-                        )}
+                        className={cn("cursor-pointer", "w-full", {
+                          "bg-sidebar-primary text-sidebar-primary-foreground hover:bg-sidebar-primary/90 hover:text-sidebar-primary-foreground":
+                            active,
+                        })}
                       >
                         <Icon className="h-4 w-4 shrink-0" />
-                        <span>{item.meta?.label ?? item.label ?? item.name}</span>
+                        <span>
+                          {item.meta?.label ?? item.label ?? item.name}
+                        </span>
                       </SidebarMenuButton>
                     </SidebarMenuItem>
                   );

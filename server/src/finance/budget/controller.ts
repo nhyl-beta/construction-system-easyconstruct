@@ -30,17 +30,15 @@ export const getAll = async (
           : undefined,
 
       search:
-        typeof req.query.search === "string"
-          ? req.query.search
-          : undefined,
+        typeof req.query.search === "string" ? req.query.search : undefined,
 
       status:
         status === "all"
           ? "all"
           : typeof status === "string" &&
-            validStatuses.includes(status as BudgetStatus)
-          ? (status as BudgetStatus)
-          : undefined,
+              validStatuses.includes(status as BudgetStatus)
+            ? (status as BudgetStatus)
+            : undefined,
     };
 
     const data = await service.getAll(filters);
@@ -73,9 +71,7 @@ export const create = async (
   try {
     const data = await service.create(req.body);
 
-    res
-      .status(HTTP.CREATED)
-      .json(formatSuccess(data, MSG.budgets.created));
+    res.status(HTTP.CREATED).json(formatSuccess(data, MSG.budgets.created));
   } catch (err) {
     next(err);
   }
@@ -87,10 +83,7 @@ export const update = async (
   next: NextFunction,
 ) => {
   try {
-    const data = await service.update(
-      Number(req.params.id),
-      req.body,
-    );
+    const data = await service.update(Number(req.params.id), req.body);
 
     res.json(formatSuccess(data, MSG.budgets.updated));
   } catch (err) {

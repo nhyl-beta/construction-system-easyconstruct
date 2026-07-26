@@ -1,6 +1,6 @@
-import type { Request, Response, NextFunction } from "express";
-import { cashFlowRepository } from "../cash-flow/repository.js";
+import type { NextFunction, Request, Response } from "express";
 import { sendSuccess } from "../../utils/response.js";
+import { cashFlowRepository } from "./repository.js";
 
 export const cashFlowController = {
   async list(req: Request, res: Response, next: NextFunction) {

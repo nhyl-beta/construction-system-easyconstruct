@@ -65,4 +65,24 @@ export const STATUS_CONFIG: Record<string, StatusTone> = {
   // AI
   // ==========================
   Flagged: "danger",
+
+  // ==========================
+  // Finance — Budget (kebab-case enum values)
+  // FIX: these were outstanding from the Budget Management build — the
+  // budgetStatusEnum values are kebab-case and previously had no entries
+  // here, so StatusBadge was silently falling through to "neutral" grey
+  // for every budget/adjustment/approval-step status.
+  // ==========================
+  draft: "neutral",
+  "pending-review": "warning",
+  "finance-review": "warning",
+  "manager-review": "warning",
+  // FIX: budgetStatusEnum stores "approved"/"rejected" lowercase — these
+  // are DIFFERENT, case-sensitive keys from "Approved"/"Rejected" above,
+  // not the same entry. Both must exist or lowercase budget statuses fall
+  // through to neutral grey.
+  approved: "success",
+  rejected: "danger",
+  locked: "info",
+  active: "success", // budget allocation status (lowercase — distinct key from "Active" above)
 };

@@ -1,0 +1,26 @@
+// controllers/architect-documents.controller.ts
+import { useEffect, useMemo, useState } from "react";
+import type { ArchitectDocument } from "../types/architect-document.types";
+
+export const useArchitectDocumentsController = () => {
+  const [docs, setDocs] = useState<ArchitectDocument[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [query, setQuery] = useState("");
+  const [category, setCategory] = useState("all");
+
+  useEffect(() => {
+    const params = new URLSearchParams();
+    if (query) params.set("search", query);
+    if (category !== "all") params.set("category", category);
+    setLoading(true);
+    fetch(`/api/architect-documents?${params.toString()}`)
+      .then((res) => res.json())
+      .then((json) => setDocs(json.data ?? []))
+      .catch((err) => console.error(err))
+      .finally(() => setLoading(false));
+  }, [query, category]);
+
+  const categories = useMemo(() => Array.from(new Set(docs.map((d) => d.category))), [docs]);
+
+  return { docs, loading, query, setQuery, category, setCategory, categories };
+};

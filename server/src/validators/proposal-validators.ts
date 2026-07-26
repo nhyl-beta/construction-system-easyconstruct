@@ -1,0 +1,17 @@
+import { z } from "zod";
+
+export const createProposalSchema = z.object({
+  proposalId: z.string().min(2).max(20),
+  title: z.string().min(2).max(255),
+  projectCode: z.string().min(1).max(50),
+  submittedBy: z.string().min(2).max(100),
+  status: z.string().max(50).optional(),
+  amount: z.string().max(50).optional(),
+  content: z.string().optional(),
+  aiValidation: z.string().optional(),
+});
+
+export const updateProposalSchema = createProposalSchema.partial();
+
+export type CreateProposalInput = z.infer<typeof createProposalSchema>;
+export type UpdateProposalInput = z.infer<typeof updateProposalSchema>;

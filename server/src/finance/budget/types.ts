@@ -34,8 +34,7 @@ export interface CreateBudgetInput {
   status?: BudgetStatus;
 }
 
-export interface UpdateBudgetInput
-  extends Partial<CreateBudgetInput> {}
+export interface UpdateBudgetInput extends Partial<CreateBudgetInput> {}
 
 export interface BudgetFilters {
   fiscalYear?: string;

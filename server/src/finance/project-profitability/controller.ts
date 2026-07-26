@@ -1,6 +1,6 @@
-import type { Request, Response, NextFunction } from "express";
-import { projectProfitabilityRepository } from "../project-profitability/repository.js";
+import type { NextFunction, Request, Response } from "express";
 import { sendSuccess } from "../../utils/response.js";
+import { projectProfitabilityRepository } from "./repository.js";
 
 export const projectProfitabilityController = {
   async list(_req: Request, res: Response, next: NextFunction) {

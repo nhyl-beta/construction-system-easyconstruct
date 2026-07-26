@@ -1,0 +1,37 @@
+export interface BudgetAdjustmentRecord {
+  id: number;
+  budgetId: number;
+  kind: "increase" | "decrease" | "transfer" | "emergency";
+  originalAmount: number;
+  adjustmentAmount: number;
+  newAmount: number;
+  reason: string;
+  requestedBy: string;
+  requestedAt: Date | null;
+  approvedBy: string | null;
+  approvedAt: Date | null;
+  status: string;
+}
+
+export interface CreateBudgetAdjustmentInput {
+  budgetId: number;
+  kind: "increase" | "decrease" | "transfer" | "emergency";
+  originalAmount: number;
+  adjustmentAmount: number;
+  newAmount: number;
+  reason: string;
+  requestedBy: string;
+  status?: string;
+}
+
+export interface UpdateBudgetAdjustmentInput extends Partial<CreateBudgetAdjustmentInput> {
+  approvedBy?: string;
+  approvedAt?: Date;
+}
+
+export interface BudgetAdjustmentFilters {
+  budgetId?: number;
+  kind?: string;
+  status?: string;
+  search?: string;
+}

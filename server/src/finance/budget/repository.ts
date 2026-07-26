@@ -1,6 +1,6 @@
+import { and, eq, ilike, or, type SQL } from "drizzle-orm";
 import { db } from "../../db/connection.js";
 import { budgets } from "../../db/schema/finance.js";
-import { and, eq, ilike, or, type SQL } from "drizzle-orm";
 
 import type {
   BudgetFilters,
@@ -19,27 +19,15 @@ const toDto = (row: typeof budgets.$inferSelect) => {
   };
 };
 
-export const findAll = async (
-  filters: BudgetFilters = {},
-) => {
+export const findAll = async (filters: BudgetFilters = {}) => {
   const conditions: SQL[] = [];
 
-  if (
-    filters.fiscalYear &&
-    filters.fiscalYear !== "all"
-  ) {
-    conditions.push(
-      eq(budgets.fiscalYear, filters.fiscalYear),
-    );
+  if (filters.fiscalYear && filters.fiscalYear !== "all") {
+    conditions.push(eq(budgets.fiscalYear, filters.fiscalYear));
   }
 
-  if (
-    filters.status &&
-    filters.status !== "all"
-  ) {
-    conditions.push(
-      eq(budgets.status, filters.status),
-    );
+  if (filters.status && filters.status !== "all") {
+    conditions.push(eq(budgets.status, filters.status));
   }
 
   if (filters.search) {
@@ -65,20 +53,13 @@ export const findAll = async (
   return rows.map(toDto);
 };
 
-export const findById = async (
-  id: number,
-) => {
-  const [row] = await db
-    .select()
-    .from(budgets)
-    .where(eq(budgets.id, id));
+export const findById = async (id: number) => {
+  const [row] = await db.select().from(budgets).where(eq(budgets.id, id));
 
   return row ? toDto(row) : null;
 };
 
-export const create = async (
-  data: CreateBudgetInput,
-) => {
+export const create = async (data: CreateBudgetInput) => {
   const [created] = await db
     .insert(budgets)
     .values({
@@ -103,43 +84,27 @@ export const create = async (
   return toDto(created);
 };
 
-export const update = async (
-  id: number,
-  data: UpdateBudgetInput,
-) => {
-  const updateData: Partial<
-    typeof budgets.$inferInsert
-  > = {
+export const update = async (id: number, data: UpdateBudgetInput) => {
+  const updateData: Partial<typeof budgets.$inferInsert> = {
     updatedAt: new Date(),
   };
 
-  if (data.project !== undefined)
-    updateData.project = data.project;
+  if (data.project !== undefined) updateData.project = data.project;
 
-  if (data.category !== undefined)
-    updateData.category = data.category;
+  if (data.category !== undefined) updateData.category = data.category;
 
-  if (data.owner !== undefined)
-    updateData.owner = data.owner;
+  if (data.owner !== undefined) updateData.owner = data.owner;
 
-  if (data.planned !== undefined)
-    updateData.planned =
-      data.planned.toString();
+  if (data.planned !== undefined) updateData.planned = data.planned.toString();
 
   if (data.committed !== undefined)
-    updateData.committed =
-      data.committed.toString();
+    updateData.committed = data.committed.toString();
 
-  if (data.spent !== undefined)
-    updateData.actual =
-      data.spent.toString();
+  if (data.spent !== undefined) updateData.actual = data.spent.toString();
 
-  if (data.fiscalYear !== undefined)
-    updateData.fiscalYear =
-      data.fiscalYear;
+  if (data.fiscalYear !== undefined) updateData.fiscalYear = data.fiscalYear;
 
-  if (data.status !== undefined)
-    updateData.status = data.status;
+  if (data.status !== undefined) updateData.status = data.status;
 
   const [updated] = await db
     .update(budgets)
@@ -150,9 +115,7 @@ export const update = async (
   return updated ? toDto(updated) : null;
 };
 
-export const remove = async (
-  id: number,
-) => {
+export const remove = async (id: number) => {
   const [deleted] = await db
     .delete(budgets)
     .where(eq(budgets.id, id))

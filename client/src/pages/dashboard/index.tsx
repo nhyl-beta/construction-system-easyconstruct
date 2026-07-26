@@ -1,9 +1,8 @@
 import { MOCK_IDENTITY } from "@/config/mock-role";
 import HRDashboardPage from "@/pages/roles/human-resources/hr-dashboard";
 import PMDashboardPage from "@/pages/roles/project-manager/pm-dashboard";
+import ArchitectDashboard from "../roles/architect/architect-dashboard";
 import FinanceDashboardPage from "../roles/finance/finance-dashboard";
-
-
 
 // ── Role → Dashboard map ──────────────────────────────────────────────────────
 
@@ -11,7 +10,7 @@ const ROLE_DASHBOARD: Record<string, React.ComponentType> = {
   project_manager: PMDashboardPage,
   human_resources: HRDashboardPage,
   finance_manager: FinanceDashboardPage,
-  // architect:       ArchitectDashboardPage,
+  architect: ArchitectDashboard,
   // engineer:        EngineerDashboardPage,
   // site_personnel:  SitePersonnelDashboardPage,
   // consultant:      ConsultantDashboardPage,

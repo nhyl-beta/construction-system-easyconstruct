@@ -36,8 +36,13 @@ import FinanceImpactReview from "./pages/roles/finance/finance-impact-review";
 import FinancePayrollReview from "./pages/roles/finance/finance-payroll-review";
 
 // ── Architect Pages ──
+import ArchitectBlueprints from "./pages/roles/architect/architect-blueprints";
 import ArchitectDesigns from "./pages/roles/architect/architect-designs";
+import ArchitectDocumentation from "./pages/roles/architect/architect-documentation";
+import ArchitectProjects from "./pages/roles/architect/architect-projects";
 import ArchitectProposals from "./pages/roles/architect/architect-proposals";
+import ArchitectReviews from "./pages/roles/architect/architect-reviews";
+import ArchitectRevisions from "./pages/roles/architect/architect-revisions";
 
 // ── Engineer Pages ──
 import EngineerIssues from "./pages/roles/engineer/engineer-issues";
@@ -58,6 +63,9 @@ import SharedReports from "./pages/roles/shared/shared-reports";
 import SharedResources from "./pages/roles/shared/shared-resources";
 
 import "./App.css";
+import ArchitectDesignCreate from "./pages/roles/architect/architect-design-create";
+import ArchitectDesignDetail from "./pages/roles/architect/architect-design-detail";
+import FinanceExpenses from "./pages/roles/finance/finance-expenses";
 
 function App() {
   return (
@@ -119,6 +127,7 @@ function App() {
 
                   {/* ── Finance Routes ── */}
                   <Route path="/budget" element={<FinanceBudget />} />
+                  <Route path="/expenses" element={<FinanceExpenses />} />
                   <Route
                     path="/payroll-review"
                     element={<FinancePayrollReview />}
@@ -130,7 +139,26 @@ function App() {
 
                   {/* ── Architect Routes ── */}
                   <Route path="/designs" element={<ArchitectDesigns />} />
+                  <Route
+                    path="/designs/new"
+                    element={<ArchitectDesignCreate />}
+                  />
+                  <Route
+                    path="/designs/:id"
+                    element={<ArchitectDesignDetail />}
+                  />
                   <Route path="/proposals" element={<ArchitectProposals />} />
+                  <Route
+                    path="/architect/projects"
+                    element={<ArchitectProjects />}
+                  />
+                  <Route path="/revisions" element={<ArchitectRevisions />} />
+                  <Route path="/reviews" element={<ArchitectReviews />} />
+                  <Route
+                    path="/architect/documents"
+                    element={<ArchitectDocumentation />}
+                  />
+                  <Route path="/blueprints" element={<ArchitectBlueprints />} />
 
                   {/* ── Engineer Routes ── */}
                   <Route path="/progress" element={<EngineerProgress />} />

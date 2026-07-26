@@ -1,0 +1,37 @@
+import { NextFunction, Request, Response } from "express";
+import { HTTP } from "../../constants/http-status.js";
+import { MSG } from "../../constants/messages.js";
+import { formatSuccess } from "../../utils/response.js";
+import * as service from "./service.js";
+
+export const getAll = async (req: Request, res: Response, next: NextFunction) => {
+  try {
+    const data = await service.getAll({
+      designId: req.query.designId ? Number(req.query.designId) : undefined,
+      status: req.query.status as string,
+    });
+    res.json(formatSuccess(data, MSG.designReviews.retrieved));
+  } catch (err) { next(err); }
+};
+export const getById = async (req: Request, res: Response, next: NextFunction) => {
+  try {
+    res.json(formatSuccess(await service.getById(Number(req.params.id)), MSG.designReviews.single));
+  } catch (err) { next(err); }
+};
+export const create = async (req: Request, res: Response, next: NextFunction) => {
+  try {
+    const data = await service.create(req.body);
+    res.status(HTTP.CREATED).json(formatSuccess(data, MSG.designReviews.created));
+  } catch (err) { next(err); }
+};
+export const decide = async (req: Request, res: Response, next: NextFunction) => {
+  try {
+    const data = await service.decide({ id: Number(req.params.id), decision: req.body.decision });
+    res.json(formatSuccess(data, MSG.designReviews.updated));
+  } catch (err) { next(err); }
+};
+export const remove = async (req: Request, res: Response, next: NextFunction) => {
+  try {
+    res.json(formatSuccess(await service.remove(Number(req.params.id)), MSG.designReviews.deleted));
+  } catch (err) { next(err); }
+};

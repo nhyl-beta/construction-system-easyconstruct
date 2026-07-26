@@ -1,0 +1,28 @@
+import {
+  integer,
+  pgTable,
+  serial,
+  text,
+  timestamp,
+  varchar,
+} from "drizzle-orm/pg-core";
+import { designs } from "./designs.js";
+
+export const designRevisions = pgTable("design_revisions", {
+  id: serial("id").primaryKey(),
+  designId: integer("design_id")
+    .notNull()
+    .references(() => designs.id),
+  version: varchar("version", { length: 20 }).notNull(),
+  parentVersion: varchar("parent_version", { length: 20 }),
+  revisionNumber: integer("revision_number").notNull().default(1),
+  reason: varchar("reason", { length: 255 }),
+  changeSummary: text("change_summary"),
+  status: varchar("status", { length: 50 }).notNull().default("Draft"),
+  createdBy: varchar("created_by", { length: 100 }).notNull(),
+  createdAt: timestamp("created_at").defaultNow(),
+  approvedAt: timestamp("approved_at"),
+});
+
+export type DesignRevision = typeof designRevisions.$inferSelect;
+export type NewDesignRevision = typeof designRevisions.$inferInsert;

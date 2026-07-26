@@ -127,13 +127,11 @@ export const ROLE_CONFIGS: Record<string, RoleConfig> = {
       {
         label: "People",
         items: [
-          { label: "Employeees", icon: UsersRound, route: "/dashboard" },
-          {
-            label: "Employeee Profiles",
-            icon: UsersRound,
-            route: "/dashboard",
-          },
+          { label: "Employees", icon: UsersRound, route: "/employees" },
+          { label: "Employee Profiles", icon: UsersRound, route: "/employees" },
           { label: "Documents", icon: UsersRound, route: "/dashboard" },
+
+          // TODO: no HR documents page yet
         ],
       },
     ],
@@ -154,14 +152,14 @@ export const ROLE_CONFIGS: Record<string, RoleConfig> = {
       route: "/budget/new",
     },
     tabs: [
-      { label: "Approvals", icon: CheckSquare, route: "/approvals" },
       { label: "Budget", icon: BarChart2, route: "/budget" },
       {
         label: "Payroll Review",
         icon: ClipboardList,
         route: "/payroll-review",
       },
-      { label: "Impact Review", icon: ActivitySquare, route: "/impact-review" },
+      { label: "Expenses", icon: ActivitySquare, route: "/expenses" },
+      { label: "Approvals", icon: CheckSquare, route: "/approvals" },
     ],
 
     sections: [
@@ -213,6 +211,7 @@ export const ROLE_CONFIGS: Record<string, RoleConfig> = {
       icon: Plus,
     },
     tabs: [
+      { label: "Projects", icon: FolderKanban, route: "/projects" },
       { label: "Designs", icon: Ruler, route: "/designs" },
       { label: "Proposals", icon: FileText, route: "/proposals" },
       {
@@ -220,7 +219,6 @@ export const ROLE_CONFIGS: Record<string, RoleConfig> = {
         icon: ActivitySquare,
         route: "/impact-awareness",
       },
-      { label: "Projects", icon: FolderKanban, route: "/projects" },
     ],
 
     sections: [
@@ -236,26 +234,10 @@ export const ROLE_CONFIGS: Record<string, RoleConfig> = {
       {
         label: "Collaboration",
         items: [
-          {
-            label: "Reviews",
-            icon: BadgeCheck,
-            route: "/budget-overview",
-          },
-          {
-            label: "Revisions",
-            icon: SquarePen,
-            route: "/budget-allocations",
-          },
-          {
-            label: "Documentation",
-            icon: BarChart2,
-            route: "/budget-adjustments",
-          },
-          {
-            label: "AI Function",
-            icon: BarChart2,
-            route: "/budget-history",
-          },
+          { label: "Reviews", icon: BadgeCheck, route: "/dashboard" }, // TODO: no reviews page yet
+          { label: "Revisions", icon: SquarePen, route: "/dashboard" }, // TODO: no revisions page yet
+          { label: "Documentation", icon: BarChart2, route: "/dashboard" }, // TODO: no documentation page yet
+          { label: "AI Function", icon: BarChart2, route: "/impact-awareness" },
         ],
       },
     ],

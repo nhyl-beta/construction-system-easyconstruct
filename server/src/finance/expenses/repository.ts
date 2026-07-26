@@ -1,17 +1,25 @@
-import { and, ilike, or, eq, desc } from "drizzle-orm";
+import { and, desc, eq, ilike, or } from "drizzle-orm";
 
 import { db } from "../../db/connection.js";
 import { expenses } from "../../db/schema/finance.js";
 
-import type { CreateExpenseInput, ListExpensesQuery } from "../expenses/types.js";
+import type { CreateExpenseInput, ListExpensesQuery } from "./types.js";
 
 export const expensesRepository = {
-  async findMany({ query, category, page = 1, pageSize = 20 }: ListExpensesQuery) {
+  async findMany({
+    query,
+    category,
+    page = 1,
+    pageSize = 20,
+  }: ListExpensesQuery) {
     const conditions = [];
 
     if (query) {
       conditions.push(
-        or(ilike(expenses.vendor, `%${query}%`), ilike(expenses.id, `%${query}%`)),
+        or(
+          ilike(expenses.vendor, `%${query}%`),
+          ilike(expenses.id, `%${query}%`),
+        ),
       );
     }
     if (category && category !== "all") {

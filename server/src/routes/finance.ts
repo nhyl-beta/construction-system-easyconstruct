@@ -2,6 +2,8 @@
 import { Router } from "express";
 import { aiInsightsRouter } from "../finance/ai-insights/routes.js";
 import { approvalsRouter } from "../finance/approvals/routes.js";
+import { budgetAdjustmentsRoutes } from "../finance/budget-adjustments/types/routes.js";
+import { budgetApprovalStepsRoutes } from "../finance/budget-approval-steps/routes.js";
 import { budgetsRoutes } from "../finance/budget/routes.js";
 import { cashFlowRouter } from "../finance/cash-flow/routes.js";
 import { expensesRouter } from "../finance/expenses/routes.js";
@@ -16,6 +18,7 @@ import { summaryRouter } from "../finance/summary/routes.js";
 export const financeRouter = Router();
 
 financeRouter.use("/budgets", budgetsRoutes);
+financeRouter.use("/budget-adjustments", budgetAdjustmentsRoutes);
 financeRouter.use("/expenses", expensesRouter);
 financeRouter.use("/purchase-requests", purchaseRequestsRouter);
 financeRouter.use("/reimbursements", reimbursementsRouter);
@@ -27,5 +30,5 @@ financeRouter.use("/reports", reportsRouter);
 financeRouter.use("/cash-flow", cashFlowRouter);
 financeRouter.use("/project-profitability", projectProfitabilityRouter);
 financeRouter.use("/summary", summaryRouter);
-
+financeRouter.use("/budget-approval-steps", budgetApprovalStepsRoutes);
 // Mount in app.ts:  app.use("/api/finance", financeRouter);`

@@ -1,13 +1,13 @@
 import {
-  pgTable,
-  serial,
-  text,
-  varchar,
   integer,
   numeric,
-  timestamp,
-  real,
   pgEnum,
+  pgTable,
+  real,
+  serial,
+  text,
+  timestamp,
+  varchar,
 } from "drizzle-orm/pg-core";
 
 export const budgetStatusEnum = pgEnum("budget_status", [
@@ -36,21 +36,31 @@ export const budgets = pgTable("budgets", {
   category: varchar("category", { length: 64 }).notNull(),
   owner: varchar("owner", { length: 255 }).notNull(),
 
-  planned: numeric("planned", { precision: 14, scale: 2 }).notNull(),
-  committed: numeric("committed", { precision: 14, scale: 2 })
-    .notNull()
-    .default("0"),
+  planned: numeric("planned", {
+    precision: 14,
+    scale: 2,
+    mode: "number",
+  }).notNull(),
 
-  // UI "spent" → DB "actual"
-  actual: numeric("actual", { precision: 14, scale: 2 })
-    .notNull()
-    .default("0"),
+  committed: numeric("committed", {
+    precision: 14,
+    scale: 2,
+    mode: "number",
+  })
+    .default(0)
+    .notNull(),
+
+  actual: numeric("actual", {
+    precision: 14,
+    scale: 2,
+    mode: "number",
+  })
+    .default(0)
+    .notNull(),
 
   fiscalYear: varchar("fiscal_year", { length: 9 }).notNull(),
 
-  status: budgetStatusEnum("status")
-    .notNull()
-    .default("draft"),
+  status: budgetStatusEnum("status").notNull().default("draft"),
 
   createdAt: timestamp("created_at").defaultNow().notNull(),
   updatedAt: timestamp("updated_at").defaultNow().notNull(),
@@ -62,7 +72,11 @@ export const expenses = pgTable("expenses", {
   vendor: varchar("vendor", { length: 255 }).notNull(),
   project: varchar("project", { length: 255 }).notNull(),
   category: varchar("category", { length: 64 }).notNull(),
-  amount: numeric("amount", { precision: 14, scale: 2 }).notNull(),
+  amount: numeric("amount", {
+    precision: 14,
+    scale: 2,
+    mode: "number",
+  }).notNull(),
   submittedAt: timestamp("submitted_at").defaultNow().notNull(),
   status: varchar("status", { length: 32 }).notNull(), // pending | approved | rejected
   anomalyScore: real("anomaly_score"), // 0-1, nullable
@@ -75,7 +89,11 @@ export const purchaseRequests = pgTable("purchase_requests", {
   title: varchar("title", { length: 255 }).notNull(),
   project: varchar("project", { length: 255 }).notNull(),
   requestedBy: varchar("requested_by", { length: 255 }).notNull(),
-  amount: numeric("amount", { precision: 14, scale: 2 }).notNull(),
+  amount: numeric("amount", {
+    precision: 14,
+    scale: 2,
+    mode: "number",
+  }).notNull(),
   requestedAt: timestamp("requested_at").defaultNow().notNull(),
   status: varchar("status", { length: 32 }).notNull(),
 });
@@ -85,7 +103,11 @@ export const reimbursements = pgTable("reimbursements", {
   id: varchar("id", { length: 32 }).primaryKey(),
   employee: varchar("employee", { length: 255 }).notNull(),
   purpose: varchar("purpose", { length: 255 }).notNull(),
-  amount: numeric("amount", { precision: 14, scale: 2 }).notNull(),
+  amount: numeric("amount", {
+    precision: 14,
+    scale: 2,
+    mode: "number",
+  }).notNull(),
   submittedAt: timestamp("submitted_at").defaultNow().notNull(),
   status: varchar("status", { length: 32 }).notNull(),
 });
@@ -96,7 +118,11 @@ export const procurementOrders = pgTable("procurement_orders", {
   vendor: varchar("vendor", { length: 255 }).notNull(),
   project: varchar("project", { length: 255 }).notNull(),
   items: integer("items").notNull(),
-  amount: numeric("amount", { precision: 14, scale: 2 }).notNull(),
+  amount: numeric("amount", {
+    precision: 14,
+    scale: 2,
+    mode: "number",
+  }).notNull(),
   eta: varchar("eta", { length: 64 }),
   status: varchar("status", { length: 32 }).notNull(), // "In transit" | "Delivered" | ...
 });
@@ -107,7 +133,11 @@ export const approvalsQueue = pgTable("approvals_queue", {
   kind: varchar("kind", { length: 64 }).notNull(), // Budget | Payroll | Expense | ...
   reference: varchar("reference", { length: 255 }).notNull(),
   requestedBy: varchar("requested_by", { length: 255 }).notNull(),
-  amount: numeric("amount", { precision: 14, scale: 2 }).notNull(),
+  amount: numeric("amount", {
+    precision: 14,
+    scale: 2,
+    mode: "number",
+  }).notNull(),
   slaHours: integer("sla_hours").notNull(),
   status: varchar("status", { length: 32 }).notNull().default("pending"),
   createdAt: timestamp("created_at").defaultNow().notNull(),
@@ -138,8 +168,16 @@ export const financialRisks = pgTable("financial_risks", {
 export const cashFlowEntries = pgTable("cash_flow_entries", {
   id: serial("id").primaryKey(),
   month: varchar("month", { length: 16 }).notNull(), // "Jan 2026"
-  inflow: numeric("inflow", { precision: 14, scale: 2 }).notNull(),
-  outflow: numeric("outflow", { precision: 14, scale: 2 }).notNull(),
+  inflow: numeric("inflow", {
+    precision: 14,
+    scale: 2,
+    mode: "number",
+  }).notNull(),
+  outflow: numeric("outflow", {
+    precision: 14,
+    scale: 2,
+    mode: "number",
+  }).notNull(),
 });
 
 // ── Scheduled reports ──────────────────────────────────────────────────────
@@ -147,7 +185,7 @@ export const scheduledReports = pgTable("scheduled_reports", {
   id: serial("id").primaryKey(),
   title: varchar("title", { length: 255 }).notNull(),
   cadence: varchar("cadence", { length: 64 }).notNull(), // "Every Mon", "1st of month", ...
-  time: varchar("time", { length: 16 }).notNull(),       // "07:00"
+  time: varchar("time", { length: 16 }).notNull(), // "07:00"
   recipients: text("recipients"), // comma-separated or jsonb later
 });
 
@@ -165,18 +203,16 @@ export const budgetAllocations = pgTable("budget_allocations", {
   amount: numeric("amount", {
     precision: 14,
     scale: 2,
+    mode: "number",
   }).notNull(),
 
   consumed: numeric("consumed", {
     precision: 14,
     scale: 2,
-  })
-    .notNull()
-    .default("0"),
+    mode: "number",
+  }).notNull(),
 
-  status: varchar("status", { length: 32 })
-    .notNull()
-    .default("active"),
+  status: varchar("status", { length: 32 }).notNull().default("active"),
 
   createdAt: timestamp("created_at").defaultNow().notNull(),
 });
@@ -194,16 +230,19 @@ export const budgetAdjustments = pgTable("budget_adjustments", {
   originalAmount: numeric("original_amount", {
     precision: 14,
     scale: 2,
+    mode: "number",
   }).notNull(),
 
   adjustmentAmount: numeric("adjustment_amount", {
     precision: 14,
     scale: 2,
+    mode: "number",
   }).notNull(),
 
   newAmount: numeric("new_amount", {
     precision: 14,
     scale: 2,
+    mode: "number",
   }).notNull(),
 
   reason: text("reason").notNull(),
@@ -212,9 +251,7 @@ export const budgetAdjustments = pgTable("budget_adjustments", {
     length: 255,
   }).notNull(),
 
-  requestedAt: timestamp("requested_at")
-    .defaultNow()
-    .notNull(),
+  requestedAt: timestamp("requested_at").defaultNow().notNull(),
 
   approvedBy: varchar("approved_by", {
     length: 255,
@@ -222,9 +259,7 @@ export const budgetAdjustments = pgTable("budget_adjustments", {
 
   approvedAt: timestamp("approved_at"),
 
-  status: budgetStatusEnum("status")
-    .notNull()
-    .default("draft"),
+  status: budgetStatusEnum("status").notNull().default("draft"),
 });
 
 // ── Budget approval workflow ───────────────────────────────────────────────
@@ -326,9 +361,59 @@ export const budgetDocuments = pgTable("budget_documents", {
     length: 255,
   }).notNull(),
 
-  uploadedAt: timestamp("uploaded_at")
-    .defaultNow()
-    .notNull(),
+  uploadedAt: timestamp("uploaded_at").defaultNow().notNull(),
 
   url: text("url"),
+});
+
+// ── Payroll batches ────────────────────────────────────────────────────────
+export const payrollBatches = pgTable("payroll_batches", {
+  id: varchar("id", { length: 32 }).primaryKey(), // e.g. "PAY-2048"
+
+  // Optional project reference for project-based payroll
+  projectCode: varchar("project_code", { length: 50 }),
+
+  period: varchar("period", { length: 32 }).notNull(), // e.g. "Jul 20–26, 2026"
+
+  group: varchar("group", { length: 128 }).notNull(), // Engineering, Site Crew A, etc.
+
+  employees: integer("employees").notNull(),
+
+  overtimeHours: numeric("overtime_hours", {
+    precision: 10,
+    scale: 2,
+    mode: "number",
+  })
+    .default(0)
+    .notNull(),
+
+  grossPayroll: numeric("gross_payroll", {
+    precision: 14,
+    scale: 2,
+    mode: "number",
+  }).notNull(),
+
+  deductions: numeric("deductions", {
+    precision: 14,
+    scale: 2,
+    mode: "number",
+  })
+    .default(0)
+    .notNull(),
+
+  netPayroll: numeric("net_payroll", {
+    precision: 14,
+    scale: 2,
+    mode: "number",
+  }).notNull(),
+
+  status: varchar("status", { length: 32 })
+    .notNull()
+    .default("pending"), // pending | approved | rejected | processing
+
+  reviewedBy: varchar("reviewed_by", { length: 255 }),
+
+  reviewedAt: timestamp("reviewed_at"),
+
+  createdAt: timestamp("created_at").defaultNow().notNull(),
 });

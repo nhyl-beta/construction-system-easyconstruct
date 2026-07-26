@@ -1,9 +1,6 @@
 import { NotFoundError, ValidationError } from "../../utils/errors.js";
-import { expensesRepository } from "../expenses/repository.js";
-import type {
-  CreateExpenseInput,
-  ListExpensesQuery,
-} from "../expenses/types.js";
+import { expensesRepository } from "./repository.js";
+import type { CreateExpenseInput, ListExpensesQuery } from "./types.js";
 
 export const expensesService = {
   async list(queryParams: ListExpensesQuery) {
