@@ -1,4 +1,4 @@
-import bcrypt from "bcrypt";
+import bcrypt from "bcryptjs";
 import { db } from "./connection.js";
 import { projects } from "./schema/projects.js";
 import { users } from "./schema/users.js";

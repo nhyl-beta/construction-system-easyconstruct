@@ -120,9 +120,9 @@ export default function ProjectCreatePage() {
       aiHint="Use AI to generate project timeline from a proposal or document."
     >
       {step === 1 && <StepProjectInfo data={data} set={set} />}
-      {step === 2 && <StepScopeSchedule data={data} set={set} />}
-      {step === 3 && <StepBudget data={data} set={set} />}
-      {step === 4 && <StepTeam data={data} set={set} />}
+      {step === 2 && <StepScopeSchedule />}
+      {step === 3 && <StepBudget />}
+      {step === 4 && <StepTeam set={set} />}
       {step === 5 && <StepReview data={data} />}
     </MultiStepPage>
   );
@@ -340,15 +340,7 @@ function StepProjectInfo({
 
 // ── Step 2 — Scope & Schedule ─────────────────────────────────────────────────
 
-function StepScopeSchedule({
-  data,
-}: {
-  data: ProjectFormData;
-  set: <K extends keyof ProjectFormData>(
-    key: K,
-    value: ProjectFormData[K],
-  ) => void;
-}) {
+function StepScopeSchedule() {
   return (
     <div className="space-y-6">
       <div>
@@ -373,16 +365,7 @@ function StepScopeSchedule({
 
 // ── Step 3 — Budget ───────────────────────────────────────────────────────────
 
-function StepBudget({
-  data,
-  set,
-}: {
-  data: ProjectFormData;
-  set: <K extends keyof ProjectFormData>(
-    key: K,
-    value: ProjectFormData[K],
-  ) => void;
-}) {
+function StepBudget() {
   return (
     <div className="space-y-6">
       <div>
@@ -409,11 +392,8 @@ function StepBudget({
 // ── Step 4 — Team ─────────────────────────────────────────────────────────────
 
 function StepTeam({
-  // eslint-disable-next-line @typescript-eslint/no-unused-vars
-  data,
   set,
 }: {
-  data: ProjectFormData;
   set: <K extends keyof ProjectFormData>(
     key: K,
     value: ProjectFormData[K],

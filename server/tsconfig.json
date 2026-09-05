@@ -39,6 +39,7 @@
   },
 
   "include": [
+  "index.ts",
   "src/**/*.ts",
   "drizzle.config.ts"
 ],

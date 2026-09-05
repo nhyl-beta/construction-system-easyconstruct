@@ -1,4 +1,4 @@
-import bcrypt from "bcrypt";
+import bcrypt from "bcryptjs";
 import jwt from "jsonwebtoken";
 import * as repo from "./repository.js";
 import { UnauthorizedError } from "../utils/errors.js";
