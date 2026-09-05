@@ -1,5 +1,7 @@
+import bcrypt from "bcrypt";
 import { db } from "./connection.js";
 import { projects } from "./schema/projects.js";
+import { users } from "./schema/users.js";
 
 const mockProjects = [
   {
@@ -79,8 +81,31 @@ const mockProjects = [
   },
 ];
 
+const developmentUsers = [
+  { email: "superadmin@easyconstruct.test", name: "Super Admin Test", role: "super-admin" },
+  { email: "admin@easyconstruct.test", name: "Admin Test", role: "admin" },
+  { email: "hr@easyconstruct.test", name: "HR Test", role: "human-resources" },
+  { email: "finance@easyconstruct.test", name: "Finance Manager Test", role: "finance-manager" },
+  { email: "pm@easyconstruct.test", name: "Test Project Manager", role: "project-manager" },
+  { email: "architect@easyconstruct.test", name: "Architect Test", role: "architect" },
+  { email: "engineer@easyconstruct.test", name: "Engineer Test", role: "engineer" },
+  { email: "sitepersonnel@easyconstruct.test", name: "Site Personnel Test", role: "site-personnel" },
+  { email: "consultant@easyconstruct.test", name: "Consultant Test", role: "consultant" },
+] as const;
+
+export const seedTestUsers = async () => {
+  const password = await bcrypt.hash("Test1234", 10);
+  for (const user of developmentUsers) {
+    await db.insert(users).values({ ...user, password }).onConflictDoUpdate({
+      target: users.email,
+      set: { password, name: user.name, role: user.role },
+    });
+  }
+};
+
 async function seed() {
-  console.log("🌱 Seeding projects...");
+  console.log("🌱 Seeding development user and projects...");
+  await seedTestUsers();
   await db.insert(projects).values(mockProjects).onConflictDoNothing();
   console.log("✅ Done.");
   process.exit(0);

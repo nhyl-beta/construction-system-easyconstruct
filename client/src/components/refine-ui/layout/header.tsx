@@ -12,10 +12,9 @@ import { Input } from "@/components/ui/input";
 import { Separator } from "@/components/ui/separator";
 import { SidebarTrigger, useSidebar } from "@/components/ui/sidebar";
 import { useRoleConfig } from "@/hooks/use-role-config";
+import { useAuth } from "@/auth/auth-context";
 import { cn } from "@/lib/utils";
 import {
-  useActiveAuthProvider,
-  useLogout,
   useParsed,
   useRefineOptions,
 } from "@refinedev/core";
@@ -215,10 +214,7 @@ function MobileHeader() {
 }
 
 const UserDropdown = () => {
-  const { mutate: logout, isPending: isLoggingOut } = useLogout();
-  const authProvider = useActiveAuthProvider();
-
-  if (!authProvider?.getIdentity) return null;
+  const { logout } = useAuth();
 
   return (
     <DropdownMenu>
@@ -226,10 +222,10 @@ const UserDropdown = () => {
         <UserAvatar />
       </DropdownMenuTrigger>
       <DropdownMenuContent align="end">
-        <DropdownMenuItem onClick={() => logout()}>
+        <DropdownMenuItem onClick={logout}>
           <LogOutIcon className={cn("text-destructive")} />
           <span className={cn("text-destructive")}>
-            {isLoggingOut ? "Logging out..." : "Logout"}
+            Logout
           </span>
         </DropdownMenuItem>
       </DropdownMenuContent>

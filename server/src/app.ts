@@ -10,6 +10,7 @@ import { logger } from "./middleware/logger.js";
 import { requestId } from "./middleware/request-id.js";
 import projectRoutes from "./projects/routes.js";
 import proposalRoutes from "./proposals/routes.js";
+import { authRoutes } from "./validators/routes.js";
 // import userRoutes        from './modules/users/routes';     // uncomment as built
 
 const app = express();
@@ -26,7 +27,8 @@ app.use("/api/proposals", proposalRoutes);
 app.use("/api/design-revisions", designRevisionsRoutes);
 app.use("/api/design-reviews", designReviewsRoutes);
 app.use("/api/architect-documents", architectDocumentsRoutes);
-app.use("/api/blueprints", blueprintsRoutes);
+app.use("/api/blueprints", blueprintsRoutes)
+app.use("/api/auth", authRoutes);;
 
 // app.use('/api/users',    userRoutes);
 

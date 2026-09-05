@@ -1,11 +1,20 @@
 // src/providers/access-control-provider.ts
 import type { AccessControlProvider } from "@refinedev/core";
 import { ROLE_RESOURCE_ACCESS } from "@/config/role-resources";
-import { MOCK_IDENTITY } from "@/config/mock-role";
+import { toFrontendRole } from "@/config/role-mapping";
 
 export const accessControlProvider: AccessControlProvider = {
   can: async ({ resource, action }) => {
-    const role = MOCK_IDENTITY.role;
+    const rawUser = sessionStorage.getItem("easyconstruct_user")
+      ?? localStorage.getItem("easyconstruct_user");
+    let role = "project_manager";
+    if (rawUser) {
+      try {
+        role = toFrontendRole((JSON.parse(rawUser) as { role: string }).role);
+      } catch {
+        role = "project_manager";
+      }
+    }
     const allowed = ROLE_RESOURCE_ACCESS[role] ?? [];
 
     // No resource means a page-level check — allow

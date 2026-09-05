@@ -12,7 +12,6 @@ import {
   SidebarRail,
   useSidebar,
 } from "@/components/ui/sidebar";
-import { MOCK_IDENTITY } from "@/config/mock-role";
 import { RESOURCE_ICONS } from "@/config/resource-icons";
 import { ROLE_RESOURCE_ACCESS } from "@/config/role-resources";
 import { useRoleConfig } from "@/hooks/use-role-config";
@@ -25,8 +24,7 @@ import { useNavigate } from "react-router";
 
 const SECTION_ORDER = ["Workspace", "Intelligence"];
 
-function groupMenuItems(items: TreeMenuItem[]) {
-  const role = MOCK_IDENTITY.role;
+function groupMenuItems(items: TreeMenuItem[], role: string) {
   const allowed = ROLE_RESOURCE_ACCESS[role] ?? [];
 
   // ✅ Filter out resources not allowed for this role
@@ -63,7 +61,7 @@ export function Sidebar() {
   const { identity, config } = useRoleConfig();
   const AvatarIcon = config.icon;
 
-  const sections = groupMenuItems(menuItems);
+  const sections = groupMenuItems(menuItems, identity.role);
 
   const isActive = (route: string) => {
     if (!pathname) return false;

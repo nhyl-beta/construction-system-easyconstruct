@@ -1,7 +1,7 @@
 import {
   BadgeCheck,
   Layers,
-  LucideIcon,
+  type LucideIcon,
   NotepadTextDashed,
   Plus,
   SquarePen,
@@ -56,6 +56,32 @@ export type RoleConfig = {
 };
 
 export const ROLE_CONFIGS: Record<string, RoleConfig> = {
+  super_admin: {
+    label: "Super Admin",
+    initials: "SA",
+    subtitle: "Platform administration",
+    icon: UserCheck,
+    avatarColor: "bg-red-700",
+    accentBg: "bg-red-600",
+    searchPlaceholder: "Search users, audit logs...",
+    primaryAi: "Platform Intelligence",
+    primaryAction: { label: "Dashboard", icon: LayoutDashboard, route: "/dashboard" },
+    tabs: [{ label: "Dashboard", icon: LayoutDashboard, route: "/dashboard" }],
+    sections: [{ label: "Administration", items: [{ label: "Dashboard", icon: LayoutDashboard, route: "/dashboard" }] }],
+  },
+  admin: {
+    label: "Admin",
+    initials: "AD",
+    subtitle: "System administration",
+    icon: UserCheck,
+    avatarColor: "bg-slate-700",
+    accentBg: "bg-slate-600",
+    searchPlaceholder: "Search users, settings...",
+    primaryAi: "Operations Intelligence",
+    primaryAction: { label: "Dashboard", icon: LayoutDashboard, route: "/dashboard" },
+    tabs: [{ label: "Dashboard", icon: LayoutDashboard, route: "/dashboard" }],
+    sections: [{ label: "Administration", items: [{ label: "Dashboard", icon: LayoutDashboard, route: "/dashboard" }] }],
+  },
   project_manager: {
     label: "Project Manager",
     initials: "PM",

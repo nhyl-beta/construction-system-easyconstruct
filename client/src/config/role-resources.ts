@@ -1,4 +1,6 @@
 export const ROLE_RESOURCE_ACCESS: Record<string, string[]> = {
+  super_admin: ["dashboard", "users", "audit-logs", "monitoring", "reports", "ai-insights"],
+  admin: ["dashboard", "users", "monitoring", "reports"],
   owner: [
     "dashboard",
     "users",

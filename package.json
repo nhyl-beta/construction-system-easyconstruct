@@ -1,0 +1,12 @@
+{
+  "name": "easyconstruct",
+  "private": true,
+  "scripts": {
+    "dev": "node scripts/dev.mjs",
+    "dev:client": "npm --prefix client run dev",
+    "dev:server": "npm --prefix server run dev",
+    "build:client": "npm --prefix client run build",
+    "build:server": "npm --prefix server run build",
+    "db:seed": "npm --prefix server run db:seed"
+  }
+}

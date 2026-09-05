@@ -8,6 +8,8 @@ import routerProvider, {
 } from "@refinedev/react-router";
 
 import { BrowserRouter, Outlet, Route, Routes } from "react-router";
+import { AuthProvider } from "@/auth/auth-context";
+import { ProtectedRoutes, PublicAuthRoute } from "@/components/auth/auth-routes";
 
 import { Layout } from "./components/refine-ui/layout/layout";
 import { Toaster } from "./components/refine-ui/notification/toaster";
@@ -17,6 +19,12 @@ import { ThemeProvider } from "./components/refine-ui/theme/theme-provider";
 import { accessControlProvider } from "./providers/access-control-provider";
 import { dataProvider } from "./providers/data";
 import { resources } from "./providers/resources";
+
+//Signin and Authentication Pages
+import LoginPage from "@/pages/auth/login";
+import ForgotPasswordPage from "@/pages/auth/forgot-password";
+import ResetPasswordPage from "@/pages/auth/reset-password";
+
 
 // ── Project Manager Pages ──
 import DashboardRouter from "@/pages/dashboard/index";
@@ -70,10 +78,11 @@ import FinanceExpenses from "./pages/roles/finance/finance-expenses";
 function App() {
   return (
     <BrowserRouter>
-      <RefineKbarProvider>
-        <ThemeProvider>
-          <DevtoolsProvider>
-            <Refine
+      <AuthProvider>
+        <RefineKbarProvider>
+          <ThemeProvider>
+            <DevtoolsProvider>
+              <Refine
               resources={resources}
               dataProvider={dataProvider}
               accessControlProvider={accessControlProvider}
@@ -85,14 +94,21 @@ function App() {
                 projectId: "2gnXaG-MhFPwx-oPqcp0",
               }}
             >
-              <Routes>
-                <Route
+                <Routes>
+                  <Route element={<PublicAuthRoute />}>
+                    <Route path="/login" element={<LoginPage />} />
+                    <Route path="/forgot-password" element={<ForgotPasswordPage />} />
+                    <Route path="/reset-password" element={<ResetPasswordPage />} />
+                  </Route>
+
+                  <Route element={<ProtectedRoutes />}>
+                    <Route
                   element={
                     <Layout>
                       <Outlet />
                     </Layout>
                   }
-                >
+                    >
                   {/* ── Shared Routes ── */}
                   <Route path="/" element={<DashboardRouter />} />
                   <Route path="/dashboard" element={<DashboardRouter />} />
@@ -176,17 +192,19 @@ function App() {
                     path="/advisory-docs"
                     element={<ConsultantAdvisoryDocs />}
                   />
-                </Route>
-              </Routes>
-              <Toaster />
-              <RefineKbar />
-              <UnsavedChangesNotifier />
-              <DocumentTitleHandler />
-            </Refine>
-            <DevtoolsPanel />
-          </DevtoolsProvider>
-        </ThemeProvider>
-      </RefineKbarProvider>
+                    </Route>
+                  </Route>
+                </Routes>
+                <Toaster />
+                <RefineKbar />
+                <UnsavedChangesNotifier />
+                <DocumentTitleHandler />
+              </Refine>
+              <DevtoolsPanel />
+            </DevtoolsProvider>
+          </ThemeProvider>
+        </RefineKbarProvider>
+      </AuthProvider>
     </BrowserRouter>
   );
 }
