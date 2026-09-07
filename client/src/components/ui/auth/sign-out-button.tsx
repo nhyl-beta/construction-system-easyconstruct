@@ -6,9 +6,10 @@ import { cn } from "@/lib/utils";
 
 interface SignOutButtonProps {
   className?: string;
+  iconOnly?: boolean;
 }
 
-export function SignOutButton({ className }: SignOutButtonProps) {
+export function SignOutButton({ className, iconOnly = false }: SignOutButtonProps) {
   const { logout } = useAuth();
   const navigate = useNavigate();
 
@@ -16,6 +17,22 @@ export function SignOutButton({ className }: SignOutButtonProps) {
     logout();
     navigate("/login");
   };
+
+  if (iconOnly) {
+    return (
+      <Button
+        type="button"
+        variant="ghost"
+        size="icon"
+        aria-label="Sign out"
+        title="Sign out"
+        className={cn("h-8 w-8 shrink-0", className)}
+        onClick={handleSignOut}
+      >
+        <LogOut className="h-4 w-4" aria-hidden="true" />
+      </Button>
+    );
+  }
 
   return (
     <Button

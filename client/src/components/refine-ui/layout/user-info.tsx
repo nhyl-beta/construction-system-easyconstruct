@@ -1,60 +1,24 @@
 import { UserAvatar } from "@/components/refine-ui/layout/user-avatar";
 import { SignOutButton } from "@/components/ui/auth/sign-out-button";
-import { Skeleton } from "@/components/ui/skeleton";
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuTrigger,
-} from "@/components/ui/dropdown-menu";
 import { cn } from "@/lib/utils";
-import { useGetIdentity } from "@refinedev/core";
-
-type User = {
-  id: number;
-  firstName: string;
-  lastName: string;
-  fullName: string;
-  email: string;
-  avatar?: string;
-};
+import { useAuth } from "@/auth/auth-context";
 
 export function UserInfo() {
-  const { data: user, isLoading: userIsLoading } = useGetIdentity<User>();
+  const { user } = useAuth();
 
-  if (userIsLoading || !user) {
-    return (
-      <div className={cn("flex", "items-center", "gap-x-2")}>
-        <Skeleton className={cn("h-10", "w-10", "rounded-full")} />
-        <div className={cn("flex", "flex-col", "justify-between", "h-10")}>
-          <Skeleton className={cn("h-4", "w-32")} />
-          <Skeleton className={cn("h-4", "w-24")} />
-        </div>
-      </div>
-    );
-  }
-
-  const { firstName, lastName, email } = user;
+  if (!user) return null;
 
   return (
-    <DropdownMenu>
-      <DropdownMenuTrigger asChild>
-        <button
-          type="button"
-          className={cn("flex", "items-center", "gap-x-2", "text-left")}
-        >
-          <UserAvatar />
-          <div className={cn("flex", "flex-col", "justify-between", "h-10")}>
-            <span className={cn("text-sm", "font-medium", "text-muted-foreground")}>
-              {firstName} {lastName}
-            </span>
-            <span className={cn("text-xs", "text-muted-foreground")}>{email}</span>
-          </div>
-        </button>
-      </DropdownMenuTrigger>
-      <DropdownMenuContent align="start" className="w-48">
-        <SignOutButton />
-      </DropdownMenuContent>
-    </DropdownMenu>
+    <div className={cn("flex items-center gap-2.5 px-2 py-2")}>
+      <UserAvatar className="h-8 w-8" />
+      <div className="flex min-w-0 flex-col leading-tight">
+        <span className="truncate text-sm font-medium">{user.name}</span>
+        <span className="truncate text-[11px] text-muted-foreground">
+          {user.email}
+        </span>
+      </div>
+      <SignOutButton iconOnly className="ml-auto" />
+    </div>
   );
 }
 

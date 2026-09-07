@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/no-unused-vars */
 import {
   Sidebar as ShadcnSidebar,
   SidebarContent,
@@ -16,10 +17,11 @@ import { RESOURCE_ICONS } from "@/config/resource-icons";
 import { ROLE_RESOURCE_ACCESS } from "@/config/role-resources";
 import { useRoleConfig } from "@/hooks/use-role-config";
 import { cn } from "@/lib/utils";
+import { useAuth } from "@/auth/auth-context";
+import { SignOutButton } from "@/components/ui/auth/sign-out-button";
 import { useMenu, useParsed, type TreeMenuItem } from "@refinedev/core";
 import { ListIcon } from "lucide-react";
 import { useNavigate } from "react-router";
-
 // ── Helpers ──────────────────────────────────────────────────────────────────
 
 const SECTION_ORDER = ["Workspace", "Intelligence"];
@@ -59,6 +61,7 @@ export function Sidebar() {
   const { pathname } = useParsed();
   const navigate = useNavigate();
   const { identity, config } = useRoleConfig();
+  const { user } = useAuth();
   const AvatarIcon = config.icon;
 
   const sections = groupMenuItems(menuItems, identity.role);
@@ -134,16 +137,8 @@ export function Sidebar() {
           {/* Avatar */}
           <div
             className={cn(
-              "flex",
-              "h-8",
-              "w-8",
-              "shrink-0",
-              "items-center",
-              "justify-center",
-              "rounded-lg",
-              "text-white",
-              "text-xs",
-              "font-semibold",
+              "flex", "h-8", "w-8", "shrink-0", "items-center", "justify-center",
+              "rounded-lg", "text-white", "text-xs", "font-semibold",
               config.avatarColor,
             )}
           >
@@ -153,20 +148,27 @@ export function Sidebar() {
           {/* Name + workspace label — hidden when collapsed */}
           <div
             className={cn(
-              "flex",
-              "min-w-0",
-              "flex-col",
-              "leading-tight",
-              "group-data-[collapsible=icon]:hidden", // ✅ Shadcn built-in collapse helper
+              "flex", "min-w-0", "flex-col", "leading-tight",
+              "group-data-[collapsible=icon]:hidden",
             )}
           >
             <span className="truncate text-sm font-medium text-foreground">
               {identity.name}
             </span>
+            {/* FLAG: identity has no email field. Showing user?.email from
+                useAuth() as a fallback so the real signed-in email appears
+                when available, but this is two identity sources side by
+                side, not yet unified — see note below. */}
             <span className="truncate text-[11px] text-muted-foreground">
-              {config.label} workspace
+              {user?.email ?? `${config.label} workspace`}
             </span>
           </div>
+
+          {/* Sign out — icon-only, hidden when collapsed */}
+          <SignOutButton
+            iconOnly
+            className={cn("ml-auto", "group-data-[collapsible=icon]:hidden")}
+          />
         </div>
       </SidebarFooter>
     </ShadcnSidebar>
