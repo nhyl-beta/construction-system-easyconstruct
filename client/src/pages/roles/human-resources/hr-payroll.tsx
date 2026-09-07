@@ -18,7 +18,7 @@ import {
   PageHeader,
   StatusBadge,
 } from "@/pages/roles/shared/shared-hr";
-import { payrollRows } from "@/providers/mock-data";
+import { usePayroll } from "@/features/hr/hooks/use-hr";
 import {
   AlertTriangle,
   ArrowUpRight,
@@ -27,8 +27,34 @@ import {
   Download,
   Wallet,
 } from "lucide-react";
+import { useMemo, useState } from "react";
 
 export default function HRPayrollPage() {
+  const [period, setPeriod] = useState("");
+  const { payroll, loading, error, refresh, generate } = usePayroll(period || undefined);
+  const [periodStart, periodEnd] = useMemo(() => {
+    const now = new Date();
+    const start = new Date(now.getFullYear(), now.getMonth(), 1);
+    const end = new Date(now.getFullYear(), now.getMonth() + 1, 0);
+    return [start.toISOString().slice(0, 10), end.toISOString().slice(0, 10)];
+  }, []);
+  const [start, setStart] = useState(periodStart);
+  const [end, setEnd] = useState(periodEnd);
+  const [generating, setGenerating] = useState(false);
+  const generateBatch = async () => {
+    setGenerating(true);
+    try {
+      const result = await generate({ periodStart: start, periodEnd: end });
+      setPeriod(result.period);
+      await refresh();
+    } catch (generateError) {
+      window.alert(generateError instanceof Error ? generateError.message : "Failed to generate payroll.");
+    } finally {
+      setGenerating(false);
+    }
+  };
+  const rows = payroll?.rows ?? [];
+  const totals = payroll?.totals ?? { grossLabor: 0, deductions: 0, netPayable: 0, overtimeHours: 0 };
   return (
     <div className="flex-1 space-y-6 p-4 md:p-6">
       <PageHeader
@@ -49,25 +75,25 @@ export default function HRPayrollPage() {
       <div className="grid grid-cols-2 gap-3 md:grid-cols-4">
         <KpiMini
           label="Gross labor (period)"
-          value="$2.84M"
+          value={`$${totals.grossLabor.toLocaleString(undefined, { maximumFractionDigits: 2 })}`}
           tone="info"
           icon={Wallet}
         />
         <KpiMini
           label="Net payable"
-          value="$2.28M"
+          value={`$${totals.netPayable.toLocaleString(undefined, { maximumFractionDigits: 2 })}`}
           tone="success"
           icon={CheckCircle2}
         />
         <KpiMini
           label="Overtime cost"
-          value="$184K"
+          value={`$${totals.overtimeHours.toLocaleString()}h`}
           tone="warning"
           icon={Clock}
         />
         <KpiMini
           label="Awaiting approval"
-          value="124"
+          value={String(rows.filter((row) => row.status === "Pending").length)}
           tone="warning"
           icon={AlertTriangle}
         />
@@ -78,8 +104,15 @@ export default function HRPayrollPage() {
           <CardHeader>
             <CardTitle className="text-base">Payroll batch B-118</CardTitle>
             <p className="text-xs text-muted-foreground">
-              Pay period Jun 1 – Jun 15 · 518 employees
+                {period || "Generate a period from attendance"} · {rows.length} employees
             </p>
+            <div className="flex flex-wrap items-end gap-2 pt-3">
+              <label className="text-xs text-muted-foreground">Start<input type="date" value={start} onChange={(event) => setStart(event.target.value)} className="ml-2 h-8 rounded-lg border bg-background px-2 text-xs" /></label>
+              <label className="text-xs text-muted-foreground">End<input type="date" value={end} onChange={(event) => setEnd(event.target.value)} className="ml-2 h-8 rounded-lg border bg-background px-2 text-xs" /></label>
+              <Button size="sm" className="rounded-xl" onClick={generateBatch} disabled={generating}>
+                {generating ? "Generating…" : "Generate payroll"}
+              </Button>
+            </div>
           </CardHeader>
           <CardContent className="px-0">
             <Table>
@@ -96,7 +129,9 @@ export default function HRPayrollPage() {
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {payrollRows.map((p) => (
+                {loading && <TableRow><TableCell colSpan={8} className="py-8 text-center text-muted-foreground">Loading payroll…</TableCell></TableRow>}
+                {error && !loading && <TableRow><TableCell colSpan={8} className="py-8 text-center text-destructive">{error}</TableCell></TableRow>}
+                {!loading && !error && rows.map((p) => (
                   <TableRow key={p.empId} className="hover:bg-muted/40">
                     <TableCell>
                       <div className="flex items-center gap-2">
@@ -123,13 +158,13 @@ export default function HRPayrollPage() {
                       {p.overtime}
                     </TableCell>
                     <TableCell className="text-right text-sm">
-                      ${p.gross.toLocaleString()}
+                      ${Number(p.gross).toLocaleString()}
                     </TableCell>
                     <TableCell className="text-right text-sm text-muted-foreground">
-                      −${p.deductions.toLocaleString()}
+                      −${Number(p.deductions).toLocaleString()}
                     </TableCell>
                     <TableCell className="text-right text-sm font-semibold">
-                      ${p.net.toLocaleString()}
+                      ${Number(p.net).toLocaleString()}
                     </TableCell>
                     <TableCell>
                       <StatusBadge status={p.status} />
@@ -152,18 +187,18 @@ export default function HRPayrollPage() {
             <div className="rounded-xl border bg-muted/30 p-4">
               <div className="text-xs text-muted-foreground">Total payable</div>
               <div className="mt-1 text-2xl font-semibold tracking-tight">
-                $2,284,910
+                ${totals.netPayable.toLocaleString(undefined, { maximumFractionDigits: 2 })}
               </div>
-              <div className="mt-2 text-[11px] text-success">
-                +4.1% vs prev period
+              <div className="mt-2 text-[11px] text-muted-foreground">
+                Based on generated payroll rows
               </div>
             </div>
             <div className="space-y-3">
               {[
-                { label: "Base wages", value: 78, amount: "$2.21M" },
-                { label: "Overtime", value: 6, amount: "$184K" },
-                { label: "Bonuses", value: 4, amount: "$112K" },
-                { label: "Deductions", value: 12, amount: "$336K" },
+                { label: "Gross labor", value: totals.grossLabor ? 100 : 0, amount: `$${totals.grossLabor.toLocaleString()}` },
+                { label: "Overtime hours", value: totals.overtimeHours ? 100 : 0, amount: `${totals.overtimeHours}h` },
+                { label: "Deductions", value: totals.grossLabor ? Math.round((totals.deductions / totals.grossLabor) * 100) : 0, amount: `$${totals.deductions.toLocaleString()}` },
+                { label: "Net payable", value: totals.grossLabor ? Math.round((totals.netPayable / totals.grossLabor) * 100) : 0, amount: `$${totals.netPayable.toLocaleString()}` },
               ].map((s) => (
                 <div key={s.label}>
                   <div className="flex items-center justify-between text-xs">

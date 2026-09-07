@@ -72,6 +72,7 @@ import {
 
 import { useMemo, useState } from "react";
 import { Link } from "react-router";
+import { useWorkforceReport } from "@/features/hr/hooks/use-hr";
 
 
 function toneBg(tone: ToneBg) {
@@ -1223,6 +1224,7 @@ function ReportsSection() {
 export default function HRDashboardPage() {
   const [tab, setTab] = useState("overview");
   const [showEmployeeModal, setShowEmployeeModal] = useState(false);
+  const { report, error: reportError } = useWorkforceReport();
 
   return (
     <div className="flex-1 space-y-6 p-4 md:p-6">
@@ -1270,6 +1272,13 @@ export default function HRDashboardPage() {
             Reports
           </TabsTrigger>
         </TabsList>
+        <div className="text-xs text-muted-foreground">
+          {reportError
+            ? "Live workforce data is unavailable."
+            : report
+            ? `Live workforce data · ${report.totals.active} active of ${report.totals.headcount} employees`
+            : "Loading live workforce data…"}
+        </div>
 
         <TabsContent value="overview" className="space-y-6">
           <OverviewSection />

@@ -51,6 +51,11 @@ export const resources: ResourceProps[] = [
     list: "/payroll",
     meta: { label: "Payroll", group: "Workspace" },
   },
+  {
+    name: "workforce-reports",
+    list: "/workforce-reports",
+    meta: { label: "Workforce Reports", group: "Intelligence" },
+  },
 
   // Finance
   {

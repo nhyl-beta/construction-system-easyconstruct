@@ -20,6 +20,8 @@ export const payroll = pgTable("payroll", {
   net: numeric("net", { precision: 10, scale: 2 }).notNull(),
   status: varchar("status", { length: 20 }).notNull().default("Pending"),
   period: varchar("period", { length: 50 }).notNull(),
+  periodStart: varchar("period_start", { length: 10 }),
+  periodEnd: varchar("period_end", { length: 10 }),
   createdAt: timestamp("created_at").defaultNow(),
 });
 

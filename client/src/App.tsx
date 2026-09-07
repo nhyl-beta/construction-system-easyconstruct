@@ -37,6 +37,7 @@ import PMWorkflows from "./pages/roles/project-manager/pm-workflows";
 import HRAttendance from "./pages/roles/human-resources/hr-attendance";
 import HREmployees from "./pages/roles/human-resources/hr-employees";
 import HRPayroll from "./pages/roles/human-resources/hr-payroll";
+import HRWorkforce from "./pages/roles/human-resources/hr-workforce";
 
 // ── Finance Pages ──
 import FinanceBudget from "./pages/roles/finance/finance-budget";
@@ -135,11 +136,16 @@ function App() {
                     element={<EmployeeCreatePage />}
                   />
                   <Route
+                    path="/employees/edit/:id"
+                    element={<EmployeeCreatePage />}
+                  />
+                  <Route
                     path="/employees/new"
                     element={<EmployeeCreatePage />}
                   />
                   <Route path="/attendance" element={<HRAttendance />} />
                   <Route path="/payroll" element={<HRPayroll />} />
+                  <Route path="/workforce-reports" element={<HRWorkforce />} />
 
                   {/* ── Finance Routes ── */}
                   <Route path="/budget" element={<FinanceBudget />} />

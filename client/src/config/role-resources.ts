@@ -25,6 +25,7 @@ export const ROLE_RESOURCE_ACCESS: Record<string, string[]> = {
     "employees",
     "attendance",
     "payroll",
+    "workforce-reports",
     "reports",
   ],
   finance_manager: [

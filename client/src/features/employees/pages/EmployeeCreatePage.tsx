@@ -9,10 +9,11 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Info } from "lucide-react";
-import { useState } from "react";
-import { useNavigate } from "react-router";
+import { useEffect, useState } from "react";
+import { useNavigate, useParams } from "react-router";
+import { createEmployee, getEmployee, updateEmployee } from "@/features/hr/hr-api";
 
-type EmployeeStatus = "Active" | "On Leave" | "Suspended";
+type EmployeeStatus = "Active" | "On Leave" | "Suspended" | "Archived";
 
 const STEPS: Step[] = [
   {
@@ -64,10 +65,35 @@ function initialsFrom(first: string, last: string) {
 
 export default function EmployeeCreatePage() {
   const navigate = useNavigate();
+  const { id } = useParams();
+  const editingId = id ? Number(id) : null;
   const [step, setStep] = useState(1);
   const [data, setData] = useState<EmployeeFormData>(initialForm);
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (!editingId) return;
+    void getEmployee(editingId)
+      .then((employee) => {
+        const [firstName, ...lastParts] = employee.name.split(" ");
+        setData({
+          firstName,
+          lastName: lastParts.join(" "),
+          employeeId: employee.employeeId,
+          role: employee.role,
+          department: employee.department,
+          site: employee.site,
+          status: employee.status,
+          hiredOn: employee.hiredOn,
+          email: employee.email ?? "",
+          phone: employee.phone ?? "",
+          rate: employee.payRate,
+          rateType: employee.rateType,
+        });
+      })
+      .catch((loadError) => setError(loadError instanceof Error ? loadError.message : "Failed to load employee."));
+  }, [editingId]);
 
   const set = <K extends keyof EmployeeFormData>(
     key: K,
@@ -80,8 +106,21 @@ export default function EmployeeCreatePage() {
     setSubmitting(true);
     setError(null);
     try {
-      await new Promise((r) => setTimeout(r, 400));
-      console.log("Mock employee created:", data);
+      const input = {
+        employeeId: data.employeeId,
+        name: `${data.firstName} ${data.lastName}`.trim(),
+        role: data.role,
+        department: data.department,
+        site: data.site,
+        status: data.status,
+        hiredOn: data.hiredOn,
+        email: data.email,
+        phone: data.phone,
+        payRate: data.rate ? Number(data.rate) : 0,
+        rateType: data.rateType,
+      };
+      if (editingId) await updateEmployee(editingId, input);
+      else await createEmployee(input);
       navigate("/employees");
     } catch (err) {
       setError(
@@ -94,8 +133,8 @@ export default function EmployeeCreatePage() {
 
   return (
     <MultiStepPage
-      title="Add employee"
-      description="Register a new employee and set up their workspace access."
+      title={editingId ? "Edit employee" : "Add employee"}
+      description={editingId ? "Update the employee record and pay details." : "Register a new employee and set up their workspace access."}
       steps={STEPS}
       currentStep={step}
       onNext={() => setStep((s) => Math.min(s + 1, STEPS.length))}
@@ -105,7 +144,7 @@ export default function EmployeeCreatePage() {
       isLastStep={step === STEPS.length}
       isFirstStep={step === 1}
       submitting={submitting}
-      submitLabel="Add employee ✓"
+      submitLabel={editingId ? "Save changes ✓" : "Add employee ✓"}
       error={error}
       aiHint="AI can auto-fill employee details from an uploaded ID or contract document."
     >
@@ -205,9 +244,8 @@ function StepPersonalInfo({
       <div className="flex items-start gap-3 rounded-xl border border-info/20 bg-info/5 px-4 py-3">
         <Info className="mt-0.5 h-4 w-4 shrink-0 text-info" />
         <p className="text-xs text-muted-foreground">
-          Email and phone are collected for records but not yet stored
-          server-side — let me know if you'd like the schema extended to include
-          them.
+          Employee details are saved to the HR database and are available to
+          attendance and payroll workflows.
         </p>
       </div>
     </div>
@@ -250,7 +288,7 @@ function StepEmployment({
           <Label>
             Department <span className="text-destructive">*</span>
           </Label>
-          <Select onValueChange={(v) => set("department", v)}>
+          <Select value={data.department} onValueChange={(v) => set("department", v)}>
             <SelectTrigger className="rounded-xl">
               <SelectValue placeholder="Select department" />
             </SelectTrigger>
@@ -270,7 +308,7 @@ function StepEmployment({
           <Label>
             Site assignment <span className="text-destructive">*</span>
           </Label>
-          <Select onValueChange={(v) => set("site", v)}>
+          <Select value={data.site} onValueChange={(v) => set("site", v)}>
             <SelectTrigger className="rounded-xl">
               <SelectValue placeholder="Select site" />
             </SelectTrigger>
@@ -286,7 +324,7 @@ function StepEmployment({
         <div className="space-y-1.5">
           <Label>Employment status</Label>
           <Select
-            defaultValue="Active"
+            value={data.status}
             onValueChange={(v) => set("status", v as EmployeeStatus)}
           >
             <SelectTrigger className="rounded-xl">
@@ -312,7 +350,7 @@ function StepEmployment({
         <div className="space-y-1.5">
           <Label>Rate type</Label>
           <Select
-            defaultValue="Monthly"
+            value={data.rateType}
             onValueChange={(v) => set("rateType", v)}
           >
             <SelectTrigger className="rounded-xl">

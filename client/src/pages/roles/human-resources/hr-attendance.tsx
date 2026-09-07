@@ -18,40 +18,52 @@ import {
   StatusBadge,
 } from "@/pages/roles/shared/shared-hr";
 
-import { attendanceLogs } from "@/providers/mock-data";
+import { useAttendance, useEmployees } from "@/features/hr/hooks/use-hr";
 
 import { Camera, CheckCircle2, Clock, MapPin, ShieldCheck } from "lucide-react";
+import { useMemo, useState } from "react";
 
 export default function HRAttendancePage() {
+  const [date, setDate] = useState(() => new Date().toISOString().slice(0, 10));
+  const { records, summary, loading, error } = useAttendance(date);
+  const { employees } = useEmployees();
+  const employeeMap = useMemo(
+    () => new Map(employees.map((employee) => [employee.employeeId, employee])),
+    [employees],
+  );
   return (
     <div className="flex-1 space-y-6 p-4 md:p-6">
       <PageHeader
         title="Attendance"
         subtitle="Clock-ins, geofence verification, and photo authentication"
       />
+      <div className="flex items-center gap-2">
+        <label className="text-sm text-muted-foreground" htmlFor="attendance-date">Log date</label>
+        <input id="attendance-date" type="date" value={date} onChange={(event) => setDate(event.target.value)} className="h-9 rounded-xl border bg-background px-3 text-sm" />
+      </div>
 
       <div className="grid grid-cols-2 gap-3 md:grid-cols-4">
         <KpiMini
           label="Verified today"
-          value="436"
+          value={String(summary?.verified ?? 0)}
           tone="success"
           icon={CheckCircle2}
         />
         <KpiMini
           label="Pending verification"
-          value="28"
+          value={String(summary?.pending ?? 0)}
           tone="warning"
           icon={Clock}
         />
         <KpiMini
           label="Geofence flags"
-          value="9"
+          value={String(summary?.flagged ?? 0)}
           tone="destructive"
           icon={MapPin}
         />
         <KpiMini
           label="Photo auth failures"
-          value="5"
+          value={String(records.filter((record) => record.photo === "Failed").length)}
           tone="destructive"
           icon={Camera}
         />
@@ -62,7 +74,7 @@ export default function HRAttendancePage() {
           <CardHeader className="flex flex-row items-center justify-between space-y-0">
             <div>
               <CardTitle className="text-base">
-                Today's attendance log
+                Attendance log · {date}
               </CardTitle>
               <p className="text-xs text-muted-foreground">
                 Clock-ins, geofence and photo authentication results
@@ -92,19 +104,23 @@ export default function HRAttendancePage() {
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {attendanceLogs.map((l) => (
-                  <TableRow key={l.empId} className="hover:bg-muted/40">
+                {loading && <TableRow><TableCell colSpan={8} className="py-8 text-center text-muted-foreground">Loading attendance…</TableCell></TableRow>}
+                {error && !loading && <TableRow><TableCell colSpan={8} className="py-8 text-center text-destructive">{error}</TableCell></TableRow>}
+                {!loading && !error && records.map((l) => {
+                  const employee = employeeMap.get(l.employeeId);
+                  return (
+                  <TableRow key={l.id} className="hover:bg-muted/40">
                     <TableCell>
                       <div className="flex items-center gap-2">
                         <Avatar className="h-7 w-7">
                           <AvatarFallback className="bg-primary-soft text-[10px] font-semibold text-primary">
-                            {l.initials}
+                            {employee?.initials ?? l.employeeId.slice(0, 2)}
                           </AvatarFallback>
                         </Avatar>
                         <div className="min-w-0">
-                          <div className="text-sm font-medium">{l.name}</div>
+                          <div className="text-sm font-medium">{employee?.name ?? l.employeeId}</div>
                           <div className="font-mono text-[10px] text-muted-foreground">
-                            {l.empId}
+                            {l.employeeId}
                           </div>
                         </div>
                       </div>
@@ -119,7 +135,7 @@ export default function HRAttendancePage() {
                       {l.clockOut}
                     </TableCell>
                     <TableCell className="text-right text-sm">
-                      {l.hours.toFixed(1)}
+                      {l.hours ? Number(l.hours).toFixed(1) : "—"}
                     </TableCell>
                     <TableCell>
                       <Badge
@@ -153,7 +169,8 @@ export default function HRAttendancePage() {
                       <StatusBadge status={l.status} />
                     </TableCell>
                   </TableRow>
-                ))}
+                  );
+                })}
               </TableBody>
             </Table>
           </CardContent>

@@ -1,5 +1,5 @@
 import { Download, Filter, MoreHorizontal, Plus, Search } from "lucide-react";
-import { useMemo, useState } from "react";
+import { useState } from "react";
 import { Link } from "react-router";
 
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
@@ -30,9 +30,12 @@ import {
 } from "@/components/ui/table";
 
 import { PageHeader, StatusBadge } from "@/pages/roles/shared/shared-hr";
-import { departments, employees, type Employee } from "@/providers/mock-data";
+import { useEmployees } from "@/features/hr/hooks/use-hr";
+import type { HrEmployee } from "@/features/hr/hr-api";
 
-function EmployeeRow({ e }: { e: Employee }) {
+const departments = ["Engineering", "Field Ops", "Finance", "HR", "Legal", "Design", "Safety", "Project Mgmt"];
+
+function EmployeeRow({ e, onArchive }: { e: HrEmployee; onArchive: (id: number) => void }) {
   return (
     <TableRow className="hover:bg-muted/40">
       <TableCell>
@@ -51,7 +54,7 @@ function EmployeeRow({ e }: { e: Employee }) {
         </div>
       </TableCell>
       <TableCell className="font-mono text-xs text-muted-foreground">
-        {e.id}
+        {e.employeeId}
       </TableCell>
       <TableCell className="text-sm">{e.role}</TableCell>
       <TableCell className="text-sm text-muted-foreground">
@@ -75,7 +78,7 @@ function EmployeeRow({ e }: { e: Employee }) {
         </span>
       </TableCell>
       <TableCell className="text-right text-sm">
-        {e.performance.toFixed(1)}
+        {Number(e.performance).toFixed(1)}
       </TableCell>
       <TableCell>
         <DropdownMenu>
@@ -85,12 +88,13 @@ function EmployeeRow({ e }: { e: Employee }) {
             </Button>
           </DropdownMenuTrigger>
           <DropdownMenuContent align="end">
-            <DropdownMenuItem>View profile</DropdownMenuItem>
-            <DropdownMenuItem>Edit record</DropdownMenuItem>
+            <DropdownMenuItem asChild>
+              <Link to={`/employees/edit/${e.id}`}>Edit record</Link>
+            </DropdownMenuItem>
             <DropdownMenuItem>Employment history</DropdownMenuItem>
             <DropdownMenuItem>Documents</DropdownMenuItem>
             <DropdownMenuSeparator />
-            <DropdownMenuItem className="text-destructive">
+            <DropdownMenuItem className="text-destructive" onClick={() => onArchive(e.id)}>
               Archive
             </DropdownMenuItem>
           </DropdownMenuContent>
@@ -105,21 +109,20 @@ export default function HREmployeesPage() {
   const [dept, setDept] = useState("all");
   const [status, setStatus] = useState("all");
 
-  const filtered = useMemo(
-    () =>
-      employees.filter((e) => {
-        const q = query.toLowerCase();
-        const matchQ =
-          !query ||
-          e.name.toLowerCase().includes(q) ||
-          e.id.toLowerCase().includes(q) ||
-          e.role.toLowerCase().includes(q);
-        const matchD = dept === "all" || e.department === dept;
-        const matchS = status === "all" || e.status === status;
-        return matchQ && matchD && matchS;
-      }),
-    [query, dept, status],
-  );
+  const { employees, loading, error, refresh, remove } = useEmployees({
+    search: query,
+    department: dept,
+    status,
+  });
+
+  const archive = async (id: number) => {
+    try {
+      await remove(id);
+      await refresh();
+    } catch (archiveError) {
+      window.alert(archiveError instanceof Error ? archiveError.message : "Failed to archive employee.");
+    }
+  };
 
   return (
     <div className="flex-1 space-y-6 p-4 md:p-6">
@@ -160,8 +163,8 @@ export default function HREmployeesPage() {
               <SelectContent>
                 <SelectItem value="all">All departments</SelectItem>
                 {departments.map((d) => (
-                  <SelectItem key={d.name} value={d.name}>
-                    {d.name}
+                  <SelectItem key={d} value={d}>
+                    {d}
                   </SelectItem>
                 ))}
               </SelectContent>
@@ -190,7 +193,7 @@ export default function HREmployeesPage() {
           <div>
             <CardTitle className="text-base">Employee directory</CardTitle>
             <p className="text-xs text-muted-foreground">
-              {filtered.length} of {employees.length} employees · bulk actions
+              {employees.length} employees · records are persisted in the HR database
               available
             </p>
           </div>
@@ -219,8 +222,14 @@ export default function HREmployeesPage() {
               </TableRow>
             </TableHeader>
             <TableBody>
-              {filtered.map((e) => (
-                <EmployeeRow key={e.id} e={e} />
+              {loading && (
+                <TableRow><TableCell colSpan={9} className="py-8 text-center text-muted-foreground">Loading employees…</TableCell></TableRow>
+              )}
+              {error && !loading && (
+                <TableRow><TableCell colSpan={9} className="py-8 text-center text-destructive">{error}</TableCell></TableRow>
+              )}
+              {!loading && !error && employees.map((e) => (
+                <EmployeeRow key={e.id} e={e} onArchive={archive} />
               ))}
             </TableBody>
           </Table>
