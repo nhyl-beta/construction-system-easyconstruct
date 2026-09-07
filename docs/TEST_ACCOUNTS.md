@@ -6,7 +6,7 @@
 
 | Role | Email | Password | Backend role |
 |---|---|---|---|
-| Super Admin | `superadmin@easyconstruct.test` | `Test1234` | `super-admin` |
+| IT Admin | `superadmin@easyconstruct.test` | `Test1234` | `super-admin` |
 | Admin | `admin@easyconstruct.test` | `Test1234` | `admin` |
 | Human Resources | `hr@easyconstruct.test` | `Test1234` | `human-resources` |
 | Finance Manager | `finance@easyconstruct.test` | `Test1234` | `finance-manager` |

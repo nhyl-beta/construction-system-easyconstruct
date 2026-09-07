@@ -54,6 +54,26 @@ export function useLoginController() {
   return { status, errors, formError, submit };
 }
 
+export function useLogoutController() {
+  const navigate = useNavigate();
+
+  const logout = () => {
+    // JWT here is stateless — no server-side session to invalidate,
+    // so signing out is purely client-side: clear whichever storage
+    // holds the token/user, then redirect. If a server-side session
+    // or refresh-token blacklist gets added later, this needs a
+    // POST /api/auth/logout call before clearing storage.
+    localStorage.removeItem("easyconstruct_token");
+    localStorage.removeItem("easyconstruct_user");
+    sessionStorage.removeItem("easyconstruct_token");
+    sessionStorage.removeItem("easyconstruct_user");
+
+    navigate("/login");
+  };
+
+  return { logout };
+}
+
 export function useForgotPasswordController() {
   const [status, setStatus] = useState<Status>("idle");
   const [error, setError] = useState<string | null>(null);

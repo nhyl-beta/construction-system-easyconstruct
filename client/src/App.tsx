@@ -94,6 +94,7 @@ function App() {
                 projectId: "2gnXaG-MhFPwx-oPqcp0",
               }}
             >
+              /* ILALABAS */
                 <Routes>
                   <Route element={<PublicAuthRoute />}>
                     <Route path="/login" element={<LoginPage />} />
