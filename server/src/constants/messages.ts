@@ -12,6 +12,7 @@ const createCrudMessages = (name: string) => ({
 
 export const MSG = {
   projects: createCrudMessages("Project"),
+  employees: createCrudMessages("Employee"),
   budgets: createCrudMessages("Budget"),
   budgetAllocations: createCrudMessages("Budget allocation"),
   budgetAdjustments: createCrudMessages("Budget adjustment"),

@@ -1,5 +1,5 @@
 import { Download, Filter, MoreHorizontal, Plus, Search } from "lucide-react";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { Link } from "react-router";
 
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
@@ -30,12 +30,23 @@ import {
 } from "@/components/ui/table";
 
 import { PageHeader, StatusBadge } from "@/pages/roles/shared/shared-hr";
-import { useEmployees } from "@/features/hr/hooks/use-hr";
-import type { HrEmployee } from "@/features/hr/hr-api";
+import { departments } from "@/providers/mock-data";
+import {
+  deactivateEmployee,
+  deleteEmployee,
+  listEmployees,
+} from "@/features/hr/hr-api";
+import type { Employee } from "@/features/hr/types";
 
-const departments = ["Engineering", "Field Ops", "Finance", "HR", "Legal", "Design", "Safety", "Project Mgmt"];
-
-function EmployeeRow({ e, onArchive }: { e: HrEmployee; onArchive: (id: number) => void }) {
+function EmployeeRow({
+  e,
+  onArchive,
+  onDelete,
+}: {
+  e: Employee;
+  onArchive: (e: Employee) => void;
+  onDelete: (e: Employee) => void;
+}) {
   return (
     <TableRow className="hover:bg-muted/40">
       <TableCell>
@@ -54,7 +65,7 @@ function EmployeeRow({ e, onArchive }: { e: HrEmployee; onArchive: (id: number) 
         </div>
       </TableCell>
       <TableCell className="font-mono text-xs text-muted-foreground">
-        {e.employeeId}
+        {e.id}
       </TableCell>
       <TableCell className="text-sm">{e.role}</TableCell>
       <TableCell className="text-sm text-muted-foreground">
@@ -78,7 +89,7 @@ function EmployeeRow({ e, onArchive }: { e: HrEmployee; onArchive: (id: number) 
         </span>
       </TableCell>
       <TableCell className="text-right text-sm">
-        {Number(e.performance).toFixed(1)}
+        {e.performance.toFixed(1)}
       </TableCell>
       <TableCell>
         <DropdownMenu>
@@ -89,13 +100,21 @@ function EmployeeRow({ e, onArchive }: { e: HrEmployee; onArchive: (id: number) 
           </DropdownMenuTrigger>
           <DropdownMenuContent align="end">
             <DropdownMenuItem asChild>
-              <Link to={`/employees/edit/${e.id}`}>Edit record</Link>
+              <Link to={`/employees/${e.dbId}/edit`}>Edit record</Link>
             </DropdownMenuItem>
             <DropdownMenuItem>Employment history</DropdownMenuItem>
             <DropdownMenuItem>Documents</DropdownMenuItem>
             <DropdownMenuSeparator />
-            <DropdownMenuItem className="text-destructive" onClick={() => onArchive(e.id)}>
-              Archive
+            {e.status !== "Archived" && (
+              <DropdownMenuItem onSelect={() => onArchive(e)}>
+                Archive
+              </DropdownMenuItem>
+            )}
+            <DropdownMenuItem
+              className="text-destructive"
+              onSelect={() => onDelete(e)}
+            >
+              Delete
             </DropdownMenuItem>
           </DropdownMenuContent>
         </DropdownMenu>
@@ -108,20 +127,43 @@ export default function HREmployeesPage() {
   const [query, setQuery] = useState("");
   const [dept, setDept] = useState("all");
   const [status, setStatus] = useState("all");
+  const [filtered, setFiltered] = useState<Employee[]>([]);
+  const [total, setTotal] = useState(0);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
 
-  const { employees, loading, error, refresh, remove } = useEmployees({
-    search: query,
-    department: dept,
-    status,
-  });
-
-  const archive = async (id: number) => {
+  const refresh = async () => {
+    setLoading(true);
+    setError(null);
     try {
-      await remove(id);
-      await refresh();
-    } catch (archiveError) {
-      window.alert(archiveError instanceof Error ? archiveError.message : "Failed to archive employee.");
+      const [scoped, all] = await Promise.all([
+        listEmployees({ search: query, department: dept, status }),
+        listEmployees(),
+      ]);
+      setFiltered(scoped);
+      setTotal(all.length);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Failed to load employees.");
+    } finally {
+      setLoading(false);
     }
+  };
+
+  useEffect(() => {
+    const timeout = setTimeout(refresh, query ? 250 : 0);
+    return () => clearTimeout(timeout);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [query, dept, status]);
+
+  const handleArchive = async (e: Employee) => {
+    await deactivateEmployee(e.dbId);
+    refresh();
+  };
+
+  const handleDelete = async (e: Employee) => {
+    if (!window.confirm(`Delete ${e.name}? This cannot be undone.`)) return;
+    await deleteEmployee(e.dbId);
+    refresh();
   };
 
   return (
@@ -163,8 +205,8 @@ export default function HREmployeesPage() {
               <SelectContent>
                 <SelectItem value="all">All departments</SelectItem>
                 {departments.map((d) => (
-                  <SelectItem key={d} value={d}>
-                    {d}
+                  <SelectItem key={d.name} value={d.name}>
+                    {d.name}
                   </SelectItem>
                 ))}
               </SelectContent>
@@ -193,8 +235,8 @@ export default function HREmployeesPage() {
           <div>
             <CardTitle className="text-base">Employee directory</CardTitle>
             <p className="text-xs text-muted-foreground">
-              {employees.length} employees · records are persisted in the HR database
-              available
+              {loading ? "Loading…" : `${filtered.length} of ${total} employees`}
+              {" "}· bulk actions available
             </p>
           </div>
           <div className="flex items-center gap-2">
@@ -222,15 +264,29 @@ export default function HREmployeesPage() {
               </TableRow>
             </TableHeader>
             <TableBody>
-              {loading && (
-                <TableRow><TableCell colSpan={9} className="py-8 text-center text-muted-foreground">Loading employees…</TableCell></TableRow>
+              {error && (
+                <TableRow>
+                  <TableCell colSpan={9} className="py-8 text-center text-sm text-destructive">
+                    {error}
+                  </TableCell>
+                </TableRow>
               )}
-              {error && !loading && (
-                <TableRow><TableCell colSpan={9} className="py-8 text-center text-destructive">{error}</TableCell></TableRow>
+              {!error && !loading && filtered.length === 0 && (
+                <TableRow>
+                  <TableCell colSpan={9} className="py-8 text-center text-sm text-muted-foreground">
+                    No employees match these filters.
+                  </TableCell>
+                </TableRow>
               )}
-              {!loading && !error && employees.map((e) => (
-                <EmployeeRow key={e.id} e={e} onArchive={archive} />
-              ))}
+              {!error &&
+                filtered.map((e) => (
+                  <EmployeeRow
+                    key={e.dbId}
+                    e={e}
+                    onArchive={handleArchive}
+                    onDelete={handleDelete}
+                  />
+                ))}
             </TableBody>
           </Table>
         </CardContent>

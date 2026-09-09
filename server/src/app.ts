@@ -12,6 +12,7 @@ import projectRoutes from "./projects/routes.js";
 import proposalRoutes from "./proposals/routes.js";
 import hrRoutes from "./hr/routes.js";
 import { authRoutes } from "./validators/routes.js";
+import employeeRoutes from "./employees/routes.js";
 // import userRoutes        from './modules/users/routes';     // uncomment as built
 
 const app = express();
@@ -30,6 +31,7 @@ app.use("/api/design-reviews", designReviewsRoutes);
 app.use("/api/architect-documents", architectDocumentsRoutes);
 app.use("/api/blueprints", blueprintsRoutes)
 app.use("/api/hr", hrRoutes);
+app.use("/api/employees", employeeRoutes);
 app.use("/api/auth", authRoutes);;
 
 // app.use('/api/users',    userRoutes);
