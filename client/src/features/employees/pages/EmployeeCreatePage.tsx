@@ -80,7 +80,7 @@ export default function EmployeeCreatePage() {
         setData({
           firstName,
           lastName: lastParts.join(" "),
-          employeeId: employee.employeeId,
+          employeeId: employee.id,
           role: employee.role,
           department: employee.department,
           site: employee.site,

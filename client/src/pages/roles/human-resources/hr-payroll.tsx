@@ -45,7 +45,7 @@ export default function HRPayrollPage() {
     setGenerating(true);
     try {
       const result = await generate({ periodStart: start, periodEnd: end });
-      setPeriod(result.period);
+      setPeriod(result.period ?? "");
       await refresh();
     } catch (generateError) {
       window.alert(generateError instanceof Error ? generateError.message : "Failed to generate payroll.");
