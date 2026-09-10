@@ -61,6 +61,7 @@ interface BackendPayrollLine {
   period: string;
 }
 
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
 async function unwrap<T>(promise: Promise<any>): Promise<T> {
   const json = await promise;
   if (json && typeof json === "object" && "data" in json) return json.data as T;
