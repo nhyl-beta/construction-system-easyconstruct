@@ -1,7 +1,7 @@
 import type { ReactNode } from "react";
 import { HardHat } from "lucide-react";
 import { AuthBrandPanel } from "@/components/ui/auth/auth-brand-panel";
-import { Toggle } from "@/components/ui/toggle";
+import { ThemeToggle } from "@/components/refine-ui/theme/theme-toggle";
 
 export function AuthShell({ children }: { children: ReactNode }) {
   return (
@@ -17,7 +17,7 @@ export function AuthShell({ children }: { children: ReactNode }) {
               EasyConstruct
             </span>
           </div>
-          <Toggle />
+          <ThemeToggle />
         </div>
         <div className="flex flex-1 items-center justify-center px-5 pb-12 sm:px-8">
           <div className="w-full max-w-md motion-safe:animate-in motion-safe:fade-in-0 motion-safe:slide-in-from-bottom-2 motion-safe:duration-500">
