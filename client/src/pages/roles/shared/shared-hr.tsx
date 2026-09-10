@@ -29,6 +29,13 @@ export function StatusBadge({ status }: { status: string }) {
     Flagged: "bg-destructive/10 text-destructive border-destructive/20",
     Approved: "bg-success/10 text-success border-success/20",
     Review: "bg-destructive/10 text-destructive border-destructive/20",
+    Present: "bg-success/10 text-success border-success/20",
+    Absent: "bg-destructive/10 text-destructive border-destructive/20",
+    Late: "bg-warning/15 text-warning border-warning/30",
+    "Half Day": "bg-info/10 text-info border-info/20",
+    Completed: "bg-success/10 text-success border-success/20",
+    Processing: "bg-warning/15 text-warning border-warning/30",
+    Draft: "bg-muted text-muted-foreground border-border",
   };
   return (
     <Badge

@@ -145,6 +145,10 @@ function App() {
                     path="/employees/new"
                     element={<EmployeeCreatePage />}
                   />
+                  <Route
+                    path="/employees/:id/edit"
+                    element={<EmployeeCreatePage />}
+                  />
                   <Route path="/attendance" element={<HRAttendance />} />
                   <Route path="/payroll" element={<HRPayroll />} />
                   <Route path="/workforce-reports" element={<HRWorkforce />} />

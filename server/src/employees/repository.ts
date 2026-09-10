@@ -1,6 +1,7 @@
 import { and, eq, ilike, or, SQL } from "drizzle-orm";
 import { db } from "../db/connection.js";
 import { employees } from "../db/schema/employees.js";
+
 import type {
   CreateEmployeeInput,
   EmployeeFilters,
@@ -10,26 +11,36 @@ import type {
 export const findAll = async (filters: EmployeeFilters = {}) => {
   const conditions: SQL[] = [];
 
-  if (filters.department && filters.department !== "all")
+  if (filters.department && filters.department !== "all") {
     conditions.push(eq(employees.department, filters.department));
-
-  if (filters.status && filters.status !== "all")
-    conditions.push(eq(employees.status, filters.status));
-
-  if (filters.search) {
-    const s = `%${filters.search}%`;
-    conditions.push(
-      or(
-        ilike(employees.name, s),
-        ilike(employees.employeeId, s),
-        ilike(employees.role, s),
-      )!,
-    );
   }
 
-  return conditions.length
-    ? await db.select().from(employees).where(and(...conditions))
-    : await db.select().from(employees);
+  if (filters.status && filters.status !== "all") {
+    conditions.push(eq(employees.status, filters.status));
+  }
+
+  if (filters.search) {
+    const search = `%${filters.search}%`;
+
+    const searchCondition = or(
+      ilike(employees.name, search),
+      ilike(employees.employeeId, search),
+      ilike(employees.role, search),
+    );
+
+    if (searchCondition) {
+      conditions.push(searchCondition);
+    }
+  }
+
+  if (conditions.length > 0) {
+    return await db
+      .select()
+      .from(employees)
+      .where(and(...conditions));
+  }
+
+  return await db.select().from(employees);
 };
 
 export const findById = async (id: number) => {
@@ -37,6 +48,7 @@ export const findById = async (id: number) => {
     .select()
     .from(employees)
     .where(eq(employees.id, id));
+
   return employee ?? null;
 };
 
@@ -45,6 +57,7 @@ export const findByEmployeeId = async (employeeId: string) => {
     .select()
     .from(employees)
     .where(eq(employees.employeeId, employeeId));
+
   return employee ?? null;
 };
 
@@ -53,14 +66,25 @@ export const findByEmail = async (email: string) => {
     .select()
     .from(employees)
     .where(eq(employees.email, email));
+
   return employee ?? null;
 };
 
 export const create = async (
   data: CreateEmployeeInput & { initials: string },
 ) => {
-  const [created] = await db.insert(employees).values(data).returning();
-  return created;
+  const [created] = await db
+    .insert(employees)
+    .values({
+      ...data,
+      payRate:
+        data.payRate !== undefined
+          ? String(data.payRate)
+          : undefined,
+    })
+    .returning();
+
+  return created ?? null;
 };
 
 export const update = async (
@@ -69,9 +93,17 @@ export const update = async (
 ) => {
   const [updated] = await db
     .update(employees)
-    .set({ ...data, updatedAt: new Date() })
+    .set({
+      ...data,
+      payRate:
+        data.payRate !== undefined
+          ? String(data.payRate)
+          : undefined,
+      updatedAt: new Date(),
+    })
     .where(eq(employees.id, id))
     .returning();
+
   return updated ?? null;
 };
 
@@ -80,5 +112,6 @@ export const remove = async (id: number) => {
     .delete(employees)
     .where(eq(employees.id, id))
     .returning();
+
   return deleted ?? null;
 };
