@@ -93,6 +93,10 @@ function App() {
                 syncWithLocation: true,
                 warnWhenUnsavedChanges: true,
                 projectId: "2gnXaG-MhFPwx-oPqcp0",
+                title: {
+                  text: "EasyConstruct",
+                  icon: <img src="/client/public/favicon.ico" className="h-4 w-4"/>
+                }
               }}
             >
                 <Routes>
