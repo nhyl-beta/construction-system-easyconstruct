@@ -25,7 +25,7 @@ export default function HRWorkforcePage() {
   } = useEmployees();
 
   const {
-    records,
+    attendance,
     loading: attendanceLoading,
     error: attendanceError,
   } = useAttendance({
@@ -56,9 +56,9 @@ export default function HRWorkforcePage() {
       active,
       onLeave,
       suspended,
-      attendanceRecords: records.length,
+      attendanceRecords: attendance.length,
     };
-  }, [employees, records]);
+  }, [employees, attendance]);
 
   const byDepartment = useMemo(() => {
     const departments = new Map<
@@ -117,7 +117,7 @@ export default function HRWorkforcePage() {
       }
     }
 
-    for (const record of records) {
+    for (const record of attendance) {
       const existing = sites.get(record.site);
 
       if (existing && record.attendanceStatus === "Present") {
@@ -128,7 +128,7 @@ export default function HRWorkforcePage() {
     return Array.from(sites.values()).sort((a, b) =>
       a.site.localeCompare(b.site),
     );
-  }, [employees, records]);
+  }, [employees, attendance]);
 
   const dailyAttendance = useMemo(() => {
     const daily = new Map<
@@ -141,7 +141,7 @@ export default function HRWorkforcePage() {
       }
     >();
 
-    for (const record of records) {
+    for (const record of attendance) {
       const existing = daily.get(record.logDate);
 
       if (!existing) {
@@ -171,7 +171,7 @@ export default function HRWorkforcePage() {
     return Array.from(daily.values()).sort((a, b) =>
       a.date.localeCompare(b.date),
     );
-  }, [records]);
+  }, [attendance]);
 
   return (
     <div className="flex-1 space-y-6 p-4 md:p-6">
