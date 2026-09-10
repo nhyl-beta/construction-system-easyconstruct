@@ -18,7 +18,8 @@ import {
   PageHeader,
   StatusBadge,
 } from "@/pages/roles/shared/shared-hr";
-import { usePayroll } from "@/features/hr/hooks/use-hr";
+import { useEffect, useMemo, useState } from "react";
+import { listPayroll, type PayrollLine } from "@/features/hr/payroll-api";
 import {
   AlertTriangle,
   ArrowUpRight,
@@ -27,34 +28,47 @@ import {
   Download,
   Wallet,
 } from "lucide-react";
-import { useMemo, useState } from "react";
+
+function money(n: number) {
+  if (Math.abs(n) >= 1_000_000) return `$${(n / 1_000_000).toFixed(2)}M`;
+  if (Math.abs(n) >= 1_000) return `$${(n / 1_000).toFixed(0)}K`;
+  return `$${n.toLocaleString()}`;
+}
 
 export default function HRPayrollPage() {
-  const [period, setPeriod] = useState("");
-  const { payroll, loading, error, refresh, generate } = usePayroll(period || undefined);
-  const [periodStart, periodEnd] = useMemo(() => {
-    const now = new Date();
-    const start = new Date(now.getFullYear(), now.getMonth(), 1);
-    const end = new Date(now.getFullYear(), now.getMonth() + 1, 0);
-    return [start.toISOString().slice(0, 10), end.toISOString().slice(0, 10)];
+  const [rows, setRows] = useState<PayrollLine[]>([]);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    let cancelled = false;
+    listPayroll().then((data) => {
+      if (!cancelled) {
+        setRows(data);
+        setLoading(false);
+      }
+    });
+    return () => {
+      cancelled = true;
+    };
   }, []);
-  const [start, setStart] = useState(periodStart);
-  const [end, setEnd] = useState(periodEnd);
-  const [generating, setGenerating] = useState(false);
-  const generateBatch = async () => {
-    setGenerating(true);
-    try {
-      const result = await generate({ periodStart: start, periodEnd: end });
-      setPeriod(result.period ?? "");
-      await refresh();
-    } catch (generateError) {
-      window.alert(generateError instanceof Error ? generateError.message : "Failed to generate payroll.");
-    } finally {
-      setGenerating(false);
-    }
-  };
-  const rows = payroll?.rows ?? [];
-  const totals = payroll?.totals ?? { grossLabor: 0, deductions: 0, netPayable: 0, overtimeHours: 0 };
+
+  const totals = useMemo(() => {
+    const gross = rows.reduce((s, r) => s + r.gross, 0);
+    const net = rows.reduce((s, r) => s + r.net, 0);
+    // Overtime cost isolated at the same effective rate implied by gross vs.
+    // regular hours would require the hourly rate per row; as a simple proxy
+    // we show overtime hours × (gross ÷ total hours) as an approximate cost.
+    const totalHours = rows.reduce((s, r) => s + r.hours + r.overtime, 0) || 1;
+    const avgRate = gross / totalHours;
+    const overtimeHours = rows.reduce((s, r) => s + r.overtime, 0);
+    const overtimeCost = overtimeHours * avgRate * 1.5;
+    const pending = rows.filter((r) => r.status !== "Completed").length;
+    return { gross, net, overtimeCost, pending };
+  }, [rows]);
+
+  const period = rows[0]?.period ?? "Current period";
+  const totalHours = rows.reduce((s, r) => s + r.hours, 0);
+
   return (
     <div className="flex-1 space-y-6 p-4 md:p-6">
       <PageHeader
@@ -75,25 +89,25 @@ export default function HRPayrollPage() {
       <div className="grid grid-cols-2 gap-3 md:grid-cols-4">
         <KpiMini
           label="Gross labor (period)"
-          value={`$${totals.grossLabor.toLocaleString(undefined, { maximumFractionDigits: 2 })}`}
+          value={money(totals.gross)}
           tone="info"
           icon={Wallet}
         />
         <KpiMini
           label="Net payable"
-          value={`$${totals.netPayable.toLocaleString(undefined, { maximumFractionDigits: 2 })}`}
+          value={money(totals.net)}
           tone="success"
           icon={CheckCircle2}
         />
         <KpiMini
           label="Overtime cost"
-          value={`$${totals.overtimeHours.toLocaleString()}h`}
+          value={money(totals.overtimeCost)}
           tone="warning"
           icon={Clock}
         />
         <KpiMini
           label="Awaiting approval"
-          value={String(rows.filter((row) => row.status === "Pending").length)}
+          value={String(totals.pending)}
           tone="warning"
           icon={AlertTriangle}
         />
@@ -102,17 +116,10 @@ export default function HRPayrollPage() {
       <div className="grid grid-cols-1 gap-4 xl:grid-cols-3">
         <Card className="rounded-2xl xl:col-span-2">
           <CardHeader>
-            <CardTitle className="text-base">Payroll batch B-118</CardTitle>
+            <CardTitle className="text-base">Tracksheet</CardTitle>
             <p className="text-xs text-muted-foreground">
-                {period || "Generate a period from attendance"} · {rows.length} employees
+              {period} · {rows.length} employees · {totalHours.toLocaleString()} hours logged
             </p>
-            <div className="flex flex-wrap items-end gap-2 pt-3">
-              <label className="text-xs text-muted-foreground">Start<input type="date" value={start} onChange={(event) => setStart(event.target.value)} className="ml-2 h-8 rounded-lg border bg-background px-2 text-xs" /></label>
-              <label className="text-xs text-muted-foreground">End<input type="date" value={end} onChange={(event) => setEnd(event.target.value)} className="ml-2 h-8 rounded-lg border bg-background px-2 text-xs" /></label>
-              <Button size="sm" className="rounded-xl" onClick={generateBatch} disabled={generating}>
-                {generating ? "Generating…" : "Generate payroll"}
-              </Button>
-            </div>
           </CardHeader>
           <CardContent className="px-0">
             <Table>
@@ -129,10 +136,22 @@ export default function HRPayrollPage() {
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {loading && <TableRow><TableCell colSpan={8} className="py-8 text-center text-muted-foreground">Loading payroll…</TableCell></TableRow>}
-                {error && !loading && <TableRow><TableCell colSpan={8} className="py-8 text-center text-destructive">{error}</TableCell></TableRow>}
-                {!loading && !error && rows.map((p) => (
-                  <TableRow key={p.empId} className="hover:bg-muted/40">
+                {loading && (
+                  <TableRow>
+                    <TableCell colSpan={8} className="py-8 text-center text-sm text-muted-foreground">
+                      Loading payroll…
+                    </TableCell>
+                  </TableRow>
+                )}
+                {!loading && rows.length === 0 && (
+                  <TableRow>
+                    <TableCell colSpan={8} className="py-8 text-center text-sm text-muted-foreground">
+                      No payroll generated yet for this period.
+                    </TableCell>
+                  </TableRow>
+                )}
+                {rows.map((p) => (
+                  <TableRow key={p.id} className="hover:bg-muted/40">
                     <TableCell>
                       <div className="flex items-center gap-2">
                         <Avatar className="h-7 w-7">
@@ -158,13 +177,13 @@ export default function HRPayrollPage() {
                       {p.overtime}
                     </TableCell>
                     <TableCell className="text-right text-sm">
-                      ${Number(p.gross).toLocaleString()}
+                      ${p.gross.toLocaleString()}
                     </TableCell>
                     <TableCell className="text-right text-sm text-muted-foreground">
-                      −${Number(p.deductions).toLocaleString()}
+                      −${p.deductions.toLocaleString()}
                     </TableCell>
                     <TableCell className="text-right text-sm font-semibold">
-                      ${Number(p.net).toLocaleString()}
+                      ${p.net.toLocaleString()}
                     </TableCell>
                     <TableCell>
                       <StatusBadge status={p.status} />
@@ -187,18 +206,26 @@ export default function HRPayrollPage() {
             <div className="rounded-xl border bg-muted/30 p-4">
               <div className="text-xs text-muted-foreground">Total payable</div>
               <div className="mt-1 text-2xl font-semibold tracking-tight">
-                ${totals.netPayable.toLocaleString(undefined, { maximumFractionDigits: 2 })}
-              </div>
-              <div className="mt-2 text-[11px] text-muted-foreground">
-                Based on generated payroll rows
+                ${totals.net.toLocaleString()}
               </div>
             </div>
             <div className="space-y-3">
               {[
-                { label: "Gross labor", value: totals.grossLabor ? 100 : 0, amount: `$${totals.grossLabor.toLocaleString()}` },
-                { label: "Overtime hours", value: totals.overtimeHours ? 100 : 0, amount: `${totals.overtimeHours}h` },
-                { label: "Deductions", value: totals.grossLabor ? Math.round((totals.deductions / totals.grossLabor) * 100) : 0, amount: `$${totals.deductions.toLocaleString()}` },
-                { label: "Net payable", value: totals.grossLabor ? Math.round((totals.netPayable / totals.grossLabor) * 100) : 0, amount: `$${totals.netPayable.toLocaleString()}` },
+                {
+                  label: "Base wages",
+                  value: totals.gross ? Math.round(((totals.gross - totals.overtimeCost) / totals.gross) * 100) : 0,
+                  amount: money(totals.gross - totals.overtimeCost),
+                },
+                {
+                  label: "Overtime",
+                  value: totals.gross ? Math.round((totals.overtimeCost / totals.gross) * 100) : 0,
+                  amount: money(totals.overtimeCost),
+                },
+                {
+                  label: "Deductions",
+                  value: totals.gross ? Math.round(((totals.gross - totals.net) / totals.gross) * 100) : 0,
+                  amount: money(totals.gross - totals.net),
+                },
               ].map((s) => (
                 <div key={s.label}>
                   <div className="flex items-center justify-between text-xs">
@@ -212,7 +239,7 @@ export default function HRPayrollPage() {
             <Separator />
             <div className="space-y-2 text-xs">
               <Checkpoint label="Attendance reconciled" done />
-              <Checkpoint label="Gross labor verified" done />
+              <Checkpoint label="Gross labor verified" done={rows.length > 0} />
               <Checkpoint label="Manager approvals" />
               <Checkpoint label="Disbursement initiated" />
             </div>

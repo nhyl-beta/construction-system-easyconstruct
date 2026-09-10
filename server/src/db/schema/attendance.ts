@@ -3,6 +3,7 @@ import {
   numeric,
   pgTable,
   serial,
+  text,
   timestamp,
   varchar,
 } from "drizzle-orm/pg-core";
@@ -17,6 +18,12 @@ export const attendance = pgTable("attendance", {
   geofence: varchar("geofence", { length: 20 }).notNull().default("Inside"),
   photo: varchar("photo", { length: 20 }).notNull().default("Pending"),
   status: varchar("status", { length: 20 }).notNull().default("Pending"),
+  // Classic HR attendance status — separate from the geofence/photo
+  // verification `status` above. One of: Present, Absent, Late, On Leave, Half Day.
+  attendanceStatus: varchar("attendance_status", { length: 20 })
+    .notNull()
+    .default("Present"),
+  remarks: text("remarks"),
   logDate: date("log_date").notNull(),
   createdAt: timestamp("created_at").defaultNow(),
 });

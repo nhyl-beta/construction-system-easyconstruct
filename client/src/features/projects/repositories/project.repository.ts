@@ -3,7 +3,7 @@ import { activeProjects } from "@/providers/mock-data";
 import { Project, RiskLevel, StatusTone } from "../types/project.types";
 import { apiClient } from "@/services/api.client";
 
-const USE_API = Boolean(import.meta.env.VITE_API_BASE);
+const USE_API = import.meta.env.VITE_USE_MOCK_DATA !== "true";
 const mockProjects: Project[] = (activeProjects as any) ?? [];
 
 // ─────────────────────────────────────────────────────────────────────────────
