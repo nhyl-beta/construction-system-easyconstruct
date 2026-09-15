@@ -17,8 +17,13 @@ function parseQuery<T>(schema: { safeParse: (value: unknown) => { success: true;
   return parsed.data;
 }
 
-function parseId(value: string) {
-  const id = Number(value);
+function parseId(value: string | string[] | undefined) {
+  const normalizedValue = Array.isArray(value) ? value[0] : value;
+  if (normalizedValue === undefined || normalizedValue === "") {
+    throw new ValidationError("ID is required");
+  }
+
+  const id = Number(normalizedValue);
   if (!Number.isInteger(id) || id < 1) throw new ValidationError("ID must be a positive integer");
   return id;
 }
