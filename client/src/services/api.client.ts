@@ -1,24 +1,24 @@
-// Simple fetch-based API client wrapper to avoid adding axios as a dependency in dev.
-// Exposes a minimal helper used by repositories.
-
+/* eslint-disable @typescript-eslint/no-unused-vars */
+/* eslint-disable @typescript-eslint/no-explicit-any */
+// client/src/services/api.client.ts — PATCHED (add auth header; used by all new feature repositories)
 const BASE = import.meta.env.VITE_API_BASE || "";
+
+function authHeader(): Record<string, string> {
+  const token =
+    sessionStorage.getItem("easyconstruct_token") ??
+    localStorage.getItem("easyconstruct_token");
+  return token ? { Authorization: `Bearer ${token}` } : {};
+}
 
 async function request(path: string, opts: RequestInit = {}) {
   const url = BASE ? `${BASE}/api${path}` : `/api${path}`;
   const res = await fetch(url, {
-    headers: { 'Content-Type': 'application/json' },
+    headers: { "Content-Type": "application/json", ...authHeader() },
     ...opts,
   });
   if (!res.ok) {
     const text = await res.text();
-    let message = text;
-    try {
-      const body = JSON.parse(text) as { message?: string };
-      message = body.message ?? text;
-    } catch {
-      // Preserve the plain response when the server did not return JSON.
-    }
-    throw new Error(message || `Request failed (${res.status})`);
+    throw new Error(`API error ${res.status}: ${text}`);
   }
   const bodyText = await res.text();
   try {
@@ -29,8 +29,8 @@ async function request(path: string, opts: RequestInit = {}) {
 }
 
 export const apiClient = {
-  get: (path: string) => request(path, { method: 'GET' }),
-  post: (path: string, body: any) => request(path, { method: 'POST', body: JSON.stringify(body) }),
-  patch: (path: string, body: any) => request(path, { method: 'PATCH', body: JSON.stringify(body) }),
-  del: (path: string) => request(path, { method: 'DELETE' }),
+  get: (path: string) => request(path, { method: "GET" }),
+  post: (path: string, body: any) => request(path, { method: "POST", body: JSON.stringify(body) }),
+  patch: (path: string, body: any) => request(path, { method: "PATCH", body: JSON.stringify(body) }),
+  del: (path: string) => request(path, { method: "DELETE" }),
 };

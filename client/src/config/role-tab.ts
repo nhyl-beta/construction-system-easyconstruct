@@ -357,34 +357,15 @@ export const ROLE_CONFIGS: Record<string, RoleConfig> = {
         label: "Overview",
         items: [
           { label: "Dashboard", icon: LayoutDashboard, route: "/dashboard" },
-          { label: "Tasks", icon: Layers, route: "/dashboard" },
-          { label: "Attendance", icon: NotepadTextDashed, route: "/dashboard" },
+          { label: "Attendance", icon: UserCheck, route: "/attendance" },
+          { label: "Tasks", icon: CheckSquare, route: "/tasks" },
         ],
       },
-
       {
-        label: "Technical Operations",
+        label: "Operations",
         items: [
-          {
-            label: "Daily Reports",
-            icon: BadgeCheck,
-            route: "/budget-overview",
-          },
-          {
-            label: "Equipment",
-            icon: SquarePen,
-            route: "/budget-allocations",
-          },
-          {
-            label: "Safety",
-            icon: BarChart2,
-            route: "/budget-adjustments",
-          },
-          {
-            label: "AI Function",
-            icon: BarChart2,
-            route: "/budget-history",
-          },
+          { label: "Documents", icon: FileText, route: "/documents" },
+          { label: "Issues", icon: ActivitySquare, route: "/issues" },
         ],
       },
     ],

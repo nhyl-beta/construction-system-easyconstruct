@@ -7,9 +7,12 @@ const createCrudMessages = (name: string) => ({
   notFound: `${name} not found`,
 });
 
+// server/src/constants/messages.ts — PATCHED (add three entries to the MSG object)
 export const MSG = {
   projects: createCrudMessages("Project"),
   employees: createCrudMessages("Employee"),
+  attendance: createCrudMessages("Attendance record"),
+  payroll: createCrudMessages("Payroll line"),
   budgets: createCrudMessages("Budget"),
   budgetAllocations: createCrudMessages("Budget allocation"),
   budgetAdjustments: createCrudMessages("Budget adjustment"),
@@ -30,9 +33,11 @@ export const MSG = {
   designReviews: createCrudMessages("Design review"),
   architectDocuments: createCrudMessages("Architect document"),
   blueprints: createCrudMessages("Blueprint"),
-  documents: createCrudMessages("Document"),
-  engineeringReports: createCrudMessages("Engineering report"),
-  requirements: createCrudMessages("Requirement"),
   notifications: createCrudMessages("Notification"),
-  auditLogs: createCrudMessages("AuditLogs")
+  auditLogs: createCrudMessages("AuditLogs"),
+  
+  // ── Added for Site Personnel ──
+  tasks: createCrudMessages("Task"),
+  issues: createCrudMessages("Issue"),
+  documents: createCrudMessages("Document"),
 } as const;

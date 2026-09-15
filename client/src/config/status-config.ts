@@ -85,4 +85,14 @@ export const STATUS_CONFIG: Record<string, StatusTone> = {
   rejected: "danger",
   locked: "info",
   active: "success", // budget allocation status (lowercase — distinct key from "Active" above)
+  
+  // ==========================
+  // Site Personnel — Tasks, Issues, Attendance verification
+  // ==========================
+  Submitted: "info",
+  "Under Review": "warning",
+  Resolved: "success",
+  Inside: "success",
+  Outside: "danger",
+  Edge: "warning",
 };

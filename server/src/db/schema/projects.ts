@@ -1,6 +1,7 @@
+// server/src/db/schema/projects.ts — PATCHED (add geofence columns; rest unchanged)
 import {
   pgTable, serial, varchar,
-  integer, text, timestamp,
+  integer, text, timestamp, numeric,
 } from 'drizzle-orm/pg-core';
 
 export const projects = pgTable('projects', {
@@ -8,7 +9,6 @@ export const projects = pgTable('projects', {
   name:        varchar('name',        { length: 255 }).notNull(),
   code:        varchar('code',        { length: 50  }).notNull().unique(),
   pm:          varchar('pm',          { length: 100 }).notNull(),
-  assignedEngineer: varchar('assigned_engineer', { length: 100 }),
   status:      varchar('status',      { length: 50  }).notNull().default('Planning'),
   statusTone:  varchar('status_tone', { length: 50  }).notNull().default('muted'),
   progress:    integer('progress').notNull().default(0),
@@ -19,6 +19,11 @@ export const projects = pgTable('projects', {
   client:      varchar('client',      { length: 255 }),
   workforce:   integer('workforce').default(0),
   description: text('description'),
+  
+  // ── Added for Site Personnel geofenced attendance ──
+  siteLatitude:     numeric('site_latitude', { precision: 10, scale: 7 }),
+  siteLongitude:    numeric('site_longitude', { precision: 10, scale: 7 }),
+  geofenceRadiusM:  integer('geofence_radius_m').default(300),
   createdAt:   timestamp('created_at').defaultNow(),
   updatedAt:   timestamp('updated_at').defaultNow(),
 });

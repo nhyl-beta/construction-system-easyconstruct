@@ -59,6 +59,10 @@ import EngineerRequirements from "./pages/roles/engineer/engineer-requirements";
 
 // ── Site Personnel Pages ──
 import SPTasks from "./pages/roles/site-personnel/sp-tasks";
+import AttendanceRouter from "./pages/routers/attendance-router";
+import DocumentsRouter from "./pages/routers/documents-router";
+import IssuesRouter from "./pages/routers/issues-router";
+
 
 // ── Consultant Pages ──
 import ConsultantAdvisoryDocs from "./pages/roles/consultant/consultant-advisory-docs";
@@ -131,7 +135,7 @@ function App() {
 
                   <Route path="/workflows" element={<PMWorkflows />} />
                   <Route path="/approvals" element={<PMApprovals />} />
-                  <Route path="/documents" element={<PMDocuments />} />
+                  <Route path="/documents" element={<DocumentsRouter />} />
 
                   {/* ── Human Resources Routes ── */}
                   <Route path="/employees" element={<HREmployees />} />
@@ -151,7 +155,7 @@ function App() {
                     path="/employees/:id/edit"
                     element={<EmployeeCreatePage />}
                   />
-                  <Route path="/attendance" element={<HRAttendance />} />
+                  <Route path="/attendance" element={<AttendanceRouter />} />
                   <Route path="/payroll" element={<HRPayroll />} />
                   <Route path="/workforce-reports" element={<HRWorkforce />} />
 
@@ -196,7 +200,7 @@ function App() {
                     path="/requirements"
                     element={<EngineerRequirements />}
                   />
-                  <Route path="/issues" element={<EngineerIssues />} />
+                  <Route path="/issues" element={<IssuesRouter />} />
 
                   {/* ── Site Personnel Routes ── */}
                   <Route path="/tasks" element={<SPTasks />} />
