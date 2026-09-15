@@ -384,12 +384,12 @@ export const ROLE_CONFIGS: Record<string, RoleConfig> = {
       label: "Upload Advisory",
       icon: Plus,
     },
-    tabs: [
-      { label: "Proposals", icon: FileText, route: "/proposals" },
-      { label: "Documents", icon: ClipboardList, route: "/advisory-docs" },
-      { label: "Approvals", icon: CheckSquare, route: "/approvals" },
-      { label: "Projects", icon: FolderKanban, route: "/projects" },
-    ],
+      tabs: [
+        { label: "Proposals", icon: FileText, route: "/consultant/proposals" },
+        { label: "Documents", icon: ClipboardList, route: "/advisory-docs" },
+        { label: "Approvals", icon: CheckSquare, route: "/approvals" },
+        { label: "Projects", icon: FolderKanban, route: "/projects" },
+      ],
 
         sections: [
       {
