@@ -1,4 +1,3 @@
-// src/features/projects/repositories/project.repository.ts
 import { activeProjects } from "@/providers/mock-data";
 import { Project, RiskLevel, StatusTone } from "../types/project.types";
 import { apiClient } from "@/services/api.client";
@@ -51,7 +50,6 @@ function normalizeRisk(risk: string | undefined): RiskLevel {
 
 function normalizeProject(raw: BackendProject): Project {
   return {
-    id: raw.id ?? Date.now(),
     code: raw.code,
     name: raw.name,
     pm: raw.pm ?? "Unassigned",
@@ -119,11 +117,9 @@ export const ProjectRepository = {
     }
 
     const newP: Project = {
-      id: Date.now(),
       code: payload.code ?? `EC-${Date.now()}`,
       name: payload.name ?? "New Project",
       pm: payload.pm ?? "Unassigned",
-      assignedEngineer: payload.assignedEngineer ?? undefined,
       client: payload.client ?? "Unknown",
       location: payload.location ?? "Unknown",
       status: payload.status ?? "On track",
@@ -132,7 +128,7 @@ export const ProjectRepository = {
       budget: payload.budget ?? 0,
       workforce: payload.workforce ?? 0,
       due: payload.due ?? "",
-      risk: normalizeRisk((payload.risk as string | undefined) ?? "low"),
+      risk: (payload as any).risk ?? "low",
     };
     // in real repo would persist
     return newP;
