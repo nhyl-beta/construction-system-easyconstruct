@@ -28,11 +28,13 @@ import ResetPasswordPage from "@/pages/auth/reset-password";
 // ── Project Manager Pages ──
 import DashboardRouter from "@/pages/dashboard/index";
 import PMApprovals from "./pages/roles/project-manager/pm-approvals";
+// eslint-disable-next-line @typescript-eslint/no-unused-vars
 import PMDocuments from "./pages/roles/project-manager/pm-documents";
 import PMProjects from "./pages/roles/project-manager/pm-projects";
 import PMWorkflows from "./pages/roles/project-manager/pm-workflows";
 
 // ── Human Resources Pages ──
+// eslint-disable-next-line @typescript-eslint/no-unused-vars
 import HRAttendance from "./pages/roles/human-resources/hr-attendance";
 import HREmployees from "./pages/roles/human-resources/hr-employees";
 import HRPayroll from "./pages/roles/human-resources/hr-payroll";
@@ -53,6 +55,7 @@ import ArchitectReviews from "./pages/roles/architect/architect-reviews";
 import ArchitectRevisions from "./pages/roles/architect/architect-revisions";
 
 // ── Engineer Pages ──
+// eslint-disable-next-line @typescript-eslint/no-unused-vars
 import EngineerIssues from "./pages/roles/engineer/engineer-issues";
 import EngineerProgress from "./pages/roles/engineer/engineer-progress";
 import EngineerRequirements from "./pages/roles/engineer/engineer-requirements";

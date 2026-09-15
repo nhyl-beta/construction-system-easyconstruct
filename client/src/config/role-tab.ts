@@ -391,43 +391,22 @@ export const ROLE_CONFIGS: Record<string, RoleConfig> = {
       { label: "Projects", icon: FolderKanban, route: "/projects" },
     ],
 
-    sections: [
+        sections: [
       {
         label: "Overview",
         items: [
-          { label: "Dashboard", icon: LayoutDashboard, route: "/dashboard" },
-          { label: "Reviews", icon: Layers, route: "/dashboard" },
-          {
-            label: "Recommendations",
-            icon: NotepadTextDashed,
-            route: "/dashboard",
-          },
+          { label: "Dashboard", icon: LayoutDashboard, route: "/dashboard" },       
+          { label: "Reviews", icon: Layers, route: "/proposals" },
         ],
       },
 
       {
         label: "Output",
         items: [
-          {
-            label: "Reports",
-            icon: BadgeCheck,
-            route: "/budget-overview",
-          },
-          {
-            label: "Approvals",
-            icon: SquarePen,
-            route: "/budget-allocations",
-          },
-          {
-            label: "Documents",
-            icon: BarChart2,
-            route: "/budget-adjustments",
-          },
-          {
-            label: "AI Function",
-            icon: BarChart2,
-            route: "/budget-history",
-          },
+          { label: "Approvals", icon: SquarePen, route: "/approvals" },
+          { label: "Documents", icon: BarChart2, route: "/advisory-docs" },
+          { label: "AI Insights", icon: BarChart2, route: "/ai-insights" },
+          { label: "Reports", icon: BadgeCheck, route: "/reports" },
         ],
       },
     ],

@@ -64,6 +64,13 @@
       "when": 1789476789708,
       "tag": "0008_light_captain_stacy",
       "breakpoints": true
+    },
+    {
+      "idx": 9,
+      "version": "7",
+      "when": 1789489885487,
+      "tag": "0009_shiny_sleepwalker",
+      "breakpoints": true
     }
   ]
 }

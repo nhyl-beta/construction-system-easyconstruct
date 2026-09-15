@@ -5,6 +5,7 @@ import ArchitectDashboard from "../roles/architect/architect-dashboard";
 import FinanceDashboardPage from "../roles/finance/finance-dashboard";
 import EngineerDashboardPage from "../roles/engineer/engineer-dashboard";
 import SPDashboardPage from "../roles/site-personnel/sp-dashboard";
+import ConsultantDashboardPage from "../roles/consultant/consultant-dashboard";
 
 // ── Role → Dashboard map ──────────────────────────────────────────────────────
 
@@ -15,7 +16,7 @@ const ROLE_DASHBOARD: Record<string, React.ComponentType> = {
   architect: ArchitectDashboard,
   engineer: EngineerDashboardPage,
   site_personnel: SPDashboardPage,
-  // consultant:      ConsultantDashboardPage,
+  consultant:      ConsultantDashboardPage,
   // owner:           OwnerDashboardPage,
   // it_designer:     ITDesignerDashboardPage,
 };

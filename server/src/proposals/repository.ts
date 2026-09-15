@@ -1,66 +1,85 @@
-import { and, eq, ilike, or, SQL } from "drizzle-orm";
 import { db } from "../db/connection.js";
-import { proposals } from "../db/schema/proposals.js";
-import type {
-  CreateProposalInput,
-  ProposalFilters,
-  UpdateProposalInput,
-} from "./types.js";
+import {
+  proposals,
+  type NewProposal,
+} from "../db/schema/proposals.js";
 
-export const findAll = async (filters: ProposalFilters = {}) => {
-  const conditions: SQL[] = [];
+import { eq } from "drizzle-orm";
 
-  if (filters.status && filters.status !== "all")
-    conditions.push(eq(proposals.status, filters.status));
+export const proposalRepository = {
+  async findAll() {
+    return db
+      .select()
+      .from(proposals);
+  },
 
-  if (filters.projectCode && filters.projectCode !== "all")
-    conditions.push(eq(proposals.projectCode, filters.projectCode));
+  async findById(id: number) {
+    const result = await db
+      .select()
+      .from(proposals)
+      .where(eq(proposals.id, id));
 
-  if (filters.search) {
-    const s = `%${filters.search}%`;
-    conditions.push(
-      or(
-        ilike(proposals.title, s),
-        ilike(proposals.proposalId, s),
-        ilike(proposals.submittedBy, s),
-      )!,
-    );
-  }
+    return result[0];
+  },
 
-  return conditions.length
-    ? await db
-        .select()
-        .from(proposals)
-        .where(and(...conditions))
-    : await db.select().from(proposals);
-};
+  async create(data: NewProposal) {
+    const result = await db
+      .insert(proposals)
+      .values(data)
+      .returning();
 
-export const findById = async (id: number) => {
-  const [proposal] = await db
-    .select()
-    .from(proposals)
-    .where(eq(proposals.id, id));
-  return proposal ?? null;
-};
+    return result[0];
+  },
 
-export const create = async (data: CreateProposalInput) => {
-  const [created] = await db.insert(proposals).values(data).returning();
-  return created;
-};
+  async update(
+    id: number,
+    data: Partial<NewProposal>,
+  ) {
+    const result = await db
+      .update(proposals)
+      .set({
+        ...data,
+        updatedAt: new Date(),
+      })
+      .where(eq(proposals.id, id))
+      .returning();
 
-export const update = async (id: number, data: UpdateProposalInput) => {
-  const [updated] = await db
-    .update(proposals)
-    .set({ ...data, updatedAt: new Date() })
-    .where(eq(proposals.id, id))
-    .returning();
-  return updated ?? null;
-};
+    return result[0];
+  },
 
-export const remove = async (id: number) => {
-  const [deleted] = await db
-    .delete(proposals)
-    .where(eq(proposals.id, id))
-    .returning();
-  return deleted ?? null;
+  async review(
+    id: number,
+    data: {
+      status:
+        | "Approved"
+        | "Revision Requested"
+        | "Rejected";
+
+      reviewerName: string;
+      reviewComment: string;
+    },
+  ) {
+    const result = await db
+      .update(proposals)
+      .set({
+        status: data.status,
+        reviewerName: data.reviewerName,
+        reviewComment: data.reviewComment,
+        reviewedAt: new Date(),
+        updatedAt: new Date(),
+      })
+      .where(eq(proposals.id, id))
+      .returning();
+
+    return result[0];
+  },
+
+  async remove(id: number) {
+    const result = await db
+      .delete(proposals)
+      .where(eq(proposals.id, id))
+      .returning();
+
+    return result[0];
+  },
 };

@@ -1,17 +1,48 @@
 import { Router } from "express";
-import { validate } from "../middleware/validate.js";
+
+import { proposalController } from "./controller.js";
+
 import {
   createProposalSchema,
   updateProposalSchema,
+  reviewProposalSchema,
 } from "../validators/proposal-validators.js";
-import * as controller from "./controller.js";
+
+import { validate } from "../middleware/validate.js";
 
 const router = Router();
 
-router.get("/", controller.getAll);
-router.post("/", validate(createProposalSchema), controller.create);
-router.get("/:id", controller.getById);
-router.patch("/:id", validate(updateProposalSchema), controller.update);
-router.delete("/:id", controller.remove);
+router.get(
+  "/",
+  proposalController.getAll,
+);
+
+router.post(
+  "/",
+  validate(createProposalSchema),
+  proposalController.create,
+);
+
+router.get(
+  "/:id",
+  proposalController.getById,
+);
+
+router.patch(
+  "/:id",
+  validate(updateProposalSchema),
+  proposalController.update,
+);
+
+router.patch(
+  "/:id/review",
+  validate(reviewProposalSchema),
+  proposalController.review,
+);
+
+router.delete(
+  "/:id",
+  proposalController.remove,
+);
 
 export default router;

@@ -1,15 +1,99 @@
-import { PageHeader } from "@/components/refine-ui/views/page-header";
-import { KpiStrip } from "@/components/ui/kpi-strip";
-import { StatusBadge } from "@/components/ui/status-badge";
-import { Input } from "@/components/ui/input";
+import { useState } from "react";
+
 import {
-  Table, TableBody, TableCell, TableHead, TableHeader, TableRow,
+  Clock,
+  FileText,
+  Plus,
+  Send,
+} from "lucide-react";
+
+import { PageHeader } from "@/components/refine-ui/views/page-header";
+
+import { KpiStrip } from "@/components/ui/kpi-strip";
+
+import { StatusBadge } from "@/components/ui/status-badge";
+
+import { Input } from "@/components/ui/input";
+
+import { Textarea } from "@/components/ui/textarea";
+
+import { Button } from "@/components/ui/button";
+
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
 } from "@/components/ui/table";
-import { FileText, Search, Clock } from "lucide-react";
+
 import { useProposals } from "@/features/proposals/hooks/useProposals";
 
 export default function ArchitectProposals() {
   const c = useProposals();
+
+  const [showCreateForm, setShowCreateForm] =
+    useState(false);
+
+  const [title, setTitle] = useState("");
+
+  const [projectCode, setProjectCode] =
+    useState("");
+
+  const [amount, setAmount] =
+    useState("");
+
+  const [content, setContent] =
+    useState("");
+
+  const [formError, setFormError] =
+    useState<string | null>(null);
+
+  async function handleSubmit() {
+    setFormError(null);
+
+    if (!title.trim()) {
+      setFormError(
+        "Please enter a proposal title.",
+      );
+
+      return;
+    }
+
+    if (!projectCode.trim()) {
+      setFormError(
+        "Please enter a project code.",
+      );
+
+      return;
+    }
+
+    const result = await c.createProposal({
+      title: title.trim(),
+
+      projectCode: projectCode.trim(),
+
+      submittedBy: "Architect",
+
+      amount: amount.trim() || undefined,
+
+      content: content.trim() || undefined,
+
+      assignedReviewer: "consultant",
+    });
+
+    if (!result) {
+      return;
+    }
+
+    setTitle("");
+    setProjectCode("");
+    setAmount("");
+    setContent("");
+
+    setShowCreateForm(false);
+  }
 
   return (
     <div className="flex-1 space-y-6 p-4 md:p-8">
@@ -20,55 +104,222 @@ export default function ArchitectProposals() {
 
       <KpiStrip
         items={[
-          { label: "Total proposals", value: `${c.kpis.total}`, icon: FileText },
-          { label: "Pending", value: `${c.kpis.pending}`, icon: Clock, tone: "warn" },
+          {
+            label: "Total proposals",
+            value: `${c.kpis.total}`,
+            icon: FileText,
+          },
+          {
+            label: "Pending",
+            value: `${c.kpis.pending}`,
+            icon: Clock,
+            tone: "warn",
+          },
         ]}
       />
 
-      <div className="relative w-64">
-        <Search className="pointer-events-none absolute left-2.5 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-muted-foreground" />
-        <Input
-          value={c.query}
-          onChange={(e) => c.setQuery(e.target.value)}
-          placeholder="Search proposals…"
-          className="h-8 rounded-lg pl-8 text-xs"
-        />
+      <div className="flex items-center justify-between">
+        <div />
+
+        <Button
+          onClick={() =>
+            setShowCreateForm(
+              (current) => !current,
+            )
+          }
+        >
+          <Plus className="mr-2 h-4 w-4" />
+
+          New Proposal
+        </Button>
       </div>
 
-      {c.loading ? (
-        <div className="text-sm text-muted-foreground">Loading proposals…</div>
-      ) : c.proposals.length === 0 ? (
-        <div className="rounded-2xl border border-dashed p-10 text-center text-sm text-muted-foreground">
-          No proposals match your filters.
+      {showCreateForm && (
+        <div className="rounded-2xl border p-6">
+          <div className="mb-6">
+            <h2 className="text-lg font-semibold">
+              Create Proposal
+            </h2>
+
+            <p className="text-sm text-muted-foreground">
+              Submit a design proposal for consultant
+              review.
+            </p>
+          </div>
+
+          {formError && (
+            <div className="mb-4 rounded-lg border border-destructive/30 bg-destructive/5 p-3 text-sm text-destructive">
+              {formError}
+            </div>
+          )}
+
+          <div className="grid gap-4 md:grid-cols-2">
+            <div>
+              <label className="text-sm font-medium">
+                Proposal Title
+              </label>
+
+              <Input
+                value={title}
+                onChange={(event) =>
+                  setTitle(event.target.value)
+                }
+                placeholder="Structural Design Proposal"
+                className="mt-2"
+              />
+            </div>
+
+            <div>
+              <label className="text-sm font-medium">
+                Project Code
+              </label>
+
+              <Input
+                value={projectCode}
+                onChange={(event) =>
+                  setProjectCode(
+                    event.target.value,
+                  )
+                }
+                placeholder="PRJ-001"
+                className="mt-2"
+              />
+            </div>
+
+            <div>
+              <label className="text-sm font-medium">
+                Estimated Amount
+              </label>
+
+              <Input
+                value={amount}
+                onChange={(event) =>
+                  setAmount(event.target.value)
+                }
+                placeholder="₱500,000"
+                className="mt-2"
+              />
+            </div>
+          </div>
+
+          <div className="mt-4">
+            <label className="text-sm font-medium">
+              Proposal Description
+            </label>
+
+            <Textarea
+              value={content}
+              onChange={(event) =>
+                setContent(event.target.value)
+              }
+              placeholder="Describe the proposal, design considerations, materials, scope, and other relevant information."
+              className="mt-2 min-h-32"
+            />
+          </div>
+
+          <div className="mt-6 flex gap-2">
+            <Button
+              disabled={c.saving}
+              onClick={handleSubmit}
+            >
+              <Send className="mr-2 h-4 w-4" />
+
+              {c.saving
+                ? "Submitting..."
+                : "Submit for Consultant Review"}
+            </Button>
+
+            <Button
+              variant="ghost"
+              disabled={c.saving}
+              onClick={() =>
+                setShowCreateForm(false)
+              }
+            >
+              Cancel
+            </Button>
+          </div>
         </div>
-      ) : (
+      )}
+
+      <div className="rounded-2xl border">
         <Table>
           <TableHeader>
             <TableRow>
               <TableHead>ID</TableHead>
+
               <TableHead>Title</TableHead>
+
               <TableHead>Project</TableHead>
-              <TableHead>Submitted by</TableHead>
-              <TableHead className="text-right">Amount</TableHead>
+
+              <TableHead>
+                Submitted by
+              </TableHead>
+
+              <TableHead className="text-right">
+                Amount
+              </TableHead>
+
               <TableHead>Status</TableHead>
             </TableRow>
           </TableHeader>
+
           <TableBody>
-            {c.proposals.map((p) => (
-              <TableRow key={p.id}>
-                <TableCell className="font-mono text-xs">{p.proposalId}</TableCell>
-                <TableCell className="text-sm font-medium">{p.title}</TableCell>
-                <TableCell className="text-sm text-muted-foreground">{p.projectCode}</TableCell>
-                <TableCell className="text-xs text-muted-foreground">{p.submittedBy}</TableCell>
-                <TableCell className="text-right text-sm">{p.amount ?? "—"}</TableCell>
-                <TableCell><StatusBadge status={p.status} /></TableCell>
+            {c.loading ? (
+              <TableRow>
+                <TableCell
+                  colSpan={6}
+                  className="h-24 text-center"
+                >
+                  Loading proposals...
+                </TableCell>
               </TableRow>
-            ))}
+            ) : c.proposals.length === 0 ? (
+              <TableRow>
+                <TableCell
+                  colSpan={6}
+                  className="h-24 text-center text-muted-foreground"
+                >
+                  No proposals found.
+                </TableCell>
+              </TableRow>
+            ) : (
+              c.proposals.map((proposal) => (
+                <TableRow key={proposal.id}>
+                  <TableCell className="font-mono text-xs">
+                    {proposal.proposalId}
+                  </TableCell>
+
+                  <TableCell className="text-sm font-medium">
+                    {proposal.title}
+                  </TableCell>
+
+                  <TableCell className="text-sm text-muted-foreground">
+                    {proposal.projectCode}
+                  </TableCell>
+
+                  <TableCell className="text-xs text-muted-foreground">
+                    {proposal.submittedBy}
+                  </TableCell>
+
+                  <TableCell className="text-right text-sm">
+                    {proposal.amount ?? "—"}
+                  </TableCell>
+
+                  <TableCell>
+                    <StatusBadge
+                      status={proposal.status}
+                    />
+                  </TableCell>
+                </TableRow>
+              ))
+            )}
           </TableBody>
         </Table>
-      )}
+      </div>
     </div>
   );
 }
 
-ArchitectProposals.displayName = "ArchitectProposals";
+ArchitectProposals.displayName =
+  "ArchitectProposals";

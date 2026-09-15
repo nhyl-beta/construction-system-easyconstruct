@@ -16,6 +16,6 @@ export const createIssueSchema = z.object({
 });
 
 export const updateIssueStatusSchema = z.object({
-  status: z.enum(["Submitted", "Under Review", "Resolved", "Rejected"]),
+ ww status: z.enum(["Submitted", "Under Review", "Resolved", "Rejected"]),
   resolutionNotes: z.string().max(2000).optional(),
 });

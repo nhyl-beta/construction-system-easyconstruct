@@ -1,31 +1,87 @@
 import { NotFoundError } from "../utils/errors.js";
-import * as repo from "./repository.js";
-import type {
-  CreateProposalInput,
-  ProposalFilters,
-  UpdateProposalInput,
-} from "./types.js";
 
-export const getAll = async (filters: ProposalFilters) => repo.findAll(filters);
+import {
+  proposalRepository,
+} from "./repository.js";
 
-export const getById = async (id: number) => {
-  const proposal = await repo.findById(id);
-  if (!proposal) throw new NotFoundError("Proposal", String(id));
-  return proposal;
-};
+export const proposalService = {
+  async getAll() {
+    return proposalRepository.findAll();
+  },
 
-export const create = async (input: CreateProposalInput) => repo.create(input);
+  async getById(id: number) {
+    const proposal =
+      await proposalRepository.findById(id);
 
-export const update = async (id: number, input: UpdateProposalInput) => {
-  await getById(id);
-  const updated = await repo.update(id, input);
-  if (!updated) throw new NotFoundError("Proposal", String(id));
-  return updated;
-};
+    if (!proposal) {
+      throw new NotFoundError(
+        "Proposal not found",
+      );
+    }
 
-export const remove = async (id: number) => {
-  await getById(id);
-  const deleted = await repo.remove(id);
-  if (!deleted) throw new NotFoundError("Proposal", String(id));
-  return deleted;
+    return proposal;
+  },
+
+  async create(data: any) {
+    return proposalRepository.create(data);
+  },
+
+  async update(
+    id: number,
+    data: any,
+  ) {
+    const proposal =
+      await proposalRepository.update(
+        id,
+        data,
+      );
+
+    if (!proposal) {
+      throw new NotFoundError(
+        "Proposal not found",
+      );
+    }
+
+    return proposal;
+  },
+
+  async review(
+    id: number,
+    data: {
+      status:
+        | "Approved"
+        | "Revision Requested"
+        | "Rejected";
+
+      reviewerName: string;
+      reviewComment: string;
+    },
+  ) {
+    const proposal =
+      await proposalRepository.review(
+        id,
+        data,
+      );
+
+    if (!proposal) {
+      throw new NotFoundError(
+        "Proposal not found",
+      );
+    }
+
+    return proposal;
+  },
+
+  async remove(id: number) {
+    const proposal =
+      await proposalRepository.remove(id);
+
+    if (!proposal) {
+      throw new NotFoundError(
+        "Proposal not found",
+      );
+    }
+
+    return proposal;
+  },
 };
