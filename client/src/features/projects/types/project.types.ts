@@ -6,6 +6,7 @@ export interface Project {
   code: string;
   name: string;
   pm?: string;
+  assignedEngineer?: string;
   client: string;
   location: string;
   status: string;

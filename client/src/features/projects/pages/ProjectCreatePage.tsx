@@ -47,7 +47,7 @@ interface ProjectFormData {
   code: string;
   client: string;
   location: string;
-  risk: "Low" | "Medium" | "High";
+  risk: "low" | "medium" | "high";
   description: string;
   due: string;
   pm: string;
@@ -63,7 +63,7 @@ const initialForm: ProjectFormData = {
   code: "",
   client: "",
   location: "",
-  risk: "Low",
+  risk: "low",
   description: "",
   due: "",
   pm: "",
@@ -267,16 +267,16 @@ function StepProjectInfo({
             Risk level <span className="text-destructive">*</span>
           </Label>
           <Select
-            defaultValue="Low"
+            value={data.risk}
             onValueChange={(v) => set("risk", v as ProjectFormData["risk"])}
           >
             <SelectTrigger className="rounded-xl">
               <SelectValue />
             </SelectTrigger>
             <SelectContent>
-              <SelectItem value="High">🔴 High</SelectItem>
-              <SelectItem value="Medium">🟡 Medium</SelectItem>
-              <SelectItem value="Low">🟢 Low</SelectItem>
+              <SelectItem value="high">🔴 High</SelectItem>
+              <SelectItem value="medium">🟡 Medium</SelectItem>
+              <SelectItem value="low">🟢 Low</SelectItem>
             </SelectContent>
           </Select>
         </div>

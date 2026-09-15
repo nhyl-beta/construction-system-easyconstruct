@@ -3,6 +3,7 @@ import HRDashboardPage from "@/pages/roles/human-resources/hr-dashboard";
 import PMDashboardPage from "@/pages/roles/project-manager/pm-dashboard";
 import ArchitectDashboard from "../roles/architect/architect-dashboard";
 import FinanceDashboardPage from "../roles/finance/finance-dashboard";
+import EngineerDashboardPage from "../roles/engineer/engineer-dashboard";
 
 // ── Role → Dashboard map ──────────────────────────────────────────────────────
 
@@ -11,7 +12,7 @@ const ROLE_DASHBOARD: Record<string, React.ComponentType> = {
   human_resources: HRDashboardPage,
   finance_manager: FinanceDashboardPage,
   architect: ArchitectDashboard,
-  // engineer:        EngineerDashboardPage,
+  engineer: EngineerDashboardPage,
   // site_personnel:  SitePersonnelDashboardPage,
   // consultant:      ConsultantDashboardPage,
   // owner:           OwnerDashboardPage,

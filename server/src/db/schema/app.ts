@@ -1,6 +1,8 @@
 export * from "./attendance.js";
 export * from "./documents.js";
 export * from "./employees.js";
+export * from "./engineering-reports.js";
+export * from "./requirements.js";
 export * from "./notifications.js";
 export * from "./payroll.js";
 export * from "./projects.js";
@@ -8,4 +10,3 @@ export * from "./proposals.js";
 export * from "./relations.js";
 export * from "./roles.js";
 export * from "./users.js";
-export * from "./engineering-reports.js";

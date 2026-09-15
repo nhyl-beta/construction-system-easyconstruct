@@ -65,7 +65,7 @@ export default function ProjectDetailPage() {
         budget: project.budget,
         workforce: project.workforce,
         due: project.due,
-        risk: project.risk[0].toUpperCase() + project.risk.slice(1),
+        risk: project.risk,
         description: project.description,
       });
       if (!updated) throw new Error("Project could not be updated.");

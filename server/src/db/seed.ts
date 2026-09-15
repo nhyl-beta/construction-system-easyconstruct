@@ -1,67 +1,17 @@
 import bcrypt from "bcryptjs";
-import { sql } from "drizzle-orm";
-
 import { db } from "./connection.js";
-import { attendance } from "./schema/attendance.js";
-import { employees } from "./schema/employees.js";
-import { payroll } from "./schema/payroll.js";
 import { projects } from "./schema/projects.js";
-import {engineeringReports} from "./schema/engineering-reports.js";
 import { users } from "./schema/users.js";
-
-
-const mockEngineeringReports = [
-  {
-    reportId: "SR-2218",
-    title: "Foundation cure inspection — zone B",
-    type: "Site Inspection",
-    project: "WMT-204",
-    location: "Zone B, Level 3",
-    date: "2026-08-20",
-    engineer: "K. Okafor",
-    priority: "Medium",
-    description: "Routine cure-window inspection following the zone B pour.",
-    findings: "Cure progressing on schedule; humidity slightly elevated.",
-    recommendations: "Re-check in 6 hours before proceeding to next pour.",
-    status: "Submitted",
-  },
-  {
-    reportId: "SR-2219",
-    title: "Rebar spacing verification",
-    type: "Structural Assessment",
-    project: "HLH-118",
-    location: "Basement, Level -1",
-    date: "2026-08-19",
-    engineer: "L. Mendes",
-    priority: "High",
-    description: "Verification of rebar spacing against revised structural drawings.",
-    findings: "Spacing within tolerance across all inspected bays.",
-    recommendations: "Approved to proceed with formwork.",
-    status: "Approved",
-  },
-  {
-    reportId: "SR-2220",
-    title: "Electrical basement inspection",
-    type: "Non-Conformance Report",
-    project: "RCC-077",
-    location: "Basement, Electrical room",
-    date: "2026-08-18",
-    engineer: "T. Nakamura",
-    priority: "Critical",
-    description: "Inspection flagged a conduit routing conflict blocking downstream trades.",
-    findings: "Conduit run clashes with structural beam at grid C4.",
-    recommendations: "Reroute conduit; escalate to structural engineer for sign-off.",
-    requiredActions: "Coordinate with structural team before next inspection window.",
-    status: "Revision Required",
-  },
-];
-
+import { documents } from "./schema/documents.js";
+import { engineeringReports } from "./schema/engineering-reports.js";
+import { requirements } from "./schema/requirements.js";
 
 const mockProjects = [
   {
     name: "Westgate Medical Tower",
     code: "WMT-204",
     pm: "M. Rivera",
+    assignedEngineer: "K. Okafor",
     status: "In Progress",
     statusTone: "info",
     progress: 68,
@@ -77,6 +27,7 @@ const mockProjects = [
     name: "Harbor Logistics Hub",
     code: "HLH-118",
     pm: "T. Okafor",
+    assignedEngineer: "L. Mendes",
     status: "Delayed",
     statusTone: "destructive",
     progress: 41,
@@ -135,341 +86,172 @@ const mockProjects = [
   },
 ];
 
-const mockEmployees = [
+const mockDocuments = [
   {
-    employeeId: "EMP-001",
-    name: "Adaeze Nwosu",
-    initials: "AN",
-    role: "Site Engineer",
-    department: "Engineering",
-    site: "Westgate Tower",
-    status: "Active",
-    attendanceRate: 97,
-    performance: "4.6",
-    hiredOn: "2022-01-10",
-    email: "adaeze.nwosu@easyconstruct.test",
-    phone: "+63 917 000 0001",
-    payRate: "45000.00",
-    rateType: "Monthly",
+    documentId: "DR-302",
+    title: "Curtain wall — Rev C",
+    project: "WMT-204",
+    type: "Drawing",
+    version: "v3",
+    size: "12.4 MB",
+    uploadedBy: "P. Anand",
   },
   {
-    employeeId: "EMP-002",
-    name: "Marcus Bell",
-    initials: "MB",
-    role: "Field Supervisor",
-    department: "Field Ops",
-    site: "Harborline Hub",
-    status: "Active",
-    attendanceRate: 88,
-    performance: "3.9",
-    hiredOn: "2021-03-15",
-    email: "marcus.bell@easyconstruct.test",
-    phone: "+63 917 000 0002",
-    payRate: "1800.00",
-    rateType: "Daily",
+    documentId: "PR-2041",
+    title: "Steel erection proposal",
+    project: "WMT-204",
+    type: "Proposal",
+    version: "v2",
+    size: "1.8 MB",
+    uploadedBy: "L. Park",
   },
   {
-    employeeId: "EMP-003",
-    name: "Lena Park",
-    initials: "LP",
-    role: "Finance Analyst",
-    department: "Finance",
-    site: "HQ",
-    status: "Active",
-    attendanceRate: 99,
-    performance: "4.8",
-    hiredOn: "2020-06-01",
-    email: "lena.park@easyconstruct.test",
-    phone: "+63 917 000 0003",
-    payRate: "52000.00",
-    rateType: "Monthly",
+    documentId: "CT-1187",
+    title: "General contractor agreement",
+    project: "HLH-118",
+    type: "Contract",
+    version: "v1",
+    size: "640 KB",
+    uploadedBy: "T. Okafor",
   },
   {
-    employeeId: "EMP-004",
-    name: "Jordan Wells",
-    initials: "JW",
-    role: "Compliance Officer",
-    department: "Legal",
-    site: "HQ",
-    status: "On Leave",
-    attendanceRate: 91,
-    performance: "4.2",
-    hiredOn: "2019-09-20",
-    email: "jordan.wells@easyconstruct.test",
-    phone: "+63 917 000 0004",
-    payRate: "48000.00",
-    rateType: "Monthly",
+    documentId: "PM-556",
+    title: "Fire safety permit",
+    project: "RCC-077",
+    type: "Permit",
+    version: "v1",
+    size: "310 KB",
+    uploadedBy: "S. Aquino",
   },
   {
-    employeeId: "EMP-005",
-    name: "Sofia Reyes",
-    initials: "SR",
-    role: "HR Coordinator",
-    department: "HR",
-    site: "HQ",
-    status: "Active",
-    attendanceRate: 95,
-    performance: "4.4",
-    hiredOn: "2023-02-05",
-    email: "sofia.reyes@easyconstruct.test",
-    phone: "+63 917 000 0005",
-    payRate: "38000.00",
-    rateType: "Monthly",
+    documentId: "RF-874",
+    title: "RFI — foundation rebar spacing",
+    project: "HLH-118",
+    type: "RFI",
+    version: "v1",
+    size: "220 KB",
+    uploadedBy: "M. Rivera",
   },
   {
-    employeeId: "EMP-008",
-    name: "Derek Santos",
-    initials: "DS",
-    role: "Safety Officer",
-    department: "Safety",
-    site: "Harborline Hub",
-    status: "Suspended",
-    attendanceRate: 72,
-    performance: "2.8",
-    hiredOn: "2022-07-18",
-    email: "derek.santos@easyconstruct.test",
-    phone: "+63 917 000 0006",
-    payRate: "1200.00",
-    rateType: "Daily",
+    documentId: "RP-441",
+    title: "Monthly progress report — June",
+    project: "NRT-330",
+    type: "Report",
+    version: "v1",
+    size: "4.1 MB",
+    uploadedBy: "K. Singh",
   },
 ];
 
-const mockAttendance = [
+const mockEngineeringReports = [
   {
-    employeeId: "EMP-001",
-    site: "Westgate Tower",
-    clockIn: "06:58",
-    clockOut: "16:02",
-    hours: "9.1",
-    geofence: "Inside",
-    photo: "Verified",
-    status: "Verified",
-    attendanceStatus: "Present",
-    logDate: "2026-09-08",
+    reportId: "SR-2218",
+    title: "Foundation cure inspection — zone B",
+    type: "Site Inspection",
+    project: "WMT-204",
+    location: "Zone B, Level 3",
+    date: "2026-08-20",
+    engineer: "K. Okafor",
+    priority: "Medium",
+    description: "Routine cure-window inspection following the zone B pour.",
+    findings: "Cure progressing on schedule; humidity slightly elevated.",
+    recommendations: "Re-check in 6 hours before proceeding to next pour.",
+    status: "Submitted",
   },
   {
-    employeeId: "EMP-002",
-    site: "Harborline Hub",
-    clockIn: "07:34",
-    clockOut: "17:10",
-    hours: "9.6",
-    geofence: "Outside",
-    photo: "Failed",
-    status: "Flagged",
-    attendanceStatus: "Late",
-    logDate: "2026-09-08",
+    reportId: "SR-2219",
+    title: "Rebar spacing verification",
+    type: "Structural Assessment",
+    project: "HLH-118",
+    location: "Basement, Level -1",
+    date: "2026-08-19",
+    engineer: "L. Mendes",
+    priority: "High",
+    description: "Verification of rebar spacing against revised structural drawings.",
+    findings: "Spacing within tolerance across all inspected bays.",
+    recommendations: "Approved to proceed with formwork.",
+    status: "Approved",
   },
   {
-    employeeId: "EMP-003",
-    site: "HQ",
-    clockIn: "08:01",
-    clockOut: "17:00",
-    hours: "8.9",
-    geofence: "Inside",
-    photo: "Verified",
-    status: "Verified",
-    attendanceStatus: "Present",
-    logDate: "2026-09-08",
-  },
-  {
-    employeeId: "EMP-004",
-    site: "HQ",
-    clockIn: "00:00",
-    clockOut: "00:00",
-    hours: "0.0",
-    geofence: "Inside",
-    photo: "Pending",
-    status: "Pending",
-    attendanceStatus: "On Leave",
-    logDate: "2026-09-08",
-    remarks: "Approved leave",
-  },
-  {
-    employeeId: "EMP-005",
-    site: "HQ",
-    clockIn: "07:55",
-    clockOut: "12:00",
-    hours: "4.1",
-    geofence: "Inside",
-    photo: "Verified",
-    status: "Verified",
-    attendanceStatus: "Half Day",
-    logDate: "2026-09-08",
-  },
-  {
-    employeeId: "EMP-008",
-    site: "Harborline Hub",
-    clockIn: "00:00",
-    clockOut: "00:00",
-    hours: "0.0",
-    geofence: "Inside",
-    photo: "Pending",
-    status: "Pending",
-    attendanceStatus: "Absent",
-    logDate: "2026-09-08",
-    remarks: "No call, no show",
+    reportId: "SR-2220",
+    title: "Electrical basement inspection",
+    type: "Non-Conformance Report",
+    project: "RCC-077",
+    location: "Basement, Electrical room",
+    date: "2026-08-18",
+    engineer: "T. Nakamura",
+    priority: "Critical",
+    description: "Inspection flagged a conduit routing conflict blocking downstream trades.",
+    findings: "Conduit run clashes with structural beam at grid C4.",
+    recommendations: "Reroute conduit; escalate to structural engineer for sign-off.",
+    requiredActions: "Coordinate with structural team before next inspection window.",
+    status: "Revision Required",
   },
 ];
 
-const mockPayroll = [
+const mockRequirements = [
   {
-    empId: "EMP-001",
-    name: "Adaeze Nwosu",
-    initials: "AN",
-    role: "Site Engineer",
-    hours: 176,
-    overtime: 6,
-    gross: "48534.09",
-    deductions: "5824.09",
-    net: "42710.00",
-    status: "Completed",
-    period: "Aug 25 – Sep 07, 2026",
+    requirementId: "REQ-101",
+    title: "Curtain wall thermal performance",
+    project: "WMT-204",
+    category: "Specifications",
+    description:
+      "Curtain wall assembly must achieve a U-value ≤ 0.28 W/m²K across all glazed elevations.",
+    status: "Approved",
+    createdBy: "K. Okafor",
   },
   {
-    empId: "EMP-002",
-    name: "Marcus Bell",
-    initials: "MB",
-    role: "Field Supervisor",
-    hours: 88,
-    overtime: 10,
-    gross: "23625.00",
-    deductions: "2835.00",
-    net: "20790.00",
-    status: "Processing",
-    period: "Aug 25 – Sep 07, 2026",
+    requirementId: "REQ-102",
+    title: "Rebar grade for transfer beams",
+    project: "HLH-118",
+    category: "Materials",
+    description:
+      "All transfer beam reinforcement must use Grade 60 rebar per the revised structural schedule.",
+    status: "Under Review",
+    createdBy: "L. Mendes",
   },
   {
-    empId: "EMP-003",
-    name: "Lena Park",
-    initials: "LP",
-    role: "Finance Analyst",
-    hours: 176,
-    overtime: 0,
-    gross: "52000.00",
-    deductions: "6240.00",
-    net: "45760.00",
-    status: "Completed",
-    period: "Aug 25 – Sep 07, 2026",
+    requirementId: "REQ-103",
+    title: "Site access constraint — Zone C",
+    project: "RCC-077",
+    category: "Constraints",
+    description:
+      "Heavy equipment access to Zone C is restricted to 6am–10am due to adjacent school traffic.",
+    status: "Draft",
+    createdBy: "T. Nakamura",
   },
 ];
 
 const developmentUsers = [
-  {
-    email: "superadmin@easyconstruct.test",
-    name: "Super Admin Test",
-    role: "super-admin",
-  },
-  {
-    email: "admin@easyconstruct.test",
-    name: "Admin Test",
-    role: "admin",
-  },
-  {
-    email: "hr@easyconstruct.test",
-    name: "HR Test",
-    role: "human-resources",
-  },
-  {
-    email: "finance@easyconstruct.test",
-    name: "Finance Manager Test",
-    role: "finance-manager",
-  },
-  {
-    email: "pm@easyconstruct.test",
-    name: "Test Project Manager",
-    role: "project-manager",
-  },
-  {
-    email: "architect@easyconstruct.test",
-    name: "Architect Test",
-    role: "architect",
-  },
-  {
-    email: "engineer@easyconstruct.test",
-    name: "Engineer Test",
-    role: "engineer",
-  },
-  {
-    email: "sitepersonnel@easyconstruct.test",
-    name: "Site Personnel Test",
-    role: "site-personnel",
-  },
-  {
-    email: "consultant@easyconstruct.test",
-    name: "Consultant Test",
-    role: "consultant",
-  },
+  { email: "superadmin@easyconstruct.test", name: "Super Admin Test", role: "super-admin" },
+  { email: "admin@easyconstruct.test", name: "Admin Test", role: "admin" },
+  { email: "hr@easyconstruct.test", name: "HR Test", role: "human-resources" },
+  { email: "finance@easyconstruct.test", name: "Finance Manager Test", role: "finance-manager" },
+  { email: "pm@easyconstruct.test", name: "Test Project Manager", role: "project-manager" },
+  { email: "architect@easyconstruct.test", name: "Architect Test", role: "architect" },
+  { email: "engineer@easyconstruct.test", name: "Engineer Test", role: "engineer" },
+  { email: "sitepersonnel@easyconstruct.test", name: "Site Personnel Test", role: "site-personnel" },
+  { email: "consultant@easyconstruct.test", name: "Consultant Test", role: "consultant" },
 ] as const;
 
 export const seedTestUsers = async () => {
   const password = await bcrypt.hash("Test1234", 10);
-
   for (const user of developmentUsers) {
-    await db
-      .insert(users)
-      .values({
-        ...user,
-        password,
-      })
-      .onConflictDoUpdate({
-        target: users.email,
-        set: {
-          password,
-          name: user.name,
-          role: user.role,
-        },
-      });
+    await db.insert(users).values({ ...user, password }).onConflictDoUpdate({
+      target: users.email,
+      set: { password, name: user.name, role: user.role },
+    });
   }
 };
 
 async function seed() {
   console.log("🌱 Seeding development user and projects...");
-
   await seedTestUsers();
-
-  await db
-    .insert(engineeringReports)
-    .values(mockEngineeringReports)
-    .onConflictDoNothing();
-
-  await db
-    .insert(projects)
-    .values(mockProjects)
-    .onConflictDoNothing();
-
-  await db
-    .insert(employees)
-    .values(mockEmployees)
-    .onConflictDoNothing({
-      target: employees.employeeId,
-    });
-
-  const attendanceResult = await db
-    .select({
-      count: sql<number>`count(*)::int`,
-    })
-    .from(attendance);
-
-  const attendanceCount = attendanceResult[0]?.count ?? 0;
-
-  if (attendanceCount === 0) {
-    await db.insert(attendance).values(mockAttendance);
-  }
-
-  const payrollResult = await db
-    .select({
-      count: sql<number>`count(*)::int`,
-    })
-    .from(payroll);
-
-  const payrollCount = payrollResult[0]?.count ?? 0;
-
-  if (payrollCount === 0) {
-    await db.insert(payroll).values(mockPayroll);
-  }
-
+  await db.insert(projects).values(mockProjects).onConflictDoNothing();
+  await db.insert(documents).values(mockDocuments).onConflictDoNothing();
+  await db.insert(engineeringReports).values(mockEngineeringReports).onConflictDoNothing();
+  await db.insert(requirements).values(mockRequirements).onConflictDoNothing();
   console.log("✅ Done.");
-
   process.exit(0);
 }
 

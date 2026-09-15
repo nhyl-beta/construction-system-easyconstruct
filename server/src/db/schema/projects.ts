@@ -8,6 +8,7 @@ export const projects = pgTable('projects', {
   name:        varchar('name',        { length: 255 }).notNull(),
   code:        varchar('code',        { length: 50  }).notNull().unique(),
   pm:          varchar('pm',          { length: 100 }).notNull(),
+  assignedEngineer: varchar('assigned_engineer', { length: 100 }),
   status:      varchar('status',      { length: 50  }).notNull().default('Planning'),
   statusTone:  varchar('status_tone', { length: 50  }).notNull().default('muted'),
   progress:    integer('progress').notNull().default(0),

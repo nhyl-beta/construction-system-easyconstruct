@@ -13,10 +13,9 @@ import proposalRoutes from "./proposals/routes.js";
 import hrRoutes from "./hr/routes.js";
 import { authRoutes } from "./validators/routes.js";
 import employeeRoutes from "./employees/routes.js";
-import attendanceRoutes from "./attendance/routes.js";
-import payrollRoutes from "./payroll/routes.js";
-import workforceReportRoutes from "./workforce-reports/routes.js";
+//import documentRoutes from "./documents/routes.js";
 import engineeringReportRoutes from "./engineering-reports/routes.js";
+import requirementRoutes from "./requirements/routes.js";
 // import userRoutes        from './modules/users/routes';     // uncomment as built
 
 const app = express();
@@ -36,10 +35,9 @@ app.use("/api/architect-documents", architectDocumentsRoutes);
 app.use("/api/blueprints", blueprintsRoutes)
 app.use("/api/hr", hrRoutes);
 app.use("/api/employees", employeeRoutes);
-app.use("/api/attendance", attendanceRoutes);
-app.use("/api/payroll", payrollRoutes);
-app.use("/api/workforce-reports", workforceReportRoutes);
+//app.use("/api/documents", documentRoutes);
 app.use("/api/engineering-reports", engineeringReportRoutes);
+app.use("/api/requirements", requirementRoutes);
 app.use("/api/auth", authRoutes);;
 
 // app.use('/api/users',    userRoutes);

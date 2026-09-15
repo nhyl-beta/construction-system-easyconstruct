@@ -3,6 +3,7 @@ export interface ProjectRecord {
   name: string;
   code: string;
   pm: string;
+  assignedEngineer: string | null;
   status: string;
   statusTone: string;
   progress: number;
@@ -21,6 +22,7 @@ export interface CreateProjectInput {
   name: string;
   code: string;
   pm: string;
+  assignedEngineer?: string;
   status?: string;
   statusTone?: string;
   progress?: number;
