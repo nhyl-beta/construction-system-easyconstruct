@@ -11,7 +11,14 @@ async function request(path: string, opts: RequestInit = {}) {
   });
   if (!res.ok) {
     const text = await res.text();
-    throw new Error(`API error ${res.status}: ${text}`);
+    let message = text;
+    try {
+      const body = JSON.parse(text) as { message?: string };
+      message = body.message ?? text;
+    } catch {
+      // Preserve the plain response when the server did not return JSON.
+    }
+    throw new Error(message || `Request failed (${res.status})`);
   }
   const bodyText = await res.text();
   try {

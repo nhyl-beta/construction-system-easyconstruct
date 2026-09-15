@@ -66,6 +66,7 @@ import ConsultantAdvisoryDocs from "./pages/roles/consultant/consultant-advisory
 // ── Shared Pages ──
 import EmployeeCreatePage from "@/features/employees/pages/EmployeeCreatePage";
 import ProjectCreatePage from "@/features/projects/pages/ProjectCreatePage";
+import ProjectDetailPage from "@/features/projects/pages/ProjectDetailPage";
 import SharedAiInsights from "./pages/roles/shared/shared-ai-insights";
 import SharedReports from "./pages/roles/shared/shared-reports";
 import SharedResources from "./pages/roles/shared/shared-resources";
@@ -126,6 +127,7 @@ function App() {
                     element={<ProjectCreatePage />}
                   />
                   <Route path="/projects/new" element={<ProjectCreatePage />} />
+                  <Route path="/projects/:projectId" element={<ProjectDetailPage />} />
 
                   <Route path="/workflows" element={<PMWorkflows />} />
                   <Route path="/approvals" element={<PMApprovals />} />

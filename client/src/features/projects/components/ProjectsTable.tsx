@@ -30,7 +30,7 @@ export const ProjectsTable: React.FC<{ projects: Project[] }> = ({ projects }) =
               {projects.map((p) => (
                 <tr key={p.code} className="border-b border-border/60 last:border-0 hover:bg-muted/30">
                   <td className="px-5 py-3.5">
-                    <Link to={`/projects/${encodeURIComponent(p.code)}`} className="font-medium leading-tight hover:underline">{p.name}</Link>
+                    <Link to={`/projects/${p.id}`} className="font-medium leading-tight hover:underline">{p.name}</Link>
                     <div className="text-xs text-muted-foreground">{p.code} · {p.client}</div>
                   </td>
                   <td className="px-3 py-3.5">
@@ -52,7 +52,7 @@ export const ProjectsTable: React.FC<{ projects: Project[] }> = ({ projects }) =
                   </td>
                   <td className="px-5 py-3.5 text-right">
                     <Button asChild variant="ghost" size="sm" className="rounded-lg">
-                      <Link to={`/projects/${encodeURIComponent(p.code)}`}>Open <ChevronRight className="h-3.5 w-3.5" /></Link>
+                      <Link to={`/projects/${p.id}`}>Open <ChevronRight className="h-3.5 w-3.5" /></Link>
                     </Button>
                   </td>
                 </tr>

@@ -10,19 +10,18 @@ import { ProjectsToolbar } from "@/features/projects/components/ProjectsToolbar"
 import { useProjects } from "@/features/projects/hooks/useProjects";
 
 import { Plus } from "lucide-react";
-import { useState } from "react";
+import { useNavigate } from "react-router";
 
 export default function PMProjects() {
   const ctrl = useProjects();
-  // eslint-disable-next-line @typescript-eslint/no-unused-vars
-  const [showModal, setShowModal] = useState(false);
+  const navigate = useNavigate();
 
   return (
     <div className="flex-1 space-y-6 p-4 md:p-8">
       <ProjectsHeader
         subtitle={`Portfolio of ${ctrl.kpis.total} active engagements`}
         actions={
-          <Button onClick={() => setShowModal(true)} className="rounded-xl">
+          <Button onClick={() => navigate("/projects/new")} className="rounded-xl">
             <Plus className="h-4 w-4 mr-2" />
             New Project
           </Button>
@@ -38,7 +37,11 @@ export default function PMProjects() {
         setView={ctrl.setView}
       />
 
-      {ctrl.loading ? (
+      {ctrl.error ? (
+        <div className="rounded-xl border border-destructive/30 bg-destructive/10 px-4 py-3 text-sm text-destructive">
+          Couldn’t load projects. {ctrl.error.message}
+        </div>
+      ) : ctrl.loading ? (
         <ProjectLoadingState />
       ) : ctrl.projects.length === 0 ? (
         <ProjectEmptyState />

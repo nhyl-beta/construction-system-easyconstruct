@@ -2,8 +2,10 @@ export type RiskLevel = "low" | "medium" | "high";
 export type StatusTone = "success" | "warning" | "destructive" | "neutral";
 
 export interface Project {
+  id: number;
   code: string;
   name: string;
+  pm?: string;
   client: string;
   location: string;
   status: string;
@@ -13,6 +15,7 @@ export interface Project {
   workforce: number;
   due: string; // ISO date or human string
   risk: RiskLevel;
+  description?: string | null;
 }
 
 export interface ProjectsQuery {

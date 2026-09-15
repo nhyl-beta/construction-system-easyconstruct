@@ -16,7 +16,7 @@ const mockProjects: Project[] = (activeProjects as any) ?? [];
 // ─────────────────────────────────────────────────────────────────────────────
 
 interface BackendProject {
-  id?: number;
+  id: number;
   name: string;
   code: string;
   pm?: string;
@@ -31,6 +31,8 @@ interface BackendProject {
   workforce?: number | null;
   description?: string | null;
 }
+
+type ProjectPayload = Partial<Omit<Project, "risk">> & { risk?: string };
 
 const VALID_TONES: StatusTone[] = ["success", "warning", "destructive", "neutral"];
 const VALID_RISKS: RiskLevel[] = ["low", "medium", "high"];
@@ -50,8 +52,10 @@ function normalizeRisk(risk: string | undefined): RiskLevel {
 
 function normalizeProject(raw: BackendProject): Project {
   return {
+    id: raw.id,
     code: raw.code,
     name: raw.name,
+    pm: raw.pm,
     client: raw.client ?? "Unknown",
     location: raw.location ?? "Unknown",
     status: raw.status,
@@ -61,6 +65,7 @@ function normalizeProject(raw: BackendProject): Project {
     workforce: raw.workforce ?? 0,
     due: raw.due,
     risk: normalizeRisk(raw.risk),
+    description: raw.description,
   };
 }
 
@@ -92,29 +97,33 @@ export const ProjectRepository = {
     );
   },
 
-  async getById(code: string): Promise<Project | null> {
+  async getById(identifier: string): Promise<Project | null> {
     if (USE_API) {
-      // Backend routes by numeric serial id, not project code, so we reuse
-      // the existing `search` filter (which already does an ilike match on
-      // code) and pick the exact match client-side.
+      if (/^\d+$/.test(identifier)) {
+        const raw = await unwrap<BackendProject>(
+          apiClient.get(`/projects/${encodeURIComponent(identifier)}`),
+        );
+        return raw ? normalizeProject(raw) : null;
+      }
       const raw = await unwrap<BackendProject[]>(
-        apiClient.get(`/projects?search=${encodeURIComponent(code)}`),
+        apiClient.get(`/projects?search=${encodeURIComponent(identifier)}`),
       );
-      const match = raw.find((p) => p.code === code);
+      const match = raw.find((project) => project.code === identifier);
       return match ? normalizeProject(match) : null;
     }
 
     await new Promise((r) => setTimeout(r, 80));
-    return mockProjects.find((p: Project) => p.code === code) ?? null;
+    return mockProjects.find((p: Project) => p.code === identifier) ?? null;
   },
 
-  async create(payload: Partial<Project>): Promise<Project> {
+  async create(payload: ProjectPayload): Promise<Project> {
     if (USE_API) {
       const raw = await unwrap<BackendProject>(apiClient.post("/projects", payload));
       return normalizeProject(raw);
     }
 
     const newP: Project = {
+      id: Date.now(),
       code: payload.code ?? `EC-${Date.now()}`,
       name: payload.name ?? "New Project",
       client: payload.client ?? "Unknown",
@@ -131,15 +140,10 @@ export const ProjectRepository = {
     return newP;
   },
 
-  async patch(code: string, patch: Partial<Project>): Promise<Project | null> {
+  async patch(code: string, patch: ProjectPayload): Promise<Project | null> {
     if (USE_API) {
-      // Same id-vs-code issue as getById: look up the numeric id first.
-      const existing = await unwrap<BackendProject[]>(
-        apiClient.get(`/projects?search=${encodeURIComponent(code)}`),
-      );
-      const target = existing.find((p) => p.code === code);
+      const target = await ProjectRepository.getById(code);
       if (!target?.id) return null;
-
       const raw = await unwrap<BackendProject>(apiClient.patch(`/projects/${target.id}`, patch));
       return normalizeProject(raw);
     }
@@ -152,12 +156,8 @@ export const ProjectRepository = {
 
   async delete(code: string): Promise<Project | null> {
     if (USE_API) {
-      const existing = await unwrap<BackendProject[]>(
-        apiClient.get(`/projects?search=${encodeURIComponent(code)}`),
-      );
-      const target = existing.find((p) => p.code === code);
+      const target = await ProjectRepository.getById(code);
       if (!target?.id) return null;
-
       const raw = await unwrap<BackendProject>(apiClient.del(`/projects/${target.id}`));
       return normalizeProject(raw);
     }

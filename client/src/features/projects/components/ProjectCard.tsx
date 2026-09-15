@@ -9,7 +9,7 @@ import { STATUS_TONE_CLASS, RISK_CLASS } from "../constants/project-status";
 
 export const ProjectCard: React.FC<{ p: Project }> = ({ p }) => {
   return (
-    <Link to={`/projects/${encodeURIComponent(p.code)}`} className="group">
+    <Link to={`/projects/${p.id}`} className="group">
       <Card className="h-full rounded-2xl border-border/70 shadow-sm transition hover:border-primary/40 hover:shadow-md">
         <CardContent className="space-y-3 p-5">
           <div className="flex items-start justify-between gap-2">

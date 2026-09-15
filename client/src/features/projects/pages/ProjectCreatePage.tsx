@@ -9,6 +9,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
+import { ProjectRepository } from "@/features/projects/repositories/project.repository";
 import { Calendar, Info, MapPin } from "lucide-react";
 import { useState } from "react";
 import { useNavigate } from "react-router";
@@ -87,12 +88,38 @@ export default function ProjectCreatePage() {
   const handleCancel = () => navigate("/projects");
 
   const handleSubmit = async () => {
+    const required: Array<[string, string]> = [
+      ["Project name", data.name],
+      ["Project code", data.code],
+      ["Client / Owner", data.client],
+      ["Location", data.location],
+      ["Due date", data.due],
+      ["Project Manager", data.pm],
+    ];
+    const missing = required.find(([, value]) => !value.trim());
+    if (missing) {
+      setError(`${missing[0]} is required.`);
+      return;
+    }
+
     setSubmitting(true);
     setError(null);
     try {
-      // Mock-only creation — no network call, just simulates success.
-      await new Promise((r) => setTimeout(r, 400));
-      console.log("Mock project created:", data);
+      await ProjectRepository.create({
+        name: data.name.trim(),
+        code: data.code.trim(),
+        client: data.client,
+        location: data.location.trim(),
+        risk: data.risk,
+        due: data.due,
+        pm: data.pm,
+        description: data.description.trim() || undefined,
+        status: "Planning",
+        statusTone: "neutral",
+        progress: 0,
+        budget: 0,
+        workforce: 0,
+      });
       navigate("/projects");
     } catch (err) {
       setError(
