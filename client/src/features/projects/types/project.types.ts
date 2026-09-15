@@ -2,7 +2,7 @@ export type RiskLevel = "low" | "medium" | "high";
 export type StatusTone = "success" | "warning" | "destructive" | "neutral";
 
 export interface Project {
-  id: number;
+  id: number | string;
   code: string;
   name: string;
   pm?: string;

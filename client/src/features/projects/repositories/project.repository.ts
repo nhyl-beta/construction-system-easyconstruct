@@ -3,7 +3,6 @@ import { Project, RiskLevel, StatusTone } from "../types/project.types";
 import { apiClient } from "@/services/api.client";
 
 const USE_API = Boolean(import.meta.env.VITE_API_BASE);
-const mockProjects: Project[] = (activeProjects as any) ?? [];
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Backend → frontend normalization
@@ -48,8 +47,25 @@ function normalizeRisk(risk: string | undefined): RiskLevel {
   return VALID_RISKS.includes(lower as RiskLevel) ? (lower as RiskLevel) : "low";
 }
 
+const mockProjects: Project[] = activeProjects.map((project, index) => ({
+  id: index + 1,
+  code: project.code,
+  name: project.name,
+  pm: project.pm,
+  client: "Unknown",
+  location: "Unknown",
+  status: project.status,
+  statusTone: normalizeTone(project.statusTone),
+  progress: project.progress,
+  budget: project.budget,
+  workforce: 0,
+  due: project.due,
+  risk: normalizeRisk(project.risk),
+}));
+
 function normalizeProject(raw: BackendProject): Project {
   return {
+    id: raw.id ?? raw.code,
     code: raw.code,
     name: raw.name,
     pm: raw.pm ?? "Unassigned",
@@ -67,7 +83,7 @@ function normalizeProject(raw: BackendProject): Project {
 }
 
 // Unwraps the backend's { success, message, data } envelope.
-async function unwrap<T>(promise: Promise<any>): Promise<T> {
+async function unwrap<T>(promise: Promise<unknown>): Promise<T> {
   const json = await promise;
   if (json && typeof json === "object" && "data" in json) {
     return json.data as T;
@@ -117,18 +133,19 @@ export const ProjectRepository = {
     }
 
     const newP: Project = {
+      id: Date.now(),
       code: payload.code ?? `EC-${Date.now()}`,
       name: payload.name ?? "New Project",
       pm: payload.pm ?? "Unassigned",
       client: payload.client ?? "Unknown",
       location: payload.location ?? "Unknown",
       status: payload.status ?? "On track",
-      statusTone: (payload as any).statusTone ?? "neutral",
+      statusTone: payload.statusTone ?? "neutral",
       progress: payload.progress ?? 0,
       budget: payload.budget ?? 0,
       workforce: payload.workforce ?? 0,
       due: payload.due ?? "",
-      risk: (payload as any).risk ?? "low",
+      risk: payload.risk ?? "low",
     };
     // in real repo would persist
     return newP;

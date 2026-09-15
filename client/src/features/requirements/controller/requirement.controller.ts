@@ -3,6 +3,7 @@ import type {
   Requirement,
   RequirementFilters,
 } from "../types/requirements.types";
+import { useEffect, useState } from "react";
 import { RequirementRepository } from "../repositories/requirement.repository";
 
 export const RequirementService = {
@@ -26,3 +27,28 @@ export const RequirementService = {
       .sort((a, b) => b.count - a.count);
   },
 };
+
+export function useRequirementsController() {
+  const [requirements, setRequirements] = useState<Requirement[]>([]);
+  const [loading, setLoading] = useState(true);
+
+  const load = async () => {
+    setLoading(true);
+    try {
+      setRequirements(await RequirementService.fetchAll());
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    void load();
+  }, []);
+
+  const createRequirement = async (payload: CreateRequirementInput) => {
+    const created = await RequirementService.createRequirement(payload);
+    setRequirements((current) => [created, ...current]);
+  };
+
+  return { requirements, loading, createRequirement };
+}

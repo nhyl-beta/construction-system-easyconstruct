@@ -13,7 +13,7 @@ export const getAll = async (req: Request, res: Response, next: NextFunction) =>
       status: req.query.status as string,
       search: req.query.search as string,
     };
-    const data = await service.getAll(filters);
+    const data = await service.findAll(filters);
     res.json(formatSuccess(data, MSG.requirements.retrieved));
   } catch (err) {
     next(err);
@@ -22,7 +22,7 @@ export const getAll = async (req: Request, res: Response, next: NextFunction) =>
 
 export const getById = async (req: Request, res: Response, next: NextFunction) => {
   try {
-    const data = await service.getById(Number(req.params.id));
+    const data = await service.findById(Number(req.params.id));
     res.json(formatSuccess(data, MSG.requirements.single));
   } catch (err) {
     next(err);
