@@ -396,7 +396,7 @@ export const ROLE_CONFIGS: Record<string, RoleConfig> = {
         label: "Overview",
         items: [
           { label: "Dashboard", icon: LayoutDashboard, route: "/dashboard" },       
-          { label: "Reviews", icon: Layers, route: "/proposals" },
+          { label: "Reviews", icon: Layers, route: "/consultant/proposals" },
         ],
       },
 
