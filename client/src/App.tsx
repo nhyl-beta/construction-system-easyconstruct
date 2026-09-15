@@ -69,6 +69,7 @@ import IssuesRouter from "./pages/routers/issues-router";
 
 // ── Consultant Pages ──
 import ConsultantAdvisoryDocs from "./pages/roles/consultant/consultant-advisory-docs";
+import ConsultantProposals from "./pages/roles/consultant/consultant-proposals";
 
 // ── Shared Pages ──
 import EmployeeCreatePage from "@/features/employees/pages/EmployeeCreatePage";
@@ -212,6 +213,11 @@ function App() {
                   <Route
                     path="/advisory-docs"
                     element={<ConsultantAdvisoryDocs />}
+                  />
+
+                  <Route
+                    path="/consultant/proposals"
+                    element={<ConsultantProposals />}
                   />
                     </Route>
                   </Route>
