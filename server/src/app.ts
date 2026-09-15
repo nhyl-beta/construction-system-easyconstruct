@@ -16,6 +16,7 @@ import employeeRoutes from "./employees/routes.js";
 import attendanceRoutes from "./attendance/routes.js";
 import payrollRoutes from "./payroll/routes.js";
 import workforceReportRoutes from "./workforce-reports/routes.js";
+import engineeringReportRoutes from "./engineering-reports/routes.js";
 // import userRoutes        from './modules/users/routes';     // uncomment as built
 
 const app = express();
@@ -38,6 +39,7 @@ app.use("/api/employees", employeeRoutes);
 app.use("/api/attendance", attendanceRoutes);
 app.use("/api/payroll", payrollRoutes);
 app.use("/api/workforce-reports", workforceReportRoutes);
+app.use("/api/engineering-reports", engineeringReportRoutes);
 app.use("/api/auth", authRoutes);;
 
 // app.use('/api/users',    userRoutes);

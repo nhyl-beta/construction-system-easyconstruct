@@ -6,7 +6,56 @@ import { attendance } from "./schema/attendance.js";
 import { employees } from "./schema/employees.js";
 import { payroll } from "./schema/payroll.js";
 import { projects } from "./schema/projects.js";
+import {engineeringReports} from "./schema/engineering-reports.js";
 import { users } from "./schema/users.js";
+
+
+const mockEngineeringReports = [
+  {
+    reportId: "SR-2218",
+    title: "Foundation cure inspection — zone B",
+    type: "Site Inspection",
+    project: "WMT-204",
+    location: "Zone B, Level 3",
+    date: "2026-08-20",
+    engineer: "K. Okafor",
+    priority: "Medium",
+    description: "Routine cure-window inspection following the zone B pour.",
+    findings: "Cure progressing on schedule; humidity slightly elevated.",
+    recommendations: "Re-check in 6 hours before proceeding to next pour.",
+    status: "Submitted",
+  },
+  {
+    reportId: "SR-2219",
+    title: "Rebar spacing verification",
+    type: "Structural Assessment",
+    project: "HLH-118",
+    location: "Basement, Level -1",
+    date: "2026-08-19",
+    engineer: "L. Mendes",
+    priority: "High",
+    description: "Verification of rebar spacing against revised structural drawings.",
+    findings: "Spacing within tolerance across all inspected bays.",
+    recommendations: "Approved to proceed with formwork.",
+    status: "Approved",
+  },
+  {
+    reportId: "SR-2220",
+    title: "Electrical basement inspection",
+    type: "Non-Conformance Report",
+    project: "RCC-077",
+    location: "Basement, Electrical room",
+    date: "2026-08-18",
+    engineer: "T. Nakamura",
+    priority: "Critical",
+    description: "Inspection flagged a conduit routing conflict blocking downstream trades.",
+    findings: "Conduit run clashes with structural beam at grid C4.",
+    recommendations: "Reroute conduit; escalate to structural engineer for sign-off.",
+    requiredActions: "Coordinate with structural team before next inspection window.",
+    status: "Revision Required",
+  },
+];
+
 
 const mockProjects = [
   {
@@ -377,6 +426,11 @@ async function seed() {
   console.log("🌱 Seeding development user and projects...");
 
   await seedTestUsers();
+
+  await db
+    .insert(engineeringReports)
+    .values(mockEngineeringReports)
+    .onConflictDoNothing();
 
   await db
     .insert(projects)

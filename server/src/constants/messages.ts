@@ -36,5 +36,6 @@ export const MSG = {
   architectDocuments: createCrudMessages("Architect document"),
   blueprints: createCrudMessages("Blueprint"),
   notifications: createCrudMessages("Notification"),
-  auditLogs: createCrudMessages("AuditLogs")
+  auditLogs: createCrudMessages("AuditLogs"),
+  engineeringReports: createCrudMessages("Engineering report"),
 } as const;
