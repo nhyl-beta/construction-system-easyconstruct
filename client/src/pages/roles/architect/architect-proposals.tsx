@@ -70,6 +70,8 @@ export default function ArchitectProposals() {
     }
 
     const result = await c.createProposal({
+      proposalId: `PROP-${Date.now()}`,
+
       title: title.trim(),
 
       projectCode: projectCode.trim(),
