@@ -92,31 +92,6 @@ function formatDate(value: string | null) {
   return date.toLocaleDateString();
 }
 
-function createDocumentId() {
-  return `ADV-${Date.now()}`;
-}
-
-function fileToDataUrl(file: File): Promise<string> {
-  return new Promise((resolve, reject) => {
-    const reader = new FileReader();
-
-    reader.onload = () => {
-      if (typeof reader.result !== "string") {
-        reject(new Error("Unable to read the selected file."));
-        return;
-      }
-
-      resolve(reader.result);
-    };
-
-    reader.onerror = () => {
-      reject(new Error("Unable to read the selected file."));
-    };
-
-    reader.readAsDataURL(file);
-  });
-}
-
 export default function AdvisoryDocsPage() {
   const {
     documents,
@@ -217,52 +192,49 @@ export default function AdvisoryDocsPage() {
     }));
   };
 
-  const handleUpload = async () => {
-    setFormError(null);
-    setSuccessMessage(null);
+const handleUpload = async () => {
+  setFormError(null);
+  setSuccessMessage(null);
 
-    if (!selectedFile) {
-      setFormError("Please select an advisory document.");
-      return;
-    }
+  if (!selectedFile) {
+    setFormError("Please select an advisory document.");
+    return;
+  }
 
-    if (!form.title.trim()) {
-      setFormError("Document title is required.");
-      return;
-    }
+  if (!form.title.trim()) {
+    setFormError("Document title is required.");
+    return;
+  }
 
-    if (!form.project.trim()) {
-      setFormError("Project name or project code is required.");
-      return;
-    }
+  if (!form.project.trim()) {
+    setFormError("Project name or project code is required.");
+    return;
+  }
 
-    try {
-      const fileDataUrl = await fileToDataUrl(selectedFile);
+  try {
+    await upload({
+      file: selectedFile,
+      title: form.title.trim(),
+      project: form.project.trim(),
+      type: form.type || getDocumentType(selectedFile),
+    });
 
-      await upload({
-        documentId: createDocumentId(),
-        title: form.title.trim(),
-        project: form.project.trim(),
-        type: form.type || getDocumentType(selectedFile),
-        fileUrl: fileDataUrl,
-      });
+    setSuccessMessage(
+      `"${selectedFile.name}" was uploaded successfully.`,
+    );
 
-      setSuccessMessage(
-        `"${selectedFile.name}" was uploaded successfully.`,
-      );
+    setShowUploadForm(false);
+    resetUploadForm();
 
-      setShowUploadForm(false);
-      resetUploadForm();
-
-      await refresh();
-    } catch (uploadError) {
-      setFormError(
-        uploadError instanceof Error
-          ? uploadError.message
-          : "Failed to upload the advisory document.",
-      );
-    }
-  };
+    await refresh();
+  } catch (uploadError) {
+    setFormError(
+      uploadError instanceof Error
+        ? uploadError.message
+        : "Failed to upload the advisory document.",
+    );
+  }
+};
 
   return (
     <PageContainer>
