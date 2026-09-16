@@ -1,56 +1,65 @@
+const BASE = process.env.API_BASE_URL ?? "";
+
+async function request(
+  path: string,
+  options: RequestInit = {},
+): Promise<unknown> {
+  const headers = new Headers(options.headers);
+
+  if (!(options.body instanceof FormData) && !headers.has("Content-Type")) {
+    headers.set("Content-Type", "application/json");
+  }
+
+  const response = await fetch(
+    BASE ? `${BASE}/api${path}` : `/api${path}`,
+    {
+      ...options,
+      headers,
+    },
+  );
+
+  const text = await response.text();
+  let body: unknown = null;
+
+  if (text) {
+    try {
+      body = JSON.parse(text);
+    } catch {
+      body = text;
+    }
+  }
+
+  if (!response.ok) {
+    const message =
+      typeof body === "object" &&
+      body !== null &&
+      "message" in body &&
+      typeof body.message === "string"
+        ? body.message
+        : `API error ${response.status}`;
+
+    throw new Error(message);
+  }
+
+  return body;
+}
+
 export const apiClient = {
   get: (path: string) => request(path, { method: "GET" }),
 
-  post: (path: string, body: any) =>
+  post: (path: string, body: unknown) =>
     request(path, {
       method: "POST",
       body: JSON.stringify(body),
     }),
 
-  postFormData: async (path: string, formData: FormData) => {
-    const token =
-      sessionStorage.getItem("easyconstruct_token") ??
-      localStorage.getItem("easyconstruct_token");
-
-    const url = BASE ? `${BASE}/api${path}` : `/api${path}`;
-
-    const res = await fetch(url, {
+  postFormData: (path: string, formData: FormData) =>
+    request(path, {
       method: "POST",
-      headers: token
-        ? {
-            Authorization: `Bearer ${token}`,
-          }
-        : {},
       body: formData,
-    });
+    }),
 
-    if (!res.ok) {
-      const text = await res.text();
-
-      let message = `API error ${res.status}`;
-
-      try {
-        const json = JSON.parse(text);
-        message = json.message ?? message;
-      } catch {
-        if (text) {
-          message = `${message}: ${text}`;
-        }
-      }
-
-      throw new Error(message);
-    }
-
-    const bodyText = await res.text();
-
-    try {
-      return bodyText ? JSON.parse(bodyText) : null;
-    } catch {
-      return bodyText;
-    }
-  },
-
-  patch: (path: string, body: any) =>
+  patch: (path: string, body: unknown) =>
     request(path, {
       method: "PATCH",
       body: JSON.stringify(body),
