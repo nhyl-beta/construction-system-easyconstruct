@@ -73,7 +73,7 @@ export default function ConsultantDashboardPage() {
 
           <Button
             className="rounded-xl"
-            onClick={() => navigate("/proposals")}
+            onClick={() => navigate("/consultant/proposals")}
           >
             <FileSearch className="h-4 w-4" />
             Review proposals
@@ -135,7 +135,7 @@ export default function ConsultantDashboardPage() {
               variant="ghost"
               size="sm"
               className="rounded-lg text-muted-foreground"
-              onClick={() => navigate("/proposals")}
+              onClick={() => navigate("/consultant/proposals")}
             >
               View all
               <ChevronRight className="h-4 w-4" />
@@ -185,7 +185,7 @@ export default function ConsultantDashboardPage() {
                             key={p.id}
                             className="cursor-pointer border-b border-border/60 last:border-0 hover:bg-muted/30"
                             onClick={() =>
-                              navigate("/proposals")
+                              navigate("/consultant/proposals")
                             }
                           >
                             <td className="px-5 py-3.5">

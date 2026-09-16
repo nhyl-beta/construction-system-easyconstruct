@@ -385,7 +385,7 @@ export const ROLE_CONFIGS: Record<string, RoleConfig> = {
       icon: Plus,
     },
       tabs: [
-        { label: "Proposals", icon: FileText, route: "/consultant/proposals" },
+        { label: "Proposal Review", icon: FileText, route: "/consultant/proposals" },
         { label: "Documents", icon: ClipboardList, route: "/advisory-docs" },
         { label: "Approvals", icon: CheckSquare, route: "/approvals" },
         { label: "Projects", icon: FolderKanban, route: "/projects" },
@@ -396,7 +396,11 @@ export const ROLE_CONFIGS: Record<string, RoleConfig> = {
         label: "Overview",
         items: [
           { label: "Dashboard", icon: LayoutDashboard, route: "/dashboard" },       
-          { label: "Reviews", icon: Layers, route: "/consultant/proposals" },
+          {
+            label: "Proposal Review",
+            icon: FileText,
+            route: "/consultant/proposals"
+          },
         ],
       },
 

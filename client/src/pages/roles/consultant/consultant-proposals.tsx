@@ -15,28 +15,68 @@ import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { StatusBadge } from "@/components/ui/status-badge";
 
+/*
+ * ============================================================
+ * PROPOSAL TYPE
+ * ============================================================
+ */
+
 type Proposal = {
   id: number;
+
   proposalId: string;
+
   title: string;
+
   projectCode: string;
+
   submittedBy: string;
+
   assignedReviewer?: string | null;
+
   status: string;
+
   amount?: string | null;
+
   content?: string | null;
+
+  aiValidation?: string | null;
+
   reviewerName?: string | null;
+
   reviewComment?: string | null;
+
   reviewedAt?: string | null;
+
   createdAt?: string | null;
+
+  updatedAt?: string | null;
 };
+
+/*
+ * ============================================================
+ * REVIEW STATUS
+ * ============================================================
+ */
 
 type ReviewStatus =
   | "Approved"
   | "Revision Requested"
   | "Rejected";
 
+/*
+ * ============================================================
+ * CONSULTANT PROPOSALS PAGE
+ * ============================================================
+ */
+
 export default function ConsultantProposalsPage() {
+  /*
+   * ----------------------------------------------------------
+   * STATE
+   * ----------------------------------------------------------
+   */
+
   const [proposals, setProposals] =
     useState<Proposal[]>([]);
 
@@ -52,6 +92,25 @@ export default function ConsultantProposalsPage() {
   const [reviewing, setReviewing] =
     useState(false);
 
+  /*
+   * ----------------------------------------------------------
+   * DEBUG
+   * ----------------------------------------------------------
+   *
+   * This confirms that THIS component is actually being
+   * rendered by React.
+   */
+
+  console.log(
+    "===== CONSULTANT PROPOSALS PAGE LOADED =====",
+  );
+
+  /*
+   * ----------------------------------------------------------
+   * LOAD PROPOSALS
+   * ----------------------------------------------------------
+   */
+
   const loadProposals = async () => {
     try {
       setLoading(true);
@@ -61,15 +120,22 @@ export default function ConsultantProposalsPage() {
 
       if (!response.ok) {
         throw new Error(
-          "Failed to load proposals.",
+          `Failed to load proposals. HTTP ${response.status}`,
         );
       }
 
       const result =
         await response.json();
 
+      console.log(
+        "CONSULTANT PROPOSALS API RESULT:",
+        result,
+      );
+
       setProposals(
-        result.data ?? [],
+        Array.isArray(result.data)
+          ? result.data
+          : [],
       );
     } catch (error) {
       console.error(
@@ -81,41 +147,85 @@ export default function ConsultantProposalsPage() {
     }
   };
 
+  /*
+   * ----------------------------------------------------------
+   * INITIAL LOAD
+   * ----------------------------------------------------------
+   */
+
   useEffect(() => {
     loadProposals();
   }, []);
 
   /*
-   * For the thesis demonstration, we show:
+   * ----------------------------------------------------------
+   * FILTER CONSULTANT PROPOSALS
+   * ----------------------------------------------------------
    *
-   * 1. Pending proposals assigned to Consultant
+   * A proposal appears if:
+   *
+   * 1. It is Pending
+   * 2. It is assigned to Consultant
    *
    * OR
    *
-   * 2. Pending proposals submitted by Architect
-   *    that do not have an assigned reviewer yet.
+   * 3. It is an older Architect proposal that does not
+   *    have assignedReviewer yet.
    *
-   * This allows your existing TEST PROPOSA to appear
-   * even if it was created before assignedReviewer
-   * was added to the database.
    */
+
   const pendingProposals =
     proposals.filter((proposal) => {
-      if (proposal.status !== "Pending") {
+      /*
+       * Only pending proposals require review.
+       */
+
+      if (
+        proposal.status
+          ?.trim()
+          .toLowerCase() !==
+        "pending"
+      ) {
         return false;
       }
 
-      const assignedReviewer =
-        proposal.assignedReviewer?.trim().toLowerCase();
+      /*
+       * Normalize assigned reviewer.
+       */
 
-      if (assignedReviewer === "consultant") {
+      const assignedReviewer =
+        proposal.assignedReviewer
+          ?.trim()
+          .toLowerCase();
+
+      /*
+       * New proposal:
+       *
+       * assignedReviewer = consultant
+       */
+
+      if (
+        assignedReviewer ===
+        "consultant"
+      ) {
         return true;
       }
 
+      /*
+       * Legacy proposal:
+       *
+       * submittedBy = Architect
+       * assignedReviewer = empty
+       */
+
+      const submittedBy =
+        proposal.submittedBy
+          ?.trim()
+          .toLowerCase();
+
       if (
         !assignedReviewer &&
-        proposal.submittedBy ===
-          "Architect"
+        submittedBy === "architect"
       ) {
         return true;
       }
@@ -123,10 +233,73 @@ export default function ConsultantProposalsPage() {
       return false;
     });
 
+  /*
+   * ----------------------------------------------------------
+   * OPEN PROPOSAL
+   * ----------------------------------------------------------
+   */
+
+  const openProposal = (
+    proposal: Proposal,
+  ) => {
+    console.log(
+      "PROPOSAL CLICKED:",
+      proposal.proposalId,
+    );
+
+    console.log(
+      "OPENING PROPOSAL:",
+      proposal,
+    );
+
+    /*
+     * This is the important state change.
+     *
+     * Once this is not null, the page below will render
+     * the review screen.
+     */
+
+    setSelectedProposal(proposal);
+
+    /*
+     * Load an existing comment if there is one.
+     */
+
+    setComment(
+      proposal.reviewComment ?? "",
+    );
+  };
+
+  /*
+   * ----------------------------------------------------------
+   * CLOSE PROPOSAL
+   * ----------------------------------------------------------
+   */
+
+  const closeProposal = () => {
+    console.log(
+      "CLOSING PROPOSAL REVIEW",
+    );
+
+    setSelectedProposal(null);
+
+    setComment("");
+  };
+
+  /*
+   * ----------------------------------------------------------
+   * REVIEW PROPOSAL
+   * ----------------------------------------------------------
+   */
+
   const reviewProposal = async (
     proposal: Proposal,
     status: ReviewStatus,
   ) => {
+    /*
+     * Require a comment.
+     */
+
     if (!comment.trim()) {
       alert(
         "Please enter a review comment before submitting your decision.",
@@ -138,45 +311,82 @@ export default function ConsultantProposalsPage() {
     try {
       setReviewing(true);
 
-      const response = await fetch(
-        `/api/proposals/${proposal.id}/review`,
+      console.log(
+        "SUBMITTING REVIEW:",
         {
-          method: "PATCH",
+          proposalId:
+            proposal.proposalId,
 
-          headers: {
-            "Content-Type":
-              "application/json",
-          },
+          status,
 
-          body: JSON.stringify({
-            status,
+          reviewerName:
+            "Consultant",
 
-            reviewerName:
-              "Consultant",
-
-            reviewComment:
-              comment.trim(),
-          }),
+          reviewComment:
+            comment.trim(),
         },
       );
 
-      if (!response.ok) {
-        const errorText =
-          await response.text();
+      const response =
+        await fetch(
+          `/api/proposals/${proposal.id}/review`,
+          {
+            method: "PATCH",
 
-        console.error(
-          "Review API error:",
-          errorText,
+            headers: {
+              "Content-Type":
+                "application/json",
+            },
+
+            body: JSON.stringify({
+              status,
+
+              reviewerName:
+                "Consultant",
+
+              reviewComment:
+                comment.trim(),
+            }),
+          },
         );
 
+      /*
+       * Try to read the response even if the server
+       * returns an error.
+       */
+
+      const result =
+        await response.json().catch(
+          () => null,
+        );
+
+      console.log(
+        "REVIEW API RESPONSE:",
+        result,
+      );
+
+      if (!response.ok) {
         throw new Error(
-          "Failed to submit review.",
+          result?.message ??
+            `Review failed. HTTP ${response.status}`,
         );
       }
 
+      /*
+       * Clear the review.
+       */
+
       setComment("");
 
+      /*
+       * Return to proposal list.
+       */
+
       setSelectedProposal(null);
+
+      /*
+       * Reload the database data.
+       */
 
       await loadProposals();
 
@@ -185,12 +395,14 @@ export default function ConsultantProposalsPage() {
       );
     } catch (error) {
       console.error(
-        "Failed to review proposal:",
+        "FAILED TO SUBMIT REVIEW:",
         error,
       );
 
       alert(
-        "Failed to submit the proposal review.",
+        error instanceof Error
+          ? error.message
+          : "Failed to submit the proposal review.",
       );
     } finally {
       setReviewing(false);
@@ -198,359 +410,596 @@ export default function ConsultantProposalsPage() {
   };
 
   /*
-   * ------------------------------------------------
-   * PROPOSAL LIST
-   * ------------------------------------------------
+   * ==========================================================
+   * REVIEW SCREEN
+   * ==========================================================
+   *
+   * THIS IS THE MOST IMPORTANT PART.
+   *
+   * If selectedProposal exists, the proposal list disappears
+   * and the Consultant Review interface appears.
    */
 
-  if (!selectedProposal) {
+  if (selectedProposal) {
     return (
       <PageContainer>
+
         <PageHeader
           title="Proposal Review"
-          description="Review design proposals submitted by Architects."
+          description="Review the proposal and submit your professional assessment."
         />
 
         <PageContent className="p-6 md:p-8">
-          {loading ? (
-            <div className="py-12 text-center text-sm text-muted-foreground">
-              Loading proposals...
-            </div>
-          ) : pendingProposals.length === 0 ? (
-            <div className="rounded-xl border border-dashed p-12 text-center">
-              <FileText className="mx-auto mb-4 h-10 w-10 text-muted-foreground" />
 
-              <h2 className="text-lg font-semibold">
-                No proposals awaiting review
-              </h2>
+          <div className="mx-auto max-w-4xl space-y-6">
 
-              <p className="mt-2 text-sm text-muted-foreground">
-                Architect proposals assigned to the
-                Consultant will appear here.
-              </p>
+            {/* ------------------------------------------------
+                BACK BUTTON
+                ------------------------------------------------ */}
+
+            <Button
+              type="button"
+              variant="ghost"
+              onClick={closeProposal}
+              className="gap-2"
+            >
+              <ArrowLeft className="h-4 w-4" />
+
+              Back to Proposals
+            </Button>
+
+            {/* ------------------------------------------------
+                PROPOSAL INFORMATION
+                ------------------------------------------------ */}
+
+            <div className="rounded-xl border bg-card">
+
+              <div className="border-b p-6">
+
+                <div className="flex flex-wrap items-start justify-between gap-4">
+
+                  <div>
+
+                    <p className="font-mono text-xs text-muted-foreground">
+                      {
+                        selectedProposal.proposalId
+                      }
+                    </p>
+
+                    <h1 className="mt-2 text-2xl font-bold">
+                      {
+                        selectedProposal.title
+                      }
+                    </h1>
+
+                  </div>
+
+                  <StatusBadge
+                    status={
+                      selectedProposal.status
+                    }
+                  />
+
+                </div>
+
+              </div>
+
+              <div className="grid gap-6 p-6 sm:grid-cols-2">
+
+                {/* Project */}
+
+                <div>
+
+                  <p className="text-xs font-medium uppercase text-muted-foreground">
+                    Project
+                  </p>
+
+                  <p className="mt-1 font-medium">
+                    {
+                      selectedProposal.projectCode
+                    }
+                  </p>
+
+                </div>
+
+                {/* Submitted By */}
+
+                <div>
+
+                  <p className="text-xs font-medium uppercase text-muted-foreground">
+                    Submitted By
+                  </p>
+
+                  <p className="mt-1 font-medium">
+                    {
+                      selectedProposal.submittedBy
+                    }
+                  </p>
+
+                </div>
+
+                {/* Amount */}
+
+                <div>
+
+                  <p className="text-xs font-medium uppercase text-muted-foreground">
+                    Estimated Amount
+                  </p>
+
+                  <p className="mt-1 font-medium">
+                    {
+                      selectedProposal.amount ??
+                      "Not provided"
+                    }
+                  </p>
+
+                </div>
+
+                {/* Reviewer */}
+
+                <div>
+
+                  <p className="text-xs font-medium uppercase text-muted-foreground">
+                    Assigned Reviewer
+                  </p>
+
+                  <p className="mt-1 font-medium">
+                    {
+                      selectedProposal.assignedReviewer ??
+                      "Consultant"
+                    }
+                  </p>
+
+                </div>
+
+              </div>
+
             </div>
-          ) : (
-            <div className="space-y-4">
-              <div>
-                <h2 className="text-lg font-semibold">
-                  Proposals Awaiting Review
+
+            {/* ------------------------------------------------
+                PROPOSAL DESCRIPTION
+                ------------------------------------------------ */}
+
+            <div className="rounded-xl border bg-card">
+
+              <div className="border-b p-6">
+
+                <h2 className="font-semibold">
+                  Proposal Details
                 </h2>
 
-                <p className="text-sm text-muted-foreground">
-                  Click a proposal to open its details
-                  and provide your review.
-                </p>
               </div>
 
-              <div className="grid gap-4">
-                {pendingProposals.map(
-                  (proposal) => (
-                    <button
-                      key={proposal.id}
-                      type="button"
-                      onClick={() =>
-                        setSelectedProposal(
-                          proposal,
-                        )
-                      }
-                      className="w-full rounded-xl border bg-card p-5 text-left transition hover:border-primary/50 hover:bg-muted/30"
-                    >
-                      <div className="flex items-start justify-between gap-4">
-                        <div className="min-w-0">
-                          <div className="flex items-center gap-2">
-                            <span className="font-mono text-xs text-muted-foreground">
-                              {
-                                proposal.proposalId
-                              }
-                            </span>
+              <div className="p-6">
 
-                            <StatusBadge
-                              status={
-                                proposal.status
-                              }
-                            />
-                          </div>
-
-                          <h3 className="mt-2 text-lg font-semibold">
-                            {proposal.title}
-                          </h3>
-
-                          <div className="mt-2 space-y-1 text-sm text-muted-foreground">
-                            <p>
-                              Project:{" "}
-                              <span className="font-medium text-foreground">
-                                {
-                                  proposal.projectCode
-                                }
-                              </span>
-                            </p>
-
-                            <p>
-                              Submitted by:{" "}
-                              <span className="font-medium text-foreground">
-                                {
-                                  proposal.submittedBy
-                                }
-                              </span>
-                            </p>
-
-                            {proposal.amount && (
-                              <p>
-                                Amount:{" "}
-                                <span className="font-medium text-foreground">
-                                  {
-                                    proposal.amount
-                                  }
-                                </span>
-                              </p>
-                            )}
-                          </div>
-                        </div>
-
-                        <span className="shrink-0 text-sm font-medium text-primary">
-                          Review →
-                        </span>
-                      </div>
-                    </button>
-                  ),
+                {selectedProposal.content ? (
+                  <p className="whitespace-pre-wrap text-sm leading-7">
+                    {
+                      selectedProposal.content
+                    }
+                  </p>
+                ) : (
+                  <p className="text-sm text-muted-foreground">
+                    No proposal description was
+                    provided.
+                  </p>
                 )}
+
               </div>
+
             </div>
-          )}
+
+            {/* ------------------------------------------------
+                AI VALIDATION
+                ------------------------------------------------ */}
+
+            <div className="rounded-xl border bg-card">
+
+              <div className="border-b p-6">
+
+                <h2 className="font-semibold">
+                  AI Validation Summary
+                </h2>
+
+                <p className="mt-1 text-sm text-muted-foreground">
+                  AI-generated information is provided
+                  as decision support and does not replace
+                  professional judgment.
+                </p>
+
+              </div>
+
+              <div className="p-6">
+
+                {selectedProposal.aiValidation ? (
+                  <p className="whitespace-pre-wrap text-sm leading-7">
+                    {
+                      selectedProposal.aiValidation
+                    }
+                  </p>
+                ) : (
+                  <p className="text-sm text-muted-foreground">
+                    No AI validation summary is
+                    available for this proposal.
+                  </p>
+                )}
+
+              </div>
+
+            </div>
+
+            {/* ------------------------------------------------
+                CONSULTANT REVIEW
+                ------------------------------------------------ */}
+
+            <div className="rounded-xl border bg-card">
+
+              <div className="border-b p-6">
+
+                <h2 className="font-semibold">
+                  Consultant Review
+                </h2>
+
+                <p className="mt-1 text-sm text-muted-foreground">
+                  Provide your professional assessment
+                  before making a decision.
+                </p>
+
+              </div>
+
+              <div className="space-y-6 p-6">
+
+                {/* Comment */}
+
+                <div>
+
+                  <label
+                    htmlFor="consultant-review-comment"
+                    className="mb-2 block text-sm font-medium"
+                  >
+                    Review Comment
+                  </label>
+
+                  <Textarea
+                    id="consultant-review-comment"
+                    value={comment}
+                    onChange={(event) =>
+                      setComment(
+                        event.target.value,
+                      )
+                    }
+                    placeholder="Please revise the structural details before final approval."
+                    className="min-h-[160px]"
+                  />
+
+                  <p className="mt-2 text-xs text-muted-foreground">
+                    Explain what should be approved,
+                    revised, or rejected.
+                  </p>
+
+                </div>
+
+                {/* Decision Buttons */}
+
+                <div className="flex flex-wrap gap-3">
+
+                  {/* APPROVE */}
+
+                  <Button
+                    type="button"
+                    disabled={reviewing}
+                    onClick={() =>
+                      reviewProposal(
+                        selectedProposal,
+                        "Approved",
+                      )
+                    }
+                    className="gap-2"
+                  >
+                    <Check className="h-4 w-4" />
+
+                    Approve
+                  </Button>
+
+                  {/* REQUEST REVISION */}
+
+                  <Button
+                    type="button"
+                    variant="outline"
+                    disabled={reviewing}
+                    onClick={() =>
+                      reviewProposal(
+                        selectedProposal,
+                        "Revision Requested",
+                      )
+                    }
+                  >
+                    Request Revision
+                  </Button>
+
+                  {/* REJECT */}
+
+                  <Button
+                    type="button"
+                    variant="destructive"
+                    disabled={reviewing}
+                    onClick={() =>
+                      reviewProposal(
+                        selectedProposal,
+                        "Rejected",
+                      )
+                    }
+                    className="gap-2"
+                  >
+                    <X className="h-4 w-4" />
+
+                    Reject
+                  </Button>
+
+                </div>
+
+                {/* Loading */}
+
+                {reviewing && (
+                  <p className="text-sm text-muted-foreground">
+                    Submitting consultant review...
+                  </p>
+                )}
+
+              </div>
+
+            </div>
+
+          </div>
+
         </PageContent>
+
       </PageContainer>
     );
   }
 
   /*
-   * ------------------------------------------------
-   * PROPOSAL DETAILS / REVIEW
-   * ------------------------------------------------
+   * ==========================================================
+   * PROPOSAL LIST SCREEN
+   * ==========================================================
    */
 
   return (
     <PageContainer>
+
       <PageHeader
         title="Proposal Review"
-        description="Review the proposal and submit your professional assessment."
+        description="Review design proposals submitted by Architects."
       />
 
       <PageContent className="p-6 md:p-8">
-        <div className="mx-auto max-w-4xl space-y-6">
-          {/* Back button */}
 
-          <Button
-            variant="ghost"
-            onClick={() => {
-              setSelectedProposal(null);
-              setComment("");
-            }}
-            className="gap-2"
-          >
-            <ArrowLeft className="h-4 w-4" />
-            Back to Proposals
-          </Button>
+        {/* ----------------------------------------------------
+            PAGE INFORMATION
+            ---------------------------------------------------- */}
 
-          {/* Proposal information */}
+        <div className="mb-6">
 
-          <div className="rounded-xl border bg-card">
-            <div className="border-b p-6">
-              <div className="flex flex-wrap items-start justify-between gap-4">
-                <div>
-                  <p className="font-mono text-xs text-muted-foreground">
-                    {selectedProposal.proposalId}
-                  </p>
+          <h2 className="text-lg font-semibold">
+            Proposals Awaiting Review
+          </h2>
 
-                  <h1 className="mt-2 text-2xl font-bold">
-                    {selectedProposal.title}
-                  </h1>
-                </div>
+          <p className="mt-1 text-sm text-muted-foreground">
+            Select a proposal to review its details
+            and provide your decision.
+          </p>
 
-                <StatusBadge
-                  status={
-                    selectedProposal.status
-                  }
-                />
-              </div>
-            </div>
-
-            <div className="grid gap-4 p-6 sm:grid-cols-2">
-              <div>
-                <p className="text-xs font-medium uppercase text-muted-foreground">
-                  Project
-                </p>
-
-                <p className="mt-1 font-medium">
-                  {
-                    selectedProposal.projectCode
-                  }
-                </p>
-              </div>
-
-              <div>
-                <p className="text-xs font-medium uppercase text-muted-foreground">
-                  Submitted By
-                </p>
-
-                <p className="mt-1 font-medium">
-                  {
-                    selectedProposal.submittedBy
-                  }
-                </p>
-              </div>
-
-              {selectedProposal.amount && (
-                <div>
-                  <p className="text-xs font-medium uppercase text-muted-foreground">
-                    Amount
-                  </p>
-
-                  <p className="mt-1 font-medium">
-                    {
-                      selectedProposal.amount
-                    }
-                  </p>
-                </div>
-              )}
-
-              <div>
-                <p className="text-xs font-medium uppercase text-muted-foreground">
-                  Assigned Reviewer
-                </p>
-
-                <p className="mt-1 font-medium">
-                  {selectedProposal.assignedReviewer ??
-                    "Consultant"}
-                </p>
-              </div>
-            </div>
-          </div>
-
-          {/* Proposal content */}
-
-          <div className="rounded-xl border bg-card">
-            <div className="border-b p-6">
-              <h2 className="font-semibold">
-                Proposal Details
-              </h2>
-            </div>
-
-            <div className="p-6">
-              {selectedProposal.content ? (
-                <p className="whitespace-pre-wrap text-sm leading-7">
-                  {
-                    selectedProposal.content
-                  }
-                </p>
-              ) : (
-                <p className="text-sm text-muted-foreground">
-                  No proposal description was
-                  provided.
-                </p>
-              )}
-            </div>
-          </div>
-
-          {/* Consultant review */}
-
-          <div className="rounded-xl border bg-card">
-            <div className="border-b p-6">
-              <h2 className="font-semibold">
-                Consultant Review
-              </h2>
-
-              <p className="mt-1 text-sm text-muted-foreground">
-                Provide your assessment before
-                making a decision.
-              </p>
-            </div>
-
-            <div className="space-y-5 p-6">
-              <div>
-                <label
-                  htmlFor="review-comment"
-                  className="mb-2 block text-sm font-medium"
-                >
-                  Review Comment
-                </label>
-
-                <Textarea
-                  id="review-comment"
-                  value={comment}
-                  onChange={(event) =>
-                    setComment(
-                      event.target.value,
-                    )
-                  }
-                  placeholder="Please revise the structural details before final approval."
-                  className="min-h-[140px]"
-                />
-
-                <p className="mt-2 text-xs text-muted-foreground">
-                  Explain your reasoning or provide
-                  instructions to the Architect.
-                </p>
-              </div>
-
-              {/* Decision buttons */}
-
-              <div className="flex flex-wrap gap-3">
-                <Button
-                  disabled={reviewing}
-                  onClick={() =>
-                    reviewProposal(
-                      selectedProposal,
-                      "Approved",
-                    )
-                  }
-                  className="gap-2"
-                >
-                  <Check className="h-4 w-4" />
-                  Approve
-                </Button>
-
-                <Button
-                  variant="outline"
-                  disabled={reviewing}
-                  onClick={() =>
-                    reviewProposal(
-                      selectedProposal,
-                      "Revision Requested",
-                    )
-                  }
-                  className="gap-2"
-                >
-                  Request Revision
-                </Button>
-
-                <Button
-                  variant="destructive"
-                  disabled={reviewing}
-                  onClick={() =>
-                    reviewProposal(
-                      selectedProposal,
-                      "Rejected",
-                    )
-                  }
-                  className="gap-2"
-                >
-                  <X className="h-4 w-4" />
-                  Reject
-                </Button>
-              </div>
-
-              {reviewing && (
-                <p className="text-sm text-muted-foreground">
-                  Submitting review...
-                </p>
-              )}
-            </div>
-          </div>
         </div>
+
+        {/* ----------------------------------------------------
+            LOADING
+            ---------------------------------------------------- */}
+
+        {loading ? (
+          <div className="rounded-xl border p-12 text-center">
+
+            <p className="text-sm text-muted-foreground">
+              Loading proposals...
+            </p>
+
+          </div>
+        ) : pendingProposals.length === 0 ? (
+          /* --------------------------------------------------
+             EMPTY
+             -------------------------------------------------- */
+
+          <div className="rounded-xl border border-dashed p-12 text-center">
+
+            <FileText className="mx-auto mb-4 h-10 w-10 text-muted-foreground" />
+
+            <h2 className="text-lg font-semibold">
+              No proposals awaiting review
+            </h2>
+
+            <p className="mx-auto mt-2 max-w-md text-sm text-muted-foreground">
+              Architect proposals assigned to the
+              Consultant will appear here.
+            </p>
+
+          </div>
+        ) : (
+          /* --------------------------------------------------
+             PROPOSAL TABLE
+             -------------------------------------------------- */
+
+          <div className="overflow-hidden rounded-xl border">
+
+            <div className="overflow-x-auto">
+
+              <table className="w-full">
+
+                <thead className="border-b bg-muted/20">
+
+                  <tr>
+
+                    <th className="px-4 py-4 text-left text-sm font-semibold">
+                      ID
+                    </th>
+
+                    <th className="px-4 py-4 text-left text-sm font-semibold">
+                      Title
+                    </th>
+
+                    <th className="px-4 py-4 text-left text-sm font-semibold">
+                      Project
+                    </th>
+
+                    <th className="px-4 py-4 text-left text-sm font-semibold">
+                      Submitted By
+                    </th>
+
+                    <th className="px-4 py-4 text-right text-sm font-semibold">
+                      Amount
+                    </th>
+
+                    <th className="px-4 py-4 text-left text-sm font-semibold">
+                      Status
+                    </th>
+
+                    <th className="px-4 py-4 text-left text-sm font-semibold">
+                      Action
+                    </th>
+
+                  </tr>
+
+                </thead>
+
+                <tbody>
+
+                  {pendingProposals.map(
+                    (proposal) => (
+                      <tr
+                        key={proposal.id}
+                        className="border-b last:border-b-0 hover:bg-muted/20"
+                      >
+
+                        {/* ID */}
+
+                        <td className="px-4 py-4">
+
+                          <span className="font-mono text-xs">
+                            {
+                              proposal.proposalId
+                            }
+                          </span>
+
+                        </td>
+
+                        {/* TITLE */}
+
+                        <td className="px-4 py-4">
+
+                          <button
+                            type="button"
+                            onClick={() => {
+                              console.log(
+                                "PROPOSAL TITLE CLICKED:",
+                                proposal.proposalId,
+                              );
+
+                              openProposal(
+                                proposal,
+                              );
+                            }}
+                            className="cursor-pointer text-left font-semibold text-primary underline-offset-4 hover:underline"
+                          >
+                            {
+                              proposal.title
+                            }
+                          </button>
+
+                        </td>
+
+                        {/* PROJECT */}
+
+                        <td className="px-4 py-4 text-sm">
+                          {
+                            proposal.projectCode
+                          }
+                        </td>
+
+                        {/* SUBMITTED BY */}
+
+                        <td className="px-4 py-4 text-sm">
+                          {
+                            proposal.submittedBy
+                          }
+                        </td>
+
+                        {/* AMOUNT */}
+
+                        <td className="px-4 py-4 text-right text-sm">
+                          {
+                            proposal.amount ??
+                            "—"
+                          }
+                        </td>
+
+                        {/* STATUS */}
+
+                        <td className="px-4 py-4">
+
+                          <StatusBadge
+                            status={
+                              proposal.status
+                            }
+                          />
+
+                        </td>
+
+                        {/* ACTION */}
+
+                        <td className="px-4 py-4">
+
+                          <Button
+                            type="button"
+                            variant="outline"
+                            size="sm"
+                            onClick={() => {
+                              console.log(
+                                "REVIEW BUTTON CLICKED:",
+                                proposal.proposalId,
+                              );
+
+                              openProposal(
+                                proposal,
+                              );
+                            }}
+                          >
+                            Review →
+                          </Button>
+
+                        </td>
+
+                      </tr>
+                    ),
+                  )}
+
+                </tbody>
+
+              </table>
+
+            </div>
+
+          </div>
+        )}
+
       </PageContent>
+
     </PageContainer>
   );
 }
+
+/*
+ * ============================================================
+ * DISPLAY NAME
+ * ============================================================
+ */
 
 ConsultantProposalsPage.displayName =
   "ConsultantProposalsPage";
