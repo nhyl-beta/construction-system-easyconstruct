@@ -105,15 +105,15 @@ export default function ConsultantProposalsPage() {
         return false;
       }
 
-      if (
-        proposal.assignedReviewer ===
-        "Consultant"
-      ) {
+      const assignedReviewer =
+        proposal.assignedReviewer?.trim().toLowerCase();
+
+      if (assignedReviewer === "consultant") {
         return true;
       }
 
       if (
-        !proposal.assignedReviewer &&
+        !assignedReviewer &&
         proposal.submittedBy ===
           "Architect"
       ) {

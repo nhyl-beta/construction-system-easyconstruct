@@ -263,6 +263,8 @@ export default function ArchitectProposals() {
               </TableHead>
 
               <TableHead>Status</TableHead>
+
+              <TableHead>Review</TableHead>
             </TableRow>
           </TableHeader>
 
@@ -270,7 +272,7 @@ export default function ArchitectProposals() {
             {c.loading ? (
               <TableRow>
                 <TableCell
-                  colSpan={6}
+                  colSpan={7}
                   className="h-24 text-center"
                 >
                   Loading proposals...
@@ -279,7 +281,7 @@ export default function ArchitectProposals() {
             ) : c.proposals.length === 0 ? (
               <TableRow>
                 <TableCell
-                  colSpan={6}
+                  colSpan={7}
                   className="h-24 text-center text-muted-foreground"
                 >
                   No proposals found.
@@ -312,6 +314,26 @@ export default function ArchitectProposals() {
                     <StatusBadge
                       status={proposal.status}
                     />
+                  </TableCell>
+
+                  <TableCell className="max-w-xs text-sm">
+                    {proposal.reviewComment ? (
+                      <div>
+                        <p className="line-clamp-2">
+                          {proposal.reviewComment}
+                        </p>
+
+                        {proposal.reviewerName && (
+                          <p className="mt-1 text-xs text-muted-foreground">
+                            By {proposal.reviewerName}
+                          </p>
+                        )}
+                      </div>
+                    ) : (
+                      <span className="text-muted-foreground">
+                        —
+                      </span>
+                    )}
                   </TableCell>
                 </TableRow>
               ))
