@@ -24,6 +24,15 @@ export interface CreateDocumentInput {
   fileUrl?: string;
 }
 
+export interface UploadDocumentInput {
+  file: Express.Multer.File;
+  title: string;
+  project: string;
+  type: string;
+  version?: string;
+  uploadedBy: string;
+}
+
 export interface DocumentFilters {
   project?: string;
   type?: string;

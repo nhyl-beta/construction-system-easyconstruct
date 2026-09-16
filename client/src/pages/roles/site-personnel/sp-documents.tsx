@@ -17,23 +17,22 @@ export default function SPDocumentsPage() {
   const [title, setTitle] = useState("");
   const [project, setProject] = useState("");
   const [type, setType] = useState<(typeof DOC_TYPES)[number]>("Field Report");
+  const [file, setFile] = useState<File | null>(null);
   const fileRef = useRef<HTMLInputElement>(null);
 
   const handleUpload = async () => {
     if (!title || !project) return;
-    const file = fileRef.current?.files?.[0];
-    // TODO: no object storage provider configured — see Part 2 preamble.
-    // Storing a placeholder reference until real upload infra exists.
-    const fileUrl = file ? `local-upload-${Date.now()}-${file.name}` : undefined;
+    if (!file) return;
+
     await upload({
-      documentId: `DOC-${Date.now()}`,
+      file,
       title,
       project,
       type,
-      fileUrl,
     });
     setTitle("");
     setProject("");
+    setFile(null);
     if (fileRef.current) fileRef.current.value = "";
   };
 
@@ -65,11 +64,17 @@ export default function SPDocumentsPage() {
             </div>
             <div className="space-y-1.5">
               <Label>File</Label>
-              <Input ref={fileRef} type="file" />
+              <Input
+                ref={fileRef}
+                type="file"
+                onChange={(event) =>
+                  setFile(event.target.files?.[0] ?? null)
+                }
+              />
             </div>
           </div>
           {error && <p className="mt-3 text-sm text-destructive">{error}</p>}
-          <Button className="mt-4 rounded-xl" disabled={uploading || !title || !project} onClick={handleUpload}>
+          <Button className="mt-4 rounded-xl" disabled={uploading || !title || !project || !file} onClick={handleUpload}>
             <Upload className="mr-2 h-4 w-4" />
             {uploading ? "Uploading…" : "Upload document"}
           </Button>

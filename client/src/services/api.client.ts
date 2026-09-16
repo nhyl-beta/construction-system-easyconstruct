@@ -1,36 +1,105 @@
-/* eslint-disable @typescript-eslint/no-unused-vars */
 /* eslint-disable @typescript-eslint/no-explicit-any */
-// client/src/services/api.client.ts — PATCHED (add auth header; used by all new feature repositories)
+
 const BASE = import.meta.env.VITE_API_BASE || "";
 
 function authHeader(): Record<string, string> {
   const token =
     sessionStorage.getItem("easyconstruct_token") ??
     localStorage.getItem("easyconstruct_token");
-  return token ? { Authorization: `Bearer ${token}` } : {};
+
+  return token
+    ? { Authorization: `Bearer ${token}` }
+    : {};
 }
 
-async function request(path: string, opts: RequestInit = {}) {
-  const url = BASE ? `${BASE}/api${path}` : `/api${path}`;
-  const res = await fetch(url, {
-    headers: { "Content-Type": "application/json", ...authHeader() },
-    ...opts,
-  });
+async function parseResponse(res: Response) {
+  const text = await res.text();
+
   if (!res.ok) {
-    const text = await res.text();
-    throw new Error(`API error ${res.status}: ${text}`);
+    let message = `API error ${res.status}`;
+
+    try {
+      const json = JSON.parse(text);
+      message = json.message ?? message;
+    } catch {
+      if (text) {
+        message = `${message}: ${text}`;
+      }
+    }
+
+    throw new Error(message);
   }
-  const bodyText = await res.text();
+
   try {
-    return bodyText ? JSON.parse(bodyText) : null;
-  } catch (e) {
-    return bodyText;
+    return text ? JSON.parse(text) : null;
+  } catch {
+    return text;
   }
+}
+
+function apiUrl(path: string) {
+  return BASE ? `${BASE}/api${path}` : `/api${path}`;
+}
+
+async function request(
+  path: string,
+  opts: RequestInit = {},
+) {
+  const {
+    headers: optionHeaders,
+    ...rest
+  } = opts;
+
+  const res = await fetch(apiUrl(path), {
+    ...rest,
+    headers: {
+      "Content-Type": "application/json",
+      ...authHeader(),
+      ...(optionHeaders ?? {}),
+    },
+  });
+
+  return parseResponse(res);
+}
+
+async function requestFormData(
+  path: string,
+  formData: FormData,
+) {
+  const res = await fetch(apiUrl(path), {
+    method: "POST",
+    headers: authHeader(),
+    body: formData,
+  });
+
+  return parseResponse(res);
 }
 
 export const apiClient = {
-  get: (path: string) => request(path, { method: "GET" }),
-  post: (path: string, body: any) => request(path, { method: "POST", body: JSON.stringify(body) }),
-  patch: (path: string, body: any) => request(path, { method: "PATCH", body: JSON.stringify(body) }),
-  del: (path: string) => request(path, { method: "DELETE" }),
+  get: (path: string) =>
+    request(path, {
+      method: "GET",
+    }),
+
+  post: (path: string, body: any) =>
+    request(path, {
+      method: "POST",
+      body: JSON.stringify(body),
+    }),
+
+  postFormData: (
+    path: string,
+    formData: FormData,
+  ) => requestFormData(path, formData),
+
+  patch: (path: string, body: any) =>
+    request(path, {
+      method: "PATCH",
+      body: JSON.stringify(body),
+    }),
+
+  del: (path: string) =>
+    request(path, {
+      method: "DELETE",
+    }),
 };

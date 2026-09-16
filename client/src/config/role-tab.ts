@@ -386,7 +386,7 @@ export const ROLE_CONFIGS: Record<string, RoleConfig> = {
     },
       tabs: [
         { label: "Proposal Review", icon: FileText, route: "/consultant/proposals" },
-        { label: "Documents", icon: ClipboardList, route: "/advisory-docs" },
+        { label: "Advisory Docs", icon: ClipboardList, route: "/advisory-docs" },
         { label: "Approvals", icon: CheckSquare, route: "/approvals" },
         { label: "Projects", icon: FolderKanban, route: "/projects" },
       ],
@@ -408,7 +408,7 @@ export const ROLE_CONFIGS: Record<string, RoleConfig> = {
         label: "Output",
         items: [
           { label: "Approvals", icon: SquarePen, route: "/approvals" },
-          { label: "Documents", icon: BarChart2, route: "/advisory-docs" },
+          { label: "Advisory Docs", icon: BarChart2, route: "/advisory-docs" },
           { label: "AI Insights", icon: BarChart2, route: "/ai-insights" },
           { label: "Reports", icon: BadgeCheck, route: "/reports" },
         ],

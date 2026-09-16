@@ -26,9 +26,9 @@ export const listPayrollBatches = async (
       projectCode: projectCode as string | undefined,
     });
 
-    sendSuccess(res, batches);
+    return sendSuccess(res, batches);
   } catch (err) {
-    next(err);
+    return next(err);
   }
 };
 
@@ -40,9 +40,9 @@ export const getPayrollBatch = async (
   try {
     const batch = await service.getPayrollBatch(req.params.id);
 
-    sendSuccess(res, batch);
+    return sendSuccess(res, batch);
   } catch (err) {
-    next(err);
+    return next(err);
   }
 };
 
@@ -54,9 +54,9 @@ export const createPayrollBatch = async (
   try {
     const batch = await service.createPayrollBatch(req.body);
 
-    sendSuccess(res, batch, 201, "Payroll batch created");
+    return sendSuccess(res, batch, 201, "Payroll batch created");
   } catch (err) {
-    next(err);
+    return next(err);
   }
 };
 
@@ -71,13 +71,13 @@ export const decidePayrollBatch = async (
       req.body,
     );
 
-    sendSuccess(
+    return sendSuccess(
       res,
       batch,
       200,
       "Payroll batch decision recorded",
     );
   } catch (err) {
-    next(err);
+    return next(err);
   }
 };

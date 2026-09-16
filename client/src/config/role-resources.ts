@@ -61,7 +61,7 @@ export const ROLE_RESOURCE_ACCESS: Record<string, string[]> = {
   consultant: [
     "dashboard",
     "proposals",
-    "documents",
+    "advisory-docs",
     "approvals",
     "projects",
     "ai-insights",

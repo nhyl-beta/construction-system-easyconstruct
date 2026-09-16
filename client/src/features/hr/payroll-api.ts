@@ -31,6 +31,7 @@ export interface PayrollBatch {
   status: string;
   reviewedBy: string | null;
   reviewedAt: string | null;
+  createdAt: string | null;
 }
 
 export interface GeneratePayrollEntry {
@@ -43,6 +44,7 @@ export interface GeneratePayrollEntry {
 export interface GeneratePayrollInput {
   period: string;
   group?: string;
+  projectCode?: string;
   entries: GeneratePayrollEntry[];
 }
 
@@ -114,7 +116,24 @@ export async function listPayroll(period?: string): Promise<PayrollLine[]> {
 
 export async function listPayrollBatches(): Promise<PayrollBatch[]> {
   if (USE_API) {
-    return await unwrap<PayrollBatch[]>(apiClient.get("/payroll/batches/all"));
+    const raw = await unwrap<
+      Array<
+        Omit<PayrollBatch, "overtimeHours" | "grossPayroll" | "deductions" | "netPayroll"> & {
+          overtimeHours: string | number;
+          grossPayroll: string | number;
+          deductions: string | number;
+          netPayroll: string | number;
+        }
+      >
+    >(apiClient.get("/payroll/batches/all"));
+
+    return raw.map((batch) => ({
+      ...batch,
+      overtimeHours: Number(batch.overtimeHours),
+      grossPayroll: Number(batch.grossPayroll),
+      deductions: Number(batch.deductions),
+      netPayroll: Number(batch.netPayroll),
+    }));
   }
   await new Promise((r) => setTimeout(r, 80));
   return [];

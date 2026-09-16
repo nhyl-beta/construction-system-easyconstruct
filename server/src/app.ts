@@ -1,4 +1,4 @@
-// server/src/app.ts — PATCHED (add imports + mounts; rest of file unchanged)
+import path from "node:path";
 import express from "express";
 import designReviewsRoutes from "../src/designs/design-reviews/routes.js";
 import designRevisionsRoutes from "../src/designs/design-revisions/routes.js";
@@ -21,6 +21,11 @@ import workforceReportRoutes from "./workforce-reports/routes.js";
 import taskRoutes from "./tasks/routes.js";
 import issueRoutes from "./issues/routes.js";
 import documentRoutes from "./documents/routes.js";
+import payrollReviewRoutes from "./finance/payroll-review/routes.js";
+import {
+  authenticate,
+  requireRole,
+} from "./middleware/auth.js";
 
 const app = express();
 
@@ -28,6 +33,16 @@ app.use(express.json());
 app.use(corsMiddleware);
 app.use(requestId);
 app.use(logger);
+
+app.use(
+  "/uploads",
+  express.static(
+    path.resolve(
+      process.cwd(),
+      "uploads",
+    ),
+  ),
+);
 
 app.use("/api/projects", projectRoutes);
 app.use("/api/designs", designRoutes);
@@ -46,6 +61,12 @@ app.use("/api/auth", authRoutes);
 app.use("/api/tasks", taskRoutes);
 app.use("/api/issues", issueRoutes);
 app.use("/api/documents", documentRoutes);
+app.use(
+  "/api/finance/payroll-review",
+  authenticate,
+  requireRole("finance-manager", "finance_manager"),
+  payrollReviewRoutes,
+);
 
 app.use(errorMiddleware);
 

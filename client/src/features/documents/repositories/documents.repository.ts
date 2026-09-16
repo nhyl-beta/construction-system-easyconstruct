@@ -1,4 +1,3 @@
-// client/src/features/documents/repositories/documents.repository.ts — NEW
 import { apiClient } from "@/services/api.client";
 
 export interface DocumentRecord {
@@ -8,21 +7,61 @@ export interface DocumentRecord {
   project: string;
   type: string;
   version: string;
+  size: string | null;
+  uploadedBy?: string;
   fileUrl: string | null;
   createdAt: string | null;
 }
 
 export interface CreateDocumentInput {
-  documentId: string;
-  title: string;
+  documentId?: string;
+  title?: string;
   project: string;
   type: string;
+  version?: string;
   fileUrl?: string;
 }
 
+export interface UploadDocumentInput {
+  file: File;
+  project: string;
+  type: string;
+  title?: string;
+  version?: string;
+}
+
 export const documentsRepository = {
-  listByProject: (project?: string): Promise<{ data: DocumentRecord[] }> =>
-    apiClient.get(project ? `/documents?project=${encodeURIComponent(project)}` : "/documents"),
-  upload: (input: CreateDocumentInput): Promise<{ data: DocumentRecord }> =>
+  listByProject: (
+    project?: string,
+  ): Promise<{ data: DocumentRecord[] }> =>
+    apiClient.get(
+      project
+        ? `/documents?project=${encodeURIComponent(project)}`
+        : "/documents",
+    ),
+
+  upload: async (
+    input: UploadDocumentInput,
+  ): Promise<{ data: DocumentRecord }> => {
+    const formData = new FormData();
+
+    formData.append("file", input.file);
+    formData.append("project", input.project);
+    formData.append("type", input.type);
+    formData.append("version", input.version?.trim() || "v1");
+
+    if (input.title?.trim()) {
+      formData.append("title", input.title.trim());
+    }
+
+    return apiClient.postFormData(
+      "/documents/upload",
+      formData,
+    );
+  },
+
+  create: (
+    input: CreateDocumentInput,
+  ): Promise<{ data: DocumentRecord }> =>
     apiClient.post("/documents", input),
 };

@@ -1,6 +1,10 @@
 // client/src/features/documents/hooks/use-field-documents.ts — NEW
 import { useCallback, useEffect, useState } from "react";
-import { documentsRepository, type CreateDocumentInput, type DocumentRecord } from "../repositories/documents.repository";
+import {
+  documentsRepository,
+  type DocumentRecord,
+  type UploadDocumentInput,
+} from "../repositories/documents.repository";
 
 export function useFieldDocuments() {
   const [documents, setDocuments] = useState<DocumentRecord[]>([]);
@@ -26,7 +30,7 @@ export function useFieldDocuments() {
   }, [refresh]);
 
   const upload = useCallback(
-    async (input: CreateDocumentInput) => {
+    async (input: UploadDocumentInput) => {
       setUploading(true);
       setError(null);
       try {

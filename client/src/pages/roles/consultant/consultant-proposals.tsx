@@ -669,7 +669,7 @@ export default function ConsultantProposalsPage() {
                       )
                     }
                     placeholder="Please revise the structural details before final approval."
-                    className="min-h-[160px]"
+                    className="min-h-40"
                   />
 
                   <p className="mt-2 text-xs text-muted-foreground">

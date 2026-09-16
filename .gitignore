@@ -1,2 +1,6 @@
 #Ignore docs
 docs/
+
+# Uploaded advisory documents
+server/uploads/*
+!server/uploads/.gitkeep
