@@ -1,5 +1,5 @@
-// client/src/features/documents/hooks/use-field-documents.ts — NEW
 import { useCallback, useEffect, useState } from "react";
+
 import {
   documentsRepository,
   type DocumentRecord,
@@ -15,29 +15,39 @@ export function useFieldDocuments() {
   const refresh = useCallback(async () => {
     setLoading(true);
     setError(null);
+
     try {
-      const res = await documentsRepository.listByProject();
-      setDocuments(res.data);
+      const response = await documentsRepository.listByProject();
+      setDocuments(response.data);
     } catch (e) {
-      setError(e instanceof Error ? e.message : "Failed to load documents");
+      setError(
+        e instanceof Error
+          ? e.message
+          : "Failed to load documents",
+      );
     } finally {
       setLoading(false);
     }
   }, []);
 
   useEffect(() => {
-    refresh();
+    void refresh();
   }, [refresh]);
 
   const upload = useCallback(
     async (input: UploadDocumentInput) => {
       setUploading(true);
       setError(null);
+
       try {
         await documentsRepository.upload(input);
         await refresh();
       } catch (e) {
-        const message = e instanceof Error ? e.message : "Failed to upload document";
+        const message =
+          e instanceof Error
+            ? e.message
+            : "Failed to upload document";
+
         setError(message);
         throw new Error(message);
       } finally {
@@ -47,5 +57,12 @@ export function useFieldDocuments() {
     [refresh],
   );
 
-  return { documents, loading, error, uploading, upload, refresh };
+  return {
+    documents,
+    loading,
+    error,
+    uploading,
+    upload,
+    refresh,
+  };
 }

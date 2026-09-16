@@ -27,7 +27,6 @@ export interface UploadDocumentInput {
   project: string;
   type: string;
   title?: string;
-  version?: string;
 }
 
 export const documentsRepository = {
@@ -48,7 +47,6 @@ export const documentsRepository = {
     formData.append("file", input.file);
     formData.append("project", input.project);
     formData.append("type", input.type);
-    formData.append("version", input.version?.trim() || "v1");
 
     if (input.title?.trim()) {
       formData.append("title", input.title.trim());

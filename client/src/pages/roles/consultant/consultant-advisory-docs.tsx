@@ -1,9 +1,9 @@
-import { FormEvent, useMemo, useState } from "react";
+import { useMemo, useRef, useState } from "react";
 import {
+  AlertCircle,
   CheckCircle2,
-  ExternalLink,
   FileText,
-  FolderOpen,
+  Loader2,
   Search,
   Upload,
   X,
@@ -13,46 +13,108 @@ import { PageContainer } from "@/components/refine-ui/views/page-container";
 import { PageHeader } from "@/components/refine-ui/views/page-header";
 import { PageContent } from "@/components/refine-ui/views/page-content";
 
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import {
-  Card,
-  CardContent,
-  CardHeader,
-  CardTitle,
-} from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
 
 import { useFieldDocuments } from "@/features/documents/hooks/use-field-documents";
 
-const DOCUMENT_TYPES = [
-  "Field Report",
-  "Site Photo",
-  "Progress Evidence",
-  "Supporting Document",
-] as const;
+type UploadForm = {
+  title: string;
+  project: string;
+  type: string;
+};
 
-type DocumentType = (typeof DOCUMENT_TYPES)[number];
+const MAX_FILE_SIZE = 5 * 1024 * 1024; // 5 MB
+
+const ACCEPTED_FILE_TYPES = [
+  ".pdf",
+  ".doc",
+  ".docx",
+  ".xls",
+  ".xlsx",
+  ".ppt",
+  ".pptx",
+  ".png",
+  ".jpg",
+  ".jpeg",
+];
+
+function getDocumentType(file: File) {
+  const extension = file.name.split(".").pop()?.toLowerCase();
+
+  switch (extension) {
+    case "pdf":
+      return "PDF";
+    case "doc":
+    case "docx":
+      return "Word Document";
+    case "xls":
+    case "xlsx":
+      return "Spreadsheet";
+    case "ppt":
+    case "pptx":
+      return "Presentation";
+    case "png":
+    case "jpg":
+    case "jpeg":
+      return "Image";
+    default:
+      return "Document";
+  }
+}
+
+function formatFileSize(bytes: number) {
+  if (bytes < 1024) {
+    return `${bytes} B`;
+  }
+
+  if (bytes < 1024 * 1024) {
+    return `${(bytes / 1024).toFixed(1)} KB`;
+  }
+
+  return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
+}
 
 function formatDate(value: string | null) {
   if (!value) {
-    return "—";
+    return "Unknown date";
   }
 
   const date = new Date(value);
 
   if (Number.isNaN(date.getTime())) {
-    return value;
+    return "Unknown date";
   }
 
   return date.toLocaleDateString();
+}
+
+function createDocumentId() {
+  return `ADV-${Date.now()}`;
+}
+
+function fileToDataUrl(file: File): Promise<string> {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+
+    reader.onload = () => {
+      if (typeof reader.result !== "string") {
+        reject(new Error("Unable to read the selected file."));
+        return;
+      }
+
+      resolve(reader.result);
+    };
+
+    reader.onerror = () => {
+      reject(new Error("Unable to read the selected file."));
+    };
+
+    reader.readAsDataURL(file);
+  });
 }
 
 export default function AdvisoryDocsPage() {
@@ -62,421 +124,228 @@ export default function AdvisoryDocsPage() {
     error,
     uploading,
     upload,
+    refresh,
   } = useFieldDocuments();
 
-  const [showUpload, setShowUpload] = useState(false);
+  const fileInputRef = useRef<HTMLInputElement | null>(null);
+
+  const [showUploadForm, setShowUploadForm] = useState(false);
+  const [selectedFile, setSelectedFile] = useState<File | null>(null);
+
+  const [form, setForm] = useState<UploadForm>({
+    title: "",
+    project: "",
+    type: "",
+  });
 
   const [search, setSearch] = useState("");
-  const [typeFilter, setTypeFilter] = useState("all");
-
-  const [title, setTitle] = useState("");
-  const [project, setProject] = useState("");
-  const [type, setType] =
-    useState<DocumentType>("Supporting Document");
-  const [version, setVersion] = useState("v1");
-  const [file, setFile] = useState<File | null>(null);
-
-  const [successMessage, setSuccessMessage] = useState<string | null>(
-    null,
-  );
+  const [formError, setFormError] = useState<string | null>(null);
+  const [successMessage, setSuccessMessage] = useState<string | null>(null);
 
   const filteredDocuments = useMemo(() => {
     const query = search.trim().toLowerCase();
 
+    if (!query) {
+      return documents;
+    }
+
     return documents.filter((document) => {
-      const matchesSearch =
-        !query ||
-        document.documentId.toLowerCase().includes(query) ||
+      return (
         document.title.toLowerCase().includes(query) ||
         document.project.toLowerCase().includes(query) ||
         document.type.toLowerCase().includes(query) ||
-        document.uploadedBy?.toLowerCase().includes(query);
-
-      const matchesType =
-        typeFilter === "all" ||
-        document.type === typeFilter;
-
-      return matchesSearch && matchesType;
+        document.documentId.toLowerCase().includes(query)
+      );
     });
-  }, [documents, search, typeFilter]);
+  }, [documents, search]);
 
-  function resetForm() {
-    setTitle("");
-    setProject("");
-    setType("Supporting Document");
-    setVersion("v1");
-    setFile(null);
-  }
+  const resetUploadForm = () => {
+    setForm({
+      title: "",
+      project: "",
+      type: "",
+    });
 
-  function openUploadDialog() {
-    setSuccessMessage(null);
-    setShowUpload(true);
-  }
+    setSelectedFile(null);
+    setFormError(null);
 
-  function closeUploadDialog() {
+    if (fileInputRef.current) {
+      fileInputRef.current.value = "";
+    }
+  };
+
+  const closeUploadForm = () => {
     if (uploading) {
       return;
     }
 
-    setShowUpload(false);
-  }
+    setShowUploadForm(false);
+    resetUploadForm();
+  };
 
-  async function handleUpload(event: FormEvent<HTMLFormElement>) {
-    event.preventDefault();
+  const handleFileChange = (file: File | null) => {
+    setFormError(null);
+    setSuccessMessage(null);
 
-    if (
-      !title.trim() ||
-      !project.trim() ||
-      !file
-    ) {
+    if (!file) {
+      setSelectedFile(null);
       return;
     }
 
+    if (file.size > MAX_FILE_SIZE) {
+      setSelectedFile(null);
+
+      if (fileInputRef.current) {
+        fileInputRef.current.value = "";
+      }
+
+      setFormError(
+        `The selected file is too large. Maximum file size is ${formatFileSize(
+          MAX_FILE_SIZE,
+        )}.`,
+      );
+
+      return;
+    }
+
+    setSelectedFile(file);
+
+    setForm((current) => ({
+      ...current,
+      type: getDocumentType(file),
+      title: current.title || file.name.replace(/\.[^/.]+$/, ""),
+    }));
+  };
+
+  const handleUpload = async () => {
+    setFormError(null);
     setSuccessMessage(null);
 
+    if (!selectedFile) {
+      setFormError("Please select an advisory document.");
+      return;
+    }
+
+    if (!form.title.trim()) {
+      setFormError("Document title is required.");
+      return;
+    }
+
+    if (!form.project.trim()) {
+      setFormError("Project name or project code is required.");
+      return;
+    }
+
     try {
+      const fileDataUrl = await fileToDataUrl(selectedFile);
+
       await upload({
-        file,
-        title: title.trim(),
-        project: project.trim(),
-        type,
-        version: version.trim() || "v1",
+        documentId: createDocumentId(),
+        title: form.title.trim(),
+        project: form.project.trim(),
+        type: form.type || getDocumentType(selectedFile),
+        fileUrl: fileDataUrl,
       });
 
-      resetForm();
-      setShowUpload(false);
-
       setSuccessMessage(
-        "Advisory document submitted successfully.",
+        `"${selectedFile.name}" was uploaded successfully.`,
       );
-    } catch {
-      // Error is handled by useFieldDocuments.
+
+      setShowUploadForm(false);
+      resetUploadForm();
+
+      await refresh();
+    } catch (uploadError) {
+      setFormError(
+        uploadError instanceof Error
+          ? uploadError.message
+          : "Failed to upload the advisory document.",
+      );
     }
-  }
+  };
 
   return (
     <PageContainer>
       <PageHeader
         title="Advisory Documents"
-        description="Review and manage consultant advisory documents, recommendations, and technical reports."
+        description="Upload and review advisory and reference documents for construction projects."
       />
 
-      <PageContent className="p-4 md:p-6 lg:p-8">
-        <div className="space-y-6">
-
-          {/* ====================================================== */}
-          {/* TOP ACTION */}
-          {/* ====================================================== */}
-
-          <div className="flex justify-end">
-            <Button
-              onClick={openUploadDialog}
-              className="gap-2"
-            >
-              <Upload className="h-4 w-4" />
-              Upload Advisory
-            </Button>
+      <PageContent className="min-h-96 space-y-6 p-6 md:p-8">
+        {/* Header actions */}
+        <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+          <div>
+            <h2 className="text-lg font-semibold">Consultant Advisory Library</h2>
+            <p className="text-sm text-muted-foreground">
+              Store documents that support consultant recommendations and project
+              reviews.
+            </p>
           </div>
 
-          {/* ====================================================== */}
-          {/* SUCCESS MESSAGE */}
-          {/* ====================================================== */}
-
-          {successMessage && (
-            <div className="flex items-center gap-3 rounded-lg border border-green-500/30 bg-green-500/10 px-4 py-3">
-              <CheckCircle2 className="h-5 w-5 text-green-500" />
-
-              <p className="text-sm">
-                {successMessage}
-              </p>
-
-              <button
-                type="button"
-                className="ml-auto"
-                onClick={() => setSuccessMessage(null)}
-              >
-                <X className="h-4 w-4" />
-              </button>
-            </div>
-          )}
-
-          {/* ====================================================== */}
-          {/* ERROR */}
-          {/* ====================================================== */}
-
-          {error && (
-            <div className="rounded-lg border border-destructive/30 bg-destructive/10 px-4 py-3">
-              <p className="text-sm text-destructive">
-                {error}
-              </p>
-            </div>
-          )}
-
-          {/* ====================================================== */}
-          {/* CONSULTANT WORKSPACE */}
-          {/* ====================================================== */}
-
-          <Card>
-            <CardContent className="p-6 md:p-8">
-              <div className="flex items-start gap-4">
-                <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-full bg-muted">
-                  <FileText className="h-6 w-6" />
-                </div>
-
-                <div>
-                  <h2 className="text-lg font-semibold">
-                    Consultant Advisory Workspace
-                  </h2>
-
-                  <p className="mt-1 text-sm text-muted-foreground">
-                    Use this workspace to review recommendation
-                    reports, technical advisories, design reviews,
-                    and other project-related advisory documents.
-                  </p>
-                </div>
-              </div>
-            </CardContent>
-          </Card>
-
-          {/* ====================================================== */}
-          {/* SEARCH + FILTER */}
-          {/* ====================================================== */}
-
-          <Card>
-            <CardContent className="p-5">
-              <div className="flex flex-col gap-3 md:flex-row">
-                <div className="relative flex-1">
-                  <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
-
-                  <Input
-                    value={search}
-                    onChange={(event) =>
-                      setSearch(event.target.value)
-                    }
-                    placeholder="Search advisory documents..."
-                    className="pl-9"
-                  />
-                </div>
-
-                <Select
-                  value={typeFilter}
-                  onValueChange={setTypeFilter}
-                >
-                  <SelectTrigger className="w-full md:w-[240px]">
-                    <SelectValue placeholder="All document types" />
-                  </SelectTrigger>
-
-                  <SelectContent>
-                    <SelectItem value="all">
-                      All document types
-                    </SelectItem>
-
-                    {DOCUMENT_TYPES.map((documentType) => (
-                      <SelectItem
-                        key={documentType}
-                        value={documentType}
-                      >
-                        {documentType}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
-            </CardContent>
-          </Card>
-
-          {/* ====================================================== */}
-          {/* DOCUMENT LIST */}
-          {/* ====================================================== */}
-
-          <Card>
-            <CardHeader>
-              <div className="flex items-center justify-between">
-                <CardTitle className="flex items-center gap-2">
-                  <FolderOpen className="h-5 w-5" />
-                  Advisory Documents
-                </CardTitle>
-
-                <Badge variant="secondary">
-                  {filteredDocuments.length}
-                </Badge>
-              </div>
-            </CardHeader>
-
-            <CardContent>
-              {loading ? (
-                <div className="flex items-center justify-center py-12">
-                  <div className="flex items-center gap-2 text-sm text-muted-foreground">
-                    <span className="h-4 w-4 animate-spin rounded-full border-2 border-muted-foreground border-t-transparent" />
-                    Loading advisory documents...
-                  </div>
-                </div>
-              ) : filteredDocuments.length === 0 ? (
-                <div className="flex flex-col items-center justify-center py-14 text-center">
-                  <FileText className="mb-4 h-10 w-10 text-muted-foreground" />
-
-                  <h3 className="font-medium">
-                    No advisory documents found
-                  </h3>
-
-                  <p className="mt-1 max-w-md text-sm text-muted-foreground">
-                    There are currently no documents matching
-                    your search or filter.
-                  </p>
-
-                  <Button
-                    className="mt-5"
-                    onClick={openUploadDialog}
-                  >
-                    <Upload className="mr-2 h-4 w-4" />
-                    Upload Advisory
-                  </Button>
-                </div>
-              ) : (
-                <div className="overflow-x-auto">
-                  <table className="w-full min-w-[900px]">
-                    <thead>
-                      <tr className="border-b text-left text-sm">
-                        <th className="px-4 py-3 font-medium">
-                          Document
-                        </th>
-
-                        <th className="px-4 py-3 font-medium">
-                          Project
-                        </th>
-
-                        <th className="px-4 py-3 font-medium">
-                          Type
-                        </th>
-
-                        <th className="px-4 py-3 font-medium">
-                          Version
-                        </th>
-
-                        <th className="px-4 py-3 font-medium">
-                          Uploaded By
-                        </th>
-
-                        <th className="px-4 py-3 font-medium">
-                          Date
-                        </th>
-
-                        <th className="px-4 py-3 text-right font-medium">
-                          Action
-                        </th>
-                      </tr>
-                    </thead>
-
-                    <tbody>
-                      {filteredDocuments.map((document) => (
-                        <tr
-                          key={document.id}
-                          className="border-b last:border-0"
-                        >
-                          <td className="px-4 py-4">
-                            <div className="flex items-start gap-3">
-                              <div className="mt-0.5">
-                                <FileText className="h-4 w-4 text-muted-foreground" />
-                              </div>
-
-                              <div>
-                                <p className="font-medium">
-                                  {document.title}
-                                </p>
-
-                                <p className="text-xs text-muted-foreground">
-                                  {document.documentId}
-                                </p>
-                              </div>
-                            </div>
-                          </td>
-
-                          <td className="px-4 py-4 text-sm">
-                            {document.project || "—"}
-                          </td>
-
-                          <td className="px-4 py-4">
-                            <Badge variant="outline">
-                              {document.type}
-                            </Badge>
-                          </td>
-
-                          <td className="px-4 py-4 text-sm">
-                            {document.version || "—"}
-                          </td>
-
-                          <td className="px-4 py-4 text-sm">
-                            {document.uploadedBy || "—"}
-                          </td>
-
-                          <td className="px-4 py-4 text-sm text-muted-foreground">
-                            {formatDate(document.createdAt)}
-                          </td>
-
-                          <td className="px-4 py-4 text-right">
-                            {document.fileUrl ? (
-                              <Button
-                                asChild
-                                variant="outline"
-                                size="sm"
-                              >
-                                <a
-                                  href={document.fileUrl}
-                                  target="_blank"
-                                  rel="noreferrer"
-                                >
-                                  <ExternalLink className="mr-2 h-4 w-4" />
-                                  Open
-                                </a>
-                              </Button>
-                            ) : (
-                              <span className="text-xs text-muted-foreground">
-                                No file
-                              </span>
-                            )}
-                          </td>
-                        </tr>
-                      ))}
-                    </tbody>
-                  </table>
-                </div>
-              )}
-            </CardContent>
-          </Card>
-        </div>
-      </PageContent>
-
-      {/* ======================================================== */}
-      {/* UPLOAD ADVISORY MODAL */}
-      {/* ======================================================== */}
-
-      {showUpload && (
-        <div
-          className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4"
-          onMouseDown={(event) => {
-            if (event.target === event.currentTarget) {
-              closeUploadDialog();
-            }
-          }}
-        >
-          <div
-            className="w-full max-w-2xl rounded-xl border bg-background shadow-2xl"
-            role="dialog"
-            aria-modal="true"
-            aria-labelledby="upload-advisory-title"
+          <Button
+            type="button"
+            onClick={() => {
+              setSuccessMessage(null);
+              setFormError(null);
+              setShowUploadForm(true);
+            }}
+            disabled={uploading}
+            className="gap-2"
           >
-            {/* Modal header */}
-            <div className="flex items-center justify-between border-b px-6 py-5">
+            <Upload className="size-4" />
+            Upload Advisory
+          </Button>
+        </div>
+
+        {/* Error */}
+        {error && (
+          <div
+            role="alert"
+            className="flex items-start gap-3 rounded-lg border border-destructive/40 bg-destructive/10 p-4 text-sm"
+          >
+            <AlertCircle className="mt-0.5 size-4 shrink-0 text-destructive" />
+
+            <div className="flex-1">
+              <p className="font-medium text-destructive">
+                Unable to load advisory documents
+              </p>
+
+              <p className="mt-1 text-muted-foreground">{error}</p>
+            </div>
+
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              onClick={() => void refresh()}
+            >
+              Retry
+            </Button>
+          </div>
+        )}
+
+        {/* Success */}
+        {successMessage && (
+          <div
+            role="status"
+            className="flex items-center gap-3 rounded-lg border border-success/40 bg-success/10 p-4 text-sm"
+          >
+            <CheckCircle2 className="size-4 shrink-0 text-success" />
+
+            <span>{successMessage}</span>
+          </div>
+        )}
+
+        {/* Upload form */}
+        {showUploadForm && (
+          <Card className="border-primary/30">
+            <CardHeader className="flex flex-row items-start justify-between gap-4">
               <div>
-                <h2
-                  id="upload-advisory-title"
-                  className="text-lg font-semibold"
-                >
-                  Upload Advisory
-                </h2>
+                <CardTitle>Upload Advisory Document</CardTitle>
 
                 <p className="mt-1 text-sm text-muted-foreground">
-                  Add a consultant advisory document to a project.
+                  Select a document from your computer and associate it with a
+                  project.
                 </p>
               </div>
 
@@ -484,175 +353,341 @@ export default function AdvisoryDocsPage() {
                 type="button"
                 variant="ghost"
                 size="icon"
-                onClick={closeUploadDialog}
+                onClick={closeUploadForm}
                 disabled={uploading}
+                aria-label="Close upload form"
               >
-                <X className="h-4 w-4" />
+                <X className="size-4" />
               </Button>
-            </div>
+            </CardHeader>
 
-            {/* Modal body */}
-            <form onSubmit={handleUpload}>
-              <div className="space-y-5 px-6 py-6">
+            <CardContent className="space-y-5">
+              {/* File */}
+              <div className="space-y-2">
+                <Label htmlFor="advisory-file">
+                  Advisory Document
+                </Label>
 
-                {/* Document title */}
-                <div className="space-y-2">
-                  <label
-                    htmlFor="advisory-title"
-                    className="text-sm font-medium"
-                  >
-                    Document Title
-                  </label>
-
-                  <Input
-                    id="advisory-title"
-                    value={title}
-                    onChange={(event) =>
-                      setTitle(event.target.value)
-                    }
-                    placeholder="e.g. Structural Design Review"
-                    required
-                  />
-                </div>
-
-                {/* Project */}
-                <div className="space-y-2">
-                  <label
-                    htmlFor="advisory-project"
-                    className="text-sm font-medium"
-                  >
-                    Project
-                  </label>
-
-                  <Input
-                    id="advisory-project"
-                    value={project}
-                    onChange={(event) =>
-                      setProject(event.target.value)
-                    }
-                    placeholder="e.g. PRJ-001"
-                    required
-                  />
-                </div>
-
-                {/* Type + version */}
-                <div className="grid gap-5 md:grid-cols-2">
-                  <div className="space-y-2">
-                    <label
-                      htmlFor="advisory-type"
-                      className="text-sm font-medium"
-                    >
-                      Document Type
-                    </label>
-
-                    <Select
-                      value={type}
-                      onValueChange={(value) =>
-                        setType(value as DocumentType)
-                      }
-                    >
-                      <SelectTrigger id="advisory-type">
-                        <SelectValue />
-                      </SelectTrigger>
-
-                      <SelectContent>
-                        {DOCUMENT_TYPES.map((documentType) => (
-                          <SelectItem
-                            key={documentType}
-                            value={documentType}
-                          >
-                            {documentType}
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-                  </div>
-
-                  <div className="space-y-2">
-                    <label
-                      htmlFor="advisory-version"
-                      className="text-sm font-medium"
-                    >
-                      Version
-                    </label>
-
-                    <Input
-                      id="advisory-version"
-                      value={version}
-                      onChange={(event) =>
-                        setVersion(event.target.value)
-                      }
-                      placeholder="v1"
-                      maxLength={10}
-                    />
-                  </div>
-                </div>
-
-                {/* Actual file */}
-                <div className="space-y-2">
-                  <label
-                    htmlFor="advisory-file"
-                    className="text-sm font-medium"
-                  >
-                    File
-                  </label>
-
-                  <Input
+                <div className="rounded-lg border border-dashed p-5">
+                  <input
+                    ref={fileInputRef}
                     id="advisory-file"
                     type="file"
-                    accept=".pdf,.doc,.docx,.xls,.xlsx,.ppt,.pptx,.png,.jpg,.jpeg"
-                    onChange={(event) =>
-                      setFile(
-                        event.target.files?.[0] ??
-                          null,
-                      )
-                    }
+                    accept={ACCEPTED_FILE_TYPES.join(",")}
+                    className="hidden"
+                    disabled={uploading}
+                    onChange={(event) => {
+                      const file = event.target.files?.[0] ?? null;
+                      handleFileChange(file);
+                    }}
                   />
 
-                  <p className="text-xs text-muted-foreground">
-                    PDF, Word, Excel, PowerPoint, PNG, and JPG
-                    files up to 10 MB are supported.
-                  </p>
+                  {!selectedFile ? (
+                    <button
+                      type="button"
+                      disabled={uploading}
+                      onClick={() => fileInputRef.current?.click()}
+                      className="flex w-full flex-col items-center justify-center gap-2 rounded-md p-6 text-center transition-colors hover:bg-muted/50"
+                    >
+                      <div className="rounded-full bg-primary/10 p-3">
+                        <Upload className="size-6 text-primary" />
+                      </div>
 
-                  {file && (
-                    <p className="text-sm text-muted-foreground">
-                      Selected file: {file.name}
-                    </p>
+                      <span className="font-medium">
+                        Choose an advisory document
+                      </span>
+
+                      <span className="text-sm text-muted-foreground">
+                        PDF, Word, Excel, PowerPoint, PNG, JPG — up to 5 MB
+                      </span>
+                    </button>
+                  ) : (
+                    <div className="flex items-center gap-3">
+                      <div className="rounded-lg bg-primary/10 p-3">
+                        <FileText className="size-5 text-primary" />
+                      </div>
+
+                      <div className="min-w-0 flex-1">
+                        <p className="truncate font-medium">
+                          {selectedFile.name}
+                        </p>
+
+                        <p className="text-sm text-muted-foreground">
+                          {formatFileSize(selectedFile.size)}
+                        </p>
+                      </div>
+
+                      <Button
+                        type="button"
+                        variant="outline"
+                        size="sm"
+                        disabled={uploading}
+                        onClick={() => {
+                          setSelectedFile(null);
+
+                          if (fileInputRef.current) {
+                            fileInputRef.current.value = "";
+                          }
+                        }}
+                      >
+                        Change
+                      </Button>
+                    </div>
                   )}
                 </div>
               </div>
 
-              {/* Modal footer */}
-              <div className="flex justify-end gap-3 border-t px-6 py-4">
+              {/* Title */}
+              <div className="space-y-2">
+                <Label htmlFor="advisory-title">
+                  Document Title
+                </Label>
+
+                <Input
+                  id="advisory-title"
+                  placeholder="e.g. Structural Safety Recommendations"
+                  value={form.title}
+                  disabled={uploading}
+                  onChange={(event) =>
+                    setForm((current) => ({
+                      ...current,
+                      title: event.target.value,
+                    }))
+                  }
+                />
+              </div>
+
+              {/* Project */}
+              <div className="space-y-2">
+                <Label htmlFor="advisory-project">
+                  Project
+                </Label>
+
+                <Input
+                  id="advisory-project"
+                  placeholder="e.g. PRJ-001"
+                  value={form.project}
+                  disabled={uploading}
+                  onChange={(event) =>
+                    setForm((current) => ({
+                      ...current,
+                      project: event.target.value,
+                    }))
+                  }
+                />
+
+                <p className="text-xs text-muted-foreground">
+                  Enter the project name or project code associated with this
+                  advisory document.
+                </p>
+              </div>
+
+              {/* Type */}
+              <div className="space-y-2">
+                <Label htmlFor="advisory-type">
+                  Document Type
+                </Label>
+
+                <Input
+                  id="advisory-type"
+                  placeholder="Document type"
+                  value={form.type}
+                  disabled={uploading}
+                  onChange={(event) =>
+                    setForm((current) => ({
+                      ...current,
+                      type: event.target.value,
+                    }))
+                  }
+                />
+
+                {selectedFile && (
+                  <p className="text-xs text-muted-foreground">
+                    Automatically detected from the selected file. You may
+                    change it if necessary.
+                  </p>
+                )}
+              </div>
+
+              {/* Form error */}
+              {formError && (
+                <div
+                  role="alert"
+                  className="flex items-start gap-3 rounded-lg border border-destructive/40 bg-destructive/10 p-3 text-sm"
+                >
+                  <AlertCircle className="mt-0.5 size-4 shrink-0 text-destructive" />
+
+                  <span>{formError}</span>
+                </div>
+              )}
+
+              {/* Actions */}
+              <div className="flex flex-col-reverse gap-2 sm:flex-row sm:justify-end">
                 <Button
                   type="button"
                   variant="outline"
-                  onClick={closeUploadDialog}
+                  onClick={closeUploadForm}
                   disabled={uploading}
                 >
                   Cancel
                 </Button>
 
                 <Button
-                  type="submit"
-                  disabled={
-                    uploading ||
-                    !title.trim() ||
-                    !project.trim() ||
-                    !file
-                  }
+                  type="button"
+                  onClick={() => void handleUpload()}
+                  disabled={uploading}
+                  className="gap-2"
                 >
-                  <Upload className="mr-2 h-4 w-4" />
-
-                  {uploading
-                    ? "Uploading..."
-                    : "Upload Advisory"}
+                  {uploading ? (
+                    <>
+                      <Loader2 className="size-4 animate-spin" />
+                      Uploading...
+                    </>
+                  ) : (
+                    <>
+                      <Upload className="size-4" />
+                      Upload Document
+                    </>
+                  )}
                 </Button>
               </div>
-            </form>
-          </div>
-        </div>
-      )}
+            </CardContent>
+          </Card>
+        )}
+
+        {/* Search */}
+        <Card>
+          <CardContent className="p-4">
+            <div className="relative">
+              <Search className="pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
+
+              <Input
+                value={search}
+                onChange={(event) => setSearch(event.target.value)}
+                placeholder="Search advisory documents..."
+                className="pl-9"
+              />
+            </div>
+          </CardContent>
+        </Card>
+
+        {/* Documents */}
+        <Card>
+          <CardHeader>
+            <div className="flex items-center justify-between gap-4">
+              <div>
+                <CardTitle>Advisory Documents</CardTitle>
+
+                <p className="mt-1 text-sm text-muted-foreground">
+                  {loading
+                    ? "Loading documents..."
+                    : `${filteredDocuments.length} document${
+                        filteredDocuments.length === 1 ? "" : "s"
+                      }`}
+                </p>
+              </div>
+
+              <Badge variant="secondary">
+                Consultant
+              </Badge>
+            </div>
+          </CardHeader>
+
+          <CardContent>
+            {loading ? (
+              <div className="flex min-h-40 items-center justify-center">
+                <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                  <Loader2 className="size-4 animate-spin" />
+                  Loading advisory documents...
+                </div>
+              </div>
+            ) : filteredDocuments.length === 0 ? (
+              <div className="flex min-h-48 flex-col items-center justify-center rounded-lg border border-dashed p-6 text-center">
+                <div className="rounded-full bg-muted p-3">
+                  <FileText className="size-6 text-muted-foreground" />
+                </div>
+
+                <h3 className="mt-4 font-medium">
+                  {search
+                    ? "No matching documents"
+                    : "No advisory documents yet"}
+                </h3>
+
+                <p className="mt-1 max-w-md text-sm text-muted-foreground">
+                  {search
+                    ? "Try a different search term."
+                    : "Upload an advisory document to begin building the consultant reference library."}
+                </p>
+
+                {!search && (
+                  <Button
+                    type="button"
+                    className="mt-4 gap-2"
+                    onClick={() => setShowUploadForm(true)}
+                  >
+                    <Upload className="size-4" />
+                    Upload Advisory
+                  </Button>
+                )}
+              </div>
+            ) : (
+              <div className="space-y-3">
+                {filteredDocuments.map((document) => (
+                  <div
+                    key={document.id}
+                    className="flex flex-col gap-4 rounded-lg border p-4 transition-colors hover:bg-muted/30 sm:flex-row sm:items-center"
+                  >
+                    <div className="rounded-lg bg-primary/10 p-3">
+                      <FileText className="size-5 text-primary" />
+                    </div>
+
+                    <div className="min-w-0 flex-1">
+                      <div className="flex flex-wrap items-center gap-2">
+                        <h3 className="truncate font-medium">
+                          {document.title}
+                        </h3>
+
+                        <Badge variant="outline">
+                          {document.type || "Document"}
+                        </Badge>
+                      </div>
+
+                      <div className="mt-1 flex flex-wrap gap-x-4 gap-y-1 text-xs text-muted-foreground">
+                        <span>
+                          Document ID: {document.documentId}
+                        </span>
+
+                        <span>
+                          Project: {document.project}
+                        </span>
+
+                        <span>
+                          Version: {document.version || "1.0"}
+                        </span>
+
+                        <span>
+                          Uploaded: {formatDate(document.createdAt)}
+                        </span>
+                      </div>
+                    </div>
+
+                    {document.fileUrl && (
+                      <a
+                        href={document.fileUrl}
+                        target="_blank"
+                        rel="noreferrer"
+                        className="inline-flex h-9 items-center justify-center rounded-md border px-3 text-sm font-medium transition-colors hover:bg-muted"
+                      >
+                        View Document
+                      </a>
+                    )}
+                  </div>
+                ))}
+              </div>
+            )}
+          </CardContent>
+        </Card>
+      </PageContent>
     </PageContainer>
   );
 }
