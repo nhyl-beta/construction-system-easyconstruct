@@ -1,40 +1,60 @@
-// server/src/documents/service.ts — NEW
-import { unlink } from "node:fs/promises";
-import path from "node:path";
-
 import * as repo from "./repository.js";
+
 import type {
   CreateDocumentInput,
   DocumentFilters,
-  UploadDocumentInput,
 } from "./types.js";
 
-export const getAll = async (filters: DocumentFilters) => repo.findAll(filters);
-export const create = async (input: CreateDocumentInput) => repo.create(input);
+export const getAll = async (
+  filters: DocumentFilters,
+) => {
+  return repo.findAll(filters);
+};
 
-export const upload = async (input: UploadDocumentInput) => {
-  const documentId = `DOC-${Date.now()}`;
-  const fileUrl = `/uploads/documents/${path.basename(input.file.filename)}`;
+export const create = async (
+  input: CreateDocumentInput,
+) => {
+  return repo.create(input);
+};
 
-  try {
-    return await repo.create({
-      documentId,
-      title: input.title,
-      project: input.project,
-      type: input.type,
-      version: input.version || "v1",
-      size: `${input.file.size} bytes`,
-      uploadedBy: input.uploadedBy,
-      fileUrl,
-    });
-  } catch (error) {
-    await unlink(input.file.path).catch((cleanupError) => {
-      console.error(
-        "[Documents] Failed to remove orphaned upload",
-        cleanupError,
-      );
-    });
+export const upload = async ({
+  file,
+  title,
+  project,
+  type,
+  uploadedBy,
+}: {
+  file: Express.Multer.File;
+  title: string;
+  project: string;
+  type: string;
+  uploadedBy: string;
+}) => {
+  const documentId =
+    `ADV-${Date.now()}`.slice(0, 20);
 
-    throw error;
-  }
+  const fileUrl =
+    `/uploads/${file.filename}`;
+
+  const sizeInMb =
+    file.size / (1024 * 1024);
+
+  const size =
+    sizeInMb >= 1
+      ? `${sizeInMb.toFixed(2)} MB`
+      : `${Math.max(
+          1,
+          Math.round(file.size / 1024),
+        )} KB`;
+
+  return repo.create({
+    documentId,
+    title,
+    project,
+    type,
+    version: "v1",
+    size,
+    uploadedBy,
+    fileUrl,
+  });
 };
