@@ -4,6 +4,7 @@ import { MSG } from "../constants/messages.js";
 import { formatSuccess } from "../utils/response.js";
 import * as service from "./service.js";
 import type { EmployeeFilters } from "./types.js";
+import { AuthedRequest } from "../middleware/auth.js";
 
 export const getAll = async (
   req: Request,
@@ -30,6 +31,15 @@ export const getById = async (
 ) => {
   try {
     const data = await service.getById(Number(req.params.id));
+    res.json(formatSuccess(data, MSG.employees.single));
+  } catch (err) {
+    next(err);
+  }
+};
+
+export const getMe = async (req: AuthedRequest, res: Response, next: NextFunction) => {
+  try {
+    const data = await service.getMyEmployeeRecord(req.authUser!.id, req.authUser!.email);
     res.json(formatSuccess(data, MSG.employees.single));
   } catch (err) {
     next(err);

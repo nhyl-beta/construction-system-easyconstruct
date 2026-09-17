@@ -3,8 +3,11 @@ import { Router } from 'express';
 import * as controller from "./controller.js";
 import { validate } from "../../middleware/validate.js";
 import { createDesignRevisionSchema, updateDesignRevisionSchema } from "../../validators/design-revision-validator.js";
+import { authenticate } from '../../middleware/auth.js';
 
 const router = Router();
+
+router.use(authenticate);
 router.get('/', controller.getAll);
 router.post('/', validate(createDesignRevisionSchema), controller.create);
 router.get('/:id', controller.getById);

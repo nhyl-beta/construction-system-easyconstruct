@@ -6,8 +6,11 @@ import {
   updateArchitectDocumentSchema,
 } from "../validators/architect-document-validators.js";
 import * as controller from "./controller.js";
+import { authenticate } from "../middleware/auth.js";
 
 const router = Router();
+
+router.use(authenticate);
 router.get("/", controller.getAll);
 router.post("/", validate(createArchitectDocumentSchema), controller.create);
 router.get("/:id", controller.getById);

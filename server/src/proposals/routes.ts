@@ -9,8 +9,11 @@ import {
 } from "../validators/proposal-validators.js";
 
 import { validate } from "../middleware/validate.js";
+import { authenticate } from "../middleware/auth.js";
 
 const router = Router();
+
+router.use(authenticate);
 
 router.get(
   "/",

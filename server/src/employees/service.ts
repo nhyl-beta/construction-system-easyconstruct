@@ -74,6 +74,23 @@ export const create = async (input: CreateEmployeeInput) => {
   });
 };
 
+export const getMyEmployeeRecord = async (userId: number, email: string) => {
+  const byUserId = await repo.findByUserId(userId);
+  if (byUserId) return byUserId;
+
+  // Self-healing fallback: first time this user's record is looked up,
+  // resolve it by email once and persist the FK so every future call is a
+  // direct, non-guessing lookup.
+  const byEmail = await repo.findByEmail(email);
+  if (!byEmail) {
+    throw new NotFoundError(
+      "Employee record",
+      `linked to account ${email} — ask HR to add or link one`,
+    );
+  }
+  return repo.update(byEmail.id, { userId } as any);
+};
+
 export const update = async (
   id: number,
   input: UpdateEmployeeInput,

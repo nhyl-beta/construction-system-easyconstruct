@@ -2,5 +2,5 @@
 docs/
 
 # Uploaded advisory documents
-server/uploads/*
-!server/uploads/.gitkeep
+server/uploads/documents
+!server/uploads/documents/.gitkeep

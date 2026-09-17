@@ -9,13 +9,11 @@ import { Button } from "@/components/ui/button";
 import { StatusBadge } from "@/components/ui/status-badge";
 import { useAuth } from "@/auth/auth-context";
 import { useAttendance } from "@/features/attendance/hooks/use-attendance";
+import { useUploadFile} from "@/features/uploads/hooks/use-upload-file";
+import { useMyEmployee } from "@/features/employees/hooks/use-my-employee";
 
-// TODO: employee linkage is by email match against the employees table —
-// there is no real FK from users → employees yet (see Part 1 notes).
-// A production version needs either a proper employee_user_id FK or an
-// /api/employees/me lookup endpoint. For now this assumes the employeeId
-// equals the email-local-part convention used elsewhere in seed data; wire
-// a real lookup here once that endpoint exists.
+
+
 function useMyEmployeeId(): string | null {
   const { user } = useAuth();
   return useMemo(() => (user ? user.email.split("@")[0] : null), [user]);
@@ -24,9 +22,10 @@ function useMyEmployeeId(): string | null {
 type GeoState = "idle" | "requesting" | "granted" | "denied";
 
 export default function SPAttendancePage() {
-  const employeeId = useMyEmployeeId();
+  const { employeeId, loading: employeeLoading, error: employeeError } = useMyEmployee();
   const { today, loading, error, submitting, clockIn, clockOut } = useAttendance(employeeId);
 
+  const {uploadDataUrl, uploading: uploadingPhoto} = useUploadFile();
   const [geoState, setGeoState] = useState<GeoState>("idle");
   const [coords, setCoords] = useState<{ lat: number; lng: number } | null>(null);
   const [photoDataUrl, setPhotoDataUrl] = useState<string | null>(null);
@@ -60,16 +59,13 @@ export default function SPAttendancePage() {
 
   const handleSubmit = async () => {
     if (!coords || !photoDataUrl) return;
-    // TODO: no object storage provider is configured in this repo yet.
-    // Persisting a placeholder reference rather than the real image bytes —
-    // swap this for an actual upload call (S3/Cloudinary/Vercel Blob) once
-    // one exists, then pass the returned URL as photoUrl below.
-    const placeholderPhotoRef = `local-capture-${Date.now()}.jpg`;
+    const [, mimeMatch] = /^data:([^;]+);base64,/.exec(photoDataUrl) ?? [];
+    const photoUrl = await uploadDataUrl(`attendance-${Date.now()}.jpg`, mimeMatch ?? "image/jpeg", photoDataUrl);
     await clockIn({
       site: "Assigned Site",
       latitude: coords.lat,
       longitude: coords.lng,
-      photoUrl: placeholderPhotoRef,
+      photoUrl,
     });
     setPhotoDataUrl(null);
     setGeoState("idle");
@@ -80,9 +76,9 @@ export default function SPAttendancePage() {
     <PageContainer>
       <PageHeader title="Attendance" description="Geofenced, photo-verified attendance for your assigned site" />
       <PageContent className="p-6 md:p-8 space-y-6">
-        {!employeeId && (
+        {!employeeLoading && (!employeeId || employeeError) && (
           <div className="rounded-lg border border-warning/40 bg-warning/10 p-4 text-sm text-warning-foreground">
-            No employee profile is linked to your account yet — attendance can't be recorded until HR links your login email to an employee record.
+            {employeeError ?? "No employee profile is linked to your account yet."}
           </div>
         )}
 
@@ -165,8 +161,8 @@ export default function SPAttendancePage() {
                 />
               )}
 
-              <Button className="rounded-xl" disabled={!canSubmit} onClick={handleSubmit}>
-                {submitting ? "Submitting…" : "Confirm attendance"}
+              <Button className="rounded-xl" disabled={!canSubmit || uploadingPhoto} onClick={handleSubmit}>
+                {uploadingPhoto ? "Uploading photo…" : submitting ? "Submitting…" : "Confirm attendance"}
               </Button>
               <p className="text-xs text-muted-foreground">
                 Attendance already recorded today can't be duplicated — the server rejects a second clock-in for the same date.

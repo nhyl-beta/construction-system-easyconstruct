@@ -20,16 +20,13 @@ import { useAttendance } from "@/features/attendance/hooks/use-attendance";
 import { useMyTasks } from "@/features/tasks/hooks/use-my-tasks";
 import { useMyIssues } from "@/features/issues/hooks/use-my-issues";
 import { useFieldDocuments } from "@/features/documents/hooks/use-field-documents";
+import { useMyEmployee } from "@/features/employees/hooks/use-my-employee";
 
-function useMyEmployeeId(): string | null {
-  const { user } = useAuth();
-  return useMemo(() => (user ? user.email.split("@")[0] : null), [user]);
-}
 
 export default function SPDashboardPage() {
   const { identity } = useRoleConfig();
   const navigate = useNavigate();
-  const employeeId = useMyEmployeeId();
+  const { employeeId } = useMyEmployee();
 
   const attendance = useAttendance(employeeId);
   const myTasks = useMyTasks();

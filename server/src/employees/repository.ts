@@ -1,4 +1,5 @@
 import { and, eq, ilike, or, SQL } from "drizzle-orm";
+
 import { db } from "../db/connection.js";
 import { employees } from "../db/schema/employees.js";
 
@@ -8,15 +9,27 @@ import type {
   UpdateEmployeeInput,
 } from "./types.js";
 
-export const findAll = async (filters: EmployeeFilters = {}) => {
+export const findAll = async (
+  filters: EmployeeFilters = {},
+) => {
   const conditions: SQL[] = [];
 
-  if (filters.department && filters.department !== "all") {
-    conditions.push(eq(employees.department, filters.department));
+  if (
+    filters.department &&
+    filters.department !== "all"
+  ) {
+    conditions.push(
+      eq(employees.department, filters.department),
+    );
   }
 
-  if (filters.status && filters.status !== "all") {
-    conditions.push(eq(employees.status, filters.status));
+  if (
+    filters.status &&
+    filters.status !== "all"
+  ) {
+    conditions.push(
+      eq(employees.status, filters.status),
+    );
   }
 
   if (filters.search) {
@@ -52,7 +65,18 @@ export const findById = async (id: number) => {
   return employee ?? null;
 };
 
-export const findByEmployeeId = async (employeeId: string) => {
+export const findByUserId = async (userId: number) => {
+  const [employee] = await db
+    .select()
+    .from(employees)
+    .where(eq(employees.userId, userId));
+
+  return employee ?? null;
+};
+
+export const findByEmployeeId = async (
+  employeeId: string,
+) => {
   const [employee] = await db
     .select()
     .from(employees)
@@ -71,7 +95,9 @@ export const findByEmail = async (email: string) => {
 };
 
 export const create = async (
-  data: CreateEmployeeInput & { initials: string },
+  data: CreateEmployeeInput & {
+    initials: string;
+  },
 ) => {
   const [created] = await db
     .insert(employees)
@@ -89,7 +115,9 @@ export const create = async (
 
 export const update = async (
   id: number,
-  data: UpdateEmployeeInput & { initials?: string },
+  data: UpdateEmployeeInput & {
+    initials?: string;
+  },
 ) => {
   const [updated] = await db
     .update(employees)

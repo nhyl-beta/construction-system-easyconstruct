@@ -5,9 +5,11 @@ import {
   updateDesignSchema,
 } from "../validators/design-validators.js";
 import * as controller from "./controller.js";
+import { authenticate } from "../middleware/auth.js";
 
 const router = Router();
 
+router.use(authenticate);
 router.get("/", controller.getAll);
 router.post("/", validate(createDesignSchema), controller.create);
 router.get("/:id", controller.getById);

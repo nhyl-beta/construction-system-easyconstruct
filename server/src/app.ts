@@ -26,14 +26,18 @@ import {
   requireRole,
 } from "./middleware/auth.js";
 
-// ── Previously built, never mounted — wired in now ──
 import { financeRouter } from "./routes/finance.js";
 import notificationRoutes from "./notifications/route.js";
 import auditLogRoutes from "./audit-logs/routes.js";
 import requirementRoutes from "./requirements/routes.js";
 import engineeringReportRoutes from "./engineering-reports/routes.js";
-// ── New for workflows/approvals ──
+
+// ── workflows/approvals ──
 import workflowRoutes from "./workflows/routes.js";
+
+import uploadRoutes from "./uploads/routes.js";
+
+
 const app = express();
 
 app.use(express.json());
@@ -81,6 +85,8 @@ app.use("/api/audit-logs", auditLogRoutes);
 app.use("/api/requirements", requirementRoutes);
 app.use("/api/engineering-reports", engineeringReportRoutes);
 app.use("/api/workflows", workflowRoutes);
+app.use("/api/uploads", uploadRoutes);
+
 
 app.use(errorMiddleware);
 

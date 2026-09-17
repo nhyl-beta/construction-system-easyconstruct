@@ -1,6 +1,7 @@
 import { Router } from "express";
 import * as controller from "./controller.js";
 import { validate } from "../middleware/validate.js";
+import { authenticate } from "../middleware/auth.js";
 import {
   createEmployeeSchema,
   updateEmployeeSchema,
@@ -8,6 +9,9 @@ import {
 
 const router = Router();
 
+router.use(authenticate);
+
+router.get("/me", controller.getMe);          
 router.get("/", controller.getAll);
 router.post("/", validate(createEmployeeSchema), controller.create);
 router.get("/:id", controller.getById);
