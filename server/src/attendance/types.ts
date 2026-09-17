@@ -31,6 +31,7 @@ export interface UpdateAttendanceInput extends Partial<CreateAttendanceInput> {}
 
 export interface AttendanceFilters {
   employeeId?: string;
+  projectCode?: string;
   status?: string; // attendanceStatus: Present | Absent | Late | On Leave | Half Day
   dateFrom?: string;
   dateTo?: string;

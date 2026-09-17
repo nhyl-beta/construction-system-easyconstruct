@@ -1,5 +1,6 @@
 import { Router } from "express";
 import { validate } from "../middleware/validate.js";
+import { authenticate, requireRole } from "../middleware/auth.js";
 import * as controller from "./controller.js";
 import {
   attendanceSchema,
@@ -10,6 +11,9 @@ import {
 } from "./validators.js";
 
 const router = Router();
+
+router.use(authenticate);
+router.use(requireRole("human-resources", "admin", "super-admin"));
 
 router.get("/employees", controller.listEmployees);
 router.post("/employees", validate(createEmployeeSchema), controller.createEmployee);

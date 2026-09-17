@@ -17,7 +17,6 @@ import employeeRoutes from "./employees/routes.js";
 import attendanceRoutes from "./attendance/routes.js";
 import payrollRoutes from "./payroll/routes.js";
 import workforceReportRoutes from "./workforce-reports/routes.js";
-// ── Added for Site Personnel ──
 import taskRoutes from "./tasks/routes.js";
 import issueRoutes from "./issues/routes.js";
 import documentRoutes from "./documents/routes.js";
@@ -27,6 +26,14 @@ import {
   requireRole,
 } from "./middleware/auth.js";
 
+// ── Previously built, never mounted — wired in now ──
+import { financeRouter } from "./routes/finance.js";
+import notificationRoutes from "./notifications/route.js";
+import auditLogRoutes from "./audit-logs/routes.js";
+import requirementRoutes from "./requirements/routes.js";
+import engineeringReportRoutes from "./engineering-reports/routes.js";
+// ── New for workflows/approvals ──
+import workflowRoutes from "./workflows/routes.js";
 const app = express();
 
 app.use(express.json());
@@ -57,16 +64,23 @@ app.use("/api/attendance", attendanceRoutes);
 app.use("/api/payroll", payrollRoutes);
 app.use("/api/workforce-reports", workforceReportRoutes);
 app.use("/api/auth", authRoutes);
-// ── Added for Site Personnel ──
 app.use("/api/tasks", taskRoutes);
 app.use("/api/issues", issueRoutes);
 app.use("/api/documents", documentRoutes);
+
 app.use(
   "/api/finance/payroll-review",
   authenticate,
   requireRole("finance-manager", "finance_manager"),
   payrollReviewRoutes,
 );
+
+app.use("/api/finance", financeRouter);
+app.use("/api/notifications", notificationRoutes);
+app.use("/api/audit-logs", auditLogRoutes);
+app.use("/api/requirements", requirementRoutes);
+app.use("/api/engineering-reports", engineeringReportRoutes);
+app.use("/api/workflows", workflowRoutes);
 
 app.use(errorMiddleware);
 

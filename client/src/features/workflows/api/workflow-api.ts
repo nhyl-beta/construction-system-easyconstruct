@@ -1,13 +1,13 @@
 import type {
-  WorkflowItem,
-  WorkflowRole,
+  StageStatus,
+  Workflow,
+  WorkflowStage,
   WorkflowStatus,
-  WorkflowType,
 } from "../types/workflow.types";
 
 const STORAGE_KEY = "easyconstruct_workflows";
 
-function loadWorkflows(): WorkflowItem[] {
+function loadWorkflows(): Workflow[] {
   const stored = localStorage.getItem(STORAGE_KEY);
 
   if (!stored) {
@@ -15,62 +15,91 @@ function loadWorkflows(): WorkflowItem[] {
   }
 
   try {
-    return JSON.parse(stored) as WorkflowItem[];
+    return JSON.parse(stored) as Workflow[];
   } catch {
     return [];
   }
 }
 
-function saveWorkflows(workflows: WorkflowItem[]) {
+function saveWorkflows(workflows: Workflow[]): void {
   localStorage.setItem(STORAGE_KEY, JSON.stringify(workflows));
 }
 
-export async function getWorkflows(): Promise<WorkflowItem[]> {
+export async function getWorkflows(): Promise<Workflow[]> {
   return loadWorkflows();
 }
 
 export async function getWorkflowsForRole(
-  role: WorkflowRole,
-): Promise<WorkflowItem[]> {
+  role: string,
+): Promise<Workflow[]> {
   const workflows = loadWorkflows();
 
-  return workflows.filter(
-    (workflow) =>
-      workflow.createdBy === role ||
-      workflow.assignedTo === role,
-  );
+  return workflows.filter((workflow) => {
+    const createdByRole = workflow.createdBy === role;
+
+    const assignedToRole = workflow.stages.some(
+      (stage) =>
+        stage.role === role ||
+        stage.roleLabel === role ||
+        stage.assignedTo === role,
+    );
+
+    return createdByRole || assignedToRole;
+  });
 }
 
 export async function createWorkflow(
   input: Omit<
-    WorkflowItem,
-    "id" | "createdAt" | "updatedAt" | "status"
-  >,
-): Promise<WorkflowItem> {
+    Workflow,
+    | "id"
+    | "code"
+    | "createdAt"
+    | "updatedAt"
+    | "status"
+    | "stages"
+  > & {
+    stages: WorkflowStage[];
+  },
+): Promise<Workflow> {
   const workflows = loadWorkflows();
-
   const now = new Date().toISOString();
 
-  const workflow: WorkflowItem = {
+  const nextId =
+    workflows.length > 0
+      ? Math.max(...workflows.map((workflow) => workflow.id)) + 1
+      : 1;
+
+  const code = `WF-${String(nextId).padStart(3, "0")}`;
+
+  const stages: WorkflowStage[] = input.stages.map(
+    (stage, index): WorkflowStage => ({
+      ...stage,
+      status: (index === 0 ? "current" : "upcoming") as StageStatus,
+      createdAt: stage.createdAt ?? now,
+    }),
+  );
+
+  const workflow: Workflow = {
     ...input,
-    id: `WF-${String(workflows.length + 1).padStart(3, "0")}`,
-    status: "PENDING_REVIEW",
+    id: nextId,
+    code,
+    status: "active",
+    stages,
     createdAt: now,
     updatedAt: now,
   };
 
   workflows.push(workflow);
-
   saveWorkflows(workflows);
 
   return workflow;
 }
 
 export async function updateWorkflowStatus(
-  id: string,
+  id: number,
   status: WorkflowStatus,
   comment?: string,
-): Promise<WorkflowItem | null> {
+): Promise<Workflow | null> {
   const workflows = loadWorkflows();
 
   const index = workflows.findIndex(
@@ -83,20 +112,29 @@ export async function updateWorkflowStatus(
 
   const workflow = workflows[index];
 
-  const updatedWorkflow: WorkflowItem = {
+  let updatedStages = workflow.stages;
+
+  if (comment) {
+    updatedStages = workflow.stages.map((stage) => {
+      if (stage.status !== "current") {
+        return stage;
+      }
+
+      return {
+        ...stage,
+        comments: comment,
+      };
+    });
+  }
+
+  const updatedWorkflow: Workflow = {
     ...workflow,
-
     status,
-
+    stages: updatedStages,
     updatedAt: new Date().toISOString(),
-
-    comments: comment
-      ? [...(workflow.comments ?? []), comment]
-      : workflow.comments,
   };
 
   workflows[index] = updatedWorkflow;
-
   saveWorkflows(workflows);
 
   return updatedWorkflow;

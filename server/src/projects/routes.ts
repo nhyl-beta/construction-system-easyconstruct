@@ -5,13 +5,30 @@ import {
   createProjectSchema,
   updateProjectSchema,
 } from "../validators/project-validator.js";
+import { authenticate, requireRole } from '../middleware/auth.js';
 
 const router = Router();
 
+router.use(authenticate);
+
 router.get ('/',    controller.getAll);
-router.post('/',    validate(createProjectSchema), controller.create);
 router.get ('/:id', controller.getById);
-router.patch('/:id',validate(updateProjectSchema), controller.update);
-router.delete('/:id',controller.remove);
+router.post(
+  '/',
+  requireRole("project-manager", "admin", "super-admin"),
+  validate(createProjectSchema),
+  controller.create,
+);
+router.patch(
+  '/:id',
+  requireRole("project-manager", "admin", "super-admin"),
+  validate(updateProjectSchema),
+  controller.update,
+);
+router.delete(
+  '/:id',
+  requireRole("project-manager", "admin", "super-admin"),
+  controller.remove,
+);
 
 export default router;

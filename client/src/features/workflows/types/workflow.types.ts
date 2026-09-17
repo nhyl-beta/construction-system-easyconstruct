@@ -1,58 +1,93 @@
-export type WorkflowRole =
-  | "super_admin"
-  | "admin"
-  | "finance_manager"
-  | "hr"
-  | "architect"
-  | "engineer"
-  | "consultant"
-  | "project_manager"
-  | "site_personnel";
+export interface WorkflowStageDefinition {
+  role: string;
+  roleLabel: string;
+  iconKey: string;
+}
 
-export type WorkflowStatus =
-  | "DRAFT"
-  | "PENDING_REVIEW"
-  | "IN_REVIEW"
-  | "APPROVED"
-  | "REVISION_REQUESTED"
-  | "REJECTED"
-  | "COMPLETED";
+export interface WorkflowTemplate {
+  id: number;
+  name: string;
+  description: string;
+  avgDurationHours: string;
+  defaultStages: WorkflowStageDefinition[];
+  activeCount: number;
+}
 
-export type WorkflowType =
-  | "PROPOSAL_REVIEW"
-  | "PAYROLL_REVIEW"
-  | "DESIGN_REVIEW"
-  | "WORKFORCE_REQUEST"
-  | "TASK_ASSIGNMENT"
-  | "PROJECT_REVIEW"
-  | "DOCUMENT_REVIEW";
+export type StageStatus = "upcoming" | "current" | "done" | "rejected" | "revision-required";
 
-export interface WorkflowItem {
-  id: string;
+export interface WorkflowStage {
+  id: number;
+  sequence: number;
+  role: string;
+  roleLabel: string;
+  iconKey: string;
+  status: StageStatus;
+  assignedTo: string | null;
+  decidedBy: string | null;
+  decidedAt: string | null;
+  comments: string | null;
+  createdAt: string | null;
+}
 
-  type: WorkflowType;
+export type WorkflowStatus = "active" | "completed" | "rejected" | "cancelled";
 
+export interface Workflow {
+  id: number;
+  code: string;
   title: string;
-
-  description?: string;
-
-  projectId?: string;
-
-  projectName?: string;
-
-  createdBy: WorkflowRole;
-
-  assignedTo: WorkflowRole;
-
+  projectCode: string;
+  templateId: number | null;
+  templateName: string | null;
+  amount: string | null;
+  type: string | null;
+  severity: "high" | "medium" | "low";
+  aiNote: string | null;
   status: WorkflowStatus;
+  createdBy: string;
+  createdAt: string | null;
+  updatedAt: string | null;
+  stages: WorkflowStage[];
+}
 
-  priority: "LOW" | "MEDIUM" | "HIGH" | "CRITICAL";
+export interface CreateWorkflowInput {
+  title: string;
+  projectCode: string;
+  templateId: number;
+  amount?: number;
+  type?: string;
+  stageAssignments?: Record<string, string>;
+}
 
-  createdAt: string;
+export type Decision = "approve" | "reject" | "revise";
 
-  updatedAt: string;
+export interface DecideStageInput {
+  decision: Decision;
+  comments?: string;
+}
 
-  comments?: string[];
+export type ApprovalScope = "pending" | "mine" | "history";
 
-  metadata?: Record<string, unknown>;
+export interface ApprovalQueueItem {
+  stageId: number;
+  workflowId: number;
+  workflowCode: string;
+  title: string;
+  projectCode: string;
+  type: string | null;
+  amount: string | null;
+  severity: "high" | "medium" | "low";
+  aiNote: string | null;
+  ownerRoleLabel: string;
+  status: StageStatus;
+  assignedTo: string | null;
+  decidedBy: string | null;
+  decidedAt: string | null;
+  createdAt: string | null;
+}
+
+export interface ApprovalStats {
+  pending: number;
+  overdue: number;
+  avgCycleDays: number;
+  thisWeek: number;
 }

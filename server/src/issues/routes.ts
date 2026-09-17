@@ -1,4 +1,3 @@
-// server/src/issues/routes.ts — NEW
 import { Router } from "express";
 import * as controller from "./controller.js";
 import { validate } from "../middleware/validate.js";
@@ -13,13 +12,13 @@ router.get("/", controller.getAll);
 router.get("/:id", controller.getById);
 router.post(
   "/",
-  requireRole("site_personnel", "engineer"),
+  requireRole("site-personnel", "engineer"),
   validate(createIssueSchema),
   controller.create,
 );
 router.patch(
   "/:id/status",
-  requireRole("project_manager", "engineer"),
+  requireRole("project-manager", "engineer"),
   validate(updateIssueStatusSchema),
   controller.updateStatus,
 );

@@ -1,13 +1,11 @@
 // src/pages/project-manager/pm-documents.tsx
+import { useMemo, useState } from "react";
 import {
   FileText,
   Upload,
   FolderTree,
   Search,
-  Filter,
-  History,
   Download,
-  ChevronRight,
   FileSignature,
   Image as ImageIcon,
   FileSpreadsheet,
@@ -17,168 +15,163 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge }   from "@/components/ui/badge";
 import { Button }  from "@/components/ui/button";
 import { Input }   from "@/components/ui/input";
-import {
-  documentFolders,
-  documentItems,
-  type DocumentIconKey,
-} from "@/providers/mock-data";
+import { UploadDocumentDialog } from "@/components/documents/upload-document-dialog";
+import { useFieldDocuments } from "@/features/documents/hooks/use-field-documents";
+import { formatRelativeTime } from "@/lib/format-relative-time";
 
-// ─────────────────────────────────────────────────────────────────────────────
-// Icon resolver — keeps icons out of mock-data.ts
-// ─────────────────────────────────────────────────────────────────────────────
-
-const DOCUMENT_ICONS: Record<DocumentIconKey, LucideIcon> = {
-  FileText:        FileText,
-  FileSignature:   FileSignature,
-  FileSpreadsheet: FileSpreadsheet,
-  Image:           ImageIcon,
+// Icon resolver — mapped from real `type` values (the schema's enum), not
+// a separate iconKey field that doesn't exist on this table.
+const TYPE_ICONS: Record<string, LucideIcon> = {
+  "Field Report": FileText,
+  "Site Photo": ImageIcon,
+  "Progress Evidence": FileSpreadsheet,
+  "Supporting Document": FileSignature,
 };
 
-// ─────────────────────────────────────────────────────────────────────────────
-// Page
-// ─────────────────────────────────────────────────────────────────────────────
+// A real, downloadable link — vs. the `local-upload-...` placeholder stored
+// when no file-storage provider is configured (see upload-document-dialog.tsx).
+const isRealUrl = (url: string | null) => !!url && /^https?:\/\//.test(url);
 
 export default function DocumentsPage() {
+  const { documents, loading, uploading, upload } = useFieldDocuments();
+  const [uploadOpen, setUploadOpen] = useState(false);
+  const [search, setSearch] = useState("");
+  const [activeType, setActiveType] = useState<string | null>(null);
+
+  // Real categories, grouped from the actual data — not a hardcoded folder
+  // list with invented counts.
+  const categories = useMemo(() => {
+    const counts = new Map<string, number>();
+    for (const d of documents) counts.set(d.type, (counts.get(d.type) ?? 0) + 1);
+    return Array.from(counts.entries()).map(([type, count]) => ({ type, count }));
+  }, [documents]);
+
+  const filtered = useMemo(() => {
+    return documents.filter((d) => {
+      if (activeType && d.type !== activeType) return false;
+      if (search && !d.title.toLowerCase().includes(search.toLowerCase())) return false;
+      return true;
+    });
+  }, [documents, activeType, search]);
+
   return (
     <div className="flex-1 space-y-6 p-4 md:p-8">
 
-      {/* ── Page header ── */}
       <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
         <div>
           <h2 className="text-2xl font-semibold tracking-tight">Document repository</h2>
           <p className="text-sm text-muted-foreground">
-            2,689 documents across 24 projects · version-controlled
+            {documents.length} document{documents.length === 1 ? "" : "s"} on file
           </p>
         </div>
-        <div className="flex gap-2">
-          <Button variant="outline" className="rounded-xl">
-            <FolderTree className="h-4 w-4" /> Browse all
-          </Button>
-          <Button className="rounded-xl">
-            <Upload className="h-4 w-4" /> Upload
-          </Button>
-        </div>
+        <Button className="rounded-xl" onClick={() => setUploadOpen(true)}>
+          <Upload className="h-4 w-4" /> Upload
+        </Button>
       </div>
 
-      {/* ── Folder grid ── */}
-      <div className="grid grid-cols-2 gap-3 md:grid-cols-3 lg:grid-cols-6">
-        {documentFolders.map((f) => (
+      <div className="grid grid-cols-2 gap-3 md:grid-cols-4">
+        {categories.map((c) => (
           <Card
-            key={f.name}
-            className="cursor-pointer rounded-2xl border-border/70 shadow-sm transition hover:border-primary/40"
+            key={c.type}
+            onClick={() => setActiveType(activeType === c.type ? null : c.type)}
+            className={`cursor-pointer rounded-2xl border-border/70 shadow-sm transition hover:border-primary/40 ${
+              activeType === c.type ? "border-primary" : ""
+            }`}
           >
             <CardContent className="space-y-1 p-4">
               <FolderTree className="h-5 w-5 text-primary" />
-              <div className="text-sm font-medium">{f.name}</div>
-              <div className="text-xs tabular-nums text-muted-foreground">{f.count} files</div>
+              <div className="text-sm font-medium">{c.type}</div>
+              <div className="text-xs tabular-nums text-muted-foreground">{c.count} files</div>
             </CardContent>
           </Card>
         ))}
+        {!loading && categories.length === 0 && (
+          <p className="col-span-full text-sm text-muted-foreground">No documents yet.</p>
+        )}
       </div>
 
-      {/* ── Recent activity table ── */}
       <Card className="rounded-2xl border-border/70 shadow-sm">
         <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-3">
-          <CardTitle className="text-base">Recent activity</CardTitle>
-          <div className="flex items-center gap-2">
-            <div className="relative w-56">
-              <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
-              <Input
-                placeholder="Search documents…"
-                className="h-9 rounded-xl border-border bg-muted/40 pl-9"
-              />
-            </div>
-            <Button variant="outline" size="sm" className="rounded-xl">
-              <Filter className="h-4 w-4" />
-            </Button>
+          <CardTitle className="text-base">{activeType ?? "All documents"}</CardTitle>
+          <div className="relative w-56">
+            <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+            <Input
+              placeholder="Search documents…"
+              value={search}
+              onChange={(e) => setSearch(e.target.value)}
+              className="h-9 rounded-xl border-border bg-muted/40 pl-9"
+            />
           </div>
         </CardHeader>
         <CardContent className="p-0">
-          <div className="overflow-x-auto">
-            <table className="w-full text-sm">
-              <thead>
-                <tr className="border-y border-border/70 bg-muted/40 text-left text-[11px] uppercase tracking-wider text-muted-foreground">
-                  <th className="px-5 py-2.5">Document</th>
-                  <th className="px-3 py-2.5">Project</th>
-                  <th className="px-3 py-2.5">Type</th>
-                  <th className="px-3 py-2.5">Version</th>
-                  <th className="px-3 py-2.5">Size</th>
-                  <th className="px-3 py-2.5">Updated</th>
-                  <th className="px-5 py-2.5" />
-                </tr>
-              </thead>
-              <tbody>
-                {documentItems.map((d) => {
-                  const Icon = DOCUMENT_ICONS[d.iconKey];
-                  return (
-                    <tr
-                      key={d.id}
-                      className="border-b border-border/60 last:border-0 hover:bg-muted/30"
-                    >
-                      {/* Document name + meta */}
-                      <td className="px-5 py-3.5">
-                        <div className="flex items-center gap-3">
-                          <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-secondary/60 text-secondary-foreground">
-                            <Icon className="h-4 w-4" />
-                          </div>
-                          <div>
-                            <div className="font-medium">{d.title}</div>
-                            <div className="text-xs text-muted-foreground">
-                              {d.id} · by {d.by}
+          {loading && <p className="p-5 text-sm text-muted-foreground">Loading documents…</p>}
+          {!loading && filtered.length === 0 && (
+            <p className="p-5 text-sm text-muted-foreground">No matching documents.</p>
+          )}
+          {!loading && filtered.length > 0 && (
+            <div className="overflow-x-auto">
+              <table className="w-full text-sm">
+                <thead>
+                  <tr className="border-y border-border/70 bg-muted/40 text-left text-[11px] uppercase tracking-wider text-muted-foreground">
+                    <th className="px-5 py-2.5">Document</th>
+                    <th className="px-3 py-2.5">Project</th>
+                    <th className="px-3 py-2.5">Type</th>
+                    <th className="px-3 py-2.5">Version</th>
+                    <th className="px-3 py-2.5">Size</th>
+                    <th className="px-3 py-2.5">Updated</th>
+                    <th className="px-5 py-2.5" />
+                  </tr>
+                </thead>
+                <tbody>
+                  {filtered.map((d) => {
+                    const Icon = TYPE_ICONS[d.type] ?? FileText;
+                    return (
+                      <tr key={d.id} className="border-b border-border/60 last:border-0 hover:bg-muted/30">
+                        <td className="px-5 py-3.5">
+                          <div className="flex items-center gap-3">
+                            <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-secondary/60 text-secondary-foreground">
+                              <Icon className="h-4 w-4" />
+                            </div>
+                            <div>
+                              <div className="font-medium">{d.title}</div>
+                              <div className="text-xs text-muted-foreground">{d.documentId} · by {d.uploadedBy}</div>
                             </div>
                           </div>
-                        </div>
-                      </td>
-
-                      {/* Project */}
-                      <td className="px-3 py-3.5 font-mono text-xs text-muted-foreground">
-                        {d.project}
-                      </td>
-
-                      {/* Type badge */}
-                      <td className="px-3 py-3.5">
-                        <Badge variant="outline" className="rounded-full text-[10px]">
-                          {d.type}
-                        </Badge>
-                      </td>
-
-                      {/* Version */}
-                      <td className="px-3 py-3.5">
-                        <span className="font-mono text-xs">{d.version}</span>
-                      </td>
-
-                      {/* Size */}
-                      <td className="px-3 py-3.5 text-xs tabular-nums text-muted-foreground">
-                        {d.size}
-                      </td>
-
-                      {/* Updated */}
-                      <td className="px-3 py-3.5 text-xs text-muted-foreground">
-                        {d.updated}
-                      </td>
-
-                      {/* Actions */}
-                      <td className="px-5 py-3.5">
-                        <div className="flex justify-end gap-1">
-                          <Button variant="ghost" size="icon" className="h-8 w-8 rounded-lg">
-                            <History className="h-3.5 w-3.5" />
-                          </Button>
-                          <Button variant="ghost" size="icon" className="h-8 w-8 rounded-lg">
-                            <Download className="h-3.5 w-3.5" />
-                          </Button>
-                          <Button variant="ghost" size="icon" className="h-8 w-8 rounded-lg">
-                            <ChevronRight className="h-3.5 w-3.5" />
-                          </Button>
-                        </div>
-                      </td>
-                    </tr>
-                  );
-                })}
-              </tbody>
-            </table>
-          </div>
+                        </td>
+                        <td className="px-3 py-3.5 font-mono text-xs text-muted-foreground">{d.project}</td>
+                        <td className="px-3 py-3.5">
+                          <Badge variant="outline" className="rounded-full text-[10px]">{d.type}</Badge>
+                        </td>
+                        <td className="px-3 py-3.5"><span className="font-mono text-xs">{d.version}</span></td>
+                        <td className="px-3 py-3.5 text-xs tabular-nums text-muted-foreground">{d.size ?? "—"}</td>
+                        <td className="px-3 py-3.5 text-xs text-muted-foreground">
+                          {formatRelativeTime(d.createdAt)}
+                        </td>
+                        <td className="px-5 py-3.5">
+                          <div className="flex justify-end">
+                            <Button
+                              variant="ghost"
+                              size="icon"
+                              className="h-8 w-8 rounded-lg"
+                              disabled={!isRealUrl(d.fileUrl)}
+                              title={isRealUrl(d.fileUrl) ? "Download" : "No downloadable file on this record"}
+                              onClick={() => d.fileUrl && window.open(d.fileUrl, "_blank")}
+                            >
+                              <Download className="h-3.5 w-3.5" />
+                            </Button>
+                          </div>
+                        </td>
+                      </tr>
+                    );
+                  })}
+                </tbody>
+              </table>
+            </div>
+          )}
         </CardContent>
       </Card>
+
+      <UploadDocumentDialog open={uploadOpen} onOpenChange={setUploadOpen} uploading={uploading} onSubmit={upload} />
     </div>
   );
 }

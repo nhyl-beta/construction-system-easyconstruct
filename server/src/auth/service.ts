@@ -9,34 +9,19 @@ const JWT_EXPIRES_IN = "8h";
 
 export const login = async (input: LoginInput) => {
   const user = await repo.findByEmail(input.email);
-
-  if (!user) {
-    throw new UnauthorizedError("Invalid email or password");
-  }
+  if (!user) throw new UnauthorizedError("Invalid email or password");
 
   const valid = await bcrypt.compare(input.password, user.password);
-
-  if (!valid) {
-    throw new UnauthorizedError("Invalid email or password");
-  }
+  if (!valid) throw new UnauthorizedError("Invalid email or password");
 
   const token = jwt.sign(
-    {
-      sub: String(user.id),
-      email: user.email,
-      role: user.role,
-    },
+    { sub: user.id, email: user.email, name: user.name, role: user.role },
     JWT_SECRET,
     { expiresIn: JWT_EXPIRES_IN },
   );
 
   return {
     token,
-    user: {
-      id: user.id,
-      email: user.email,
-      name: user.name,
-      role: user.role,
-    },
+    user: { id: user.id, email: user.email, name: user.name, role: user.role },
   };
 };

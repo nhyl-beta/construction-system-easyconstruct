@@ -1,12 +1,16 @@
 import { Router } from "express";
 import * as controller from "./controller.js";
 import { validate } from "../middleware/validate.js";
+import { authenticate, requireRole } from "../middleware/auth.js";
 import {
   generatePayrollSchema,
   updatePayrollLineSchema,
 } from "../validators/payroll-validators.js";
 
 const router = Router();
+
+router.use(authenticate);
+router.use(requireRole("human-resources", "finance-manager", "admin", "super-admin"));
 
 // Tracksheet
 router.get("/", controller.getAll);

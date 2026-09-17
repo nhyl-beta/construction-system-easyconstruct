@@ -9,6 +9,7 @@ export const getAll = async (req: Request, res: Response, next: NextFunction) =>
   try {
     const filters: AttendanceFilters = {
       employeeId: req.query.employeeId as string,
+      projectCode: req.query.projectCode as string,
       status: req.query.status as string,
       dateFrom: req.query.dateFrom as string,
       dateTo: req.query.dateTo as string,

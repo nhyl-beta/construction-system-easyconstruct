@@ -13,6 +13,9 @@ export const findAll = async (filters: AttendanceFilters = {}) => {
   if (filters.employeeId)
     conditions.push(eq(attendance.employeeId, filters.employeeId));
 
+  if (filters.projectCode)
+    conditions.push(eq(attendance.projectCode, filters.projectCode));
+
   if (filters.status && filters.status !== "all")
     conditions.push(eq(attendance.attendanceStatus, filters.status));
 

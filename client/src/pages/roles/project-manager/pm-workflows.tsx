@@ -1,14 +1,15 @@
-// src/pages/project-manager/pm-workflows.tsx
+import { useState } from "react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { NewWorkflowDialog } from "@/components/workflows/new-workflow-dialog";
 import {
-  activeWorkflows,
-  workflowAISuggestions,
-  workflowTemplates,
-  type WorkflowStageIconKey,
-} from "@/providers/mock-data";
+  useActiveWorkflows,
+  useWorkflowTemplates,
+} from "@/features/workflows/hooks/useWorkflows";
+import { WorkflowFormatService } from "@/features/workflows/services/workflow.service";
+import { formatRelativeTime } from "@/lib/format-relative-time";
 import {
   CheckCircle2,
   ChevronRight,
@@ -23,22 +24,20 @@ import {
   type LucideIcon,
 } from "lucide-react";
 
-// ─── Icon resolver ────────────────────────────────────────────────────────────
-// Keeps icons out of mock-data.ts (no React/JSX in data files)
-
-const WORKFLOW_STAGE_ICONS: Record<WorkflowStageIconKey, LucideIcon> = {
-  UserCheck: UserCheck,
-  Wallet: Wallet,
-  ShieldCheck: ShieldCheck,
-  FileSignature: FileSignature,
+const WORKFLOW_STAGE_ICONS: Record<string, LucideIcon> = {
+  UserCheck,
+  Wallet,
+  ShieldCheck,
+  FileSignature,
 };
 
-// ─── Page ─────────────────────────────────────────────────────────────────────
-
 export default function WorkflowsPage() {
+  const { templates, loading: templatesLoading, creating, createWorkflow } = useWorkflowTemplates();
+  const { workflows, loading: workflowsLoading, reload } = useActiveWorkflows();
+  const [dialogOpen, setDialogOpen] = useState(false);
+
   return (
     <div className="flex-1 space-y-6 p-4 md:p-8">
-      {/* ── Page header ── */}
       <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
         <div>
           <h2 className="text-2xl font-semibold tracking-tight">
@@ -49,36 +48,28 @@ export default function WorkflowsPage() {
             departments.
           </p>
         </div>
-        <Button className="rounded-xl">
+        <Button className="rounded-xl" onClick={() => setDialogOpen(true)}>
           <Plus className="h-4 w-4" />
           New workflow
         </Button>
       </div>
 
-      {/* ── Tabs ── */}
       <Tabs defaultValue="templates" className="space-y-5">
         <TabsList className="h-10 rounded-xl">
-          <TabsTrigger value="templates" className="rounded-lg">
-            Templates
-          </TabsTrigger>
-          <TabsTrigger value="active" className="rounded-lg">
-            Active pipeline
-          </TabsTrigger>
-          <TabsTrigger value="ai" className="rounded-lg">
-            AI suggestions
-          </TabsTrigger>
+          <TabsTrigger value="templates" className="rounded-lg">Templates</TabsTrigger>
+          <TabsTrigger value="active" className="rounded-lg">Active pipeline</TabsTrigger>
+          <TabsTrigger value="ai" className="rounded-lg">AI suggestions</TabsTrigger>
         </TabsList>
 
-        {/* ── Templates tab ── */}
-        <TabsContent
-          value="templates"
-          className="grid grid-cols-1 gap-4 md:grid-cols-2"
-        >
-          {workflowTemplates.map((t) => (
-            <Card
-              key={t.name}
-              className="rounded-2xl border-border/70 shadow-sm"
-            >
+        <TabsContent value="templates" className="grid grid-cols-1 gap-4 md:grid-cols-2">
+          {templatesLoading && (
+            <p className="text-sm text-muted-foreground">Loading templates…</p>
+          )}
+          {!templatesLoading && templates.length === 0 && (
+            <p className="text-sm text-muted-foreground">No workflow templates configured yet.</p>
+          )}
+          {templates.map((t) => (
+            <Card key={t.id} className="rounded-2xl border-border/70 shadow-sm">
               <CardContent className="space-y-3 p-5">
                 <div className="flex items-start justify-between gap-2">
                   <div className="flex items-center gap-2">
@@ -88,53 +79,53 @@ export default function WorkflowsPage() {
                     <h3 className="font-medium leading-tight">{t.name}</h3>
                   </div>
                   <Badge variant="outline" className="rounded-full text-[10px]">
-                    {t.active} active
+                    {t.activeCount} active
                   </Badge>
                 </div>
-                <p className="text-sm text-muted-foreground">{t.desc}</p>
+                <p className="text-sm text-muted-foreground">{t.description}</p>
                 <div className="flex items-center justify-between border-t border-border/60 pt-3 text-xs">
                   <span className="text-muted-foreground">
-                    {t.stages} stages · avg {t.avg}
+                    {t.defaultStages.length} stages · avg {WorkflowFormatService.avgDuration(t.avgDurationHours)}
                   </span>
-                  <Button variant="ghost" size="sm" className="rounded-lg">
-                    Edit <ChevronRight className="h-3.5 w-3.5" />
-                  </Button>
                 </div>
               </CardContent>
             </Card>
           ))}
         </TabsContent>
 
-        {/* ── Active pipeline tab ── */}
         <TabsContent value="active" className="space-y-4">
-          {activeWorkflows.map((workflow) => (
-            <Card
-              key={workflow.id}
-              className="rounded-2xl border-border/70 shadow-sm"
-            >
+          {workflowsLoading && (
+            <p className="text-sm text-muted-foreground">Loading active workflows…</p>
+          )}
+          {!workflowsLoading && workflows.length === 0 && (
+            <p className="text-sm text-muted-foreground">
+              No active workflows. Use "New workflow" to initiate one.
+            </p>
+          )}
+          {workflows.map((workflow) => (
+            <Card key={workflow.id} className="rounded-2xl border-border/70 shadow-sm">
               <CardHeader>
                 <CardTitle className="text-base">
-                  {workflow.id} · {workflow.title}
+                  {workflow.code} · {workflow.title}
                 </CardTitle>
                 <p className="text-xs text-muted-foreground">
-                  {workflow.project} · {workflow.amount} · {workflow.template}
+                  {workflow.projectCode} · {WorkflowFormatService.amount(workflow.amount)} · {workflow.templateName ?? "—"}
                 </p>
               </CardHeader>
               <CardContent>
                 <div className="flex flex-col gap-3 md:flex-row md:items-stretch">
-                  {workflow.pipeline.map((stage, i) => {
-                    const Icon = WORKFLOW_STAGE_ICONS[stage.iconKey];
+                  {workflow.stages.map((stage, i) => {
+                    const Icon = WORKFLOW_STAGE_ICONS[stage.iconKey] ?? UserCheck;
                     return (
-                      <div
-                        key={stage.role}
-                        className="flex flex-1 items-center gap-3"
-                      >
+                      <div key={stage.id} className="flex flex-1 items-center gap-3">
                         <div
                           className={`flex h-12 w-12 shrink-0 items-center justify-center rounded-xl border-2 ${
                             stage.status === "done"
                               ? "border-success bg-success/10 text-success"
                               : stage.status === "current"
                               ? "border-primary bg-primary/10 text-primary"
+                              : stage.status === "rejected"
+                              ? "border-destructive bg-destructive/10 text-destructive"
                               : "border-border bg-muted text-muted-foreground"
                           }`}
                         >
@@ -142,21 +133,20 @@ export default function WorkflowsPage() {
                         </div>
                         <div className="min-w-0 flex-1">
                           <div className="flex items-center gap-2">
-                            <span className="text-sm font-medium">
-                              {stage.role}
-                            </span>
-                            {stage.status === "done" && (
-                              <CheckCircle2 className="h-3.5 w-3.5 text-success" />
-                            )}
-                            {stage.status === "current" && (
-                              <Clock className="h-3.5 w-3.5 text-primary" />
-                            )}
+                            <span className="text-sm font-medium">{stage.roleLabel}</span>
+                            {stage.status === "done" && <CheckCircle2 className="h-3.5 w-3.5 text-success" />}
+                            {stage.status === "current" && <Clock className="h-3.5 w-3.5 text-primary" />}
                           </div>
                           <div className="text-xs text-muted-foreground">
-                            {stage.who} · {stage.when}
+                            {stage.decidedBy ?? stage.assignedTo ?? "Unassigned"} ·{" "}
+                            {stage.decidedAt
+                              ? formatRelativeTime(stage.decidedAt)
+                              : stage.status === "current"
+                              ? "In progress"
+                              : "Not started"}
                           </div>
                         </div>
-                        {i < workflow.pipeline.length - 1 && (
+                        {i < workflow.stages.length - 1 && (
                           <ChevronRight className="hidden h-4 w-4 shrink-0 text-muted-foreground md:block" />
                         )}
                       </div>
@@ -168,43 +158,40 @@ export default function WorkflowsPage() {
           ))}
         </TabsContent>
 
-        {/* ── AI suggestions tab ── */}
         <TabsContent value="ai">
-          <Card className="rounded-2xl border-ai/20 bg-gradient-to-br from-ai-soft/60 to-card shadow-sm">
+          <Card className="rounded-2xl border-ai/20 bg-linear-to-br from-ai-soft/60 to-card shadow-sm">
             <CardHeader>
               <Badge
                 variant="outline"
                 className="w-fit rounded-full border-ai/30 bg-ai/10 px-2.5 py-0.5 text-[11px] text-ai"
               >
                 <Sparkles className="mr-1 h-3 w-3" />
-                AI workflow suggestions
+                AI recommendation — human review required
               </Badge>
-              <CardTitle className="text-base">
-                {workflowAISuggestions.length} recommended improvements
-              </CardTitle>
+              <CardTitle className="text-base">Not yet connected</CardTitle>
             </CardHeader>
-            <CardContent className="space-y-3">
-              {workflowAISuggestions.map((s, i) => (
-                <div
-                  key={i}
-                  className="rounded-xl border border-border/60 bg-card p-4"
-                >
-                  <div className="text-sm font-medium">{s.title}</div>
-                  <p className="mt-1 text-xs text-muted-foreground">{s.desc}</p>
-                  <div className="mt-3 flex gap-2">
-                    <Button size="sm" className="rounded-lg">
-                      Apply
-                    </Button>
-                    <Button size="sm" variant="ghost" className="rounded-lg">
-                      Dismiss
-                    </Button>
-                  </div>
-                </div>
-              ))}
+            <CardContent className="space-y-3 text-sm text-muted-foreground">
+              This panel will surface AI-suggested pipeline optimizations
+              (e.g. "this template's Finance stage is rarely rejected —
+              consider fast-tracking it") once a real AI endpoint exists for
+              workflows. Nothing here is auto-applied — a PM must review and
+              accept, edit, or dismiss each suggestion.
             </CardContent>
           </Card>
         </TabsContent>
       </Tabs>
+
+      <NewWorkflowDialog
+        open={dialogOpen}
+        onOpenChange={setDialogOpen}
+        templates={templates}
+        creating={creating}
+        onSubmit={async (input) => {
+          const created = await createWorkflow(input);
+          if (created) await reload();
+          return created;
+        }}
+      />
     </div>
   );
 }

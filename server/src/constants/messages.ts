@@ -35,9 +35,12 @@ export const MSG = {
   blueprints: createCrudMessages("Blueprint"),
   notifications: createCrudMessages("Notification"),
   auditLogs: createCrudMessages("AuditLogs"),
-  
-  // ── Added for Site Personnel ──
   tasks: createCrudMessages("Task"),
   issues: createCrudMessages("Issue"),
   documents: createCrudMessages("Document"),
+  requirements: createCrudMessages("Requirement"),
+  engineeringReports: createCrudMessages("Engineering report"),
+  workflows: createCrudMessages("Workflow"),
+  workflowSteps: createCrudMessages("Workflow step"),
+  workflowStages: createCrudMessages("Workflow stage"),
 } as const;

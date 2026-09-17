@@ -10,6 +10,7 @@ export interface AuthedRequest extends Request {
   authUser?: {
     id: number;
     email: string;
+    name: string;
     role: string;
   };
 }
@@ -34,16 +35,15 @@ export function authenticate(
 
     const verified = jwt.verify(token, env.JWT_SECRET);
 
-    // jwt.verify() can return either a string or JwtPayload.
-    // Reject string payloads because our authentication
-    // requires an object containing user information.
     if (typeof verified === "string") {
       return next(
         new UnauthorizedError("Invalid token payload"),
       );
     }
 
-    // Validate the fields expected from our JWT.
+    // Validate the fields expected from our JWT. `name` is read
+    // defensively (not required) so tokens issued before it was added to
+    // the payload don't suddenly fail auth — see auth/service.ts.
     if (
       typeof verified.sub !== "string" ||
       typeof verified.email !== "string" ||
@@ -54,8 +54,6 @@ export function authenticate(
       );
     }
 
-    // JWT "sub" is normally stored as a string.
-    // Convert it to the number used by our application.
     const userId = Number(verified.sub);
 
     if (!Number.isInteger(userId)) {
@@ -67,6 +65,7 @@ export function authenticate(
     req.authUser = {
       id: userId,
       email: verified.email,
+      name: typeof verified.name === "string" ? verified.name : verified.email,
       role: verified.role,
     };
 
@@ -84,13 +83,10 @@ export function requireRole(...roles: string[]) {
     _res: Response,
     next: NextFunction,
   ) => {
-    // User must be authenticated first.
     if (!req.authUser) {
       return next(new UnauthorizedError());
     }
 
-    // Check whether the authenticated user's role
-    // is included in the roles allowed for this route.
     if (!roles.includes(req.authUser.role)) {
       return next(
         new ForbiddenError(

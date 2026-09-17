@@ -32,6 +32,9 @@ export const attendanceRepository = {
   listForEmployee: (employeeId: string): Promise<{ data: AttendanceRecord[] }> =>
     apiClient.get(`/attendance?employeeId=${encodeURIComponent(employeeId)}`),
 
+  listForProject: (projectCode: string): Promise<{ data: AttendanceRecord[] }> =>
+    apiClient.get(`/attendance?projectCode=${encodeURIComponent(projectCode)}`),
+
   clockIn: (input: ClockInInput): Promise<{ data: AttendanceRecord }> =>
     apiClient.post("/attendance", input),
 

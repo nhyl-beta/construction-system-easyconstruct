@@ -222,6 +222,49 @@ const mockRequirements = [
   },
 ];
 
+const mockWorkflowTemplates = [
+  {
+    name: "Standard procurement",
+    description: "PM review → Finance review → Admin sign-off. Default for purchase orders over $50k.",
+    avgDurationHours: "43.2", // 1.8 days
+    defaultStages: [
+      { role: "project-manager", roleLabel: "Project Manager", iconKey: "UserCheck" },
+      { role: "finance-manager", roleLabel: "Finance", iconKey: "Wallet" },
+      { role: "admin", roleLabel: "Admin Sign-off", iconKey: "FileSignature" },
+    ],
+  },
+  {
+    name: "Change order — fast track",
+    description: "Skip sign-off for change orders under $25k impact.",
+    avgDurationHours: "14.4", // 0.6 days
+    defaultStages: [
+      { role: "project-manager", roleLabel: "Project Manager", iconKey: "UserCheck" },
+      { role: "finance-manager", roleLabel: "Finance", iconKey: "Wallet" },
+    ],
+  },
+  {
+    name: "Subcontractor onboarding",
+    description: "HR verification, PM approval, admin sign-off.",
+    avgDurationHours: "57.6", // 2.4 days
+    defaultStages: [
+      { role: "human-resources", roleLabel: "HR Verification", iconKey: "ShieldCheck" },
+      { role: "project-manager", roleLabel: "Project Manager", iconKey: "UserCheck" },
+      { role: "admin", roleLabel: "Admin Sign-off", iconKey: "FileSignature" },
+    ],
+  },
+  {
+    name: "Public works compliance",
+    description: "Adds an Architect review stage ahead of the standard chain for public-sector projects.",
+    avgDurationHours: "100.8", // 4.2 days
+    defaultStages: [
+      { role: "architect", roleLabel: "Architect Review", iconKey: "FileSignature" },
+      { role: "project-manager", roleLabel: "Project Manager", iconKey: "UserCheck" },
+      { role: "finance-manager", roleLabel: "Finance", iconKey: "Wallet" },
+      { role: "admin", roleLabel: "Admin Sign-off", iconKey: "FileSignature" },
+    ],
+  },
+];
+
 const developmentUsers = [
   { email: "superadmin@easyconstruct.test", name: "Super Admin Test", role: "super-admin" },
   { email: "admin@easyconstruct.test", name: "Admin Test", role: "admin" },
