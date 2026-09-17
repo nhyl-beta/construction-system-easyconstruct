@@ -1,9 +1,9 @@
 import { Router } from "express";
-import { validate } from "../../../middleware/validate.js";
+import { validate } from "../../middleware/validate.js";
 import {
   createBudgetAdjustmentSchema,
   updateBudgetAdjustmentSchema,
-} from "../../../validators/budget-adjustment-validators.js";
+} from "../../validators/budget-adjustment-validators.js";
 import * as controller from "./controller.js";
 
 export const budgetAdjustmentsRoutes = Router();

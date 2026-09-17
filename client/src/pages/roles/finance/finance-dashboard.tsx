@@ -79,7 +79,12 @@ export default function FinanceDashboardPage() {
         title="Finance Dashboard"
         description="Live view of budgets, cash flow, payroll review queue, and AI-generated financial intelligence across the portfolio."
         actions={
-          <Button size="sm" className="rounded-xl">
+          <Button
+            size="sm"
+            className="rounded-xl"
+            disabled
+            title="Not yet available — no transaction record type exists yet, distinct from Budgets and Expenses. Use Record Expense or Create Budget for now."
+          >
             <Plus className="h-3.5 w-3.5" /> New transaction
           </Button>
         }

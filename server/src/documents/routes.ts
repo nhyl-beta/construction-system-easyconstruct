@@ -32,9 +32,14 @@ router.post(
   controller.create,
 );
 
+// Despite the middleware's name (originally built for Consultant advisory
+// docs), this endpoint is the shared document-upload path for every role
+// with a documents page: PM/Admin (pm-documents.tsx, reused by
+// admin-documents.tsx) and Site Personnel (sp-documents.tsx) both call it
+// via the same useFieldDocuments hook.
 router.post(
   "/upload",
-  requireRole("consultant"),
+  requireRole("project-manager", "admin", "super-admin", "site-personnel", "consultant"),
   advisoryDocumentUpload.single("file"),
   controller.upload,
 );

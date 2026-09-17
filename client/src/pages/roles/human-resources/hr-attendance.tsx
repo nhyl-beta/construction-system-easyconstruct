@@ -182,18 +182,26 @@ export default function HRAttendancePage() {
                       </Badge>
                     </TableCell>
                     <TableCell>
-                      <Badge
-                        variant="outline"
-                        className={`rounded-full text-[10px] ${
-                          l.photo === "Verified"
-                            ? "border-success/30 text-success"
-                            : l.photo === "Pending"
-                            ? "border-warning/30 text-warning"
-                            : "border-destructive/30 text-destructive"
-                        }`}
+                      <button
+                        type="button"
+                        disabled={!l.photoUrl}
+                        title={l.photoUrl ? "View clock-in photo" : "No photo on file"}
+                        onClick={() => l.photoUrl && window.open(l.photoUrl, "_blank", "noopener,noreferrer")}
+                        className={l.photoUrl ? "cursor-pointer" : "cursor-not-allowed opacity-70"}
                       >
-                        <Camera className="mr-1 h-3 w-3" /> {l.photo}
-                      </Badge>
+                        <Badge
+                          variant="outline"
+                          className={`rounded-full text-[10px] ${
+                            l.photo === "Verified"
+                              ? "border-success/30 text-success"
+                              : l.photo === "Pending"
+                              ? "border-warning/30 text-warning"
+                              : "border-destructive/30 text-destructive"
+                          }`}
+                        >
+                          <Camera className="mr-1 h-3 w-3" /> {l.photo}
+                        </Badge>
+                      </button>
                     </TableCell>
                     <TableCell>
                       <StatusBadge status={l.attendanceStatus} />

@@ -2,10 +2,19 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import { ProjectRepository } from "@/features/projects/repositories/project.repository";
 import type { Project } from "@/features/projects/types/project.types";
-import { ArrowLeft, Loader2, Trash2 } from "lucide-react";
-import { useEffect, useState } from "react";
+import { useProjectEngineers } from "@/features/project-engineers/hooks/use-project-engineers";
+import { useUsersByRole } from "@/features/users/hooks/use-users-by-role";
+import { ArrowLeft, HardHat, Loader2, Trash2, UserPlus, X } from "lucide-react";
+import { useEffect, useMemo, useState } from "react";
 import { Link, useNavigate, useParams } from "react-router";
 
 export default function ProjectDetailPage() {
@@ -134,6 +143,88 @@ export default function ProjectDetailPage() {
         <Field label="Description" wide><Textarea value={project.description ?? ""} onChange={(e) => update("description", e.target.value)} /></Field>
         <div className="md:col-span-2"><Button onClick={save} disabled={saving || deleting}>{saving && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}{saving ? "Saving…" : "Save changes"}</Button></div>
       </div>
+
+      <AvailableEngineersPanel projectCode={project.code} />
+    </div>
+  );
+}
+
+function AvailableEngineersPanel({ projectCode }: { projectCode: string }) {
+  const { engineers, loading, error, saving, addEngineer, removeEngineer } = useProjectEngineers(projectCode);
+  const { users: allEngineers } = useUsersByRole("engineer");
+  const [selected, setSelected] = useState("");
+
+  const availableToAdd = useMemo(
+    () => allEngineers.filter((u) => !engineers.some((e) => e.userId === u.id)),
+    [allEngineers, engineers],
+  );
+
+  const handleAdd = async () => {
+    const user = allEngineers.find((u) => String(u.id) === selected);
+    if (!user) return;
+    const ok = await addEngineer(user.id, user.name);
+    if (ok) setSelected("");
+  };
+
+  return (
+    <div className="max-w-4xl space-y-4 rounded-2xl border border-border bg-card p-6">
+      <div>
+        <h2 className="flex items-center gap-2 text-base font-semibold">
+          <HardHat className="h-4 w-4 text-muted-foreground" />
+          Available engineers
+        </h2>
+        <p className="mt-1 text-sm text-muted-foreground">
+          Engineers marked available here can be assigned to designs on this project by an Architect.
+        </p>
+      </div>
+
+      <div className="flex flex-wrap items-center gap-2">
+        <Select value={selected} onValueChange={setSelected}>
+          <SelectTrigger className="w-64 rounded-xl">
+            <SelectValue placeholder="Select an engineer" />
+          </SelectTrigger>
+          <SelectContent>
+            {availableToAdd.length === 0 && (
+              <div className="px-2 py-1.5 text-xs text-muted-foreground">
+                No more engineers to add
+              </div>
+            )}
+            {availableToAdd.map((u) => (
+              <SelectItem key={u.id} value={String(u.id)}>
+                {u.name}
+              </SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
+        <Button size="sm" className="rounded-xl" disabled={!selected || saving} onClick={handleAdd}>
+          <UserPlus className="h-3.5 w-3.5" /> Add
+        </Button>
+      </div>
+
+      {error && <p className="text-sm text-destructive">{error}</p>}
+
+      {loading ? (
+        <p className="text-sm text-muted-foreground">Loading…</p>
+      ) : engineers.length === 0 ? (
+        <p className="text-sm text-muted-foreground">No engineers marked available yet.</p>
+      ) : (
+        <ul className="space-y-2">
+          {engineers.map((e) => (
+            <li key={e.id} className="flex items-center justify-between rounded-xl border border-border px-4 py-2 text-sm">
+              <span className="font-medium">{e.userName}</span>
+              <button
+                type="button"
+                onClick={() => removeEngineer(e.id)}
+                disabled={saving}
+                className="text-muted-foreground hover:text-destructive"
+                title="Remove"
+              >
+                <X className="h-3.5 w-3.5" />
+              </button>
+            </li>
+          ))}
+        </ul>
+      )}
     </div>
   );
 }

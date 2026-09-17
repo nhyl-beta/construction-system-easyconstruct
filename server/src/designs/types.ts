@@ -16,6 +16,9 @@ export interface DesignRecord {
   zone: string | null;
   description: string | null;
   fileCount: number;
+  fileUrls: Array<{ name: string; url: string }>;
+  assignedEngineerId: number | null;
+  assignedEngineerName: string | null;
   aiCompleteness: number;
   aiConfidence: number;
   createdAt: Date | null;
@@ -39,6 +42,9 @@ export interface CreateDesignInput {
   zone?: string;
   description?: string;
   fileCount?: number;
+  fileUrls?: Array<{ name: string; url: string }>;
+  assignedEngineerId?: number;
+  assignedEngineerName?: string;
   aiCompleteness?: number;
   aiConfidence?: number;
 }

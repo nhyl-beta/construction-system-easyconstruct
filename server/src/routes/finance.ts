@@ -1,7 +1,7 @@
 // server/src/routes/finance.ts
 import { Router } from "express";
 import { summaryRouter } from "../finance/summary/routes.js";
-import { budgetAdjustmentsRoutes } from "../finance/budget-adjustments/types/routes.js";
+import { budgetAdjustmentsRoutes } from "../finance/budget-adjustments/routes.js";
 import { budgetApprovalStepsRoutes } from "../finance/budget-approval-steps/routes.js";
 import { budgetsRoutes } from "../finance/budget/routes.js";
 import { cashFlowRouter } from "../finance/cash-flow/routes.js";

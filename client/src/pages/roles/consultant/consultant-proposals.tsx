@@ -14,6 +14,7 @@ import { PageContent } from "@/components/refine-ui/views/page-content";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { StatusBadge } from "@/components/ui/status-badge";
+import { apiClient } from "@/services/api.client";
 
 /*
  * ============================================================
@@ -94,19 +95,6 @@ export default function ConsultantProposalsPage() {
 
   /*
    * ----------------------------------------------------------
-   * DEBUG
-   * ----------------------------------------------------------
-   *
-   * This confirms that THIS component is actually being
-   * rendered by React.
-   */
-
-  console.log(
-    "===== CONSULTANT PROPOSALS PAGE LOADED =====",
-  );
-
-  /*
-   * ----------------------------------------------------------
    * LOAD PROPOSALS
    * ----------------------------------------------------------
    */
@@ -115,25 +103,11 @@ export default function ConsultantProposalsPage() {
     try {
       setLoading(true);
 
-      const response =
-        await fetch("/api/proposals");
-
-      if (!response.ok) {
-        throw new Error(
-          `Failed to load proposals. HTTP ${response.status}`,
-        );
-      }
-
-      const result =
-        await response.json();
-
-      console.log(
-        "CONSULTANT PROPOSALS API RESULT:",
-        result,
-      );
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const result: any = await apiClient.get("/proposals");
 
       setProposals(
-        Array.isArray(result.data)
+        Array.isArray(result?.data)
           ? result.data
           : [],
       );
@@ -242,16 +216,6 @@ export default function ConsultantProposalsPage() {
   const openProposal = (
     proposal: Proposal,
   ) => {
-    console.log(
-      "PROPOSAL CLICKED:",
-      proposal.proposalId,
-    );
-
-    console.log(
-      "OPENING PROPOSAL:",
-      proposal,
-    );
-
     /*
      * This is the important state change.
      *
@@ -277,10 +241,6 @@ export default function ConsultantProposalsPage() {
    */
 
   const closeProposal = () => {
-    console.log(
-      "CLOSING PROPOSAL REVIEW",
-    );
-
     setSelectedProposal(null);
 
     setComment("");
@@ -311,12 +271,9 @@ export default function ConsultantProposalsPage() {
     try {
       setReviewing(true);
 
-      console.log(
-        "SUBMITTING REVIEW:",
+      await apiClient.patch(
+        `/proposals/${proposal.id}/review`,
         {
-          proposalId:
-            proposal.proposalId,
-
           status,
 
           reviewerName:
@@ -326,51 +283,6 @@ export default function ConsultantProposalsPage() {
             comment.trim(),
         },
       );
-
-      const response =
-        await fetch(
-          `/api/proposals/${proposal.id}/review`,
-          {
-            method: "PATCH",
-
-            headers: {
-              "Content-Type":
-                "application/json",
-            },
-
-            body: JSON.stringify({
-              status,
-
-              reviewerName:
-                "Consultant",
-
-              reviewComment:
-                comment.trim(),
-            }),
-          },
-        );
-
-      /*
-       * Try to read the response even if the server
-       * returns an error.
-       */
-
-      const result =
-        await response.json().catch(
-          () => null,
-        );
-
-      console.log(
-        "REVIEW API RESPONSE:",
-        result,
-      );
-
-      if (!response.ok) {
-        throw new Error(
-          result?.message ??
-            `Review failed. HTTP ${response.status}`,
-        );
-      }
 
       /*
        * Clear the review.
@@ -930,16 +842,7 @@ export default function ConsultantProposalsPage() {
 
                           <button
                             type="button"
-                            onClick={() => {
-                              console.log(
-                                "PROPOSAL TITLE CLICKED:",
-                                proposal.proposalId,
-                              );
-
-                              openProposal(
-                                proposal,
-                              );
-                            }}
+                            onClick={() => openProposal(proposal)}
                             className="cursor-pointer text-left font-semibold text-primary underline-offset-4 hover:underline"
                           >
                             {
@@ -994,16 +897,7 @@ export default function ConsultantProposalsPage() {
                             type="button"
                             variant="outline"
                             size="sm"
-                            onClick={() => {
-                              console.log(
-                                "REVIEW BUTTON CLICKED:",
-                                proposal.proposalId,
-                              );
-
-                              openProposal(
-                                proposal,
-                              );
-                            }}
+                            onClick={() => openProposal(proposal)}
                           >
                             Review →
                           </Button>

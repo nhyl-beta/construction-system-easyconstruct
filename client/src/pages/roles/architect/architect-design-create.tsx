@@ -12,10 +12,12 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
+import { Paperclip, X } from "lucide-react";
 import {
   useDesignCreate,
   type DesignFormData,
 } from "@/features/designs/hooks/useDesignCreate.ts";
+import { useProjectEngineers } from "@/features/project-engineers/hooks/use-project-engineers";
 
 const STEPS: Step[] = [
   {
@@ -95,7 +97,15 @@ export default function ArchitectDesignCreate() {
       {c.step === 4 && (
         <StepTeam data={c.data} set={c.set} errors={c.stepErrors[4]} />
       )}
-      {c.step === 5 && <StepFiles data={c.data} set={c.set} />}
+      {c.step === 5 && (
+        <StepFiles
+          data={c.data}
+          uploading={c.uploading}
+          uploadError={c.uploadError}
+          onUpload={c.uploadFiles}
+          onRemove={c.removeFile}
+        />
+      )}
       {c.step === 6 && <StepAi data={c.data} set={c.set} />}
       {c.step === 7 && <StepReview data={c.data} />}
     </MultiStepPage>
@@ -371,13 +381,17 @@ function StepTeam({
   set: SetFn;
   errors: string[];
 }) {
+  const { engineers, loading: engineersLoading } = useProjectEngineers(
+    data.projectCode || null,
+  );
+
   return (
     <div className="space-y-6">
       <div>
         <h3 className="text-base font-semibold">Team</h3>
         <p className="mt-1 text-sm text-muted-foreground">
-          Only the lead architect is captured today — the schema doesn't yet
-          support additional reviewers/consultants.
+          Lead architect, plus an engineer from the pool the Project Manager
+          has made available on this project.
         </p>
       </div>
       <div className="grid grid-cols-2 gap-5">
@@ -392,31 +406,114 @@ function StepTeam({
             className="rounded-xl"
           />
         </div>
+        <div className="space-y-1.5">
+          <Label>Assigned engineer</Label>
+          {!data.projectCode ? (
+            <p className="text-xs text-muted-foreground">
+              Pick a project first (Step 2).
+            </p>
+          ) : (
+            <Select
+              value={data.assignedEngineerId ? String(data.assignedEngineerId) : ""}
+              onValueChange={(v) => {
+                const engineer = engineers.find((e) => String(e.userId) === v);
+                set("assignedEngineerId", engineer?.userId ?? null);
+                set("assignedEngineerName", engineer?.userName ?? "");
+              }}
+            >
+              <SelectTrigger className="rounded-xl">
+                <SelectValue placeholder={engineersLoading ? "Loading…" : "Select engineer"} />
+              </SelectTrigger>
+              <SelectContent>
+                {engineers.length === 0 && !engineersLoading && (
+                  <div className="px-2 py-1.5 text-xs text-muted-foreground">
+                    No engineers available on this project yet — ask the PM to add one.
+                  </div>
+                )}
+                {engineers.map((e) => (
+                  <SelectItem key={e.userId} value={String(e.userId)}>
+                    {e.userName}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          )}
+        </div>
       </div>
       <ErrorList errors={errors} />
     </div>
   );
 }
 
-function StepFiles({ data, set }: { data: DesignFormData; set: SetFn }) {
+function StepFiles({
+  data,
+  uploading,
+  uploadError,
+  onUpload,
+  onRemove,
+}: {
+  data: DesignFormData;
+  uploading: boolean;
+  uploadError: string | null;
+  onUpload: (files: FileList | File[]) => Promise<void>;
+  onRemove: (url: string) => void;
+}) {
   return (
     <div className="space-y-6">
       <div>
         <h3 className="text-base font-semibold">Files</h3>
         <p className="mt-1 text-sm text-muted-foreground">
-          Actual file upload isn't wired to storage yet — record the expected
-          sheet count for now.
+          Upload drawing sheets or supporting files (PDF or image, up to 8MB each).
         </p>
       </div>
-      <div className="w-48 space-y-1.5">
-        <Label>File count</Label>
-        <Input
-          type="number"
-          min={0}
-          value={data.fileCount}
-          onChange={(e) => set("fileCount", Number(e.target.value) || 0)}
-          className="rounded-xl"
-        />
+      <div className="space-y-3">
+        <label className="flex w-fit cursor-pointer items-center gap-2 rounded-xl border border-dashed border-border bg-muted/40 px-4 py-3 text-sm hover:border-primary/40">
+          <Paperclip className="h-4 w-4 text-muted-foreground" />
+          {uploading ? "Uploading…" : "Choose files"}
+          <input
+            type="file"
+            multiple
+            accept="application/pdf,image/*"
+            className="hidden"
+            disabled={uploading}
+            onChange={(e) => {
+              if (e.target.files?.length) void onUpload(e.target.files);
+              e.target.value = "";
+            }}
+          />
+        </label>
+
+        {uploadError && <p className="text-xs text-destructive">{uploadError}</p>}
+
+        {data.fileUrls.length > 0 && (
+          <ul className="space-y-1.5">
+            {data.fileUrls.map((f) => (
+              <li
+                key={f.url}
+                className="flex items-center justify-between gap-2 rounded-lg border border-border bg-card px-3 py-2 text-sm"
+              >
+                <a
+                  href={f.url}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="truncate text-primary underline-offset-2 hover:underline"
+                >
+                  {f.name}
+                </a>
+                <button
+                  type="button"
+                  onClick={() => onRemove(f.url)}
+                  className="shrink-0 text-muted-foreground hover:text-destructive"
+                  title="Remove"
+                >
+                  <X className="h-3.5 w-3.5" />
+                </button>
+              </li>
+            ))}
+          </ul>
+        )}
+
+        <p className="text-xs text-muted-foreground">{data.fileCount} file(s) attached</p>
       </div>
     </div>
   );
@@ -471,6 +568,7 @@ function StepReview({ data }: { data: DesignFormData }) {
     ["Phase", data.phase],
     ["Status", data.status],
     ["Lead architect", data.leadArchitect || "—"],
+    ["Assigned engineer", data.assignedEngineerName || "—"],
     ["File count", `${data.fileCount}`],
   ];
   return (

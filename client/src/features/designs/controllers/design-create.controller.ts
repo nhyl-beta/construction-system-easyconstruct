@@ -1,5 +1,11 @@
 import { useMemo, useState } from "react";
 import { useNavigate } from "react-router";
+import { apiClient } from "@/services/api.client";
+
+export interface DesignFileUpload {
+  name: string;
+  url: string;
+}
 
 export interface DesignFormData {
   name: string;
@@ -16,7 +22,10 @@ export interface DesignFormData {
   phase: string;
   status: string;
   leadArchitect: string;
+  assignedEngineerId: number | null;
+  assignedEngineerName: string;
   fileCount: number;
+  fileUrls: DesignFileUpload[];
   aiCompleteness: number;
   aiConfidence: number;
   description: string;
@@ -37,7 +46,10 @@ const initialForm: DesignFormData = {
   phase: "Design Development",
   status: "Draft",
   leadArchitect: "",
+  assignedEngineerId: null,
+  assignedEngineerName: "",
   fileCount: 0,
+  fileUrls: [],
   aiCompleteness: 0,
   aiConfidence: 0,
   description: "",
@@ -48,17 +60,64 @@ const generateDesignCode = () => {
   return `DSN-${new Date().getFullYear()}-${rand}`;
 };
 
+function readFileAsDataUrl(file: File): Promise<string> {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = () => resolve(reader.result as string);
+    reader.onerror = () => reject(reader.error ?? new Error("Failed to read file"));
+    reader.readAsDataURL(file);
+  });
+}
+
 export const useDesignCreateController = () => {
   const navigate = useNavigate();
   const [step, setStep] = useState(1);
   const [data, setData] = useState<DesignFormData>({ ...initialForm, code: generateDesignCode() });
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [uploading, setUploading] = useState(false);
+  const [uploadError, setUploadError] = useState<string | null>(null);
 
   const set = <K extends keyof DesignFormData>(key: K, value: DesignFormData[K]) =>
     setData((prev) => ({ ...prev, [key]: value }));
 
   const regenerateCode = () => set("code", generateDesignCode());
+
+  const uploadFiles = async (files: FileList | File[]) => {
+    setUploading(true);
+    setUploadError(null);
+    try {
+      const uploaded: DesignFileUpload[] = [];
+      for (const file of Array.from(files)) {
+        const dataUrl = await readFileAsDataUrl(file);
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        const res: any = await apiClient.post("/uploads", {
+          filename: file.name,
+          contentType: file.type || "application/octet-stream",
+          dataUrl,
+        });
+        const result = res?.data ?? res;
+        uploaded.push({ name: file.name, url: result.url });
+      }
+      setData((prev) => ({
+        ...prev,
+        fileUrls: [...prev.fileUrls, ...uploaded],
+        fileCount: prev.fileCount + uploaded.length,
+      }));
+    } catch (err) {
+      setUploadError(err instanceof Error ? err.message : "Failed to upload file(s).");
+    } finally {
+      setUploading(false);
+    }
+  };
+
+  const removeFile = (url: string) => {
+    setData((prev) => ({
+      ...prev,
+      fileUrls: prev.fileUrls.filter((f) => f.url !== url),
+      fileCount: Math.max(0, prev.fileCount - 1),
+    }));
+  };
 
   const stepErrors = useMemo(() => {
     const e: Record<number, string[]> = { 1: [], 2: [], 3: [], 4: [], 5: [], 6: [], 7: [] };
@@ -84,13 +143,15 @@ export const useDesignCreateController = () => {
     setSubmitting(true);
     setError(null);
     try {
-      const res = await fetch("/api/designs", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(data),
-      });
-      const json = await res.json();
-      if (!res.ok) throw new Error(json?.message ?? "Failed to create design");
+      const { assignedEngineerId, assignedEngineerName, ...rest } = data;
+      const payload = {
+        ...rest,
+        ...(assignedEngineerId
+          ? { assignedEngineerId, assignedEngineerName }
+          : {}),
+      };
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const json: any = await apiClient.post("/designs", payload);
       navigate(`/designs/${json.data.id}`);
     } catch (err) {
       setError(err instanceof Error ? err.message : "Failed to create design.");
@@ -99,5 +160,22 @@ export const useDesignCreateController = () => {
     }
   };
 
-  return { step, setStep, data, set, regenerateCode, submitting, error, stepErrors, canAdvance, next, back, submit };
+  return {
+    step,
+    setStep,
+    data,
+    set,
+    regenerateCode,
+    submitting,
+    error,
+    stepErrors,
+    canAdvance,
+    next,
+    back,
+    submit,
+    uploading,
+    uploadError,
+    uploadFiles,
+    removeFile,
+  };
 };

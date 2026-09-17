@@ -1,7 +1,4 @@
 import { apiClient } from "@/services/api.client";
-import { payrollRows as mockPayrollRows } from "@/providers/mock-data";
-
-const USE_API = Boolean(import.meta.env.VITE_API_BASE);
 
 export interface PayrollLine {
   id: number;
@@ -87,66 +84,38 @@ function normalize(raw: BackendPayrollLine): PayrollLine {
   };
 }
 
-function fromMock(): PayrollLine[] {
-  return mockPayrollRows.map((p, i) => ({
-    id: i + 1,
-    empId: p.empId,
-    name: p.name,
-    initials: p.initials,
-    role: p.role,
-    hours: p.hours,
-    overtime: p.overtime,
-    gross: p.gross,
-    deductions: p.deductions,
-    net: p.net,
-    status: p.status,
-    period: "Current period",
-  }));
-}
-
 export async function listPayroll(period?: string): Promise<PayrollLine[]> {
-  if (USE_API) {
-    const qs = period ? `?period=${encodeURIComponent(period)}` : "";
-    const raw = await unwrap<BackendPayrollLine[]>(apiClient.get(`/payroll${qs}`));
-    return raw.map(normalize);
-  }
-  await new Promise((r) => setTimeout(r, 100));
-  return fromMock();
+  const qs = period ? `?period=${encodeURIComponent(period)}` : "";
+  const raw = await unwrap<BackendPayrollLine[]>(apiClient.get(`/payroll${qs}`));
+  return raw.map(normalize);
 }
 
 export async function listPayrollBatches(): Promise<PayrollBatch[]> {
-  if (USE_API) {
-    const raw = await unwrap<
-      Array<
-        Omit<PayrollBatch, "overtimeHours" | "grossPayroll" | "deductions" | "netPayroll"> & {
-          overtimeHours: string | number;
-          grossPayroll: string | number;
-          deductions: string | number;
-          netPayroll: string | number;
-        }
-      >
-    >(apiClient.get("/payroll/batches/all"));
+  const raw = await unwrap<
+    Array<
+      Omit<PayrollBatch, "overtimeHours" | "grossPayroll" | "deductions" | "netPayroll"> & {
+        overtimeHours: string | number;
+        grossPayroll: string | number;
+        deductions: string | number;
+        netPayroll: string | number;
+      }
+    >
+  >(apiClient.get("/payroll/batches/all"));
 
-    return raw.map((batch) => ({
-      ...batch,
-      overtimeHours: Number(batch.overtimeHours),
-      grossPayroll: Number(batch.grossPayroll),
-      deductions: Number(batch.deductions),
-      netPayroll: Number(batch.netPayroll),
-    }));
-  }
-  await new Promise((r) => setTimeout(r, 80));
-  return [];
+  return raw.map((batch) => ({
+    ...batch,
+    overtimeHours: Number(batch.overtimeHours),
+    grossPayroll: Number(batch.grossPayroll),
+    deductions: Number(batch.deductions),
+    netPayroll: Number(batch.netPayroll),
+  }));
 }
 
 export async function generatePayroll(
   input: GeneratePayrollInput,
 ): Promise<{ lines: PayrollLine[]; batch: PayrollBatch }> {
-  if (USE_API) {
-    const raw = await unwrap<{ lines: BackendPayrollLine[]; batch: PayrollBatch }>(
-      apiClient.post("/payroll/generate", input),
-    );
-    return { lines: raw.lines.map(normalize), batch: raw.batch };
-  }
-  throw new Error("Payroll generation requires the API (set VITE_API_BASE).");
+  const raw = await unwrap<{ lines: BackendPayrollLine[]; batch: PayrollBatch }>(
+    apiClient.post("/payroll/generate", input),
+  );
+  return { lines: raw.lines.map(normalize), batch: raw.batch };
 }

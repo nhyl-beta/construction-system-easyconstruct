@@ -1,7 +1,8 @@
 import {
   pgTable, serial, varchar,
-  integer, text, timestamp,
+  integer, text, timestamp, jsonb,
 } from 'drizzle-orm/pg-core';
+import { users } from './users.js';
 
 export const designs = pgTable('designs', {
   id:             serial('id').primaryKey(),
@@ -21,6 +22,9 @@ export const designs = pgTable('designs', {
   zone:           varchar('zone',            { length: 50  }),
   description:    text('description'),
   fileCount:      integer('file_count').notNull().default(0),
+  fileUrls:       jsonb('file_urls').$type<Array<{ name: string; url: string }>>().notNull().default([]),
+  assignedEngineerId:   integer('assigned_engineer_id').references(() => users.id),
+  assignedEngineerName: varchar('assigned_engineer_name', { length: 100 }),
   aiCompleteness: integer('ai_completeness').notNull().default(0),
   aiConfidence:   integer('ai_confidence').notNull().default(0),
   createdAt:      timestamp('created_at').defaultNow(),

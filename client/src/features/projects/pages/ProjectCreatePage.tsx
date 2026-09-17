@@ -10,7 +10,9 @@ import {
 } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
 import { ProjectRepository } from "@/features/projects/repositories/project.repository";
-import { Calendar, Info, MapPin } from "lucide-react";
+import { useAuth } from "@/auth/auth-context";
+import { useUsersByRole } from "@/features/users/hooks/use-users-by-role";
+import { Calendar, Info, MapPin, UserCheck } from "lucide-react";
 import { useState } from "react";
 import { useNavigate } from "react-router";
 
@@ -75,8 +77,14 @@ const initialForm: ProjectFormData = {
 
 export default function ProjectCreatePage() {
   const navigate = useNavigate();
+  const { user } = useAuth();
   const [step, setStep] = useState(1);
-  const [data, setData] = useState<ProjectFormData>(initialForm);
+  // Project Manager is always the authenticated creator, not a pickable
+  // field — see StepTeam. Server-side also overrides this on submit.
+  const [data, setData] = useState<ProjectFormData>(() => ({
+    ...initialForm,
+    pm: user?.name ?? "",
+  }));
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -94,8 +102,10 @@ export default function ProjectCreatePage() {
       ["Client / Owner", data.client],
       ["Location", data.location],
       ["Due date", data.due],
-      ["Project Manager", data.pm],
     ];
+    if (user?.role !== "project-manager") {
+      required.push(["Project Manager", data.pm]);
+    }
     const missing = required.find(([, value]) => !value.trim());
     if (missing) {
       setError(`${missing[0]} is required.`);
@@ -149,7 +159,7 @@ export default function ProjectCreatePage() {
       {step === 1 && <StepProjectInfo data={data} set={set} />}
       {step === 2 && <StepScopeSchedule />}
       {step === 3 && <StepBudget />}
-      {step === 4 && <StepTeam set={set} />}
+      {step === 4 && <StepTeam data={data} set={set} currentUserRole={user?.role ?? ""} />}
       {step === 5 && <StepReview data={data} />}
     </MultiStepPage>
   );
@@ -419,36 +429,65 @@ function StepBudget() {
 // ── Step 4 — Team ─────────────────────────────────────────────────────────────
 
 function StepTeam({
+  data,
   set,
+  currentUserRole,
 }: {
+  data: ProjectFormData;
   set: <K extends keyof ProjectFormData>(
     key: K,
     value: ProjectFormData[K],
   ) => void;
+  currentUserRole: string;
 }) {
+  // A Project Manager creating their own project can't assign a different
+  // PM — it's always them. Admin/Super Admin still assign a real PM, picked
+  // from actual project-manager accounts (not the old hardcoded name list).
+  const isSelfAssigned = currentUserRole === "project-manager";
+  const { users: pmOptions, loading: pmOptionsLoading } = useUsersByRole(
+    isSelfAssigned ? null : "project-manager",
+  );
+
   return (
     <div className="space-y-6">
       <div>
         <h3 className="text-base font-semibold">Team & stakeholders</h3>
         <p className="mt-1 text-sm text-muted-foreground">
-          Assign the project team and key stakeholders.
+          {isSelfAssigned
+            ? "You'll be assigned as this project's Project Manager."
+            : "Assign the project team and key stakeholders."}
         </p>
       </div>
       <div className="grid grid-cols-2 gap-5">
         <div className="space-y-1.5">
           <Label>
-            Project Manager <span className="text-destructive">*</span>
+            Project Manager
+            {!isSelfAssigned && <span className="text-destructive"> *</span>}
           </Label>
-          <Select onValueChange={(v) => set("pm", v)}>
-            <SelectTrigger className="rounded-xl">
-              <SelectValue placeholder="Select PM" />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="M. Rivera">M. Rivera</SelectItem>
-              <SelectItem value="T. Okafor">T. Okafor</SelectItem>
-              <SelectItem value="S. Aquino">S. Aquino</SelectItem>
-            </SelectContent>
-          </Select>
+          {isSelfAssigned ? (
+            <div className="flex items-center gap-2 rounded-xl border border-border bg-muted/40 px-3 py-2 text-sm">
+              <UserCheck className="h-4 w-4 text-muted-foreground" />
+              <span className="font-medium">{data.pm || "You"}</span>
+            </div>
+          ) : (
+            <Select value={data.pm} onValueChange={(v) => set("pm", v)}>
+              <SelectTrigger className="rounded-xl">
+                <SelectValue placeholder={pmOptionsLoading ? "Loading…" : "Select PM"} />
+              </SelectTrigger>
+              <SelectContent>
+                {pmOptions.length === 0 && !pmOptionsLoading && (
+                  <div className="px-2 py-1.5 text-xs text-muted-foreground">
+                    No project managers on file
+                  </div>
+                )}
+                {pmOptions.map((u) => (
+                  <SelectItem key={u.id} value={u.name}>
+                    {u.name}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          )}
         </div>
       </div>
     </div>

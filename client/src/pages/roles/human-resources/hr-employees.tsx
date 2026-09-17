@@ -166,6 +166,33 @@ export default function HREmployeesPage() {
     refresh();
   };
 
+  const handleExportCsv = () => {
+    const headers = ["Employee ID", "Name", "Role", "Department", "Site", "Status", "Hired On", "Email", "Phone"];
+    const rows = filtered.map((e) => [
+      e.id,
+      e.name,
+      e.role,
+      e.department,
+      e.site,
+      e.status,
+      e.hiredOn,
+      e.email,
+      e.phone,
+    ]);
+    const csv = [headers, ...rows]
+      .map((row) => row.map((cell) => `"${String(cell ?? "").replace(/"/g, '""')}"`).join(","))
+      .join("\r\n");
+    const blob = new Blob([csv], { type: "text/csv;charset=utf-8;" });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement("a");
+    link.href = url;
+    link.download = `employees-${new Date().toISOString().slice(0, 10)}.csv`;
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    URL.revokeObjectURL(url);
+  };
+
   return (
     <div className="flex-1 space-y-6 p-4 md:p-6">
       <PageHeader
@@ -173,7 +200,7 @@ export default function HREmployeesPage() {
         subtitle="Directory, roles, and workforce records"
         actions={
           <>
-            <Button variant="outline" size="sm" className="rounded-xl">
+            <Button variant="outline" size="sm" className="rounded-xl" onClick={handleExportCsv} disabled={filtered.length === 0}>
               <Download className="h-4 w-4" /> Export
             </Button>
             <Button size="sm" className="rounded-xl" asChild>
@@ -223,7 +250,7 @@ export default function HREmployeesPage() {
                 <SelectItem value="Archived">Archived</SelectItem>
               </SelectContent>
             </Select>
-            <Button variant="outline" size="sm" className="rounded-xl">
+            <Button variant="outline" size="sm" className="rounded-xl" onClick={handleExportCsv} disabled={filtered.length === 0}>
               <Download className="h-4 w-4" /> CSV
             </Button>
           </div>

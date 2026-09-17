@@ -1,12 +1,13 @@
-import { NextFunction, Request, Response } from "express";
+import { NextFunction, Response } from "express";
 import { HTTP } from "../constants/http-status.js";
 import { MSG } from "../constants/messages.js";
 import { formatSuccess } from "../utils/response.js";
+import type { AuthedRequest } from "../middleware/auth.js";
 import * as service from "./service.js";
 import type { ProjectFilters } from "./types.js";
 
 export const getAll = async (
-  req: Request,
+  req: AuthedRequest,
   res: Response,
   next: NextFunction,
 ) => {
@@ -24,7 +25,7 @@ export const getAll = async (
 };
 
 export const getById = async (
-  req: Request,
+  req: AuthedRequest,
   res: Response,
   next: NextFunction,
 ) => {
@@ -37,12 +38,20 @@ export const getById = async (
 };
 
 export const create = async (
-  req: Request,
+  req: AuthedRequest,
   res: Response,
   next: NextFunction,
 ) => {
   try {
-    const data = await service.create(req.body);
+    // A Project Manager cannot assign a different PM on their own project —
+    // the creator's own name is authoritative here regardless of what the
+    // client sends. Admin/Super Admin retain the ability to assign any PM
+    // (e.g. creating a project on behalf of the org).
+    const body =
+      req.authUser?.role === "project-manager"
+        ? { ...req.body, pm: req.authUser.name }
+        : req.body;
+    const data = await service.create(body);
     res.status(HTTP.CREATED).json(formatSuccess(data, MSG.projects.created));
   } catch (err) {
     next(err);
@@ -50,7 +59,7 @@ export const create = async (
 };
 
 export const update = async (
-  req: Request,
+  req: AuthedRequest,
   res: Response,
   next: NextFunction,
 ) => {
@@ -63,7 +72,7 @@ export const update = async (
 };
 
 export const remove = async (
-  req: Request,
+  req: AuthedRequest,
   res: Response,
   next: NextFunction,
 ) => {

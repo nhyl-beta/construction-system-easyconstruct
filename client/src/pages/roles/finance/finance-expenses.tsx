@@ -16,12 +16,109 @@ import {
   Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
 } from "@/components/ui/select";
 import { Badge } from "@/components/ui/badge";
+import { Label } from "@/components/ui/label";
+import {
+  Dialog,
+  DialogContent,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+  DialogTrigger,
+} from "@/components/ui/dialog";
+import { ProjectPicker } from "@/components/shared/project-picker";
 import { Receipt, Search, Plus, Truck, Wallet, ListChecks, Sparkles, Paperclip } from "lucide-react";
 import { formatCurrency } from "@/lib/format-currency";
-import { useExpensesController } from "@/features/finance/hooks/use-expenses";
+import { useExpensesController, type CreateExpenseInput } from "@/features/finance/hooks/use-expenses";
 import {
   Bar, BarChart, CartesianGrid, ResponsiveContainer, Tooltip, XAxis, YAxis,
 } from "recharts";
+
+const EXPENSE_CATEGORIES = ["Materials", "Equipment", "PPE", "Transport", "Services"];
+
+function RecordExpenseDialog({
+  creating,
+  error,
+  onCreate,
+}: {
+  creating: boolean;
+  error: string | null;
+  onCreate: (input: CreateExpenseInput) => Promise<boolean>;
+}) {
+  const [open, setOpen] = useState(false);
+  const [vendor, setVendor] = useState("");
+  const [project, setProject] = useState("");
+  const [category, setCategory] = useState("");
+  const [amount, setAmount] = useState("");
+
+  const reset = () => {
+    setVendor("");
+    setProject("");
+    setCategory("");
+    setAmount("");
+  };
+
+  const canSubmit = vendor.trim() && project && category && Number(amount) > 0;
+
+  const handleSubmit = async () => {
+    const ok = await onCreate({ vendor: vendor.trim(), project, category, amount: Number(amount) });
+    if (ok) {
+      reset();
+      setOpen(false);
+    }
+  };
+
+  return (
+    <Dialog open={open} onOpenChange={setOpen}>
+      <DialogTrigger asChild>
+        <Button size="sm" className="rounded-xl">
+          <Plus className="h-3.5 w-3.5" /> Record expense
+        </Button>
+      </DialogTrigger>
+      <DialogContent className="sm:max-w-md">
+        <DialogHeader>
+          <DialogTitle>Record expense</DialogTitle>
+        </DialogHeader>
+        <div className="space-y-4">
+          <div className="space-y-1.5">
+            <Label>Vendor</Label>
+            <Input value={vendor} onChange={(e) => setVendor(e.target.value)} placeholder="ABC Steel Supply" />
+          </div>
+          <div className="space-y-1.5">
+            <Label>Project</Label>
+            <ProjectPicker value={project} onChange={setProject} className="w-full" />
+          </div>
+          <div className="grid grid-cols-2 gap-3">
+            <div className="space-y-1.5">
+              <Label>Category</Label>
+              <Select value={category} onValueChange={setCategory}>
+                <SelectTrigger className="w-full">
+                  <SelectValue placeholder="Select" />
+                </SelectTrigger>
+                <SelectContent>
+                  {EXPENSE_CATEGORIES.map((c) => (
+                    <SelectItem key={c} value={c}>
+                      {c}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+            <div className="space-y-1.5">
+              <Label>Amount</Label>
+              <Input type="number" min={0} value={amount} onChange={(e) => setAmount(e.target.value)} placeholder="15000" />
+            </div>
+          </div>
+        </div>
+        {error && <p className="text-sm text-destructive">{error}</p>}
+        <DialogFooter>
+          <Button disabled={!canSubmit || creating} onClick={handleSubmit} className="rounded-xl">
+            {creating ? "Recording…" : "Record expense"}
+          </Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
+  );
+}
 
 export default function FinanceExpensesPage() {
   const c = useExpensesController();
@@ -33,9 +130,7 @@ export default function FinanceExpensesPage() {
         title="Expense Management"
         description="Track operational expenses, purchase requests, vendor payments, reimbursements and AI anomaly detection."
         actions={
-          <Button size="sm" className="rounded-xl">
-            <Plus className="h-3.5 w-3.5" /> Record expense
-          </Button>
+          <RecordExpenseDialog creating={c.creating} error={c.createError} onCreate={c.createExpense} />
         }
       />
 

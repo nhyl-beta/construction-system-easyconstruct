@@ -1,6 +1,6 @@
 import { and, eq, ilike, or, SQL } from "drizzle-orm";
-import { db } from "../../../db/connection.js";
-import { budgetAdjustments } from "../../../db/schema/finance.js";
+import { db } from "../../db/connection.js";
+import { budgetAdjustments } from "../../db/schema/finance.js";
 import type {
   BudgetAdjustmentFilters,
   CreateBudgetAdjustmentInput,

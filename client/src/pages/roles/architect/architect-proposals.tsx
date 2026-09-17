@@ -30,7 +30,18 @@ import {
 
 import { useProposals } from "@/features/proposals/hooks/useProposals";
 import { ProjectPicker } from "@/components/shared/project-picker";
-import { AlertTriangle, CheckCircle2 } from "lucide-react";
+import { AlertTriangle, CheckCircle2, Pencil } from "lucide-react";
+import {
+  Dialog,
+  DialogContent,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+  DialogTrigger,
+} from "@/components/ui/dialog";
+import { Label } from "@/components/ui/label";
+import type { Proposal } from "@/features/proposals/types/proposal.types";
+import type { UpdateProposalInput } from "@/features/proposals/controllers/proposal.controller";
 
 interface ValidationResult {
   passed: boolean;
@@ -68,6 +79,82 @@ function ValidationSummary({ raw }: { raw: string | null }) {
         </div>
       ))}
     </div>
+  );
+}
+
+function EditProposalDialog({
+  proposal,
+  saving,
+  onUpdate,
+}: {
+  proposal: Proposal;
+  saving: boolean;
+  onUpdate: (id: number, input: UpdateProposalInput) => Promise<Proposal | null>;
+}) {
+  const [open, setOpen] = useState(false);
+  const [title, setTitle] = useState(proposal.title);
+  const [projectCode, setProjectCode] = useState(proposal.projectCode);
+  const [amount, setAmount] = useState(proposal.amount ?? "");
+  const [content, setContent] = useState(proposal.content ?? "");
+
+  const handleOpenChange = (next: boolean) => {
+    if (next) {
+      // Re-sync from the current row each time it's opened, in case a
+      // background refresh updated the proposal since the last edit.
+      setTitle(proposal.title);
+      setProjectCode(proposal.projectCode);
+      setAmount(proposal.amount ?? "");
+      setContent(proposal.content ?? "");
+    }
+    setOpen(next);
+  };
+
+  const handleSubmit = async () => {
+    const updated = await onUpdate(proposal.id, {
+      title: title.trim(),
+      projectCode,
+      amount: amount.trim() || undefined,
+      content: content.trim() || undefined,
+    });
+    if (updated) setOpen(false);
+  };
+
+  return (
+    <Dialog open={open} onOpenChange={handleOpenChange}>
+      <DialogTrigger asChild>
+        <Button variant="ghost" size="sm" title="Edit proposal">
+          <Pencil className="h-3.5 w-3.5" />
+        </Button>
+      </DialogTrigger>
+      <DialogContent className="sm:max-w-md">
+        <DialogHeader>
+          <DialogTitle>Edit proposal</DialogTitle>
+        </DialogHeader>
+        <div className="space-y-4">
+          <div className="space-y-1.5">
+            <Label>Title</Label>
+            <Input value={title} onChange={(e) => setTitle(e.target.value)} />
+          </div>
+          <div className="space-y-1.5">
+            <Label>Project</Label>
+            <ProjectPicker value={projectCode} onChange={setProjectCode} className="w-full" />
+          </div>
+          <div className="space-y-1.5">
+            <Label>Estimated amount</Label>
+            <Input value={amount} onChange={(e) => setAmount(e.target.value)} placeholder="₱500,000" />
+          </div>
+          <div className="space-y-1.5">
+            <Label>Description</Label>
+            <Textarea value={content} onChange={(e) => setContent(e.target.value)} className="min-h-24" />
+          </div>
+        </div>
+        <DialogFooter>
+          <Button disabled={!title.trim() || !projectCode || saving} onClick={handleSubmit}>
+            {saving ? "Saving…" : "Save changes"}
+          </Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
   );
 }
 
@@ -303,6 +390,8 @@ export default function ArchitectProposals() {
               <TableHead>Validation</TableHead>
 
               <TableHead>Review</TableHead>
+
+              <TableHead />
             </TableRow>
           </TableHeader>
 
@@ -310,7 +399,7 @@ export default function ArchitectProposals() {
             {c.loading ? (
               <TableRow>
                 <TableCell
-                  colSpan={8}
+                  colSpan={9}
                   className="h-24 text-center"
                 >
                   Loading proposals...
@@ -319,7 +408,7 @@ export default function ArchitectProposals() {
             ) : c.proposals.length === 0 ? (
               <TableRow>
                 <TableCell
-                  colSpan={8}
+                  colSpan={9}
                   className="h-24 text-center text-muted-foreground"
                 >
                   No proposals found.
@@ -375,6 +464,16 @@ export default function ArchitectProposals() {
                       <span className="text-muted-foreground">
                         —
                       </span>
+                    )}
+                  </TableCell>
+
+                  <TableCell>
+                    {!proposal.reviewedAt && !proposal.reviewComment && (
+                      <EditProposalDialog
+                        proposal={proposal}
+                        saving={c.saving}
+                        onUpdate={c.updateProposal}
+                      />
                     )}
                   </TableCell>
                 </TableRow>

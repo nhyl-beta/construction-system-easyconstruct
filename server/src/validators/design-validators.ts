@@ -17,6 +17,9 @@ export const createDesignSchema = z.object({
   zone: z.string().max(50).optional(),
   description: z.string().optional(),
   fileCount: z.number().int().nonnegative().optional(),
+  fileUrls: z.array(z.object({ name: z.string(), url: z.string() })).optional(),
+  assignedEngineerId: z.number().int().positive().optional(),
+  assignedEngineerName: z.string().max(100).optional(),
   aiCompleteness: z.number().int().min(0).max(100).optional(),
   aiConfidence: z.number().int().min(0).max(100).optional(),
 });

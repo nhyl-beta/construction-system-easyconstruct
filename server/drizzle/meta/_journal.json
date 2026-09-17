@@ -92,6 +92,20 @@
       "when": 1789655462921,
       "tag": "0012_complex_warlock",
       "breakpoints": true
+    },
+    {
+      "idx": 13,
+      "version": "7",
+      "when": 1789672272075,
+      "tag": "0013_mushy_sunspot",
+      "breakpoints": true
+    },
+    {
+      "idx": 14,
+      "version": "7",
+      "when": 1789672960365,
+      "tag": "0014_perpetual_scrambler",
+      "breakpoints": true
     }
   ]
 }

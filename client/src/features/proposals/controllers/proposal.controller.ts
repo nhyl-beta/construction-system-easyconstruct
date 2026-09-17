@@ -5,10 +5,11 @@ import {
   useState,
 } from "react";
 
+import { apiClient } from "@/services/api.client";
+
 import type {
   Proposal,
   ProposalReviewer,
-  ProposalStatus,
 } from "../types/proposal.types";
 
 export interface CreateProposalInput {
@@ -38,6 +39,23 @@ export interface ReviewProposalInput {
   reviewComment?: string;
 }
 
+export interface UpdateProposalInput {
+  title?: string;
+
+  projectCode?: string;
+
+  amount?: string;
+
+  content?: string;
+}
+
+// Unwraps the backend's { success, message, data } envelope.
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+function unwrap<T>(json: any): T {
+  if (json && typeof json === "object" && "data" in json) return json.data as T;
+  return json as T;
+}
+
 export const useProposalsController = () => {
   const [proposals, setProposals] =
     useState<Proposal[]>([]);
@@ -59,9 +77,6 @@ export const useProposalsController = () => {
 
   const loadProposals =
     useCallback(async () => {
-      const controller =
-        new AbortController();
-
       setLoading(true);
 
       setError(null);
@@ -84,35 +99,15 @@ export const useProposalsController = () => {
           );
         }
 
-        const response =
-          await fetch(
-            `/api/proposals?${params.toString()}`,
-            {
-              signal:
-                controller.signal,
-            },
-          );
-
-        if (!response.ok) {
-          throw new Error(
-            `Failed to load proposals (${response.status})`,
-          );
-        }
-
-        const json =
-          await response.json();
+        const qs = params.toString();
+        const json = await apiClient.get(
+          `/proposals${qs ? `?${qs}` : ""}`,
+        );
 
         setProposals(
-          json.data ?? [],
+          unwrap<Proposal[]>(json) ?? [],
         );
       } catch (err) {
-        if (
-          err instanceof DOMException &&
-          err.name === "AbortError"
-        ) {
-          return;
-        }
-
         console.error(err);
 
         setError(
@@ -123,9 +118,6 @@ export const useProposalsController = () => {
       } finally {
         setLoading(false);
       }
-
-      return () =>
-        controller.abort();
     }, [query, status]);
 
   useEffect(() => {
@@ -144,36 +136,12 @@ export const useProposalsController = () => {
       setError(null);
 
       try {
-        const response =
-          await fetch(
-            "/api/proposals",
-            {
-              method: "POST",
+        const json = await apiClient.post("/proposals", {
+          ...input,
+          status: "Pending",
+        });
 
-              headers: {
-                "Content-Type":
-                  "application/json",
-              },
-
-              body: JSON.stringify({
-                ...input,
-
-                status: "Pending",
-              }),
-            },
-          );
-
-        if (!response.ok) {
-          throw new Error(
-            `Failed to create proposal (${response.status})`,
-          );
-        }
-
-        const json =
-          await response.json();
-
-        const created =
-          json.data as Proposal;
+        const created = unwrap<Proposal>(json);
 
         await loadProposals();
 
@@ -185,6 +153,41 @@ export const useProposalsController = () => {
           err instanceof Error
             ? err.message
             : "Failed to create proposal.",
+        );
+
+        return null;
+      } finally {
+        setSaving(false);
+      }
+    };
+
+  /*
+   * UPDATE
+   */
+  const updateProposal =
+    async (
+      id: number,
+      input: UpdateProposalInput,
+    ): Promise<Proposal | null> => {
+      setSaving(true);
+
+      setError(null);
+
+      try {
+        const json = await apiClient.patch(`/proposals/${id}`, input);
+
+        const updated = unwrap<Proposal>(json);
+
+        await loadProposals();
+
+        return updated;
+      } catch (err) {
+        console.error(err);
+
+        setError(
+          err instanceof Error
+            ? err.message
+            : "Failed to update proposal.",
         );
 
         return null;
@@ -206,34 +209,9 @@ export const useProposalsController = () => {
       setError(null);
 
       try {
-        const response =
-          await fetch(
-            `/api/proposals/${proposalId}/review`,
-            {
-              method: "PATCH",
+        const json = await apiClient.patch(`/proposals/${proposalId}/review`, input);
 
-              headers: {
-                "Content-Type":
-                  "application/json",
-              },
-
-              body: JSON.stringify(
-                input,
-              ),
-            },
-          );
-
-        if (!response.ok) {
-          throw new Error(
-            `Failed to review proposal (${response.status})`,
-          );
-        }
-
-        const json =
-          await response.json();
-
-        const updated =
-          json.data as Proposal;
+        const updated = unwrap<Proposal>(json);
 
         await loadProposals();
 
@@ -305,6 +283,8 @@ export const useProposalsController = () => {
     refresh: loadProposals,
 
     createProposal,
+
+    updateProposal,
 
     reviewProposal,
   };
