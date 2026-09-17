@@ -2,6 +2,8 @@ import { NextFunction, Request, Response } from "express";
 import { HTTP } from "../constants/http-status.js";
 import { MSG } from "../constants/messages.js";
 import { formatSuccess } from "../utils/response.js";
+import { logAudit } from "../utils/audit.js";
+import type { AuthedRequest } from "../middleware/auth.js";
 import * as service from "./service.js";
 import type { PayrollFilters } from "./types.js";
 
@@ -50,9 +52,16 @@ export const remove = async (req: Request, res: Response, next: NextFunction) =>
 
 // ── Generate (Tracksheet → Gross Labor → Gross Tracking) ────────────────────
 
-export const generate = async (req: Request, res: Response, next: NextFunction) => {
+export const generate = async (req: AuthedRequest, res: Response, next: NextFunction) => {
   try {
     const data = await service.generate(req.body);
+    await logAudit({
+      entityType: "payroll_batch",
+      entityId: data.batch.id,
+      action: "created",
+      actor: req.authUser?.name ?? "unknown",
+      summary: `Generated payroll for ${data.batch.period} (${data.lines.length} employees)`,
+    });
     res
       .status(HTTP.CREATED)
       .json(formatSuccess(data, "Payroll generated"));

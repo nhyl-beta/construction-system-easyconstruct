@@ -1,5 +1,8 @@
 // server/src/issues/service.ts — NEW
-import { ForbiddenError, NotFoundError } from "../utils/errors.js";
+import { db } from "../db/connection.js";
+import { projects } from "../db/schema/projects.js";
+import { eq } from "drizzle-orm";
+import { ForbiddenError, NotFoundError, ValidationError } from "../utils/errors.js";
 import * as repo from "./repository.js";
 import type { CreateIssueInput, IssueFilters } from "./types.js";
 
@@ -11,7 +14,15 @@ export const getById = async (id: number) => {
   return issue;
 };
 
-export const create = async (input: CreateIssueInput) => repo.create(input);
+export const create = async (input: CreateIssueInput) => {
+  const [project] = await db.select().from(projects).where(eq(projects.code, input.projectCode));
+  if (!project) {
+    throw new ValidationError(`No project found with code "${input.projectCode}"`);
+  }
+  const issue = await repo.create(input);
+  if (!issue) throw new Error("Failed to create issue");
+  return issue;
+};
 
 // Only reviewers can set an official resolution; the reporter can only view.
 export const updateStatus = async (id: number, status: string, resolutionNotes: string | undefined, actingRole: string) => {

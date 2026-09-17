@@ -2,6 +2,8 @@ import { NextFunction, Request, Response } from "express";
 import { HTTP } from "../constants/http-status.js";
 import { MSG } from "../constants/messages.js";
 import { formatSuccess } from "../utils/response.js";
+import { logAudit } from "../utils/audit.js";
+import type { AuthedRequest } from "../middleware/auth.js";
 import * as service from "./service.js";
 import type { AttendanceFilters } from "./types.js";
 
@@ -39,9 +41,16 @@ export const create = async (req: Request, res: Response, next: NextFunction) =>
   }
 };
 
-export const update = async (req: Request, res: Response, next: NextFunction) => {
+export const update = async (req: AuthedRequest, res: Response, next: NextFunction) => {
   try {
     const data = await service.update(Number(req.params.id), req.body);
+    await logAudit({
+      entityType: "attendance",
+      entityId: String(req.params.id),
+      action: "updated",
+      actor: req.authUser?.name ?? "unknown",
+      summary: `Updated attendance record for ${data.employeeId} (${data.logDate})`,
+    });
     res.json(formatSuccess(data, MSG.attendance.updated));
   } catch (err) {
     next(err);

@@ -2,6 +2,7 @@ import { NextFunction, Request, Response } from "express";
 import { HTTP } from "../constants/http-status.js";
 import { MSG } from "../constants/messages.js";
 import { formatSuccess } from "../utils/response.js";
+import { logAudit } from "../utils/audit.js";
 import * as service from "./service.js";
 import type { EmployeeFilters } from "./types.js";
 import { AuthedRequest } from "../middleware/auth.js";
@@ -47,12 +48,19 @@ export const getMe = async (req: AuthedRequest, res: Response, next: NextFunctio
 };
 
 export const create = async (
-  req: Request,
+  req: AuthedRequest,
   res: Response,
   next: NextFunction,
 ) => {
   try {
     const data = await service.create(req.body);
+    await logAudit({
+      entityType: "employee",
+      entityId: String(data.id),
+      action: "created",
+      actor: req.authUser?.name ?? "unknown",
+      summary: `Added employee ${data.name}`,
+    });
     res.status(HTTP.CREATED).json(formatSuccess(data, MSG.employees.created));
   } catch (err) {
     next(err);
@@ -60,12 +68,19 @@ export const create = async (
 };
 
 export const update = async (
-  req: Request,
+  req: AuthedRequest,
   res: Response,
   next: NextFunction,
 ) => {
   try {
     const data = await service.update(Number(req.params.id), req.body);
+    await logAudit({
+      entityType: "employee",
+      entityId: String(req.params.id),
+      action: "updated",
+      actor: req.authUser?.name ?? "unknown",
+      summary: `Updated employee ${data.name}`,
+    });
     res.json(formatSuccess(data, MSG.employees.updated));
   } catch (err) {
     next(err);
@@ -73,12 +88,19 @@ export const update = async (
 };
 
 export const remove = async (
-  req: Request,
+  req: AuthedRequest,
   res: Response,
   next: NextFunction,
 ) => {
   try {
     const data = await service.remove(Number(req.params.id));
+    await logAudit({
+      entityType: "employee",
+      entityId: String(req.params.id),
+      action: "deleted",
+      actor: req.authUser?.name ?? "unknown",
+      summary: `Removed employee ${data.name}`,
+    });
     res.json(formatSuccess(data, MSG.employees.deleted));
   } catch (err) {
     next(err);

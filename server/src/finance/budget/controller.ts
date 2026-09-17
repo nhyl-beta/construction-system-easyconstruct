@@ -2,6 +2,8 @@ import { NextFunction, Request, Response } from "express";
 import { HTTP } from "../../constants/http-status.js";
 import { MSG } from "../../constants/messages.js";
 import { formatSuccess } from "../../utils/response.js";
+import { logAudit } from "../../utils/audit.js";
+import type { AuthedRequest } from "../../middleware/auth.js";
 import * as service from "./service.js";
 import type { BudgetFilters, BudgetStatus } from "./types.js";
 
@@ -64,12 +66,20 @@ export const getById = async (
 };
 
 export const create = async (
-  req: Request,
+  req: AuthedRequest,
   res: Response,
   next: NextFunction,
 ) => {
   try {
     const data = await service.create(req.body);
+
+    await logAudit({
+      entityType: "budget",
+      entityId: String(data.id),
+      action: "created",
+      actor: req.authUser?.name ?? "unknown",
+      summary: `Created budget for ${data.project} (${data.category})`,
+    });
 
     res.status(HTTP.CREATED).json(formatSuccess(data, MSG.budgets.created));
   } catch (err) {
@@ -78,12 +88,20 @@ export const create = async (
 };
 
 export const update = async (
-  req: Request,
+  req: AuthedRequest,
   res: Response,
   next: NextFunction,
 ) => {
   try {
     const data = await service.update(Number(req.params.id), req.body);
+
+    await logAudit({
+      entityType: "budget",
+      entityId: String(req.params.id),
+      action: "updated",
+      actor: req.authUser?.name ?? "unknown",
+      summary: `Updated budget for ${data.project} (${data.category})`,
+    });
 
     res.json(formatSuccess(data, MSG.budgets.updated));
   } catch (err) {

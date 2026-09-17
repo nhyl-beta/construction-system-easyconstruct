@@ -2,6 +2,8 @@ import type { Request, Response, NextFunction } from "express";
 
 import * as service from "./service.js";
 import { sendSuccess } from "../../utils/response.js";
+import { logAudit } from "../../utils/audit.js";
+import type { AuthedRequest } from "../../middleware/auth.js";
 
 /**
  * Route parameters
@@ -61,7 +63,7 @@ export const createPayrollBatch = async (
 };
 
 export const decidePayrollBatch = async (
-  req: Request<PayrollBatchParams>,
+  req: AuthedRequest & Request<PayrollBatchParams>,
   res: Response,
   next: NextFunction,
 ) => {
@@ -70,6 +72,14 @@ export const decidePayrollBatch = async (
       req.params.id,
       req.body,
     );
+
+    await logAudit({
+      entityType: "payroll_batch",
+      entityId: req.params.id,
+      action: req.body.decision,
+      actor: req.authUser?.name ?? req.body.reviewedBy ?? "unknown",
+      summary: `Payroll batch ${req.params.id} ${req.body.decision}`,
+    });
 
     return sendSuccess(
       res,

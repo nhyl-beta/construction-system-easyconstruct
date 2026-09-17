@@ -1,20 +1,23 @@
-import { ClipboardList, FileSearch, ShieldCheck } from "lucide-react";
+import { ClipboardList, FileSearch, FolderKanban, ShieldCheck } from "lucide-react";
 
 import { PageContainer } from "@/components/refine-ui/views/page-container";
 import { PageHeader } from "@/components/refine-ui/views/page-header";
 import { PageContent } from "@/components/refine-ui/views/page-content";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { KpiStrip } from "@/components/ui/kpi-strip";
+import { Progress } from "@/components/ui/progress";
 
 import { useEngineeringReports } from "@/features/engineering-reports/hooks/useEngineeringReport";
 import { PROGRESS_REPORT_TYPES } from "@/features/engineering-reports/types/engineering-reports.types";
 import { EngineeringReportService } from "@/features/engineering-reports/services/engineering-report.service";
+import { useProjectTaskProgress } from "@/features/tasks/hooks/use-project-task-progress";
 import { NewReportDialog, ReportStatusBadge } from "@/pages/roles/shared/shared-engineer";
 import { useAuth } from "@/auth/auth-context";
 
 export default function ProgressPage() {
   const { user } = useAuth();
   const { reports, loading, createReport } = useEngineeringReports("progress");
+  const { byProject, loading: taskProgressLoading } = useProjectTaskProgress();
 
   const openInspections = reports.filter(
     (r) => r.type === "Site Inspection" && r.status !== "Approved",
@@ -66,6 +69,48 @@ export default function ProgressPage() {
             },
           ]}
         />
+
+        <Card className="rounded-2xl border-border/70 shadow-sm">
+          <CardHeader className="pb-3">
+            <CardTitle className="text-base">Project task progress</CardTitle>
+            <p className="text-xs text-muted-foreground">
+              Live rollup of Site Personnel's task updates, grouped by project.
+            </p>
+          </CardHeader>
+          <CardContent className="p-0">
+            {taskProgressLoading ? (
+              <div className="p-5 text-sm text-muted-foreground">Loading task progress…</div>
+            ) : byProject.length === 0 ? (
+              <div className="p-5 text-sm text-muted-foreground">
+                No tasks recorded against any project yet.
+              </div>
+            ) : (
+              <div className="divide-y divide-border/60">
+                {byProject.map((p) => (
+                  <div key={p.projectCode} className="flex items-center justify-between gap-4 p-4">
+                    <div className="flex min-w-0 items-center gap-3">
+                      <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-accent text-accent-foreground">
+                        <FolderKanban className="h-4 w-4" />
+                      </div>
+                      <div className="min-w-0">
+                        <div className="text-sm font-medium">{p.projectCode}</div>
+                        <div className="text-xs text-muted-foreground">
+                          {p.completed} done · {p.inProgress} in progress · {p.pending} pending
+                        </div>
+                      </div>
+                    </div>
+                    <div className="flex w-40 shrink-0 items-center gap-2">
+                      <Progress value={p.percentComplete} className="h-1.5" />
+                      <span className="w-9 text-right text-xs tabular-nums text-muted-foreground">
+                        {p.percentComplete}%
+                      </span>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
+          </CardContent>
+        </Card>
 
         <Card className="rounded-2xl border-border/70 shadow-sm">
           <CardHeader className="pb-3">

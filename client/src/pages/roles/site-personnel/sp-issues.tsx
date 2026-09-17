@@ -12,6 +12,7 @@ import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { ShieldAlert, Clock, CheckCircle2 } from "lucide-react";
 import { useMyIssues } from "@/features/issues/hooks/use-my-issues";
+import { ProjectPicker } from "@/components/shared/project-picker";
 
 const CATEGORIES = ["Technical", "Structural", "Material", "Schedule", "Resource", "Quality", "Safety", "Other"];
 const SEVERITIES = ["Low", "Medium", "High", "Critical"];
@@ -52,8 +53,12 @@ export default function SPIssuesPage() {
         <SectionCard title="Report an issue">
           <div className="grid gap-4 sm:grid-cols-2">
             <div className="space-y-1.5">
-              <Label>Project code</Label>
-              <Input value={form.projectCode} onChange={(e) => setForm((f) => ({ ...f, projectCode: e.target.value }))} placeholder="e.g. PRJ-2024-01" />
+              <Label>Project</Label>
+              <ProjectPicker
+                value={form.projectCode}
+                onChange={(code) => setForm((f) => ({ ...f, projectCode: code }))}
+                className="h-9 w-full"
+              />
             </div>
             <div className="space-y-1.5">
               <Label>Title</Label>

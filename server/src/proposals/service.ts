@@ -1,4 +1,8 @@
 import { NotFoundError } from "../utils/errors.js";
+import { db } from "../db/connection.js";
+import { projects } from "../db/schema/projects.js";
+import { eq } from "drizzle-orm";
+import { validateProposal } from "./validation.js";
 
 import {
   proposalRepository,
@@ -23,7 +27,25 @@ export const proposalService = {
   },
 
   async create(data: any) {
-    return proposalRepository.create(data);
+    const [project] = await db
+      .select()
+      .from(projects)
+      .where(eq(projects.code, data.projectCode));
+
+    const validation = validateProposal(
+      { title: data.title, content: data.content, amount: data.amount },
+      Boolean(project),
+      data.projectCode,
+    );
+
+    const proposal = await proposalRepository.create({
+      ...data,
+      aiValidation: JSON.stringify(validation),
+    });
+    if (!proposal) {
+      throw new Error("Failed to create proposal");
+    }
+    return proposal;
   },
 
   async update(

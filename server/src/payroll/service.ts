@@ -111,6 +111,7 @@ export const generate = async (input: GeneratePayrollInput) => {
     netPayroll: Number(totalNet.toFixed(2)),
     status: "pending",
   });
+  if (!batch) throw new Error("Failed to create payroll batch");
 
   return { lines: createdLines, batch };
 };

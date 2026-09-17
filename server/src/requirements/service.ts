@@ -1,6 +1,8 @@
 import { db } from "../db/connection.js";
 import { requirements } from "../db/schema/requirements.js";
+import { projects } from "../db/schema/projects.js";
 import { and, desc, eq, ilike, SQL } from "drizzle-orm";
+import { ValidationError } from "../utils/errors.js";
 import type {
   CreateRequirementInput,
   UpdateRequirementInput,
@@ -32,7 +34,12 @@ export const findById = async (id: number) => {
 };
 
 export const create = async (data: CreateRequirementInput) => {
+  const [project] = await db.select().from(projects).where(eq(projects.code, data.project));
+  if (!project) {
+    throw new ValidationError(`No project found with code "${data.project}"`);
+  }
   const [created] = await db.insert(requirements).values(data).returning();
+  if (!created) throw new Error("Failed to create requirement");
   return created;
 };
 

@@ -25,8 +25,22 @@ export interface CreateIssueInput {
   attachmentUrl?: string;
 }
 
+export interface UpdateIssueStatusInput {
+  status: "Submitted" | "Under Review" | "Resolved" | "Rejected";
+  resolutionNotes?: string;
+}
+
 export const issuesRepository = {
   listMine: (): Promise<{ data: IssueRecord[] }> => apiClient.get("/issues"),
+  list: (filters?: { projectCode?: string; status?: string }): Promise<{ data: IssueRecord[] }> => {
+    const params = new URLSearchParams();
+    if (filters?.projectCode) params.set("projectCode", filters.projectCode);
+    if (filters?.status) params.set("status", filters.status);
+    const qs = params.toString();
+    return apiClient.get(`/issues${qs ? `?${qs}` : ""}`);
+  },
   create: (input: CreateIssueInput): Promise<{ data: IssueRecord }> =>
     apiClient.post("/issues", input),
+  updateStatus: (id: number, input: UpdateIssueStatusInput): Promise<{ data: IssueRecord }> =>
+    apiClient.patch(`/issues/${id}/status`, input),
 };

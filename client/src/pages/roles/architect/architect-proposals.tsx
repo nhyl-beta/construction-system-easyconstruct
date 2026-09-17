@@ -29,6 +29,47 @@ import {
 } from "@/components/ui/table";
 
 import { useProposals } from "@/features/proposals/hooks/useProposals";
+import { ProjectPicker } from "@/components/shared/project-picker";
+import { AlertTriangle, CheckCircle2 } from "lucide-react";
+
+interface ValidationResult {
+  passed: boolean;
+  issues: string[];
+  warnings: string[];
+}
+
+function parseValidation(raw: string | null): ValidationResult | null {
+  if (!raw) return null;
+  try {
+    return JSON.parse(raw) as ValidationResult;
+  } catch {
+    return null;
+  }
+}
+
+function ValidationSummary({ raw }: { raw: string | null }) {
+  const result = parseValidation(raw);
+  if (!result) return <span className="text-muted-foreground">—</span>;
+
+  return (
+    <div className="space-y-1 text-xs">
+      <div className={`flex items-center gap-1 font-medium ${result.passed ? "text-success" : "text-destructive"}`}>
+        {result.passed ? <CheckCircle2 className="h-3 w-3" /> : <AlertTriangle className="h-3 w-3" />}
+        Rule-based validation — human review required
+      </div>
+      {result.issues.map((i) => (
+        <div key={i} className="text-destructive">
+          • {i}
+        </div>
+      ))}
+      {result.warnings.map((w) => (
+        <div key={w} className="text-muted-foreground">
+          • {w}
+        </div>
+      ))}
+    </div>
+  );
+}
 
 export default function ArchitectProposals() {
   const c = useProposals();
@@ -173,18 +214,13 @@ export default function ArchitectProposals() {
 
             <div>
               <label className="text-sm font-medium">
-                Project Code
+                Project
               </label>
 
-              <Input
+              <ProjectPicker
                 value={projectCode}
-                onChange={(event) =>
-                  setProjectCode(
-                    event.target.value,
-                  )
-                }
-                placeholder="PRJ-001"
-                className="mt-2"
+                onChange={setProjectCode}
+                className="mt-2 w-full"
               />
             </div>
 
@@ -264,6 +300,8 @@ export default function ArchitectProposals() {
 
               <TableHead>Status</TableHead>
 
+              <TableHead>Validation</TableHead>
+
               <TableHead>Review</TableHead>
             </TableRow>
           </TableHeader>
@@ -272,7 +310,7 @@ export default function ArchitectProposals() {
             {c.loading ? (
               <TableRow>
                 <TableCell
-                  colSpan={7}
+                  colSpan={8}
                   className="h-24 text-center"
                 >
                   Loading proposals...
@@ -281,7 +319,7 @@ export default function ArchitectProposals() {
             ) : c.proposals.length === 0 ? (
               <TableRow>
                 <TableCell
-                  colSpan={7}
+                  colSpan={8}
                   className="h-24 text-center text-muted-foreground"
                 >
                   No proposals found.
@@ -314,6 +352,10 @@ export default function ArchitectProposals() {
                     <StatusBadge
                       status={proposal.status}
                     />
+                  </TableCell>
+
+                  <TableCell className="max-w-xs">
+                    <ValidationSummary raw={proposal.aiValidation} />
                   </TableCell>
 
                   <TableCell className="max-w-xs text-sm">

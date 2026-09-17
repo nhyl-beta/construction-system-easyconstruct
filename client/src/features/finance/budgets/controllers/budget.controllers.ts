@@ -1,11 +1,23 @@
-import { useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
+import { apiClient } from "@/services/api.client";
 import type { Budget, BudgetTotals } from "../types/budget.types";
+
+export interface CreateBudgetInput {
+  project: string;
+  category: string;
+  owner: string;
+  planned: number;
+  fiscalYear: string;
+}
 
 export const useBudgetsController = (initialQuery = "") => {
   const [budgets, setBudgets] = useState<Budget[]>([]);
   const [loading, setLoading] = useState(true);
+  const [creating, setCreating] = useState(false);
+  const [error, setError] = useState<string | null>(null);
   const [query, setQuery] = useState(initialQuery);
   const [fy, setFy] = useState("all");
+  const [reloadToken, setReloadToken] = useState(0);
 
   useEffect(() => {
     const controller = new AbortController();
@@ -24,7 +36,27 @@ export const useBudgetsController = (initialQuery = "") => {
       .finally(() => setLoading(false));
 
     return () => controller.abort();
-  }, [query, fy]);
+  }, [query, fy, reloadToken]);
+
+  const reload = useCallback(() => setReloadToken((t) => t + 1), []);
+
+  const createBudget = useCallback(
+    async (input: CreateBudgetInput) => {
+      setCreating(true);
+      setError(null);
+      try {
+        await apiClient.post("/finance/budgets", input);
+        reload();
+        return true;
+      } catch (err) {
+        setError(err instanceof Error ? err.message : "Failed to create budget");
+        return false;
+      } finally {
+        setCreating(false);
+      }
+    },
+    [reload],
+  );
 
   const totals: BudgetTotals = useMemo(() => {
     const planned = budgets.reduce((s, b) => s + b.planned, 0);
@@ -33,5 +65,5 @@ export const useBudgetsController = (initialQuery = "") => {
     return { planned, committed, spent, remaining: planned - spent };
   }, [budgets]);
 
-  return { budgets, totals, loading, query, setQuery, fy, setFy };
+  return { budgets, totals, loading, query, setQuery, fy, setFy, creating, error, createBudget };
 };

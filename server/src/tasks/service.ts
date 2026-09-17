@@ -17,7 +17,11 @@ export const getById = async (id: number) => {
   return task;
 };
 
-export const create = async (input: CreateTaskInput) => repo.create(input);
+export const create = async (input: CreateTaskInput) => {
+  const task = await repo.create(input);
+  if (!task) throw new Error("Failed to create task");
+  return task;
+};
 
 // Site Personnel may only move their own task through the allowed status flow.
 export const updateStatus = async (
@@ -36,7 +40,9 @@ export const updateStatus = async (
     );
   }
   const progress = nextStatus === "Completed" ? 100 : existing.progress;
-  return repo.update(id, { status: nextStatus, progress });
+  const updated = await repo.update(id, { status: nextStatus, progress });
+  if (!updated) throw new NotFoundError("Task", String(id));
+  return updated;
 };
 
 export const update = async (id: number, input: UpdateTaskInput) => {

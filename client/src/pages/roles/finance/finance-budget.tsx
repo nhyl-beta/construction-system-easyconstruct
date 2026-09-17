@@ -1,8 +1,17 @@
 import { PageHeader } from "@/components/refine-ui/views/page-header";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
 import { KpiStrip } from "@/components/ui/kpi-strip";
 import { Progress } from "@/components/ui/progress";
+import {
+  Dialog,
+  DialogContent,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+  DialogTrigger,
+} from "@/components/ui/dialog";
 import {
   Select,
   SelectContent,
@@ -11,6 +20,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { StatusBadge } from "@/components/ui/status-badge";
+import { ProjectPicker } from "@/components/shared/project-picker";
 import {
   Table,
   TableBody,
@@ -80,6 +90,114 @@ import { ApprovalTimeline } from "@/components/ui/approval-timeline";
 import { Textarea } from "@/components/ui/textarea";
 import { useBudgetApproval } from "@/features/finance/budgets/hooks/useBudgetApproval";
 import { Check, RotateCcw, X } from "lucide-react";
+import type { CreateBudgetInput } from "@/features/finance/budgets/controllers/budget.controllers";
+
+const BUDGET_CATEGORIES = ["Materials", "Labor", "Equipment", "Subcontractors", "Permits", "Contingency", "Other"];
+
+function NewBudgetDialog({
+  creating,
+  error,
+  onCreate,
+}: {
+  creating: boolean;
+  error: string | null;
+  onCreate: (input: CreateBudgetInput) => Promise<boolean>;
+}) {
+  const [open, setOpen] = useState(false);
+  const [project, setProject] = useState("");
+  const [category, setCategory] = useState("");
+  const [owner, setOwner] = useState("");
+  const [planned, setPlanned] = useState("");
+  const [fiscalYear, setFiscalYear] = useState(String(new Date().getFullYear()));
+
+  const reset = () => {
+    setProject("");
+    setCategory("");
+    setOwner("");
+    setPlanned("");
+    setFiscalYear(String(new Date().getFullYear()));
+  };
+
+  const canSubmit = project && category && owner && Number(planned) >= 0 && /^\d{4}$/.test(fiscalYear);
+
+  const handleSubmit = async () => {
+    const ok = await onCreate({
+      project,
+      category,
+      owner,
+      planned: Number(planned),
+      fiscalYear,
+    });
+    if (ok) {
+      reset();
+      setOpen(false);
+    }
+  };
+
+  return (
+    <Dialog open={open} onOpenChange={setOpen}>
+      <DialogTrigger asChild>
+        <Button size="sm" className="rounded-xl">
+          <Plus className="mr-1 h-3.5 w-3.5" />
+          Create budget
+        </Button>
+      </DialogTrigger>
+      <DialogContent className="sm:max-w-md">
+        <DialogHeader>
+          <DialogTitle>Create budget</DialogTitle>
+        </DialogHeader>
+        <div className="space-y-4">
+          <div className="space-y-1.5">
+            <Label>Project</Label>
+            <ProjectPicker value={project} onChange={setProject} className="w-full" />
+          </div>
+          <div className="grid grid-cols-2 gap-3">
+            <div className="space-y-1.5">
+              <Label>Category</Label>
+              <Select value={category} onValueChange={setCategory}>
+                <SelectTrigger className="w-full">
+                  <SelectValue placeholder="Select" />
+                </SelectTrigger>
+                <SelectContent>
+                  {BUDGET_CATEGORIES.map((c) => (
+                    <SelectItem key={c} value={c}>
+                      {c}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+            <div className="space-y-1.5">
+              <Label>Fiscal year</Label>
+              <Input value={fiscalYear} onChange={(e) => setFiscalYear(e.target.value)} placeholder="2026" />
+            </div>
+          </div>
+          <div className="space-y-1.5">
+            <Label>Owner / department</Label>
+            <Input value={owner} onChange={(e) => setOwner(e.target.value)} placeholder="Structural Engineering" />
+          </div>
+          <div className="space-y-1.5">
+            <Label>Planned amount</Label>
+            <Input
+              type="number"
+              min={0}
+              value={planned}
+              onChange={(e) => setPlanned(e.target.value)}
+              placeholder="500000"
+            />
+          </div>
+        </div>
+        {error && <p className="text-sm text-destructive">{error}</p>}
+        <DialogFooter>
+          <Button disabled={!canSubmit || creating} onClick={handleSubmit} className="rounded-xl">
+            {creating ? "Creating…" : "Create budget"}
+          </Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
+  );
+}
+
 export default function FinanceBudget() {
   const [tab, setTab] = useState("overview");
   const c = useBudgets();
@@ -105,12 +223,7 @@ export default function FinanceBudget() {
       <PageHeader
         title="Budget Management"
         description="Manage project budgets, allocations, adjustments, and historical baselines across the portfolio."
-        actions={
-          <Button size="sm" className="rounded-xl">
-            <Plus className="mr-1 h-3.5 w-3.5" />
-            Create budget
-          </Button>
-        }
+        actions={<NewBudgetDialog creating={c.creating} error={c.error} onCreate={c.createBudget} />}
       />
 
       <KpiStrip

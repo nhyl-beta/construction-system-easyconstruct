@@ -27,6 +27,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 
+import { ProjectPicker } from "@/components/shared/project-picker";
 import { useRequirements } from "@/features/requirements/hooks/useRequirements";
 import {
   REQUIREMENT_CATEGORIES,
@@ -76,7 +77,7 @@ function NewRequirementDialog({
     try {
       await createRequirement({
         title,
-        project: project.toUpperCase(),
+        project,
         category,
         description,
         createdBy: engineerName,
@@ -110,14 +111,8 @@ function NewRequirementDialog({
           </div>
           <div className="grid grid-cols-2 gap-3">
             <div className="space-y-1.5">
-              <Label htmlFor="req-project">Project code</Label>
-              <Input
-                id="req-project"
-                value={project}
-                onChange={(e) => setProject(e.target.value)}
-                placeholder="WMT-204"
-                required
-              />
+              <Label>Project</Label>
+              <ProjectPicker value={project} onChange={setProject} className="w-full" />
             </div>
             <div className="space-y-1.5">
               <Label>Category</Label>

@@ -1,4 +1,6 @@
 import { Request, Response } from "express";
+import type { AuthedRequest } from "../middleware/auth.js";
+import { logAudit } from "../utils/audit.js";
 
 import {
   proposalService,
@@ -34,13 +36,21 @@ export const proposalController = {
   },
 
   async create(
-    req: Request,
+    req: AuthedRequest,
     res: Response,
   ) {
     const data =
       await proposalService.create(
         req.body,
       );
+
+    await logAudit({
+      entityType: "proposal",
+      entityId: String(data.id),
+      action: "created",
+      actor: req.authUser?.name ?? data.submittedBy ?? "unknown",
+      summary: `Submitted proposal "${data.title}" for project ${data.projectCode}`,
+    });
 
     return res.status(201).json({
       success: true,
@@ -67,7 +77,7 @@ export const proposalController = {
   },
 
   async review(
-    req: Request,
+    req: AuthedRequest,
     res: Response,
   ) {
     const id = Number(req.params.id);
@@ -77,6 +87,14 @@ export const proposalController = {
         id,
         req.body,
       );
+
+    await logAudit({
+      entityType: "proposal",
+      entityId: String(id),
+      action: data.status === "Approved" ? "approved" : data.status === "Rejected" ? "rejected" : "revision-requested",
+      actor: req.authUser?.name ?? req.body.reviewerName ?? "unknown",
+      summary: `Reviewed proposal "${data.title}": ${data.status}`,
+    });
 
     return res.json({
       success: true,

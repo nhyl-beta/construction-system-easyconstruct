@@ -1,4 +1,7 @@
-import { NotFoundError } from "../../utils/errors.js";
+import { db } from "../../db/connection.js";
+import { projects } from "../../db/schema/projects.js";
+import { eq } from "drizzle-orm";
+import { NotFoundError, ValidationError } from "../../utils/errors.js";
 import * as repo from "./repository.js";
 import type {
   BudgetFilters,
@@ -14,7 +17,15 @@ export const getById = async (id: number) => {
   return budget;
 };
 
-export const create = async (input: CreateBudgetInput) => repo.create(input);
+export const create = async (input: CreateBudgetInput) => {
+  const [project] = await db.select().from(projects).where(eq(projects.code, input.project));
+  if (!project) {
+    throw new ValidationError(`No project found with code "${input.project}"`);
+  }
+  const created = await repo.create(input);
+  if (!created) throw new Error("Failed to create budget");
+  return created;
+};
 
 export const update = async (id: number, input: UpdateBudgetInput) => {
   await getById(id);

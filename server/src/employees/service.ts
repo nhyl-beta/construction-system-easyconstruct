@@ -66,12 +66,18 @@ export const create = async (input: CreateEmployeeInput) => {
     }
   }
 
-  return await repo.create({
+  const created = await repo.create({
     ...input,
     email: input.email || undefined,
     phone: input.phone || undefined,
     initials: initialsFrom(input.name),
   });
+
+  if (!created) {
+    throw new Error("Failed to create employee");
+  }
+
+  return created;
 };
 
 export const getMyEmployeeRecord = async (userId: number, email: string) => {
