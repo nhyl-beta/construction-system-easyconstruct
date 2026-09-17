@@ -175,6 +175,58 @@ export const resources: ResourceProps[] = [
     meta: { label: "Monitoring", group: "Workspace" },
   },
 
+  // Admin
+  {
+    name: "admin-projects",
+    list: "/admin/projects",
+    meta: { label: "Projects", group: "Operations" },
+  },
+  {
+    name: "admin-workflows",
+    list: "/admin/workflows",
+    meta: { label: "Workflows", group: "Operations" },
+  },
+  {
+    name: "admin-documents",
+    list: "/admin/documents",
+    meta: { label: "Documents", group: "Operations" },
+  },
+  {
+    name: "admin-activity-logs",
+    list: "/admin/activity-logs",
+    meta: { label: "Activity Logs", group: "Monitoring" },
+  },
+  {
+    name: "admin-security",
+    list: "/admin/security",
+    meta: { label: "Security", group: "Monitoring" },
+  },
+  {
+    name: "admin-notifications",
+    list: "/admin/notifications",
+    meta: { label: "Notifications", group: "Monitoring" },
+  },
+  {
+    name: "admin-roles-permissions",
+    list: "/admin/roles-permissions",
+    meta: { label: "Roles & Permissions", group: "Configuration" },
+  },
+  {
+    name: "admin-workflow-configuration",
+    list: "/admin/workflow-configuration",
+    meta: { label: "Workflow Configuration", group: "Configuration" },
+  },
+  {
+    name: "admin-approval-hierarchy",
+    list: "/admin/approval-hierarchy",
+    meta: { label: "Approval Hierarchy", group: "Configuration" },
+  },
+  {
+    name: "admin-support",
+    list: "/admin/support",
+    meta: { label: "User Support", group: "Support" },
+  },
+
   // Intelligence — shared across roles
   {
     name: "ai-insights",

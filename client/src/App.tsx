@@ -9,6 +9,7 @@ import routerProvider, {
 import { BrowserRouter, Outlet, Route, Routes } from "react-router";
 import { AuthProvider } from "@/auth/auth-context";
 import { ProtectedRoutes, PublicAuthRoute } from "@/components/auth/auth-routes";
+import { RequireRole } from "@/components/auth/role-guard";
 
 import { Layout } from "./components/refine-ui/layout/layout";
 import { Toaster } from "./components/refine-ui/notification/toaster";
@@ -70,6 +71,18 @@ import IssuesRouter from "./pages/routers/issues-router";
 // ── Consultant Pages ──
 import ConsultantAdvisoryDocs from "./pages/roles/consultant/consultant-advisory-docs";
 import ConsultantProposals from "./pages/roles/consultant/consultant-proposals";
+
+// ── Admin Pages ──
+import AdminProjects from "./pages/roles/admin/admin-projects";
+import AdminWorkflows from "./pages/roles/admin/admin-workflows";
+import AdminDocuments from "./pages/roles/admin/admin-documents";
+import AdminActivityLogs from "./pages/roles/admin/admin-activity-logs";
+import AdminSecurity from "./pages/roles/admin/admin-security";
+import AdminNotifications from "./pages/roles/admin/admin-notifications";
+import AdminRolesPermissions from "./pages/roles/admin/admin-roles-permissions";
+import AdminWorkflowConfiguration from "./pages/roles/admin/admin-workflow-configuration";
+import AdminApprovalHierarchy from "./pages/roles/admin/admin-approval-hierarchy";
+import AdminSupport from "./pages/roles/admin/admin-support";
 
 // ── Shared Pages ──
 import EmployeeCreatePage from "@/features/employees/pages/EmployeeCreatePage";
@@ -218,6 +231,88 @@ function App() {
                   <Route
                     path="/consultant/proposals"
                     element={<ConsultantProposals />}
+                  />
+
+                  {/* ── Admin Routes ── */}
+                  <Route
+                    path="/admin/projects"
+                    element={
+                      <RequireRole allow={["admin", "super_admin"]}>
+                        <AdminProjects />
+                      </RequireRole>
+                    }
+                  />
+                  <Route
+                    path="/admin/workflows"
+                    element={
+                      <RequireRole allow={["admin", "super_admin"]}>
+                        <AdminWorkflows />
+                      </RequireRole>
+                    }
+                  />
+                  <Route
+                    path="/admin/documents"
+                    element={
+                      <RequireRole allow={["admin", "super_admin"]}>
+                        <AdminDocuments />
+                      </RequireRole>
+                    }
+                  />
+                  <Route
+                    path="/admin/activity-logs"
+                    element={
+                      <RequireRole allow={["admin", "super_admin"]}>
+                        <AdminActivityLogs />
+                      </RequireRole>
+                    }
+                  />
+                  <Route
+                    path="/admin/security"
+                    element={
+                      <RequireRole allow={["admin", "super_admin"]}>
+                        <AdminSecurity />
+                      </RequireRole>
+                    }
+                  />
+                  <Route
+                    path="/admin/notifications"
+                    element={
+                      <RequireRole allow={["admin", "super_admin"]}>
+                        <AdminNotifications />
+                      </RequireRole>
+                    }
+                  />
+                  <Route
+                    path="/admin/roles-permissions"
+                    element={
+                      <RequireRole allow={["admin", "super_admin"]}>
+                        <AdminRolesPermissions />
+                      </RequireRole>
+                    }
+                  />
+                  <Route
+                    path="/admin/workflow-configuration"
+                    element={
+                      <RequireRole allow={["admin", "super_admin"]}>
+                        <AdminWorkflowConfiguration />
+                      </RequireRole>
+                    }
+                  />
+                  <Route
+                    path="/admin/approval-hierarchy"
+                    element={
+                      <RequireRole allow={["admin", "super_admin"]}>
+                        <AdminApprovalHierarchy />
+                      </RequireRole>
+                    }
+                  />
+                  <Route
+                    path="/admin/support"
+                    element={
+                      <RequireRole allow={["admin", "super_admin"]}>
+                        <AdminSupport />
+                      </RequireRole>
+                    }
                   />
                     </Route>
                   </Route>

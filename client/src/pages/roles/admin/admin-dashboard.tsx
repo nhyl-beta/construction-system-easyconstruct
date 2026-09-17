@@ -1,0 +1,291 @@
+import {
+  Activity,
+  Banknote,
+  Bell,
+  ChevronRight,
+  ClipboardCheck,
+  FileCheck2,
+  FolderKanban,
+  GitBranch,
+  ShieldAlert,
+  Users,
+} from "lucide-react";
+
+import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { ComingSoonCard } from "@/components/refine-ui/views/coming-soon-card";
+import { KpiStrip } from "@/components/ui/kpi-strip";
+import { Progress } from "@/components/ui/progress";
+import { useRoleConfig } from "@/hooks/use-role-config";
+import { useAdminDashboardController } from "@/features/dashboard/controllers/admin-dashboard.controller";
+import { useNavigate } from "react-router";
+
+const riskToneClasses: Record<string, string> = {
+  high: "text-destructive font-medium",
+  medium: "text-warning-foreground font-medium",
+  low: "text-muted-foreground",
+};
+
+export default function AdminDashboardPage() {
+  const { identity } = useRoleConfig();
+  const navigate = useNavigate();
+  const c = useAdminDashboardController();
+  const firstName = identity.name.split(" ")[0];
+
+  return (
+    <div className="flex-1 space-y-8 p-4 md:p-8">
+      {/* ── Hero header ── */}
+      <section className="flex flex-col gap-4 md:flex-row md:items-end md:justify-between">
+        <div className="space-y-2">
+          <Badge
+            variant="outline"
+            className="rounded-full border-primary/30 bg-primary-soft/60 px-3 py-1 text-[11px] font-medium uppercase tracking-wider text-primary"
+          >
+            <Activity className="mr-1.5 h-3 w-3" />
+            Live data
+          </Badge>
+          <h2 className="text-3xl font-semibold tracking-tight md:text-4xl">
+            Operations overview, {firstName}.
+          </h2>
+          <p className="max-w-xl text-sm text-muted-foreground">
+            {c.loading
+              ? "Loading operational data…"
+              : `${c.totalProjectCount} project${c.totalProjectCount === 1 ? "" : "s"} · ${c.activeWorkflowCount} active workflow${c.activeWorkflowCount === 1 ? "" : "s"} · ${c.pendingApprovals} approval${c.pendingApprovals === 1 ? "" : "s"} pending across the organization.`}
+          </p>
+        </div>
+        <div className="flex gap-2">
+          <Button
+            variant="outline"
+            className="rounded-xl"
+            onClick={() => navigate("/admin/workflows")}
+          >
+            <GitBranch className="h-4 w-4" />
+            Workflows
+          </Button>
+          <Button className="rounded-xl" onClick={() => navigate("/admin/projects")}>
+            <FolderKanban className="h-4 w-4" />
+            Projects
+          </Button>
+        </div>
+      </section>
+
+      {/* ── KPI grid ── */}
+      <KpiStrip
+        items={[
+          { label: "Total projects", value: `${c.kpis.total}`, icon: FolderKanban },
+          { label: "At risk", value: `${c.kpis.atRisk}`, icon: ShieldAlert, tone: "warn" },
+          { label: "Over budget", value: `${c.overBudget}`, icon: Banknote, tone: c.overBudget > 0 ? "bad" : "neutral" },
+          {
+            label: "Pending approvals",
+            value: `${c.pendingApprovals}`,
+            icon: ClipboardCheck,
+            tone: c.pendingApprovals > 0 ? "warn" : "good",
+          },
+        ]}
+      />
+      <KpiStrip
+        items={[
+          { label: "Active workflows", value: `${c.activeWorkflowCount}`, icon: GitBranch },
+          { label: "Completed workflows", value: `${c.completedWorkflowCount}`, icon: FileCheck2, tone: "good" },
+          {
+            label: "Unread notifications",
+            value: `${c.unreadNotificationCount}`,
+            icon: Bell,
+            tone: c.unreadNotificationCount > 0 ? "warn" : "neutral",
+          },
+          {
+            label: "Proposals pending",
+            value: `${c.proposalsKpis.pending}`,
+            icon: Users,
+            tone: c.proposalsKpis.pending > 0 ? "warn" : "neutral",
+          },
+        ]}
+      />
+
+      {/* ── Main grid — projects table + activity feed ── */}
+      <section className="grid grid-cols-1 gap-6 xl:grid-cols-3">
+        <Card className="rounded-2xl border-border/70 shadow-sm xl:col-span-2">
+          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-4">
+            <div>
+              <CardTitle className="text-lg">Projects needing attention</CardTitle>
+              <p className="text-xs text-muted-foreground">
+                {c.projectsLoading
+                  ? "Loading…"
+                  : `${Math.min(5, c.totalProjectCount)} of ${c.totalProjectCount} — sorted by risk and budget overrun`}
+              </p>
+            </div>
+            <Button
+              variant="ghost"
+              size="sm"
+              className="rounded-lg text-muted-foreground"
+              onClick={() => navigate("/admin/projects")}
+            >
+              View all <ChevronRight className="h-4 w-4" />
+            </Button>
+          </CardHeader>
+          <CardContent className="p-0">
+            {c.projectsLoading ? (
+              <div className="p-5 text-sm text-muted-foreground">Loading projects…</div>
+            ) : c.projectsError ? (
+              <div className="p-5 text-sm text-destructive">
+                Couldn't load projects. {c.projectsError.message}
+              </div>
+            ) : c.topProjects.length === 0 ? (
+              <div className="p-8 text-center text-sm text-muted-foreground">
+                No projects yet.{" "}
+                <button
+                  className="text-primary underline-offset-2 hover:underline"
+                  onClick={() => navigate("/admin/projects")}
+                >
+                  Create one
+                </button>
+                .
+              </div>
+            ) : (
+              <div className="overflow-x-auto">
+                <table className="w-full text-sm">
+                  <thead>
+                    <tr className="border-y border-border/70 bg-muted/40 text-left text-[11px] font-medium uppercase tracking-wider text-muted-foreground">
+                      <th className="px-5 py-2.5 font-medium">Project</th>
+                      <th className="px-3 py-2.5 font-medium">Status</th>
+                      <th className="px-3 py-2.5 font-medium">Progress</th>
+                      <th className="px-3 py-2.5 font-medium">Budget</th>
+                      <th className="px-3 py-2.5 font-medium">Due</th>
+                      <th className="px-5 py-2.5 font-medium">Risk</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {c.topProjects.map((p) => (
+                      <tr
+                        key={p.code}
+                        className="cursor-pointer border-b border-border/60 last:border-0 hover:bg-muted/30"
+                        onClick={() => navigate("/admin/projects")}
+                      >
+                        <td className="px-5 py-3.5">
+                          <div className="font-medium leading-tight">{p.name}</div>
+                          <div className="text-xs text-muted-foreground">{p.code}</div>
+                        </td>
+                        <td className="px-3 py-3.5">
+                          <Badge variant="outline" className="rounded-full px-2.5 py-0.5 text-[11px] font-medium">
+                            {p.status}
+                          </Badge>
+                        </td>
+                        <td className="px-3 py-3.5">
+                          <div className="flex items-center gap-2">
+                            <Progress value={p.progress} className="h-1.5 w-24" />
+                            <span className="w-9 text-xs tabular-nums text-muted-foreground">
+                              {p.progress}%
+                            </span>
+                          </div>
+                        </td>
+                        <td className="px-3 py-3.5">
+                          <span
+                            className={
+                              p.budget > 100
+                                ? "text-sm font-medium tabular-nums text-destructive"
+                                : "text-sm tabular-nums"
+                            }
+                          >
+                            {p.budget}%
+                          </span>
+                        </td>
+                        <td className="px-3 py-3.5 text-sm tabular-nums text-muted-foreground">
+                          {p.due}
+                        </td>
+                        <td className="px-5 py-3.5">
+                          <span className={`text-xs capitalize ${riskToneClasses[p.risk] ?? "text-muted-foreground"}`}>
+                            {p.risk}
+                          </span>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            )}
+          </CardContent>
+        </Card>
+
+        {/* Recent activity — real, from /api/audit-logs */}
+        <Card className="rounded-2xl border-border/70 shadow-sm">
+          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-4">
+            <CardTitle className="text-lg">Recent activity</CardTitle>
+            <Button
+              variant="ghost"
+              size="sm"
+              className="rounded-lg text-muted-foreground"
+              onClick={() => navigate("/admin/activity-logs")}
+            >
+              View all <ChevronRight className="h-4 w-4" />
+            </Button>
+          </CardHeader>
+          <CardContent className="space-y-3">
+            {c.auditLogsLoading ? (
+              <p className="text-sm text-muted-foreground">Loading…</p>
+            ) : c.recentActivity.length === 0 ? (
+              <p className="text-sm text-muted-foreground">No recorded activity yet.</p>
+            ) : (
+              c.recentActivity.map((log) => (
+                <div key={log.id} className="border-b border-border/60 pb-3 last:border-0 last:pb-0">
+                  <p className="text-sm font-medium leading-tight">
+                    {log.actor} <span className="font-normal text-muted-foreground">{log.action}</span>{" "}
+                    {log.entityType} {log.entityId}
+                  </p>
+                  {log.summary && (
+                    <p className="text-xs text-muted-foreground">{log.summary}</p>
+                  )}
+                </div>
+              ))
+            )}
+          </CardContent>
+        </Card>
+      </section>
+
+      {/* ── Bottom row — notifications + workforce/proposals ── */}
+      <section className="grid grid-cols-1 gap-6 lg:grid-cols-3">
+        <Card className="rounded-2xl border-border/70 shadow-sm lg:col-span-2">
+          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-4">
+            <CardTitle className="text-lg">Notifications</CardTitle>
+            <Button
+              variant="ghost"
+              size="sm"
+              className="rounded-lg text-muted-foreground"
+              onClick={() => navigate("/admin/notifications")}
+            >
+              View all <ChevronRight className="h-4 w-4" />
+            </Button>
+          </CardHeader>
+          <CardContent className="space-y-3">
+            {c.notificationsLoading ? (
+              <p className="text-sm text-muted-foreground">Loading…</p>
+            ) : c.recentNotifications.length === 0 ? (
+              <p className="text-sm text-muted-foreground">No notifications.</p>
+            ) : (
+              c.recentNotifications.map((n) => (
+                <div key={n.id} className="flex items-start gap-3 border-b border-border/60 pb-3 last:border-0 last:pb-0">
+                  <div className={`mt-1 h-2 w-2 shrink-0 rounded-full ${n.isRead ? "bg-muted-foreground/30" : "bg-primary"}`} />
+                  <div>
+                    <p className="text-sm font-medium leading-tight">{n.title}</p>
+                    {n.message && <p className="text-xs text-muted-foreground">{n.message}</p>}
+                  </div>
+                </div>
+              ))
+            )}
+          </CardContent>
+        </Card>
+
+        <ComingSoonCard
+          title="Workforce snapshot"
+          description="A cross-project attendance/workforce summary isn't backed by a dedicated endpoint yet — today's attendance API is scoped per employee. Visit HR's Workforce Reports for the current data."
+        />
+      </section>
+
+      {/* ── Footer status ── */}
+      <div className="flex items-center justify-center gap-2 pt-2 text-xs text-muted-foreground">
+        <FileCheck2 className="h-3 w-3" />
+        Live operational data{c.loading ? " · loading…" : ""}
+      </div>
+    </div>
+  );
+}

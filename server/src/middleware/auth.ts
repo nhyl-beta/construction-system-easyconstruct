@@ -44,8 +44,11 @@ export function authenticate(
     // Validate the fields expected from our JWT. `name` is read
     // defensively (not required) so tokens issued before it was added to
     // the payload don't suddenly fail auth — see auth/service.ts.
+    // `sub` is accepted as either a string or a number: auth/service.ts
+    // signs it as `user.id` (a number), so requiring `string` here
+    // rejected every token the app itself issues.
     if (
-      typeof verified.sub !== "string" ||
+      (typeof verified.sub !== "string" && typeof verified.sub !== "number") ||
       typeof verified.email !== "string" ||
       typeof verified.role !== "string"
     ) {

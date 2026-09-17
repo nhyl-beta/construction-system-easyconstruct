@@ -24,7 +24,14 @@ import { ListIcon } from "lucide-react";
 import { useNavigate } from "react-router";
 // ── Helpers ──────────────────────────────────────────────────────────────────
 
-const SECTION_ORDER = ["Workspace", "Intelligence"];
+const SECTION_ORDER = [
+  "Workspace",
+  "Operations",
+  "Monitoring",
+  "Configuration",
+  "Support",
+  "Intelligence",
+];
 
 function groupMenuItems(items: TreeMenuItem[], role: string) {
   const allowed = ROLE_RESOURCE_ACCESS[role] ?? [];

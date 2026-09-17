@@ -11,6 +11,7 @@ import {
 import {
   ActivitySquare,
   BarChart2,
+  Bell,
   CheckSquare,
   ClipboardList,
   DollarSign,
@@ -18,8 +19,11 @@ import {
   FolderKanban,
   GitBranch,
   LayoutDashboard,
+  LifeBuoy,
   MapPin,
   Ruler,
+  ShieldAlert,
+  ShieldCheck,
   UserCheck,
   Users,
   UsersRound,
@@ -63,11 +67,48 @@ export const ROLE_CONFIGS: Record<string, RoleConfig> = {
     icon: UserCheck,
     avatarColor: "bg-red-700",
     accentBg: "bg-red-600",
-    searchPlaceholder: "Search users, audit logs...",
-    primaryAi: "Platform Intelligence",
-    primaryAction: { label: "Dashboard", icon: LayoutDashboard, route: "/dashboard" },
-    tabs: [{ label: "Dashboard", icon: LayoutDashboard, route: "/dashboard" }],
-    sections: [{ label: "Administration", items: [{ label: "Dashboard", icon: LayoutDashboard, route: "/dashboard" }] }],
+    searchPlaceholder: "Search projects, workflows, activity...",
+    primaryAi: "Operations Intelligence",
+    primaryAction: { label: "New Workflow", icon: GitBranch, route: "/admin/workflows" },
+
+    tabs: [
+      { label: "Projects", icon: FolderKanban, route: "/admin/projects" },
+      { label: "Workflows", icon: GitBranch, route: "/admin/workflows" },
+      { label: "Documents", icon: FileText, route: "/admin/documents" },
+      { label: "Activity Logs", icon: ShieldCheck, route: "/admin/activity-logs" },
+    ],
+
+    sections: [
+      {
+        label: "Operations",
+        items: [
+          { label: "Dashboard", icon: LayoutDashboard, route: "/dashboard" },
+          { label: "Projects", icon: FolderKanban, route: "/admin/projects" },
+          { label: "Workflows", icon: GitBranch, route: "/admin/workflows" },
+          { label: "Documents", icon: FileText, route: "/admin/documents" },
+        ],
+      },
+      {
+        label: "Monitoring",
+        items: [
+          { label: "Activity Logs", icon: ShieldCheck, route: "/admin/activity-logs" },
+          { label: "Security", icon: ShieldAlert, route: "/admin/security" },
+          { label: "Notifications", icon: Bell, route: "/admin/notifications" },
+        ],
+      },
+      {
+        label: "Configuration",
+        items: [
+          { label: "Roles & Permissions", icon: UserCheck, route: "/admin/roles-permissions" },
+          { label: "Workflow Configuration", icon: GitBranch, route: "/admin/workflow-configuration" },
+          { label: "Approval Hierarchy", icon: CheckSquare, route: "/admin/approval-hierarchy" },
+        ],
+      },
+      {
+        label: "Support",
+        items: [{ label: "User Support", icon: LifeBuoy, route: "/admin/support" }],
+      },
+    ],
   },
   admin: {
     label: "Admin",
@@ -76,11 +117,48 @@ export const ROLE_CONFIGS: Record<string, RoleConfig> = {
     icon: UserCheck,
     avatarColor: "bg-slate-700",
     accentBg: "bg-slate-600",
-    searchPlaceholder: "Search users, settings...",
+    searchPlaceholder: "Search projects, workflows, activity...",
     primaryAi: "Operations Intelligence",
-    primaryAction: { label: "Dashboard", icon: LayoutDashboard, route: "/dashboard" },
-    tabs: [{ label: "Dashboard", icon: LayoutDashboard, route: "/dashboard" }],
-    sections: [{ label: "Administration", items: [{ label: "Dashboard", icon: LayoutDashboard, route: "/dashboard" }] }],
+    primaryAction: { label: "New Workflow", icon: GitBranch, route: "/admin/workflows" },
+
+    tabs: [
+      { label: "Projects", icon: FolderKanban, route: "/admin/projects" },
+      { label: "Workflows", icon: GitBranch, route: "/admin/workflows" },
+      { label: "Documents", icon: FileText, route: "/admin/documents" },
+      { label: "Activity Logs", icon: ShieldCheck, route: "/admin/activity-logs" },
+    ],
+
+    sections: [
+      {
+        label: "Operations",
+        items: [
+          { label: "Dashboard", icon: LayoutDashboard, route: "/dashboard" },
+          { label: "Projects", icon: FolderKanban, route: "/admin/projects" },
+          { label: "Workflows", icon: GitBranch, route: "/admin/workflows" },
+          { label: "Documents", icon: FileText, route: "/admin/documents" },
+        ],
+      },
+      {
+        label: "Monitoring",
+        items: [
+          { label: "Activity Logs", icon: ShieldCheck, route: "/admin/activity-logs" },
+          { label: "Security", icon: ShieldAlert, route: "/admin/security" },
+          { label: "Notifications", icon: Bell, route: "/admin/notifications" },
+        ],
+      },
+      {
+        label: "Configuration",
+        items: [
+          { label: "Roles & Permissions", icon: UserCheck, route: "/admin/roles-permissions" },
+          { label: "Workflow Configuration", icon: GitBranch, route: "/admin/workflow-configuration" },
+          { label: "Approval Hierarchy", icon: CheckSquare, route: "/admin/approval-hierarchy" },
+        ],
+      },
+      {
+        label: "Support",
+        items: [{ label: "User Support", icon: LifeBuoy, route: "/admin/support" }],
+      },
+    ],
   },
   project_manager: {
     label: "Project Manager",
