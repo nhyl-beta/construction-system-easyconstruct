@@ -16,10 +16,13 @@ import { useUsersByRole } from "@/features/users/hooks/use-users-by-role";
 import { ArrowLeft, HardHat, Loader2, Trash2, UserPlus, X } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
 import { Link, useNavigate, useParams } from "react-router";
+import { useAuth } from "@/auth/auth-context";
 
 export default function ProjectDetailPage() {
   const { projectId } = useParams();
   const navigate = useNavigate();
+  const { user } = useAuth();
+  const readOnly = user?.role === "engineer";
   const [project, setProject] = useState<Project | null>(null);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
@@ -122,31 +125,35 @@ export default function ProjectDetailPage() {
           <h1 className="text-2xl font-semibold">{project.name}</h1>
           <p className="text-sm text-muted-foreground">{project.code}</p>
         </div>
-        <Button variant="destructive" onClick={remove} disabled={saving || deleting}>
-          {deleting ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Trash2 className="mr-2 h-4 w-4" />}
-          Delete
-        </Button>
+        {!readOnly && (
+          <Button variant="destructive" onClick={remove} disabled={saving || deleting}>
+            {deleting ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Trash2 className="mr-2 h-4 w-4" />}
+            Delete
+          </Button>
+        )}
       </div>
       {error && <div className="rounded-xl border border-destructive/30 bg-destructive/10 px-4 py-3 text-sm text-destructive">{error}</div>}
       {message && <div className="rounded-xl border border-green-500/30 bg-green-500/10 px-4 py-3 text-sm text-green-700">{message}</div>}
       <div className="grid max-w-4xl grid-cols-1 gap-5 rounded-2xl border border-border bg-card p-6 md:grid-cols-2">
-        <Field label="Project name"><Input value={project.name} onChange={(e) => update("name", e.target.value)} /></Field>
-        <Field label="Project code"><Input value={project.code} onChange={(e) => update("code", e.target.value)} /></Field>
-        <Field label="Client"><Input value={project.client} onChange={(e) => update("client", e.target.value)} /></Field>
-        <Field label="Location"><Input value={project.location} onChange={(e) => update("location", e.target.value)} /></Field>
-        <Field label="Status"><Input value={project.status} onChange={(e) => update("status", e.target.value)} /></Field>
-        <Field label="Risk"><Input value={project.risk} onChange={(e) => update("risk", e.target.value as Project["risk"])} /></Field>
-        <Field label="Progress (%)"><Input type="number" min="0" max="100" value={project.progress} onChange={(e) => update("progress", Number(e.target.value))} /></Field>
-        <Field label="Budget used (%)"><Input type="number" min="0" value={project.budget} onChange={(e) => update("budget", Number(e.target.value))} /></Field>
-        <Field label="Total contract value"><Input type="number" min="0" value={project.contractValue ?? ""} onChange={(e) => update("contractValue", e.target.value === "" ? null : Number(e.target.value))} /></Field>
-        <Field label="Workforce"><Input type="number" min="0" value={project.workforce} onChange={(e) => update("workforce", Number(e.target.value))} /></Field>
-        <Field label="Due date"><Input type="date" value={project.due} onChange={(e) => update("due", e.target.value)} /></Field>
-        <Field label="Project manager"><Input value={project.pm ?? ""} onChange={(e) => update("pm", e.target.value)} /></Field>
-        <Field label="Description" wide><Textarea value={project.description ?? ""} onChange={(e) => update("description", e.target.value)} /></Field>
-        <div className="md:col-span-2"><Button onClick={save} disabled={saving || deleting}>{saving && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}{saving ? "Saving…" : "Save changes"}</Button></div>
+        <Field label="Project name"><Input readOnly={readOnly} value={project.name} onChange={(e) => update("name", e.target.value)} /></Field>
+        <Field label="Project code"><Input readOnly={readOnly} value={project.code} onChange={(e) => update("code", e.target.value)} /></Field>
+        <Field label="Client"><Input readOnly={readOnly} value={project.client} onChange={(e) => update("client", e.target.value)} /></Field>
+        <Field label="Location"><Input readOnly={readOnly} value={project.location} onChange={(e) => update("location", e.target.value)} /></Field>
+        <Field label="Status"><Input readOnly={readOnly} value={project.status} onChange={(e) => update("status", e.target.value)} /></Field>
+        <Field label="Risk"><Input readOnly={readOnly} value={project.risk} onChange={(e) => update("risk", e.target.value as Project["risk"])} /></Field>
+        <Field label="Progress (%)"><Input readOnly={readOnly} type="number" min="0" max="100" value={project.progress} onChange={(e) => update("progress", Number(e.target.value))} /></Field>
+        <Field label="Budget used (%)"><Input readOnly={readOnly} type="number" min="0" value={project.budget} onChange={(e) => update("budget", Number(e.target.value))} /></Field>
+        <Field label="Total contract value"><Input readOnly={readOnly} type="number" min="0" value={project.contractValue ?? ""} onChange={(e) => update("contractValue", e.target.value === "" ? null : Number(e.target.value))} /></Field>
+        <Field label="Workforce"><Input readOnly={readOnly} type="number" min="0" value={project.workforce} onChange={(e) => update("workforce", Number(e.target.value))} /></Field>
+        <Field label="Due date"><Input readOnly={readOnly} type="date" value={project.due} onChange={(e) => update("due", e.target.value)} /></Field>
+        <Field label="Project manager"><Input readOnly={readOnly} value={project.pm ?? ""} onChange={(e) => update("pm", e.target.value)} /></Field>
+        <Field label="Description" wide><Textarea readOnly={readOnly} value={project.description ?? ""} onChange={(e) => update("description", e.target.value)} /></Field>
+        {!readOnly && (
+          <div className="md:col-span-2"><Button onClick={save} disabled={saving || deleting}>{saving && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}{saving ? "Saving…" : "Save changes"}</Button></div>
+        )}
       </div>
 
-      <AvailableEngineersPanel projectCode={project.code} />
+      {!readOnly && <AvailableEngineersPanel projectCode={project.code} />}
     </div>
   );
 }

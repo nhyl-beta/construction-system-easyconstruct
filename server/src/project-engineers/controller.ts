@@ -7,7 +7,10 @@ import * as service from "./service.js";
 
 export const getAll = async (req: AuthedRequest, res: Response, next: NextFunction) => {
   try {
-    const data = await service.getAll({ projectCode: req.query.projectCode as string });
+    const data = await service.getAll({
+      projectCode: req.query.projectCode as string,
+      userId: req.query.userId ? Number(req.query.userId) : undefined,
+    });
     res.json(formatSuccess(data, "Project engineers retrieved"));
   } catch (err) {
     next(err);

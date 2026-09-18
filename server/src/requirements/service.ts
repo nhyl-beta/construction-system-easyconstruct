@@ -38,7 +38,13 @@ export const create = async (data: CreateRequirementInput) => {
   if (!project) {
     throw new ValidationError(`No project found with code "${data.project}"`);
   }
-  const [created] = await db.insert(requirements).values(data).returning();
+  const requirementId =
+    data.requirementId ??
+    `REQ-${Date.now().toString(36)}${Math.random().toString(36).slice(2, 6)}`.toUpperCase();
+  const [created] = await db
+    .insert(requirements)
+    .values({ ...data, requirementId })
+    .returning();
   if (!created) throw new Error("Failed to create requirement");
   return created;
 };

@@ -2,6 +2,7 @@ import { useState } from "react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Textarea } from "@/components/ui/textarea";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { NewWorkflowDialog } from "@/components/workflows/new-workflow-dialog";
 import {
@@ -46,6 +47,7 @@ const SEVERITY_TONE: Record<string, string> = {
 function ApprovalsPanel() {
   const [tab, setTab] = useState<ApprovalScope>("pending");
   const { items, stats, loading, deciding, decide } = useApprovals(tab);
+  const [comments, setComments] = useState<Record<number, string>>({});
 
   const statCards = stats
     ? [
@@ -132,25 +134,45 @@ function ApprovalsPanel() {
                     {WorkflowFormatService.amount(a.amount)}
                   </span>
                   {tab === "pending" ? (
-                    <div className="flex gap-2">
-                      <Button
-                        size="sm"
-                        variant="outline"
-                        className="h-8 rounded-lg"
-                        disabled={deciding === a.stageId}
-                        onClick={() => decide(a.workflowId, a.stageId, { decision: "reject" })}
-                      >
-                        <XCircle className="h-3.5 w-3.5" /> Reject
-                      </Button>
-                      <Button
-                        size="sm"
-                        className="h-8 rounded-lg"
-                        disabled={deciding === a.stageId}
-                        onClick={() => decide(a.workflowId, a.stageId, { decision: "approve" })}
-                      >
-                        <CheckCircle2 className="h-3.5 w-3.5" />
-                        {deciding === a.stageId ? "Saving…" : "Approve"}
-                      </Button>
+                    <div className="flex w-full flex-col items-end gap-2 md:w-64">
+                      <Textarea
+                        placeholder="Add a comment or justification (optional)"
+                        className="min-h-16 rounded-lg text-xs"
+                        value={comments[a.stageId] ?? ""}
+                        onChange={(e) =>
+                          setComments((prev) => ({ ...prev, [a.stageId]: e.target.value }))
+                        }
+                      />
+                      <div className="flex gap-2">
+                        <Button
+                          size="sm"
+                          variant="outline"
+                          className="h-8 rounded-lg"
+                          disabled={deciding === a.stageId}
+                          onClick={() =>
+                            decide(a.workflowId, a.stageId, {
+                              decision: "reject",
+                              comments: comments[a.stageId]?.trim() || undefined,
+                            })
+                          }
+                        >
+                          <XCircle className="h-3.5 w-3.5" /> Reject
+                        </Button>
+                        <Button
+                          size="sm"
+                          className="h-8 rounded-lg"
+                          disabled={deciding === a.stageId}
+                          onClick={() =>
+                            decide(a.workflowId, a.stageId, {
+                              decision: "approve",
+                              comments: comments[a.stageId]?.trim() || undefined,
+                            })
+                          }
+                        >
+                          <CheckCircle2 className="h-3.5 w-3.5" />
+                          {deciding === a.stageId ? "Saving…" : "Approve"}
+                        </Button>
+                      </div>
                     </div>
                   ) : (
                     <Badge variant="outline" className="rounded-full text-[10px] capitalize">

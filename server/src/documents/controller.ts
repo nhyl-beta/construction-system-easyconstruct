@@ -15,9 +15,15 @@ export const getAll = async (
   next: NextFunction,
 ) => {
   try {
+    const projectCodes =
+      req.authUser?.role === "project-manager"
+        ? await service.findProjectCodesForPm(req.authUser.name)
+        : undefined;
+
     const data = await service.getAll({
       project: req.query.project as string,
       type: req.query.type as string,
+      projectCodes,
     });
 
     return res.json(

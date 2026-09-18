@@ -6,7 +6,7 @@ import {
 } from "../engineering-reports/types.js";
 
 export const createEngineeringReportSchema = z.object({
-  reportId: z.string().min(2).max(20),
+  reportId: z.string().min(2).max(20).optional(),
   title: z.string().min(4, "Report title is required"),
   type: z.enum(ENGINEERING_REPORT_TYPES),
   project: z.string().min(2, "Select a project"),

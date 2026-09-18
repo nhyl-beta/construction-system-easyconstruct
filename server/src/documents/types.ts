@@ -36,4 +36,5 @@ export interface UploadDocumentInput {
 export interface DocumentFilters {
   project?: string;
   type?: string;
+  projectCodes?: string[];
 }

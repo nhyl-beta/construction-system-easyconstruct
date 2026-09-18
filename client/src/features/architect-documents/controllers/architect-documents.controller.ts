@@ -1,5 +1,6 @@
 // controllers/architect-documents.controller.ts
 import { useEffect, useMemo, useState } from "react";
+import { apiClient } from "@/services/api.client";
 import type { ArchitectDocument } from "../types/architect-document.types";
 
 export const useArchitectDocumentsController = () => {
@@ -13,9 +14,9 @@ export const useArchitectDocumentsController = () => {
     if (query) params.set("search", query);
     if (category !== "all") params.set("category", category);
     setLoading(true);
-    fetch(`/api/architect-documents?${params.toString()}`)
-      .then((res) => res.json())
-      .then((json) => setDocs(json.data ?? []))
+    apiClient
+      .get(`/architect-documents?${params.toString()}`)
+      .then((json) => setDocs(json?.data ?? []))
       .catch((err) => console.error(err))
       .finally(() => setLoading(false));
   }, [query, category]);

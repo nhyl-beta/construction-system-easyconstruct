@@ -47,6 +47,24 @@ export function errorMiddleware(
     res.status(err.statusCode).json(formatError(err.message, err.code));
     return;
   }
+
+  // Postgres unique-violation (e.g. a duplicate project/document/requirement
+  // code) — surface as a 409 instead of falling through to a bare 500.
+  // drizzle-orm wraps the raw pg error, so the pg error code/detail live on
+  // `.cause`, not the top-level error, for query errors it throws.
+  const pgError = (err as { cause?: { code?: string; detail?: string } }).cause;
+  const pgCode = (err as { code?: string }).code ?? pgError?.code;
+  if (pgCode === "23505") {
+    const detail = (err as { detail?: string }).detail ?? pgError?.detail;
+    res.status(409).json(
+      formatError(
+        detail ?? "A record with these details already exists.",
+        "CONFLICT",
+      ),
+    );
+    return;
+  }
+
   console.error("[Unhandled]", err);
   res
     .status(HTTP.SERVER_ERROR)

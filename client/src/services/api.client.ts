@@ -76,8 +76,9 @@ async function requestFormData(
 }
 
 export const apiClient = {
-  get: (path: string) =>
+  get: (path: string, opts: RequestInit = {}) =>
     request(path, {
+      ...opts,
       method: "GET",
     }),
 

@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
+import { apiClient } from "@/services/api.client";
 import type { Design } from "../types/design.types";
 
 export const useDesignsController = () => {
@@ -15,9 +16,9 @@ export const useDesignsController = () => {
     if (query) params.set("search", query);
     if (status !== "all") params.set("status", status);
 
-    fetch(`/api/designs?${params.toString()}`, { signal: controller.signal })
-      .then((res) => res.json())
-      .then((json) => setDesigns(json.data ?? []))
+    apiClient
+      .get(`/designs?${params.toString()}`, { signal: controller.signal })
+      .then((json) => setDesigns(json?.data ?? []))
       .catch((err) => {
         if (err.name !== "AbortError") console.error(err);
       })

@@ -16,4 +16,5 @@ export interface CreateProjectEngineerInput {
 
 export interface ProjectEngineerFilters {
   projectCode?: string;
+  userId?: number;
 }

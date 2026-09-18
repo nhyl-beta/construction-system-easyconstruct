@@ -11,6 +11,10 @@ export const getAll = async (
   return repo.findAll(filters);
 };
 
+export const findProjectCodesForPm = async (pmName: string) => {
+  return repo.findProjectCodesForPm(pmName);
+};
+
 export const create = async (
   input: CreateDocumentInput,
 ) => {
@@ -33,10 +37,10 @@ export const upload = async ({
   uploadedBy: string;
 }) => {
   const documentId =
-    `ADV-${Date.now()}`.slice(0, 20);
+    `ADV-${Date.now().toString(36)}${Math.random().toString(36).slice(2, 6)}`.toUpperCase();
 
   const fileUrl =
-    `/uploads/${file.filename}`;
+    `/uploads/documents/${file.filename}`;
 
   const sizeInMb =
     file.size / (1024 * 1024);

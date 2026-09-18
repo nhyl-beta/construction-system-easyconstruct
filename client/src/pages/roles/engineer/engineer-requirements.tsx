@@ -1,5 +1,6 @@
 import { useState, type FormEvent } from "react";
 import { FileText, ListChecks } from "lucide-react";
+import { toast } from "sonner";
 
 import { PageContainer } from "@/components/refine-ui/views/page-container";
 import { PageHeader } from "@/components/refine-ui/views/page-header";
@@ -82,8 +83,11 @@ function NewRequirementDialog({
         description,
         createdBy: engineerName,
       });
+      toast.success("Requirement saved as draft");
       reset();
       setOpen(false);
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : "Failed to save requirement");
     } finally {
       setSubmitting(false);
     }

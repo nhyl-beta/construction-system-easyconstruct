@@ -42,7 +42,7 @@ export interface EngineeringReportRecord {
 }
 
 export interface CreateEngineeringReportInput {
-  reportId: string;
+  reportId?: string;
   title: string;
   type: string;
   project: string;

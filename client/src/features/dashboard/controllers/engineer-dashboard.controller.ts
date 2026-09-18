@@ -1,4 +1,4 @@
-import { useMemo } from "react";
+import { useEffect, useMemo, useState } from "react";
 
 import { useProjects } from "@/features/projects/hooks/useProjects";
 import { useEngineeringReports } from "@/features/engineering-reports/hooks/useEngineeringReport";
@@ -6,6 +6,7 @@ import { useRequirements } from "@/features/requirements/hooks/useRequirements";
 import { EngineeringReportService } from "@/features/engineering-reports/services/engineering-report.service";
 import { RequirementService } from "@/features/requirements/services/requirement.service";
 import { useAuth } from "@/auth/auth-context";
+import { ProjectEngineerRepository } from "@/features/project-engineers/repositories/project-engineer.repository";
 
 // Composes the Engineer dashboard from real feature hooks (Projects,
 // Engineering reports, Requirements) — same pattern as
@@ -16,10 +17,33 @@ export const useEngineerDashboardController = () => {
   const reportsState = useEngineeringReports("all");
   const requirementsState = useRequirements();
 
-  // Project Assignment (checklist #3): only show projects assigned to this engineer.
+  // Project Assignment (checklist #3): only show projects this engineer is
+  // actually staffed on, via the project_engineers join table — the old
+  // `p.assignedEngineer` field no longer exists on the projects schema
+  // (renamed away in migration 0009), so it always compared against
+  // `undefined` and this KPI was permanently empty.
+  const [assignedCodes, setAssignedCodes] = useState<Set<string>>(new Set());
+  useEffect(() => {
+    let cancelled = false;
+    if (!user?.id) {
+      setAssignedCodes(new Set());
+      return;
+    }
+    ProjectEngineerRepository.listForUser(user.id)
+      .then((rows) => {
+        if (!cancelled) setAssignedCodes(new Set(rows.map((r) => r.projectCode)));
+      })
+      .catch(() => {
+        if (!cancelled) setAssignedCodes(new Set());
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [user?.id]);
+
   const assignedProjects = useMemo(
-    () => projectsState.projects.filter((p) => p.assignedEngineer === user?.name),
-    [projectsState.projects, user?.name],
+    () => projectsState.projects.filter((p) => assignedCodes.has(p.code)),
+    [projectsState.projects, assignedCodes],
   );
 
   const issueReports = EngineeringReportService.onlyIssues(reportsState.reports);

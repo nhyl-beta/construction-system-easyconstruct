@@ -30,7 +30,13 @@ const TYPE_ICONS: Record<string, LucideIcon> = {
 
 // A real, downloadable link — vs. the `local-upload-...` placeholder stored
 // when no file-storage provider is configured (see upload-document-dialog.tsx).
-const isRealUrl = (url: string | null) => !!url && /^https?:\/\//.test(url);
+const isRealUrl = (url: string | null) => !!url && (/^https?:\/\//.test(url) || url.startsWith("/"));
+
+// Relative fileUrls (e.g. "/uploads/documents/x.pdf") are served by the API
+// origin, not the client's — resolve against VITE_API_BASE when the two
+// differ (production), same as apiClient does for XHR requests.
+const resolveFileUrl = (url: string) =>
+  /^https?:\/\//.test(url) ? url : `${import.meta.env.VITE_API_BASE || ""}${url}`;
 
 export default function DocumentsPage() {
   const { documents, loading, uploading, upload } = useFieldDocuments();
@@ -155,7 +161,7 @@ export default function DocumentsPage() {
                               className="h-8 w-8 rounded-lg"
                               disabled={!isRealUrl(d.fileUrl)}
                               title={isRealUrl(d.fileUrl) ? "Download" : "No downloadable file on this record"}
-                              onClick={() => d.fileUrl && window.open(d.fileUrl, "_blank")}
+                              onClick={() => d.fileUrl && window.open(resolveFileUrl(d.fileUrl), "_blank")}
                             >
                               <Download className="h-3.5 w-3.5" />
                             </Button>

@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useState } from "react";
+import { toast } from "sonner";
 
 import {
   documentsRepository,
@@ -42,6 +43,7 @@ export function useFieldDocuments() {
       try {
         await documentsRepository.upload(input);
         await refresh();
+        toast.success("Document uploaded");
       } catch (e) {
         const message =
           e instanceof Error
@@ -49,6 +51,7 @@ export function useFieldDocuments() {
             : "Failed to upload document";
 
         setError(message);
+        toast.error(message);
         throw new Error(message);
       } finally {
         setUploading(false);

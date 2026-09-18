@@ -27,7 +27,7 @@ export const create = async (input: CreateIssueInput) => {
 // Only reviewers can set an official resolution; the reporter can only view.
 export const updateStatus = async (id: number, status: string, resolutionNotes: string | undefined, actingRole: string) => {
   await getById(id);
-  if (!["project_manager", "engineer"].includes(actingRole)) {
+  if (!["project-manager", "engineer"].includes(actingRole)) {
     throw new ForbiddenError("Only Project Managers or Engineers can update issue status");
   }
   const updated = await repo.updateStatus(id, status, resolutionNotes);

@@ -97,7 +97,10 @@ export default function ProjectCreatePage() {
     value: ProjectFormData[K],
   ) => setData((prev) => ({ ...prev, [key]: value }));
 
-  const handleCancel = () => navigate("/projects");
+  const isAdmin = user?.role === "admin" || user?.role === "super-admin";
+  const projectsListRoute = isAdmin ? "/admin/projects" : "/projects";
+
+  const handleCancel = () => navigate(projectsListRoute);
 
   const handleSubmit = async () => {
     const required: Array<[string, string]> = [
@@ -139,7 +142,7 @@ export default function ProjectCreatePage() {
           : undefined,
         workforce: 0,
       });
-      navigate("/projects");
+      navigate(projectsListRoute);
     } catch (err) {
       setError(
         err instanceof Error ? err.message : "Failed to create project.",
@@ -222,32 +225,27 @@ function StepProjectInfo({
           />
         </div>
 
-        {/* NOTE: value now matches the display string exactly, since Project.client
-            is stored/rendered as free text, not a slug. */}
+        {/* Project.client is stored/rendered as free text, not a slug — the
+            datalist just suggests existing clients while still letting the
+            admin type a brand-new one. */}
         <div className="space-y-1.5">
           <Label>
             Client / Owner <span className="text-destructive">*</span>
           </Label>
-          <Select onValueChange={(v) => set("client", v)}>
-            <SelectTrigger className="rounded-xl">
-              <SelectValue placeholder="Select client" />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="Westgate Health Group">
-                Westgate Health Group
-              </SelectItem>
-              <SelectItem value="Harbor Freight Corp">
-                Harbor Freight Corp
-              </SelectItem>
-              <SelectItem value="City of Riverside">
-                City of Riverside
-              </SelectItem>
-              <SelectItem value="NR Airport Authority">
-                NR Airport Authority
-              </SelectItem>
-              <SelectItem value="GreenPower Inc.">GreenPower Inc.</SelectItem>
-            </SelectContent>
-          </Select>
+          <Input
+            list="client-options"
+            placeholder="Select or type a new client"
+            value={data.client}
+            onChange={(e) => set("client", e.target.value)}
+            className="rounded-xl"
+          />
+          <datalist id="client-options">
+            <option value="Westgate Health Group" />
+            <option value="Harbor Freight Corp" />
+            <option value="City of Riverside" />
+            <option value="NR Airport Authority" />
+            <option value="GreenPower Inc." />
+          </datalist>
         </div>
 
         <div className="space-y-1.5">

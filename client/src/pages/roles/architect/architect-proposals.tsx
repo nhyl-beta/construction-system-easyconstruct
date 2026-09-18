@@ -30,7 +30,7 @@ import {
 
 import { useProposals } from "@/features/proposals/hooks/useProposals";
 import { ProjectPicker } from "@/components/shared/project-picker";
-import { AlertTriangle, CheckCircle2, Pencil } from "lucide-react";
+import { AlertTriangle, Archive, CheckCircle2, Pencil } from "lucide-react";
 import {
   Dialog,
   DialogContent,
@@ -368,30 +368,30 @@ export default function ArchitectProposals() {
       )}
 
       <div className="rounded-2xl border">
-        <Table>
+        <Table className="table-fixed">
           <TableHeader>
             <TableRow>
-              <TableHead>ID</TableHead>
+              <TableHead className="w-24">ID</TableHead>
 
-              <TableHead>Title</TableHead>
+              <TableHead className="w-48">Title</TableHead>
 
-              <TableHead>Project</TableHead>
+              <TableHead className="w-28">Project</TableHead>
 
-              <TableHead>
+              <TableHead className="w-36">
                 Submitted by
               </TableHead>
 
-              <TableHead className="text-right">
+              <TableHead className="w-28 text-right">
                 Amount
               </TableHead>
 
-              <TableHead>Status</TableHead>
+              <TableHead className="w-32">Status</TableHead>
 
-              <TableHead>Validation</TableHead>
+              <TableHead className="w-56">Validation</TableHead>
 
-              <TableHead>Review</TableHead>
+              <TableHead className="w-56">Review</TableHead>
 
-              <TableHead />
+              <TableHead className="w-16" />
             </TableRow>
           </TableHeader>
 
@@ -415,7 +415,9 @@ export default function ArchitectProposals() {
                 </TableCell>
               </TableRow>
             ) : (
-              c.proposals.map((proposal) => (
+              c.proposals
+                .filter((proposal) => proposal.status !== "Archived")
+                .map((proposal) => (
                 <TableRow key={proposal.id}>
                   <TableCell className="font-mono text-xs">
                     {proposal.proposalId}
@@ -468,13 +470,25 @@ export default function ArchitectProposals() {
                   </TableCell>
 
                   <TableCell>
-                    {!proposal.reviewedAt && !proposal.reviewComment && (
-                      <EditProposalDialog
-                        proposal={proposal}
-                        saving={c.saving}
-                        onUpdate={c.updateProposal}
-                      />
-                    )}
+                    <div className="flex items-center gap-1">
+                      {!proposal.reviewedAt && !proposal.reviewComment && (
+                        <EditProposalDialog
+                          proposal={proposal}
+                          saving={c.saving}
+                          onUpdate={c.updateProposal}
+                        />
+                      )}
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        className="h-8 w-8 rounded-lg"
+                        disabled={c.saving}
+                        title="Archive"
+                        onClick={() => c.archiveProposal(proposal.id)}
+                      >
+                        <Archive className="h-3.5 w-3.5" />
+                      </Button>
+                    </div>
                   </TableCell>
                 </TableRow>
               ))

@@ -27,7 +27,7 @@ export interface RequirementRecord {
 }
 
 export interface CreateRequirementInput {
-  requirementId: string;
+  requirementId?: string;
   title: string;
   project: string;
   category: string;

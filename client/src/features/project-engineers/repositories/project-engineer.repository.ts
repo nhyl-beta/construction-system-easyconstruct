@@ -29,6 +29,12 @@ export const ProjectEngineerRepository = {
     );
   },
 
+  async listForUser(userId: number): Promise<ProjectEngineer[]> {
+    return unwrap<ProjectEngineer[]>(
+      apiClient.get(`/project-engineers?userId=${userId}`),
+    );
+  },
+
   async create(input: CreateProjectEngineerInput): Promise<ProjectEngineer> {
     return unwrap<ProjectEngineer>(apiClient.post("/project-engineers", input));
   },

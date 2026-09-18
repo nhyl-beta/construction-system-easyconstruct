@@ -71,15 +71,20 @@ export function UploadDocumentDialog({
       return;
     }
 
-    await onSubmit({
-      file,
-      title: title.trim(),
-      project: project.trim(),
-      type,
-    });
+    try {
+      await onSubmit({
+        file,
+        title: title.trim(),
+        project: project.trim(),
+        type,
+      });
 
-    reset();
-    onOpenChange(false);
+      reset();
+      onOpenChange(false);
+    } catch {
+      // upload() already surfaces a toast + error state; keep the dialog
+      // open so the user can retry without re-picking the file.
+    }
   };
 
   return (

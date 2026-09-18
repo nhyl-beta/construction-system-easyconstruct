@@ -1,6 +1,7 @@
 import { useMemo, useState } from "react";
 import { useNavigate } from "react-router";
 import { apiClient } from "@/services/api.client";
+import { useAuth } from "@/auth/auth-context";
 
 export interface DesignFileUpload {
   name: string;
@@ -71,8 +72,13 @@ function readFileAsDataUrl(file: File): Promise<string> {
 
 export const useDesignCreateController = () => {
   const navigate = useNavigate();
+  const { user } = useAuth();
   const [step, setStep] = useState(1);
-  const [data, setData] = useState<DesignFormData>({ ...initialForm, code: generateDesignCode() });
+  const [data, setData] = useState<DesignFormData>({
+    ...initialForm,
+    code: generateDesignCode(),
+    leadArchitect: user?.name ?? "",
+  });
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [uploading, setUploading] = useState(false);

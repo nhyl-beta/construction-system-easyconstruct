@@ -32,7 +32,13 @@ export const findById = async (id: number) => {
 };
 
 export const create = async (data: CreateRequirementInput) => {
-  const [created] = await db.insert(requirements).values(data).returning();
+  const requirementId =
+    data.requirementId ??
+    `REQ-${Date.now().toString(36)}${Math.random().toString(36).slice(2, 6)}`.toUpperCase();
+  const [created] = await db
+    .insert(requirements)
+    .values({ ...data, requirementId })
+    .returning();
   return created;
 };
 

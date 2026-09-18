@@ -37,7 +37,7 @@ export const findById = async (id: number) => {
   return row ?? null;
 };
 
-export const create = async (data: CreateEngineeringReportInput) => {
+export const create = async (data: CreateEngineeringReportInput & { reportId: string }) => {
   const [created] = await db.insert(engineeringReports).values(data).returning();
   return created;
 };

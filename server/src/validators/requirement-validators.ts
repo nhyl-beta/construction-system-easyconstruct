@@ -2,7 +2,7 @@ import { z } from "zod";
 import { REQUIREMENT_CATEGORIES, REQUIREMENT_STATUSES } from "../requirements/types.js";
 
 export const createRequirementSchema = z.object({
-  requirementId: z.string().min(2).max(20),
+  requirementId: z.string().min(2).max(20).optional(),
   title: z.string().min(4, "Title is required"),
   project: z.string().min(2, "Select a project"),
   category: z.enum(REQUIREMENT_CATEGORIES),

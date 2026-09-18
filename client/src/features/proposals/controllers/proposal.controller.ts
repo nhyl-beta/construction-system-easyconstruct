@@ -47,6 +47,8 @@ export interface UpdateProposalInput {
   amount?: string;
 
   content?: string;
+
+  status?: string;
 }
 
 // Unwraps the backend's { success, message, data } envelope.
@@ -197,6 +199,12 @@ export const useProposalsController = () => {
     };
 
   /*
+   * ARCHIVE
+   */
+  const archiveProposal =
+    async (id: number): Promise<Proposal | null> => updateProposal(id, { status: "Archived" });
+
+  /*
    * REVIEW
    */
   const reviewProposal =
@@ -285,6 +293,8 @@ export const useProposalsController = () => {
     createProposal,
 
     updateProposal,
+
+    archiveProposal,
 
     reviewProposal,
   };

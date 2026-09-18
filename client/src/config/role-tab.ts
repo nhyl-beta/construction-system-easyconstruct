@@ -175,6 +175,7 @@ export const ROLE_CONFIGS: Record<string, RoleConfig> = {
       { label: "Projects", icon: FolderKanban, route: "/projects" },
       { label: "Workflows", icon: GitBranch, route: "/workflows" },
       { label: "Approvals", icon: CheckSquare, route: "/approvals" },
+      { label: "Tasks", icon: CheckSquare, route: "/tasks" },
       { label: "Documents", icon: FileText, route: "/documents" },
     ],
 
@@ -186,6 +187,7 @@ export const ROLE_CONFIGS: Record<string, RoleConfig> = {
           { label: "Projects", icon: FolderKanban, route: "/projects" },
           { label: "Workflows", icon: GitBranch, route: "/workflows" },
           { label: "Approvals", icon: CheckSquare, route: "/approvals" },
+          { label: "Tasks", icon: CheckSquare, route: "/tasks" },
           { label: "Documents", icon: FileText, route: "/documents" },
         ],
       },
@@ -358,7 +360,9 @@ export const ROLE_CONFIGS: Record<string, RoleConfig> = {
     tabs: [
       { label: "Progress", icon: BarChart2, route: "/progress" },
       { label: "Requirements", icon: ClipboardList, route: "/requirements" },
+      { label: "Approvals", icon: CheckSquare, route: "/approvals" },
       { label: "Tasks", icon: CheckSquare, route: "/tasks" },
+      { label: "Projects", icon: FolderKanban, route: "/projects" },
       { label: "Issues", icon: ActivitySquare, route: "/issues" },
     ],
 
@@ -373,6 +377,7 @@ export const ROLE_CONFIGS: Record<string, RoleConfig> = {
             icon: NotepadTextDashed,
             route: "/requirements",
           },
+          { label: "Approvals", icon: CheckSquare, route: "/approvals" },
         ],
       },
 
@@ -404,6 +409,7 @@ export const ROLE_CONFIGS: Record<string, RoleConfig> = {
     tabs: [
       { label: "Attendance", icon: UserCheck, route: "/attendance" },
       { label: "Tasks", icon: CheckSquare, route: "/tasks" },
+      { label: "Requirements", icon: ClipboardList, route: "/requirements" },
       { label: "Documents", icon: FileText, route: "/documents" },
       { label: "Issues", icon: ActivitySquare, route: "/issues" },
     ],
@@ -415,6 +421,11 @@ export const ROLE_CONFIGS: Record<string, RoleConfig> = {
           { label: "Dashboard", icon: LayoutDashboard, route: "/dashboard" },
           { label: "Attendance", icon: UserCheck, route: "/attendance" },
           { label: "Tasks", icon: CheckSquare, route: "/tasks" },
+          {
+            label: "Requirements",
+            icon: NotepadTextDashed,
+            route: "/requirements",
+          },
         ],
       },
       {

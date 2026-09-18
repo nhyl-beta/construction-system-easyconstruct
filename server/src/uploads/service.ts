@@ -1,9 +1,18 @@
 import { put } from "@vercel/blob";
+import fs from "node:fs";
+import os from "node:os";
+import path from "node:path";
 
 import { env } from "../config/env.js";
 import { ValidationError } from "../utils/errors.js";
 
 import type { UploadInput, UploadResult } from "./types.js";
+
+// Same read-only-fs rule as server/src/documents/upload.ts: only os.tmpdir()
+// is writable on Vercel.
+const uploadDirectory = process.env.VERCEL
+  ? path.join(os.tmpdir(), "uploads", "generic")
+  : path.resolve(process.cwd(), "uploads", "generic");
 
 const MAX_BYTES = 8 * 1024 * 1024; // 8MB
 
@@ -43,12 +52,6 @@ function decodeDataUrl(
 export const uploadFile = async (
   input: UploadInput,
 ): Promise<UploadResult> => {
-  if (!env.BLOB_READ_WRITE_TOKEN) {
-    throw new ValidationError(
-      "File storage is not configured — set BLOB_READ_WRITE_TOKEN (connect a Vercel Blob store to this project).",
-    );
-  }
-
   const { buffer, mime } = decodeDataUrl(
     input.dataUrl,
   );
@@ -69,20 +72,38 @@ export const uploadFile = async (
     );
   }
 
-  const blob = await put(
-    `easyconstruct/${Date.now()}-${input.filename}`,
-    buffer,
-    {
-      access: "public",
-      contentType: input.contentType || mime,
-      token: env.BLOB_READ_WRITE_TOKEN,
-    },
-  );
+  const contentType = input.contentType || mime;
+
+  if (env.BLOB_READ_WRITE_TOKEN) {
+    const blob = await put(
+      `easyconstruct/${Date.now()}-${input.filename}`,
+      buffer,
+      {
+        access: "public",
+        contentType,
+        token: env.BLOB_READ_WRITE_TOKEN,
+      },
+    );
+
+    return {
+      url: blob.url,
+      filename: input.filename,
+      contentType,
+      sizeBytes: buffer.byteLength,
+    };
+  }
+
+  // No Vercel Blob store connected (e.g. local dev) — fall back to the same
+  // local-disk storage pattern used by server/src/documents/upload.ts.
+  fs.mkdirSync(uploadDirectory, { recursive: true });
+  const safeName = input.filename.replace(/[^a-zA-Z0-9.\-_]/g, "-");
+  const storedName = `${Date.now()}-${Math.round(Math.random() * 1_000_000)}-${safeName}`;
+  fs.writeFileSync(path.join(uploadDirectory, storedName), buffer);
 
   return {
-    url: blob.url,
+    url: `/uploads/generic/${storedName}`,
     filename: input.filename,
-    contentType: input.contentType || mime,
+    contentType,
     sizeBytes: buffer.byteLength,
   };
 };

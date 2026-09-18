@@ -1,4 +1,5 @@
 import { useState, type FormEvent } from "react";
+import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -134,8 +135,11 @@ export function NewReportDialog({
         recommendations: form.recommendations,
         requiredActions: form.requiredActions || undefined,
       });
+      toast.success("Report submitted");
       reset();
       setOpen(false);
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : "Failed to submit report");
     } finally {
       setSubmitting(false);
     }

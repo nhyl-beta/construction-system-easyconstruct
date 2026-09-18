@@ -1,11 +1,15 @@
 import { db } from "../db/connection.js";
 import { projectEngineers } from "../db/schema/project-engineers.js";
-import { eq } from "drizzle-orm";
+import { and, eq, SQL } from "drizzle-orm";
 import type { CreateProjectEngineerInput, ProjectEngineerFilters } from "./types.js";
 
 export const findAll = async (filters: ProjectEngineerFilters = {}) => {
-  return filters.projectCode
-    ? await db.select().from(projectEngineers).where(eq(projectEngineers.projectCode, filters.projectCode))
+  const conditions: SQL[] = [];
+  if (filters.projectCode) conditions.push(eq(projectEngineers.projectCode, filters.projectCode));
+  if (filters.userId) conditions.push(eq(projectEngineers.userId, filters.userId));
+
+  return conditions.length
+    ? await db.select().from(projectEngineers).where(and(...conditions))
     : await db.select().from(projectEngineers);
 };
 

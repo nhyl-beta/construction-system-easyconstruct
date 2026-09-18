@@ -17,7 +17,10 @@ export const getById = async (id: number) => {
 };
 
 export const create = async (input: CreateEngineeringReportInput) => {
-  return await repo.create({ status: "Submitted", ...input });
+  const reportId =
+    input.reportId ??
+    `SR-${Date.now().toString(36)}${Math.random().toString(36).slice(2, 6)}`.toUpperCase();
+  return await repo.create({ status: "Submitted", ...input, reportId });
 };
 
 export const update = async (id: number, input: UpdateEngineeringReportInput) => {

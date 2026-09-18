@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
+import { apiClient } from "@/services/api.client";
 import type { Blueprint } from "../types/blueprint.types";
 
 export const useBlueprintsController = () => {
