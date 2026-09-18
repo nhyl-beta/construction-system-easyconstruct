@@ -1,3 +1,12 @@
+export type BudgetAdjustmentStatus =
+  | "draft"
+  | "pending-review"
+  | "finance-review"
+  | "manager-review"
+  | "approved"
+  | "rejected"
+  | "locked";
+
 export interface BudgetAdjustmentRecord {
   id: number;
   budgetId: number;
@@ -10,7 +19,7 @@ export interface BudgetAdjustmentRecord {
   requestedAt: Date | null;
   approvedBy: string | null;
   approvedAt: Date | null;
-  status: string;
+  status: BudgetAdjustmentStatus;
 }
 
 export interface CreateBudgetAdjustmentInput {
@@ -21,7 +30,7 @@ export interface CreateBudgetAdjustmentInput {
   newAmount: number;
   reason: string;
   requestedBy: string;
-  status?: string;
+  status?: BudgetAdjustmentStatus;
 }
 
 export interface UpdateBudgetAdjustmentInput extends Partial<CreateBudgetAdjustmentInput> {

@@ -43,7 +43,7 @@ export const expensesRepository = {
     const id = `EXP-${Math.floor(1000 + Math.random() * 9000)}`;
     const [row] = await db
       .insert(expenses)
-      .values({ id, ...input, amount: String(input.amount), status: "pending" })
+      .values({ id, ...input, amount: input.amount, status: "pending" })
       .returning();
     return row;
   },

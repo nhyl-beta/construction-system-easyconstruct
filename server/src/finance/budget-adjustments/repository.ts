@@ -53,6 +53,7 @@ export const findById = async (id: number) => {
 
 export const create = async (data: CreateBudgetAdjustmentInput) => {
   const [created] = await db.insert(budgetAdjustments).values(data).returning();
+  if (!created) throw new Error("Failed to create budget adjustment");
   return toDto(created);
 };
 

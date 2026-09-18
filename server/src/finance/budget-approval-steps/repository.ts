@@ -1,7 +1,9 @@
 import { eq } from "drizzle-orm";
 import { db } from "../../db/connection.js";
-import { budgetApprovalSteps, budgets } from "../../db/schema/finance.js";
+import { budgetApprovalSteps, budgets, budgetStatusEnum } from "../../db/schema/finance.js";
 import type { DecideBudgetApprovalInput } from "./types.js";
+
+type BudgetStatus = (typeof budgetStatusEnum.enumValues)[number];
 
 export const findByBudgetId = async (budgetId: number) => {
   return db
@@ -31,7 +33,7 @@ export const insertStep = async (data: DecideBudgetApprovalInput) => {
 
 // Decisions also move the budget's own status forward/back so the
 // Overview tab's StatusBadge stays in sync with the approval pipeline.
-export const setBudgetStatus = async (budgetId: number, status: string) => {
+export const setBudgetStatus = async (budgetId: number, status: BudgetStatus) => {
   await db
     .update(budgets)
     .set({ status, updatedAt: new Date() })

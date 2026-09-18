@@ -67,9 +67,9 @@ export const create = async (data: CreateBudgetInput) => {
       category: data.category,
       owner: data.owner,
 
-      planned: data.planned.toString(),
-      committed: (data.committed ?? 0).toString(),
-      actual: (data.spent ?? 0).toString(),
+      planned: data.planned,
+      committed: data.committed ?? 0,
+      actual: data.spent ?? 0,
 
       fiscalYear: data.fiscalYear,
 
@@ -95,12 +95,11 @@ export const update = async (id: number, data: UpdateBudgetInput) => {
 
   if (data.owner !== undefined) updateData.owner = data.owner;
 
-  if (data.planned !== undefined) updateData.planned = data.planned.toString();
+  if (data.planned !== undefined) updateData.planned = data.planned;
 
-  if (data.committed !== undefined)
-    updateData.committed = data.committed.toString();
+  if (data.committed !== undefined) updateData.committed = data.committed;
 
-  if (data.spent !== undefined) updateData.actual = data.spent.toString();
+  if (data.spent !== undefined) updateData.actual = data.spent;
 
   if (data.fiscalYear !== undefined) updateData.fiscalYear = data.fiscalYear;
 

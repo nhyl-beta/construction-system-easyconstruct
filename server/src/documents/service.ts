@@ -22,12 +22,14 @@ export const upload = async ({
   title,
   project,
   type,
+  version,
   uploadedBy,
 }: {
   file: Express.Multer.File;
   title: string;
   project: string;
   type: string;
+  version?: string;
   uploadedBy: string;
 }) => {
   const documentId =
@@ -52,7 +54,7 @@ export const upload = async ({
     title,
     project,
     type,
-    version: "v1",
+    version: version ?? "v1",
     size,
     uploadedBy,
     fileUrl,

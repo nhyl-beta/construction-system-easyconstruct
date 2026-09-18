@@ -1,6 +1,7 @@
 import { ValidationError } from "../../utils/errors.js";
 import * as repo from "./repository.js";
 import type {
+  ApprovalStage,
   BudgetApprovalFilters,
   DecideBudgetApprovalInput,
 } from "./types.js";
@@ -12,10 +13,10 @@ export const getAll = async (filters: BudgetApprovalFilters) => {
     : repo.findAll();
 };
 
-const nextStage = (stage: string, decision: string) => {
+const nextStage = (stage: string, decision: string): ApprovalStage | "rejected" => {
   if (decision === "rejected") return "rejected";
   if (decision === "returned") return "draft";
-  const idx = APPROVAL_STAGES.indexOf(stage as any);
+  const idx = APPROVAL_STAGES.indexOf(stage as ApprovalStage);
   if (idx === -1) throw new ValidationError(`Unknown stage: ${stage}`);
   const next = APPROVAL_STAGES[idx + 1];
   return next ?? "approved";

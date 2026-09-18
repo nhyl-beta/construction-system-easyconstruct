@@ -161,7 +161,10 @@ async function main() {
         continue;
       }
 
-      await tx.insert(workflowTemplates).values(template);
+      await tx.insert(workflowTemplates).values({
+        ...template,
+        defaultStages: template.defaultStages.map((s) => ({ ...s })),
+      });
       console.log(`created workflow template: ${template.name}`);
     }
   });
