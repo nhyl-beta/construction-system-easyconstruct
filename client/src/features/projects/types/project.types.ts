@@ -13,6 +13,7 @@ export interface Project {
   statusTone: StatusTone;
   progress: number; // 0-100
   budget: number; // percent of budget used
+  contractValue?: number | null; // total contract amount, if recorded
   workforce: number;
   due: string; // ISO date or human string
   risk: RiskLevel;

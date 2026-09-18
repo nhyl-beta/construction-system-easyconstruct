@@ -75,10 +75,12 @@ app.use("/api/tasks", taskRoutes);
 app.use("/api/issues", issueRoutes);
 app.use("/api/documents", documentRoutes);
 
+// Admin/Super Admin keep the same override they have on workflow-stage
+// decisions, so a stuck payroll batch can still be cleared.
 app.use(
   "/api/finance/payroll-review",
   authenticate,
-  requireRole("finance-manager", "finance_manager"),
+  requireRole("finance-manager", "finance_manager", "admin", "super-admin"),
   payrollReviewRoutes,
 );
 

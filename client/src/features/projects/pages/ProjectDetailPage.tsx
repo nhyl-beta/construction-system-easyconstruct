@@ -72,6 +72,7 @@ export default function ProjectDetailPage() {
         statusTone: project.statusTone,
         progress: project.progress,
         budget: project.budget,
+        contractValue: project.contractValue,
         workforce: project.workforce,
         due: project.due,
         risk: project.risk,
@@ -137,6 +138,7 @@ export default function ProjectDetailPage() {
         <Field label="Risk"><Input value={project.risk} onChange={(e) => update("risk", e.target.value as Project["risk"])} /></Field>
         <Field label="Progress (%)"><Input type="number" min="0" max="100" value={project.progress} onChange={(e) => update("progress", Number(e.target.value))} /></Field>
         <Field label="Budget used (%)"><Input type="number" min="0" value={project.budget} onChange={(e) => update("budget", Number(e.target.value))} /></Field>
+        <Field label="Total contract value"><Input type="number" min="0" value={project.contractValue ?? ""} onChange={(e) => update("contractValue", e.target.value === "" ? null : Number(e.target.value))} /></Field>
         <Field label="Workforce"><Input type="number" min="0" value={project.workforce} onChange={(e) => update("workforce", Number(e.target.value))} /></Field>
         <Field label="Due date"><Input type="date" value={project.due} onChange={(e) => update("due", e.target.value)} /></Field>
         <Field label="Project manager"><Input value={project.pm ?? ""} onChange={(e) => update("pm", e.target.value)} /></Field>

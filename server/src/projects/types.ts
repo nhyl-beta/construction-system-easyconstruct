@@ -8,6 +8,7 @@ export interface ProjectRecord {
   statusTone: string;
   progress: number;
   budget: number;
+  contractValue: string | null;
   due: string;
   risk: string;
   location: string | null;
@@ -27,6 +28,7 @@ export interface CreateProjectInput {
   statusTone?: string;
   progress?: number;
   budget?: number;
+  contractValue?: number | string | null;
   due: string;
   risk?: string;
   location?: string;

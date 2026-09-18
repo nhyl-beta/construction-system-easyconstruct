@@ -9,6 +9,7 @@ export const createProjectSchema = z.object({
   statusTone:  z.string().optional(),
   progress:    z.number().min(0).max(100).optional(),
   budget:      z.number().min(0).optional(),
+  contractValue: z.union([z.number().nonnegative(), z.string()]).optional().nullable(),
   due:         z.string().min(1),
   risk:        z.enum(['Low', 'Medium', 'High']).optional(),
   location:    z.string().optional(),

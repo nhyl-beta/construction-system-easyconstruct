@@ -1,4 +1,4 @@
-import { CheckSquare, Clock, ListTodo, ShieldAlert } from "lucide-react";
+import { CheckSquare, Clock, ListTodo, Plus, ShieldAlert } from "lucide-react";
 
 import { PageContainer } from "@/components/refine-ui/views/page-container";
 import { PageHeader } from "@/components/refine-ui/views/page-header";
@@ -9,7 +9,20 @@ import { StatusBadge } from "@/components/ui/status-badge";
 import { Progress } from "@/components/ui/progress";
 import { Button } from "@/components/ui/button";
 
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import { Textarea } from "@/components/ui/textarea";
+import { useAuth } from "@/auth/auth-context";
+import { useUsersByRole } from "@/features/users/hooks/use-users-by-role";
 import { useMyTasks } from "@/features/tasks/hooks/use-my-tasks";
+import { useState } from "react";
 
 const NEXT_LABEL: Record<string, string> = {
   Pending: "Start task",
@@ -17,13 +30,25 @@ const NEXT_LABEL: Record<string, string> = {
 };
 
 export default function TasksPage() {
-  const { tasks, counts, loading, error, updatingId, advance } = useMyTasks();
+  const { tasks, counts, loading, error, updatingId, advance, createTask, creating } =
+    useMyTasks();
+  const { user } = useAuth();
+
+  // Mirrors the backend's route gates: POST /tasks is project-manager +
+  // engineer, PATCH /tasks/:id/status is site-personnel only. Showing the
+  // control the caller can't use just produces a 403 mid-demo.
+  const canCreate = user?.role === "project-manager" || user?.role === "engineer";
+  const canAdvance = user?.role === "site-personnel";
 
   return (
     <PageContainer>
       <PageHeader
         title="Tasks"
-        description="Your assigned field tasks — updates here are visible to Engineering and Admin"
+        description={
+          canCreate
+            ? "Assign field tasks to a project — Site Personnel picks them up and updates their status here"
+            : "Your assigned field tasks — updates here are visible to Engineering and Admin"
+        }
       />
       <PageContent className="space-y-6 p-6 md:p-8">
         <KpiStrip
@@ -34,6 +59,8 @@ export default function TasksPage() {
             { label: "Overdue", value: loading ? "…" : `${counts.overdue}`, icon: ShieldAlert, tone: counts.overdue > 0 ? "bad" : "neutral" },
           ]}
         />
+
+        {canCreate && <NewTaskCard onCreate={createTask} creating={creating} />}
 
         <Card className="rounded-2xl border-border/70 shadow-sm">
           <CardContent className="p-0">
@@ -67,7 +94,7 @@ export default function TasksPage() {
                       <div className="flex shrink-0 items-center gap-2">
                         <StatusBadge status={t.priority} />
                         <StatusBadge status={t.status} />
-                        {nextLabel && (
+                        {canAdvance && nextLabel && (
                           <Button
                             size="sm"
                             className="h-8 rounded-lg"
@@ -92,3 +119,179 @@ export default function TasksPage() {
 }
 
 TasksPage.displayName = "TasksPage";
+
+// ── New task (Project Manager / Engineer) ────────────────────────────────────
+
+function NewTaskCard({
+  onCreate,
+  creating,
+}: {
+  onCreate: (input: {
+    taskCode: string;
+    projectCode: string;
+    title: string;
+    description?: string;
+    priority?: string;
+    status?: string;
+    dueDate?: string;
+    assignedToUserId?: number;
+    assignedToName?: string;
+  }) => Promise<boolean>;
+  creating: boolean;
+}) {
+  const { users: sitePersonnel, loading: loadingAssignees } =
+    useUsersByRole("site-personnel");
+  const [assignee, setAssignee] = useState("");
+  const [projectCode, setProjectCode] = useState("");
+  const [title, setTitle] = useState("");
+  const [description, setDescription] = useState("");
+  const [priority, setPriority] = useState("Medium");
+  const [dueDate, setDueDate] = useState("");
+  const [localError, setLocalError] = useState<string | null>(null);
+  const [created, setCreated] = useState<string | null>(null);
+
+  const submit = async () => {
+    setLocalError(null);
+    setCreated(null);
+    if (!projectCode.trim() || !title.trim()) {
+      setLocalError("Project code and title are required.");
+      return;
+    }
+    // The backend only lets Site Personnel advance tasks assigned to them
+    // (tasks/service.ts updateStatus), so an unassigned task is a dead end.
+    if (!assignee) {
+      setLocalError("Assign the task to a Site Personnel account.");
+      return;
+    }
+    const assigned = sitePersonnel.find((u) => String(u.id) === assignee);
+    // taskCode is required and unique on the backend; generating it here keeps
+    // the form to the fields a PM/Engineer actually cares about.
+    const taskCode = `TSK-${Date.now().toString().slice(-6)}`;
+    const ok = await onCreate({
+      taskCode,
+      projectCode: projectCode.trim(),
+      title: title.trim(),
+      description: description.trim() || undefined,
+      priority,
+      status: "Pending",
+      dueDate: dueDate || undefined,
+      assignedToUserId: Number(assignee),
+      assignedToName: assigned?.name,
+    });
+    if (ok) {
+      setCreated(taskCode);
+      setTitle("");
+      setDescription("");
+      setDueDate("");
+    }
+  };
+
+  return (
+    <Card className="rounded-2xl border-border/70 shadow-sm">
+      <CardContent className="space-y-4 p-5">
+        <div>
+          <h2 className="text-sm font-semibold">New task</h2>
+          <p className="mt-0.5 text-xs text-muted-foreground">
+            Creates a Pending task against a project. Site Personnel advances it
+            to In Progress and Completed.
+          </p>
+        </div>
+
+        <div className="grid gap-4 sm:grid-cols-2">
+          <div className="space-y-1.5">
+            <Label htmlFor="task-project">Project code</Label>
+            <Input
+              id="task-project"
+              value={projectCode}
+              onChange={(e) => setProjectCode(e.target.value)}
+              placeholder="e.g. SUN-101852"
+              className="rounded-xl"
+            />
+          </div>
+          <div className="space-y-1.5">
+            <Label htmlFor="task-title">Title</Label>
+            <Input
+              id="task-title"
+              value={title}
+              onChange={(e) => setTitle(e.target.value)}
+              placeholder="e.g. Pour foundation slab section B"
+              className="rounded-xl"
+            />
+          </div>
+          <div className="space-y-1.5">
+            <Label>Assign to</Label>
+            <Select value={assignee} onValueChange={setAssignee}>
+              <SelectTrigger className="rounded-xl">
+                <SelectValue
+                  placeholder={loadingAssignees ? "Loading…" : "Select Site Personnel"}
+                />
+              </SelectTrigger>
+              <SelectContent>
+                {sitePersonnel.length === 0 && !loadingAssignees && (
+                  <div className="px-2 py-1.5 text-xs text-muted-foreground">
+                    No Site Personnel accounts on file
+                  </div>
+                )}
+                {sitePersonnel.map((u) => (
+                  <SelectItem key={u.id} value={String(u.id)}>
+                    {u.name}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+          <div className="space-y-1.5">
+            <Label>Priority</Label>
+            <Select value={priority} onValueChange={setPriority}>
+              <SelectTrigger className="rounded-xl">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="Low">Low</SelectItem>
+                <SelectItem value="Medium">Medium</SelectItem>
+                <SelectItem value="High">High</SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
+          <div className="space-y-1.5">
+            <Label htmlFor="task-due">Due date</Label>
+            <Input
+              id="task-due"
+              type="date"
+              value={dueDate}
+              onChange={(e) => setDueDate(e.target.value)}
+              className="rounded-xl"
+            />
+          </div>
+        </div>
+
+        <div className="space-y-1.5">
+          <Label htmlFor="task-desc">Description</Label>
+          <Textarea
+            id="task-desc"
+            value={description}
+            onChange={(e) => setDescription(e.target.value)}
+            placeholder="What needs doing on site?"
+            className="h-20 resize-none rounded-xl"
+          />
+        </div>
+
+        {localError && <p className="text-sm text-destructive">{localError}</p>}
+        {created && (
+          <p className="text-sm text-muted-foreground">
+            Created <span className="font-mono">{created}</span>.
+          </p>
+        )}
+
+        <Button
+          className="rounded-xl"
+          onClick={() => void submit()}
+          disabled={creating}
+        >
+          <Plus className="h-4 w-4" />
+          {creating ? "Creating…" : "Create task"}
+        </Button>
+      </CardContent>
+    </Card>
+  );
+}

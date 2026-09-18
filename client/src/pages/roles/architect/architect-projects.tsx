@@ -8,6 +8,7 @@ import {
 } from "@/components/ui/table";
 import { Search } from "lucide-react";
 import { useArchitectProjects } from "@/features/designs/hooks/useArchitectProjects";
+import { formatDue } from "@/features/projects/lib/project-format";
 
 export default function ArchitectProjects() {
   const navigate = useNavigate();
@@ -60,7 +61,7 @@ export default function ArchitectProjects() {
                 <TableCell>
                   <Progress value={p.progress} className="h-1.5" />
                 </TableCell>
-                <TableCell className="text-xs text-muted-foreground">{p.due}</TableCell>
+                <TableCell className="text-xs text-muted-foreground">{formatDue(p.due)}</TableCell>
                 <TableCell className="text-right text-sm">{p.designCount}</TableCell>
               </TableRow>
             ))}

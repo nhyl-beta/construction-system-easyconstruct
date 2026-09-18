@@ -11,6 +11,7 @@ interface BackendProject {
   statusTone: string;
   progress: number;
   budget: number;
+  contractValue?: string | number | null;
   due: string;
   risk: string;
   location?: string | null;
@@ -45,10 +46,27 @@ function normalizeProject(raw: BackendProject): Project {
     statusTone: normalizeTone(raw.statusTone),
     progress: raw.progress ?? 0,
     budget: raw.budget ?? 0,
+    contractValue: raw.contractValue == null ? null : Number(raw.contractValue),
     workforce: raw.workforce ?? 0,
     due: raw.due,
     risk: normalizeRisk(raw.risk),
   };
+}
+
+// The backend's zod schema accepts title-case risk ("Low" | "Medium" | "High")
+// and the UI works in lower-case. Normalization on the way in already happens
+// in normalizeProject; this is the matching step on the way out, so a create
+// from the New Project form doesn't fail validation.
+function serializeProject(patch: Partial<Project>): Record<string, unknown> {
+  const payload: Record<string, unknown> = { ...patch };
+  if (typeof patch.risk === "string") {
+    payload.risk = patch.risk.charAt(0).toUpperCase() + patch.risk.slice(1).toLowerCase();
+  }
+  // id is a client-side concern; the backend rejects unknown/extra keys it
+  // doesn't model on write.
+  delete payload.id;
+  delete payload.assignedEngineer;
+  return payload;
 }
 
 async function unwrap<T>(promise: Promise<unknown>): Promise<T> {
@@ -66,16 +84,27 @@ export const ProjectRepository = {
     return raw.map(normalizeProject);
   },
 
-  async getById(code: string): Promise<Project | null> {
+  // Accepts either the numeric primary key (what the projects table and cards
+  // link to) or the project code. Search only matches name/code, so a numeric
+  // id has to go through the by-id endpoint or the detail page 404s.
+  async getById(idOrCode: string): Promise<Project | null> {
+    if (/^\d+$/.test(idOrCode)) {
+      try {
+        const raw = await unwrap<BackendProject | null>(apiClient.get(`/projects/${idOrCode}`));
+        return raw ? normalizeProject(raw) : null;
+      } catch {
+        return null;
+      }
+    }
     const raw = await unwrap<BackendProject[]>(
-      apiClient.get(`/projects?search=${encodeURIComponent(code)}`),
+      apiClient.get(`/projects?search=${encodeURIComponent(idOrCode)}`),
     );
-    const match = raw.find((project) => project.code === code);
+    const match = raw.find((project) => project.code === idOrCode);
     return match ? normalizeProject(match) : null;
   },
 
   async create(payload: Partial<Project>): Promise<Project> {
-    const raw = await unwrap<BackendProject>(apiClient.post("/projects", payload));
+    const raw = await unwrap<BackendProject>(apiClient.post("/projects", serializeProject(payload)));
     return normalizeProject(raw);
   },
 
@@ -86,7 +115,7 @@ export const ProjectRepository = {
     const target = existing.find((project) => project.code === code);
     if (!target?.id) return null;
 
-    const raw = await unwrap<BackendProject>(apiClient.patch(`/projects/${target.id}`, patch));
+    const raw = await unwrap<BackendProject>(apiClient.patch(`/projects/${target.id}`, serializeProject(patch)));
     return normalizeProject(raw);
   },
 

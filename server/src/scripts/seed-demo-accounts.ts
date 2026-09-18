@@ -3,6 +3,7 @@ import { eq, or } from "drizzle-orm";
 
 import { db } from "../db/connection.js";
 import { employees } from "../db/schema/employees.js";
+import { roles } from "../db/schema/roles.js";
 import { users } from "../db/schema/users.js";
 import { workflowTemplates } from "../db/schema/workflows.js";
 
@@ -18,6 +19,21 @@ const ACCOUNTS = [
   { name: "Paolo Mendoza", email: "engineer@easyconstruct.demo", role: "engineer", employeeRole: "Site Engineer", department: "Engineering" },
   { name: "Rico Domingo", email: "site@easyconstruct.demo", role: "site-personnel", employeeRole: "Construction Worker", department: "Field Operations" },
   { name: "Elena Bautista", email: "consultant@easyconstruct.demo", role: "consultant", employeeRole: "Consultant", department: "Advisory" },
+] as const;
+
+// Backs Admin's read-only Roles & Permissions screen. `name` must match the
+// role string stored on users.role, since that's what every requireRole()
+// check on the backend compares against.
+const ROLES = [
+  { name: "super-admin", label: "Super Admin", description: "Platform administration, role assignment, and system configuration." },
+  { name: "admin", label: "Admin", description: "Org-wide oversight: projects, workflows, documents, audit trail, and security." },
+  { name: "project-manager", label: "Project Manager", description: "Creates projects, assigns engineers, initiates workflows, and signs off on approvals." },
+  { name: "human-resources", label: "Human Resources", description: "Employee roster, attendance verification, and payroll generation." },
+  { name: "finance-manager", label: "Finance Manager", description: "Budgets, expenses, and payroll batch review and approval." },
+  { name: "architect", label: "Architect", description: "Designs, blueprints, proposals, reviews, and revisions." },
+  { name: "engineer", label: "Engineer", description: "Technical requirements, progress reports, task creation, and issue resolution." },
+  { name: "site-personnel", label: "Site Personnel", description: "Geofenced attendance, field task updates, documents, and issue reporting." },
+  { name: "consultant", label: "Consultant", description: "Advisory review of design proposals and advisory documentation." },
 ] as const;
 
 const TEMPLATES = [
@@ -117,6 +133,21 @@ async function main() {
       });
       createdEmployees++;
       console.log(`created employee: ${account.email}`);
+    }
+
+    for (const role of ROLES) {
+      const [existing] = await tx
+        .select()
+        .from(roles)
+        .where(eq(roles.name, role.name));
+
+      if (existing) {
+        console.log(`skip role (exists): ${role.name}`);
+        continue;
+      }
+
+      await tx.insert(roles).values(role);
+      console.log(`created role: ${role.name}`);
     }
 
     for (const template of TEMPLATES) {

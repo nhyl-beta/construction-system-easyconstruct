@@ -1,6 +1,10 @@
 // client/src/features/tasks/hooks/use-my-tasks.ts — NEW
 import { useCallback, useEffect, useState } from "react";
-import { tasksRepository, type TaskRecord } from "../repositories/task.repository";
+import {
+  tasksRepository,
+  type CreateTaskInput,
+  type TaskRecord,
+} from "../repositories/task.repository";
 
 const NEXT_STATUS: Record<string, string | null> = {
   Pending: "In Progress",
@@ -48,6 +52,26 @@ export function useMyTasks() {
     [refresh],
   );
 
+  const [creating, setCreating] = useState(false);
+
+  const createTask = useCallback(
+    async (input: CreateTaskInput) => {
+      setCreating(true);
+      setError(null);
+      try {
+        await tasksRepository.create(input);
+        await refresh();
+        return true;
+      } catch (e) {
+        setError(e instanceof Error ? e.message : "Failed to create task");
+        return false;
+      } finally {
+        setCreating(false);
+      }
+    },
+    [refresh],
+  );
+
   const counts = {
     total: tasks.length,
     pending: tasks.filter((t) => t.status === "Pending").length,
@@ -58,5 +82,5 @@ export function useMyTasks() {
     ).length,
   };
 
-  return { tasks, counts, loading, error, updatingId, advance, refresh };
+  return { tasks, counts, loading, error, updatingId, advance, refresh, createTask, creating };
 }

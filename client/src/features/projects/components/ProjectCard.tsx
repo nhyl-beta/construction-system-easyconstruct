@@ -6,6 +6,7 @@ import { MapPin, Users } from "lucide-react";
 import { Link } from "react-router";
 import { Project } from "../types/project.types";
 import { STATUS_TONE_CLASS, RISK_CLASS } from "../constants/project-status";
+import { formatDue } from "../lib/project-format";
 
 export const ProjectCard: React.FC<{ p: Project }> = ({ p }) => {
   return (
@@ -33,7 +34,7 @@ export const ProjectCard: React.FC<{ p: Project }> = ({ p }) => {
             <Progress value={p.progress} className="h-1.5" />
           </div>
           <div className="flex items-center justify-between border-t border-border/60 pt-3 text-xs">
-            <span className="text-muted-foreground">Due {p.due}</span>
+            <span className="text-muted-foreground">Due {formatDue(p.due)}</span>
             <span className={`font-medium ${RISK_CLASS[p.risk]}`}>{p.risk} risk</span>
           </div>
         </CardContent>

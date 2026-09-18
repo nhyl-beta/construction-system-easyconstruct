@@ -48,6 +48,19 @@ async function main() {
       ADD COLUMN IF NOT EXISTS distance_from_site_m integer,
       ADD COLUMN IF NOT EXISTS photo_url varchar(500),
       ADD COLUMN IF NOT EXISTS remarks text;
+
+    -- projects.budget is budget UTILISATION (a percentage). The contract value
+    -- the New Project form collects had nowhere to go, so it either wasn't
+    -- saved or was written into budget, which then rendered as e.g. "25000000%".
+    ALTER TABLE projects
+      ADD COLUMN IF NOT EXISTS contract_value numeric(14, 2);
+
+    -- Move any amount that was written into the percentage column across.
+    UPDATE projects
+       SET contract_value = budget,
+           budget = 0
+     WHERE contract_value IS NULL
+       AND budget > 1000;
   `);
 
   console.log("Demo schema tables and compatibility columns are ready.");

@@ -7,6 +7,7 @@ import { ChevronRight } from "lucide-react";
 import { Link } from "react-router";
 import { Project } from "../types/project.types";
 import { STATUS_TONE_CLASS, RISK_CLASS } from "../constants/project-status";
+import { formatContractValue, formatDue } from "../lib/project-format";
 
 export const ProjectsTable: React.FC<{ projects: Project[] }> = ({ projects }) => {
   return (
@@ -32,6 +33,9 @@ export const ProjectsTable: React.FC<{ projects: Project[] }> = ({ projects }) =
                   <td className="px-5 py-3.5">
                     <Link to={`/projects/${p.id}`} className="font-medium leading-tight hover:underline">{p.name}</Link>
                     <div className="text-xs text-muted-foreground">{p.code} · {p.client}</div>
+                    {p.contractValue != null && (
+                      <div className="text-xs text-muted-foreground">{formatContractValue(p.contractValue)} contract</div>
+                    )}
                   </td>
                   <td className="px-3 py-3.5">
                     <Badge variant="outline" className={`rounded-full px-2.5 py-0.5 text-[11px] font-medium ${STATUS_TONE_CLASS[p.statusTone]}`}>{p.status}</Badge>
@@ -46,7 +50,7 @@ export const ProjectsTable: React.FC<{ projects: Project[] }> = ({ projects }) =
                     <span className={p.budget > 100 ? "text-sm font-medium tabular-nums text-destructive" : "text-sm tabular-nums"}>{p.budget}%</span>
                   </td>
                   <td className="px-3 py-3.5 text-sm tabular-nums">{p.workforce}</td>
-                  <td className="px-3 py-3.5 text-sm tabular-nums text-muted-foreground">{p.due}</td>
+                  <td className="px-3 py-3.5 text-sm tabular-nums text-muted-foreground">{formatDue(p.due)}</td>
                   <td className="px-3 py-3.5">
                     <span className={`text-xs font-medium ${RISK_CLASS[p.risk]}`}>{p.risk}</span>
                   </td>

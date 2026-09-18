@@ -232,10 +232,15 @@ export const ROLE_CONFIGS: Record<string, RoleConfig> = {
         label: "People",
         items: [
           { label: "Employees", icon: UsersRound, route: "/employees" },
-          { label: "Employee Profiles", icon: UsersRound, route: "/employees" },
-          { label: "Documents", icon: UsersRound, route: "/dashboard" },
-
-          // TODO: no HR documents page yet
+          { label: "Attendance", icon: UserCheck, route: "/attendance" },
+          { label: "Documents", icon: FileText, route: "/documents" },
+        ],
+      },
+      {
+        label: "Payroll",
+        items: [
+          { label: "Payroll", icon: DollarSign, route: "/payroll" },
+          { label: "Workforce Reports", icon: BarChart2, route: "/workforce-reports" },
         ],
       },
     ],
@@ -253,7 +258,7 @@ export const ROLE_CONFIGS: Record<string, RoleConfig> = {
     primaryAction: {
       label: "New Budget",
       icon: Plus,
-      route: "/budget/new",
+      route: "/budget",
     },
     tabs: [
       { label: "Budget", icon: BarChart2, route: "/budget" },
@@ -276,26 +281,15 @@ export const ROLE_CONFIGS: Record<string, RoleConfig> = {
       {
         label: "Budget Management",
         items: [
-          {
-            label: "Budget Overview",
-            icon: BarChart2,
-            route: "/budget-overview",
-          },
-          {
-            label: "Budget Allocations",
-            icon: BarChart2,
-            route: "/budget-allocations",
-          },
-          {
-            label: "Budget Adjustments",
-            icon: BarChart2,
-            route: "/budget-adjustments",
-          },
-          {
-            label: "Budget History",
-            icon: BarChart2,
-            route: "/budget-history",
-          },
+          { label: "Budget Overview", icon: BarChart2, route: "/budget" },
+          { label: "Expenses", icon: ActivitySquare, route: "/expenses" },
+        ],
+      },
+      {
+        label: "Approvals",
+        items: [
+          { label: "Payroll Review", icon: ClipboardList, route: "/payroll-review" },
+          { label: "Approvals", icon: CheckSquare, route: "/approvals" },
         ],
       },
     ],
@@ -321,7 +315,7 @@ export const ROLE_CONFIGS: Record<string, RoleConfig> = {
       {
         label: "AI Insights",
         icon: ActivitySquare,
-        route: "/impact-awareness",
+        route: "/ai-insights",
       },
     ],
 
@@ -330,7 +324,7 @@ export const ROLE_CONFIGS: Record<string, RoleConfig> = {
         label: "Overview",
         items: [
           { label: "Dashboard", icon: LayoutDashboard, route: "/dashboard" },
-          { label: "Designs", icon: Layers, route: "/dashboard" },
+          { label: "Designs", icon: Layers, route: "/designs" },
           { label: "Blueprints", icon: NotepadTextDashed, route: "/blueprints" },
         ],
       },
@@ -341,7 +335,7 @@ export const ROLE_CONFIGS: Record<string, RoleConfig> = {
           { label: "Reviews", icon: BadgeCheck, route: "/reviews" },
           { label: "Revisions", icon: SquarePen, route: "/revisions" },
           { label: "Documentation", icon: BarChart2, route: "/architect/documents" },
-          { label: "AI Function", icon: BarChart2, route: "/impact-awareness" },
+          { label: "AI Insights", icon: BarChart2, route: "/ai-insights" },
         ],
       },
     ],
@@ -364,8 +358,8 @@ export const ROLE_CONFIGS: Record<string, RoleConfig> = {
     tabs: [
       { label: "Progress", icon: BarChart2, route: "/progress" },
       { label: "Requirements", icon: ClipboardList, route: "/requirements" },
+      { label: "Tasks", icon: CheckSquare, route: "/tasks" },
       { label: "Issues", icon: ActivitySquare, route: "/issues" },
-      { label: "Projects", icon: FolderKanban, route: "/projects" },
     ],
 
     sections: [
@@ -373,11 +367,11 @@ export const ROLE_CONFIGS: Record<string, RoleConfig> = {
         label: "Overview",
         items: [
           { label: "Dashboard", icon: LayoutDashboard, route: "/dashboard" },
-          { label: "Site Reports", icon: Layers, route: "/dashboard" },
+          { label: "Progress & Site Reports", icon: Layers, route: "/progress" },
           {
-            label: "Inspections",
+            label: "Requirements",
             icon: NotepadTextDashed,
-            route: "/dashboard",
+            route: "/requirements",
           },
         ],
       },
@@ -385,26 +379,10 @@ export const ROLE_CONFIGS: Record<string, RoleConfig> = {
       {
         label: "Technical Operations",
         items: [
-          {
-            label: "Technical Reviews",
-            icon: BadgeCheck,
-            route: "/budget-overview",
-          },
-          {
-            label: "Drawings",
-            icon: SquarePen,
-            route: "/budget-allocations",
-          },
-          {
-            label: "Resources",
-            icon: BarChart2,
-            route: "/budget-adjustments",
-          },
-          {
-            label: "AI Function",
-            icon: BarChart2,
-            route: "/budget-history",
-          },
+          { label: "Tasks", icon: CheckSquare, route: "/tasks" },
+          { label: "Issues", icon: ActivitySquare, route: "/issues" },
+          { label: "Projects", icon: FolderKanban, route: "/projects" },
+          { label: "Documents", icon: FileText, route: "/documents" },
         ],
       },
     ],
@@ -519,30 +497,5 @@ export const DEFAULT_ROLE_CONFIG: RoleConfig = {
       ],
     },
 
-    {
-      label: "Test Functions",
-      items: [
-        {
-          label: "Reviews",
-          icon: BadgeCheck,
-          route: "/budget-overview",
-        },
-        {
-          label: "Revisions",
-          icon: SquarePen,
-          route: "/budget-allocations",
-        },
-        {
-          label: "Documentation",
-          icon: BarChart2,
-          route: "/budget-adjustments",
-        },
-        {
-          label: "AI Function",
-          icon: BarChart2,
-          route: "/budget-history",
-        },
-      ],
-    },
   ],
 };

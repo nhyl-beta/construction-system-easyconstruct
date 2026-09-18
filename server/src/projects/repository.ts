@@ -36,15 +36,25 @@ export const findById = async (id: number) => {
   return project ?? null;
 };
 
+// drizzle's numeric() columns round-trip as strings, so a contract value that
+// arrives as a JSON number has to be stringified before it reaches the insert.
+const serialize = <T extends CreateProjectInput | UpdateProjectInput>(
+  data: T,
+): Omit<T, "contractValue"> & { contractValue?: string | null } => ({
+  ...data,
+  contractValue:
+    data.contractValue == null ? data.contractValue : String(data.contractValue),
+});
+
 export const create = async (data: CreateProjectInput) => {
-  const [created] = await db.insert(projects).values(data).returning();
+  const [created] = await db.insert(projects).values(serialize(data)).returning();
   return created;
 };
 
 export const update = async (id: number, data: UpdateProjectInput) => {
   const [updated] = await db
     .update(projects)
-    .set({ ...data, updatedAt: new Date() })
+    .set({ ...serialize(data), updatedAt: new Date() })
     .where(eq(projects.id, id))
     .returning();
   return updated ?? null;

@@ -15,6 +15,7 @@ import { KpiStrip } from "@/components/ui/kpi-strip";
 import { Progress } from "@/components/ui/progress";
 import { useRoleConfig } from "@/hooks/use-role-config";
 import { usePmDashboardController } from "@/features/dashboard/controllers/pm-dashboard.controller";
+import { formatDue } from "@/features/projects/lib/project-format";
 import { useNavigate } from "react-router";
 
 // ── Badge tone map (kept for risk labels, which are still free-text) ─────────
@@ -165,7 +166,7 @@ export default function DashboardPage() {
                           </span>
                         </td>
                         <td className="px-3 py-3.5 text-sm tabular-nums text-muted-foreground">
-                          {p.due}
+                          {formatDue(p.due)}
                         </td>
                         <td className="px-5 py-3.5">
                           <span className={`text-xs capitalize ${riskToneClasses[p.risk] ?? "text-muted-foreground"}`}>

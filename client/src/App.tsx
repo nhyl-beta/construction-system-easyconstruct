@@ -96,6 +96,7 @@ import "./App.css";
 import ArchitectDesignCreate from "./pages/roles/architect/architect-design-create";
 import ArchitectDesignDetail from "./pages/roles/architect/architect-design-detail";
 import FinanceExpenses from "./pages/roles/finance/finance-expenses";
+import NotFoundPage from "./pages/not-found";
 
 function App() {
   return (
@@ -314,6 +315,9 @@ function App() {
                       </RequireRole>
                     }
                   />
+
+                  {/* ── Catch-all ── */}
+                  <Route path="*" element={<NotFoundPage />} />
                     </Route>
                   </Route>
                 </Routes>

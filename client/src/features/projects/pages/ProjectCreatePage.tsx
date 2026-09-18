@@ -53,7 +53,9 @@ interface ProjectFormData {
   description: string;
   due: string;
   pm: string;
+  contractValue: string;
   // Collected for UX but not yet persisted — schema doesn't have these columns:
+  contingencyPct: string;
   type: string;
   contractType: string;
   currency: string;
@@ -69,6 +71,8 @@ const initialForm: ProjectFormData = {
   description: "",
   due: "",
   pm: "",
+  contractValue: "",
+  contingencyPct: "",
   type: "",
   contractType: "",
   currency: "PHP",
@@ -127,7 +131,12 @@ export default function ProjectCreatePage() {
         status: "Planning",
         statusTone: "neutral",
         progress: 0,
+        // budget is utilisation-to-date (a percentage), which starts at zero;
+        // the contract amount is its own column.
         budget: 0,
+        contractValue: data.contractValue.trim()
+          ? Number(data.contractValue)
+          : undefined,
         workforce: 0,
       });
       navigate("/projects");
@@ -158,7 +167,7 @@ export default function ProjectCreatePage() {
     >
       {step === 1 && <StepProjectInfo data={data} set={set} />}
       {step === 2 && <StepScopeSchedule />}
-      {step === 3 && <StepBudget />}
+      {step === 3 && <StepBudget data={data} set={set} />}
       {step === 4 && <StepTeam data={data} set={set} currentUserRole={user?.role ?? ""} />}
       {step === 5 && <StepReview data={data} />}
     </MultiStepPage>
@@ -402,24 +411,49 @@ function StepScopeSchedule() {
 
 // ── Step 3 — Budget ───────────────────────────────────────────────────────────
 
-function StepBudget() {
+function StepBudget({
+  data,
+  set,
+}: {
+  data: ProjectFormData;
+  set: <K extends keyof ProjectFormData>(
+    key: K,
+    value: ProjectFormData[K],
+  ) => void;
+}) {
   return (
     <div className="space-y-6">
       <div>
         <h3 className="text-base font-semibold">Budget & financials</h3>
         <p className="mt-1 text-sm text-muted-foreground">
-          Set the initial budget and financial parameters. (Not yet persisted —
-          informational only.)
+          Total contract value is saved with the project. Contingency is
+          informational only — there's no column for it yet.
         </p>
       </div>
       <div className="grid grid-cols-2 gap-5">
         <div className="space-y-1.5">
-          <Label>Total contract value</Label>
-          <Input type="number" placeholder="0.00" className="rounded-xl" />
+          <Label htmlFor="contract-value">Total contract value</Label>
+          <Input
+            id="contract-value"
+            type="number"
+            min="0"
+            value={data.contractValue}
+            onChange={(e) => set("contractValue", e.target.value)}
+            placeholder="0.00"
+            className="rounded-xl"
+          />
         </div>
         <div className="space-y-1.5">
-          <Label>Contingency (%)</Label>
-          <Input type="number" placeholder="10" className="rounded-xl" />
+          <Label htmlFor="contingency">Contingency (%)</Label>
+          <Input
+            id="contingency"
+            type="number"
+            min="0"
+            value={data.contingencyPct}
+            onChange={(e) => set("contingencyPct", e.target.value)}
+            placeholder="10"
+            className="rounded-xl"
+          />
         </div>
       </div>
     </div>
@@ -514,6 +548,12 @@ function StepReview({ data }: { data: ProjectFormData }) {
           { label: "Project Manager", value: data.pm || "—" },
           { label: "Risk", value: data.risk },
           { label: "Due date", value: data.due || "—" },
+          {
+            label: "Total contract value",
+            value: data.contractValue
+              ? Number(data.contractValue).toLocaleString()
+              : "—",
+          },
         ].map((row) => (
           <div
             key={row.label}

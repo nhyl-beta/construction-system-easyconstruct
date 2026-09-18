@@ -61,7 +61,13 @@ export function useFinanceDashboardController(): UseFinanceDashboardResult {
     setIsLoading(true);
     setError(null);
 
-    Promise.all([
+    // Three of these routers (approvals, risks, ai-insights) are still
+    // commented out in server/src/routes/finance.ts. Under Promise.all a
+    // single 404 rejected the batch, so the whole dashboard showed an error
+    // banner and zeroed KPIs even though budgets/expenses/cash-flow/summary
+    // all answered. allSettled lets the built endpoints render and degrades
+    // the unbuilt ones to empty.
+    Promise.allSettled([
       getJson<Budget[]>("/api/finance/budgets", controller.signal),
       getJson<Expense[]>("/api/finance/expenses", controller.signal),
       getJson<Approval[]>("/api/finance/approvals", controller.signal),
@@ -74,18 +80,37 @@ export function useFinanceDashboardController(): UseFinanceDashboardResult {
       ),
       getJson<FinanceKpis>("/api/finance/summary", controller.signal),
     ])
-      .then(([b, e, a, r, i, cf, pp, k]) => {
-        setBudgets(b);
-        setExpenses(e);
-        setApprovals(a);
-        setRisks(r);
-        setInsights(i);
-        setCashFlow(cf);
-        setProjectProfit(pp);
-        setKpis(k);
-      })
-      .catch((err) => {
-        if (err.name !== "AbortError") setError(err.message);
+      .then((results) => {
+        const [b, e, a, r, i, cf, pp, k] = results;
+        const value = <T,>(
+          result: PromiseSettledResult<T>,
+          fallback: T,
+        ): T => (result.status === "fulfilled" ? result.value : fallback);
+
+        setBudgets(value(b, []));
+        setExpenses(value(e, []));
+        setApprovals(value(a, []));
+        setRisks(value(r, []));
+        setInsights(value(i, []));
+        setCashFlow(value(cf, []));
+        setProjectProfit(value(pp, []));
+        setKpis(value(k, EMPTY_KPIS));
+
+        const aborted = results.some(
+          (result) =>
+            result.status === "rejected" && result.reason?.name === "AbortError",
+        );
+        // Only complain if nothing at all came back — a partial load is the
+        // expected state until the remaining finance routers are built.
+        const allFailed = results.every((result) => result.status === "rejected");
+        if (!aborted && allFailed) {
+          const first = results.find((result) => result.status === "rejected");
+          setError(
+            first && first.status === "rejected"
+              ? String(first.reason?.message ?? first.reason)
+              : "Finance data is unavailable.",
+          );
+        }
       })
       .finally(() => setIsLoading(false));
 

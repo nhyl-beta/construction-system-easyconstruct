@@ -12,7 +12,10 @@ export const projects = pgTable('projects', {
   status:      varchar('status',      { length: 50  }).notNull().default('Planning'),
   statusTone:  varchar('status_tone', { length: 50  }).notNull().default('muted'),
   progress:    integer('progress').notNull().default(0),
+  // Budget UTILISATION, as a percentage (0-100+). The contract amount lives
+  // in contractValue — see ensure-demo-schema.ts.
   budget:      integer('budget').notNull().default(0),
+  contractValue: numeric('contract_value', { precision: 14, scale: 2 }),
   due:         varchar('due',         { length: 20  }).notNull(),
   risk:        varchar('risk',        { length: 20  }).notNull().default('Low'),
   location:    varchar('location',    { length: 255 }),
