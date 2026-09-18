@@ -17,7 +17,7 @@ import {
   useDesignCreate,
   type DesignFormData,
 } from "@/features/designs/hooks/useDesignCreate.ts";
-import { useProjectEngineers } from "@/features/project-engineers/hooks/use-project-engineers";
+import { useProjectMembers } from "@/features/project-members/hooks/use-project-members";
 
 const STEPS: Step[] = [
   {
@@ -381,8 +381,9 @@ function StepTeam({
   set: SetFn;
   errors: string[];
 }) {
-  const { engineers, loading: engineersLoading } = useProjectEngineers(
+  const { members: engineers, loading: engineersLoading } = useProjectMembers(
     data.projectCode || null,
+    "engineer",
   );
 
   return (

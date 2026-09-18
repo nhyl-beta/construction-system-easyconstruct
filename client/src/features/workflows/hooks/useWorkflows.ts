@@ -7,6 +7,7 @@ import type {
   ApprovalStats,
   CreateWorkflowInput,
   DecideStageInput,
+  UpdateWorkflowInput,
   Workflow,
   WorkflowTemplate,
 } from "../types/workflow.types";
@@ -118,11 +119,44 @@ export function useActiveWorkflows() {
     void reload();
   }, [reload]);
 
+  const [saving, setSaving] = useState(false);
+
+  const update = useCallback(
+    async (id: number, input: UpdateWorkflowInput) => {
+      setSaving(true);
+      try {
+        const updated = await WorkflowRepository.update(id, input);
+        await reload();
+        return updated;
+      } finally {
+        setSaving(false);
+      }
+    },
+    [reload],
+  );
+
+  const remove = useCallback(
+    async (id: number) => {
+      setSaving(true);
+      try {
+        const deleted = await WorkflowRepository.remove(id);
+        await reload();
+        return deleted;
+      } finally {
+        setSaving(false);
+      }
+    },
+    [reload],
+  );
+
   return {
     workflows,
     loading,
     error,
     reload,
+    saving,
+    update,
+    remove,
   } as const;
 }
 

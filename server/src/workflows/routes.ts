@@ -2,7 +2,11 @@ import { Router } from "express";
 import * as controller from "./controller.js";
 import { validate } from "../middleware/validate.js";
 import { authenticate, requireRole } from "../middleware/auth.js";
-import { createWorkflowSchema, decideStageSchema } from "../validators/workflow-validators.js";
+import {
+  createWorkflowSchema,
+  decideStageSchema,
+  updateWorkflowSchema,
+} from "../validators/workflow-validators.js";
 
 const router = Router();
 
@@ -19,6 +23,22 @@ router.post(
   requireRole("project-manager", "admin", "super-admin"),
   validate(createWorkflowSchema),
   controller.create,
+);
+
+// Route-level gate is "who may ever call this" (PM/admin/super-admin);
+// "who may call it on THIS workflow" (creator, or admin bypass) is
+// enforced in service.assertCanManageWorkflow.
+router.patch(
+  "/:id",
+  requireRole("project-manager", "admin", "super-admin"),
+  validate(updateWorkflowSchema),
+  controller.update,
+);
+
+router.delete(
+  "/:id",
+  requireRole("project-manager", "admin", "super-admin"),
+  controller.remove,
 );
 
 router.patch(

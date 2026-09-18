@@ -58,6 +58,10 @@ const TEMPLATES = [
       { role: "admin", roleLabel: "Admin Final Approval", iconKey: "ShieldCheck" },
     ],
   },
+  // NOTE (EC-010): a "Subcontractor onboarding" template with a
+  // human-resources stage already exists in workflow_templates (seeded
+  // outside this script, predating it) — verified live rather than
+  // duplicated here. See docs/issues-list.md EC-010 for details.
 ] as const;
 
 function initials(name: string) {

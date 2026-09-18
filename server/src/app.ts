@@ -34,7 +34,7 @@ import requirementRoutes from "./requirements/routes.js";
 import engineeringReportRoutes from "./engineering-reports/routes.js";
 import roleRoutes from "./roles/routes.js";
 import userRoutes from "./users/routes.js";
-import projectEngineerRoutes from "./project-engineers/routes.js";
+import projectMemberRoutes from "./project-members/routes.js";
 
 // ── workflows/approvals ──
 import workflowRoutes from "./workflows/routes.js";
@@ -91,7 +91,7 @@ app.use("/api/requirements", requirementRoutes);
 app.use("/api/engineering-reports", engineeringReportRoutes);
 app.use("/api/roles", roleRoutes);
 app.use("/api/users", userRoutes);
-app.use("/api/project-engineers", projectEngineerRoutes);
+app.use("/api/project-members", projectMemberRoutes);
 app.use("/api/workflows", workflowRoutes);
 app.use("/api/uploads", uploadRoutes);
 

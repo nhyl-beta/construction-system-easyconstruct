@@ -220,6 +220,7 @@ export const ROLE_CONFIGS: Record<string, RoleConfig> = {
       { label: "Employees", icon: Users, route: "/employees" },
       { label: "Attendance", icon: UserCheck, route: "/attendance" },
       { label: "Payroll", icon: DollarSign, route: "/payroll" },
+      { label: "Approvals", icon: CheckSquare, route: "/approvals" },
       { label: "Reports", icon: BarChart2, route: "/reports" },
     ],
 
@@ -228,6 +229,7 @@ export const ROLE_CONFIGS: Record<string, RoleConfig> = {
         label: "Overview",
         items: [
           { label: "Dashboard", icon: LayoutDashboard, route: "/dashboard" },
+          { label: "Approvals", icon: CheckSquare, route: "/approvals" },
         ],
       },
       {

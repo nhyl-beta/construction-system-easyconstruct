@@ -61,6 +61,30 @@ async function main() {
            budget = 0
      WHERE contract_value IS NULL
        AND budget > 1000;
+
+    -- EC-013/017/018/024: generalize the engineer-only "project_engineers"
+    -- table into "project_members" (PM can staff Architect/Engineer/Site
+    -- Personnel/Consultant on a project, not just Engineer). Table rename is
+    -- metadata-only in Postgres — existing rows and the FK on user_id are
+    -- untouched. Every row that already exists predates this generalization
+    -- and was always an engineer, hence the backfilled default below.
+    ALTER TABLE IF EXISTS project_engineers RENAME TO project_members;
+
+    ALTER TABLE project_members
+      ADD COLUMN IF NOT EXISTS role varchar(40) NOT NULL DEFAULT 'engineer';
+
+    ALTER TABLE project_members
+      ALTER COLUMN role DROP DEFAULT;
+
+    ALTER TABLE project_members
+      DROP CONSTRAINT IF EXISTS project_engineers_project_user_unique;
+
+    DO $$ BEGIN
+      ALTER TABLE project_members
+        ADD CONSTRAINT project_members_project_user_role_unique
+        UNIQUE (project_code, user_id, role);
+    EXCEPTION WHEN duplicate_object THEN NULL;
+    END $$;
   `);
 
   console.log("Demo schema tables and compatibility columns are ready.");

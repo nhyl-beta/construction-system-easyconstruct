@@ -5,6 +5,7 @@ import type {
   ApprovalStats,
   CreateWorkflowInput,
   DecideStageInput,
+  UpdateWorkflowInput,
   Workflow,
   WorkflowTemplate,
 } from "../types/workflow.types";
@@ -31,6 +32,14 @@ export const WorkflowRepository = {
 
   async create(input: CreateWorkflowInput): Promise<Workflow> {
     return unwrap<Workflow>(apiClient.post("/workflows", input));
+  },
+
+  async update(id: number, input: UpdateWorkflowInput): Promise<Workflow> {
+    return unwrap<Workflow>(apiClient.patch(`/workflows/${id}`, input));
+  },
+
+  async remove(id: number): Promise<Workflow> {
+    return unwrap<Workflow>(apiClient.del(`/workflows/${id}`));
   },
 
   async decideStage(

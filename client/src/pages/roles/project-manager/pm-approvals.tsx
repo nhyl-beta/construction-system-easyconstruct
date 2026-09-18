@@ -1,6 +1,7 @@
 // src/pages/project-manager/pm-approvals.tsx
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import {
+  Eye,
   FileCheck2,
   Clock,
   CheckCircle2,
@@ -12,11 +13,74 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Badge }             from "@/components/ui/badge";
 import { Button }            from "@/components/ui/button";
 import { Textarea }          from "@/components/ui/textarea";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useApprovals } from "@/features/workflows/hooks/useWorkflows";
+import { WorkflowRepository } from "@/features/workflows/repositories/workflow.repository";
 import { WorkflowFormatService } from "@/features/workflows/services/workflow.service";
+import { WorkflowStagePipeline } from "@/components/workflows/workflow-stage-pipeline";
 import { formatRelativeTime } from "@/lib/format-relative-time";
-import type { ApprovalScope } from "@/features/workflows/types/workflow.types";
+import type { ApprovalScope, Workflow } from "@/features/workflows/types/workflow.types";
+
+function WorkflowDetailDialog({
+  workflowId,
+  onOpenChange,
+}: {
+  workflowId: number | null;
+  onOpenChange: (open: boolean) => void;
+}) {
+  const [workflow, setWorkflow] = useState<Workflow | null>(null);
+  const [loading, setLoading] = useState(false);
+
+  const open = workflowId !== null;
+
+  useEffect(() => {
+    if (workflowId === null) return;
+    let cancelled = false;
+    setLoading(true);
+    WorkflowRepository.getById(workflowId)
+      .then((wf) => {
+        if (!cancelled) setWorkflow(wf);
+      })
+      .finally(() => {
+        if (!cancelled) setLoading(false);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [workflowId]);
+
+  return (
+    <Dialog
+      open={open}
+      onOpenChange={(next) => {
+        if (!next) setWorkflow(null);
+        onOpenChange(next);
+      }}
+    >
+      <DialogContent className="max-w-lg">
+        <DialogHeader>
+          <DialogTitle>
+            {workflow ? `${workflow.code} · ${workflow.title}` : "Workflow details"}
+          </DialogTitle>
+          <DialogDescription>
+            {workflow
+              ? `${workflow.projectCode} · ${workflow.templateName ?? "—"}`
+              : "Loading…"}
+          </DialogDescription>
+        </DialogHeader>
+        {loading && <p className="text-sm text-muted-foreground">Loading…</p>}
+        {workflow && <WorkflowStagePipeline stages={workflow.stages} direction="column" />}
+      </DialogContent>
+    </Dialog>
+  );
+}
 
 const SEVERITY_TONE: Record<string, string> = {
   high:   "bg-destructive/10 text-destructive border-destructive/20",
@@ -28,6 +92,7 @@ export default function ApprovalsPage() {
   const [tab, setTab] = useState<ApprovalScope>("pending");
   const { items, stats, loading, deciding, decide } = useApprovals(tab);
   const [comments, setComments] = useState<Record<number, string>>({});
+  const [detailWorkflowId, setDetailWorkflowId] = useState<number | null>(null);
 
   const statCards = stats
     ? [
@@ -125,6 +190,14 @@ export default function ApprovalsPage() {
                   <span className="text-sm font-medium tabular-nums">
                     {WorkflowFormatService.amount(a.amount)}
                   </span>
+                  <Button
+                    size="sm"
+                    variant="ghost"
+                    className="h-7 rounded-lg text-xs"
+                    onClick={() => setDetailWorkflowId(a.workflowId)}
+                  >
+                    <Eye className="h-3.5 w-3.5" /> View details
+                  </Button>
                   {tab === "pending" ? (
                     <div className="flex w-full flex-col items-end gap-2 md:w-64">
                       <Textarea
@@ -178,6 +251,13 @@ export default function ApprovalsPage() {
           </Card>
         ))}
       </div>
+
+      <WorkflowDetailDialog
+        workflowId={detailWorkflowId}
+        onOpenChange={(next) => {
+          if (!next) setDetailWorkflowId(null);
+        }}
+      />
     </div>
   );
 }

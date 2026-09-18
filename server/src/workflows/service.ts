@@ -6,8 +6,20 @@ import type {
   CreateWorkflowInput,
   DecideStageInput,
   TemplateWithActiveCount,
+  UpdateWorkflowInput,
   WorkflowWithStages,
 } from "./types.js";
+
+// Same ownership rule used for project-engineers (EC-017): admin/super-admin
+// may manage any workflow; anyone else only the one they created.
+const assertCanManageWorkflow = async (id: number, requesterRole: string, requesterName: string) => {
+  if (PRIVILEGED_ROLES.includes(requesterRole)) return;
+  const workflow = await repo.findWorkflowById(id);
+  if (!workflow) throw new NotFoundError("Workflow", String(id));
+  if (workflow.createdBy !== requesterName) {
+    throw new ForbiddenError("You can only edit or delete workflows you created");
+  }
+};
 
 // ── Templates ──────────────────────────────────────────────────────────────
 
@@ -86,6 +98,33 @@ export const getWorkflowById = async (id: number): Promise<WorkflowWithStages> =
   return withStages;
 };
 
+export const updateWorkflow = async (
+  id: number,
+  input: UpdateWorkflowInput,
+  requesterRole: string,
+  requesterName: string,
+): Promise<WorkflowWithStages> => {
+  await assertCanManageWorkflow(id, requesterRole, requesterName);
+  const updated = await repo.updateWorkflow(id, input);
+  if (!updated) throw new NotFoundError("Workflow", String(id));
+  return getWorkflowById(id);
+};
+
+export const deleteWorkflow = async (
+  id: number,
+  requesterRole: string,
+  requesterName: string,
+): Promise<WorkflowWithStages> => {
+  await assertCanManageWorkflow(id, requesterRole, requesterName);
+  // Fetch the full record (with stages) before the row — and its
+  // cascade-deleted stages — disappear, so the caller/audit log still has
+  // something to show for what was removed.
+  const existing = await getWorkflowById(id);
+  const deleted = await repo.deleteWorkflow(id);
+  if (!deleted) throw new NotFoundError("Workflow", String(id));
+  return existing;
+};
+
 export const createWorkflow = async (
   input: CreateWorkflowInput,
   createdBy: string,
@@ -141,6 +180,10 @@ export const decideStage = async (
       `Stage ${stageId} is '${stage.status}' and is not awaiting a decision`,
     );
   }
+  // Intentional (EC-003, decided): admin/super-admin can decide ANY stage
+  // regardless of its assigned role. This is a deliberate escalation/
+  // override path (e.g. a role-holder is unavailable) — do not remove or
+  // restrict this without a product decision to do so.
   const isPrivileged = requesterRole === "admin" || requesterRole === "super-admin";
   if (!isPrivileged && stage.role !== requesterRole) {
     throw new ForbiddenError(

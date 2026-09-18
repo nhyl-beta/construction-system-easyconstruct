@@ -1,5 +1,5 @@
 // src/components/workflows/new-workflow-dialog.tsx
-import { useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import {
   Dialog,
   DialogContent,
@@ -18,6 +18,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import { UserRepository, type PublicUser } from "@/features/users/repositories/user.repository";
 import type { CreateWorkflowInput, WorkflowTemplate } from "@/features/workflows/types/workflow.types";
 
 interface NewWorkflowDialogProps {
@@ -40,6 +41,35 @@ export function NewWorkflowDialog({
   const [templateId, setTemplateId] = useState<string>("");
   const [amount, setAmount] = useState("");
   const [type, setType] = useState("");
+  // Keyed by stage sequence (1-based, matching stageAssignments/service.ts),
+  // value is the assignee's display name (assignedTo is a free-text varchar,
+  // same as everywhere else this column is populated).
+  const [stageAssignments, setStageAssignments] = useState<Record<string, string>>({});
+  const [usersByRole, setUsersByRole] = useState<Record<string, PublicUser[]>>({});
+
+  const selectedTemplate = useMemo(
+    () => templates.find((t) => String(t.id) === templateId) ?? null,
+    [templates, templateId],
+  );
+
+  useEffect(() => {
+    if (!selectedTemplate) {
+      setUsersByRole({});
+      return;
+    }
+    let cancelled = false;
+    const roles = Array.from(new Set(selectedTemplate.defaultStages.map((s) => s.role)));
+    Promise.all(roles.map((role) => UserRepository.listByRole(role).then((users) => [role, users] as const)))
+      .then((entries) => {
+        if (!cancelled) setUsersByRole(Object.fromEntries(entries));
+      })
+      .catch(() => {
+        if (!cancelled) setUsersByRole({});
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [selectedTemplate]);
 
   const reset = () => {
     setTitle("");
@@ -47,16 +77,21 @@ export function NewWorkflowDialog({
     setTemplateId("");
     setAmount("");
     setType("");
+    setStageAssignments({});
   };
 
   const handleSubmit = async () => {
     if (!title || !projectCode || !templateId) return;
+    const cleanedAssignments = Object.fromEntries(
+      Object.entries(stageAssignments).filter(([, v]) => v.trim().length > 0),
+    );
     await onSubmit({
       title,
       projectCode,
       templateId: Number(templateId),
       amount: amount ? Number(amount) : undefined,
       type: type || undefined,
+      stageAssignments: Object.keys(cleanedAssignments).length ? cleanedAssignments : undefined,
     });
     reset();
     onOpenChange(false);
@@ -95,7 +130,13 @@ export function NewWorkflowDialog({
 
           <div className="grid gap-1.5">
             <Label>Template</Label>
-            <Select value={templateId} onValueChange={setTemplateId}>
+            <Select
+              value={templateId}
+              onValueChange={(v) => {
+                setTemplateId(v);
+                setStageAssignments({});
+              }}
+            >
               <SelectTrigger className="w-full">
                 <SelectValue placeholder="Choose a workflow template" />
               </SelectTrigger>
@@ -108,6 +149,43 @@ export function NewWorkflowDialog({
               </SelectContent>
             </Select>
           </div>
+
+          {selectedTemplate && (
+            <div className="grid gap-2 rounded-lg border border-border p-3">
+              <Label className="text-xs text-muted-foreground">
+                Assign stages (optional)
+              </Label>
+              {selectedTemplate.defaultStages.map((stage, index) => {
+                const sequence = String(index + 1);
+                const candidates = usersByRole[stage.role] ?? [];
+                return (
+                  <div key={sequence} className="grid grid-cols-2 items-center gap-2">
+                    <span className="text-sm text-muted-foreground">{stage.roleLabel}</span>
+                    <Select
+                      value={stageAssignments[sequence] ?? ""}
+                      onValueChange={(v) =>
+                        setStageAssignments((prev) => ({ ...prev, [sequence]: v }))
+                      }
+                      disabled={candidates.length === 0}
+                    >
+                      <SelectTrigger className="w-full">
+                        <SelectValue
+                          placeholder={candidates.length === 0 ? "No users with this role" : "Unassigned"}
+                        />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {candidates.map((u) => (
+                          <SelectItem key={u.id} value={u.name}>
+                            {u.name}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+                );
+              })}
+            </div>
+          )}
 
           <div className="grid grid-cols-2 gap-4">
             <div className="grid gap-1.5">

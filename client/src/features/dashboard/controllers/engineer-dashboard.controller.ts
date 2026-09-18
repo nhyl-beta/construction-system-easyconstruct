@@ -6,7 +6,7 @@ import { useRequirements } from "@/features/requirements/hooks/useRequirements";
 import { EngineeringReportService } from "@/features/engineering-reports/services/engineering-report.service";
 import { RequirementService } from "@/features/requirements/services/requirement.service";
 import { useAuth } from "@/auth/auth-context";
-import { ProjectEngineerRepository } from "@/features/project-engineers/repositories/project-engineer.repository";
+import { ProjectMemberRepository } from "@/features/project-members/repositories/project-member.repository";
 
 // Composes the Engineer dashboard from real feature hooks (Projects,
 // Engineering reports, Requirements) — same pattern as
@@ -18,7 +18,7 @@ export const useEngineerDashboardController = () => {
   const requirementsState = useRequirements();
 
   // Project Assignment (checklist #3): only show projects this engineer is
-  // actually staffed on, via the project_engineers join table — the old
+  // actually staffed on, via the project_members join table — the old
   // `p.assignedEngineer` field no longer exists on the projects schema
   // (renamed away in migration 0009), so it always compared against
   // `undefined` and this KPI was permanently empty.
@@ -29,9 +29,15 @@ export const useEngineerDashboardController = () => {
       setAssignedCodes(new Set());
       return;
     }
-    ProjectEngineerRepository.listForUser(user.id)
+    ProjectMemberRepository.listForUser(user.id)
       .then((rows) => {
-        if (!cancelled) setAssignedCodes(new Set(rows.map((r) => r.projectCode)));
+        // project_members now covers every role (EC-013/017/018/024) — this
+        // dashboard only cares about the engineer's own assignments.
+        if (!cancelled) {
+          setAssignedCodes(
+            new Set(rows.filter((r) => r.role === "engineer").map((r) => r.projectCode)),
+          );
+        }
       })
       .catch(() => {
         if (!cancelled) setAssignedCodes(new Set());

@@ -16,6 +16,12 @@ export const getById = async (id: number) => {
   return project;
 };
 
+export const getByCode = async (code: string) => {
+  const project = await repo.findByCode(code);
+  if (!project) throw new NotFoundError('Project', code);
+  return project;
+};
+
 export const create = async (input: CreateProjectInput) => {
   return await repo.create(input);
 };

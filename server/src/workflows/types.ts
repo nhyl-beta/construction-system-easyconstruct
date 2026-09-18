@@ -17,6 +17,13 @@ export interface DecideStageInput {
   decidedBy: string;
 }
 
+export interface UpdateWorkflowInput {
+  title?: string;
+  projectCode?: string;
+  severity?: string;
+  type?: string;
+}
+
 export interface WorkflowWithStages {
   id: number;
   code: string;

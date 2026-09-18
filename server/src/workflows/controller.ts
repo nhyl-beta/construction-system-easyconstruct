@@ -35,6 +35,49 @@ export const getById = async (req: AuthedRequest, res: Response, next: NextFunct
   }
 };
 
+export const update = async (req: AuthedRequest, res: Response, next: NextFunction) => {
+  try {
+    const actor = req.authUser?.name ?? "unknown";
+    const data = await service.updateWorkflow(
+      Number(req.params.id),
+      req.body,
+      req.authUser?.role ?? "",
+      actor,
+    );
+    await logAudit({
+      entityType: "workflow",
+      entityId: String(data.id),
+      action: "updated",
+      actor,
+      summary: `Updated workflow "${data.title}" (${data.code})`,
+    });
+    res.json(formatSuccess(data, MSG.workflows.updated));
+  } catch (err) {
+    next(err);
+  }
+};
+
+export const remove = async (req: AuthedRequest, res: Response, next: NextFunction) => {
+  try {
+    const actor = req.authUser?.name ?? "unknown";
+    const data = await service.deleteWorkflow(
+      Number(req.params.id),
+      req.authUser?.role ?? "",
+      actor,
+    );
+    await logAudit({
+      entityType: "workflow",
+      entityId: String(data.id),
+      action: "deleted",
+      actor,
+      summary: `Deleted workflow "${data.title}" (${data.code})`,
+    });
+    res.json(formatSuccess(data, MSG.workflows.deleted));
+  } catch (err) {
+    next(err);
+  }
+};
+
 export const create = async (req: AuthedRequest, res: Response, next: NextFunction) => {
   try {
     const createdBy = req.authUser?.name ?? req.authUser?.email ?? "unknown";

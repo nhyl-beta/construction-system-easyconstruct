@@ -10,11 +10,21 @@ import {
 } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
 import { ProjectRepository } from "@/features/projects/repositories/project.repository";
+import { ProjectMemberRepository, type ProjectMemberRole } from "@/features/project-members/repositories/project-member.repository";
 import { useAuth } from "@/auth/auth-context";
 import { useUsersByRole } from "@/features/users/hooks/use-users-by-role";
 import { Calendar, Info, MapPin, UserCheck } from "lucide-react";
 import { useState } from "react";
 import { useNavigate } from "react-router";
+
+const ASSIGNABLE_TEAM_ROLES: { role: ProjectMemberRole; label: string }[] = [
+  { role: "architect", label: "Architect" },
+  { role: "engineer", label: "Engineer" },
+  { role: "site-personnel", label: "Site Personnel" },
+  { role: "consultant", label: "Consultant" },
+];
+
+type TeamSelections = Partial<Record<ProjectMemberRole, { id: number; name: string }>>;
 
 const STEPS: Step[] = [
   {
@@ -89,6 +99,9 @@ export default function ProjectCreatePage() {
     ...initialForm,
     pm: user?.name ?? "",
   }));
+  // EC-013/018: optional team assignment at creation time, one person per
+  // role — applied via project-members right after the project is created.
+  const [team, setTeam] = useState<TeamSelections>({});
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -122,7 +135,7 @@ export default function ProjectCreatePage() {
     setSubmitting(true);
     setError(null);
     try {
-      await ProjectRepository.create({
+      const created = await ProjectRepository.create({
         name: data.name.trim(),
         code: data.code.trim(),
         client: data.client,
@@ -142,6 +155,23 @@ export default function ProjectCreatePage() {
           : undefined,
         workforce: 0,
       });
+
+      const projectCode = created?.code ?? data.code.trim();
+      const assignments = Object.entries(team) as [ProjectMemberRole, { id: number; name: string }][];
+      // Best-effort: the project already exists at this point, so a failed
+      // assignment shouldn't block navigation — it can still be added from
+      // the project detail page.
+      await Promise.allSettled(
+        assignments.map(([role, person]) =>
+          ProjectMemberRepository.create({
+            projectCode,
+            userId: person.id,
+            userName: person.name,
+            role,
+          }),
+        ),
+      );
+
       navigate(projectsListRoute);
     } catch (err) {
       setError(
@@ -171,7 +201,9 @@ export default function ProjectCreatePage() {
       {step === 1 && <StepProjectInfo data={data} set={set} />}
       {step === 2 && <StepScopeSchedule />}
       {step === 3 && <StepBudget data={data} set={set} />}
-      {step === 4 && <StepTeam data={data} set={set} currentUserRole={user?.role ?? ""} />}
+      {step === 4 && (
+        <StepTeam data={data} set={set} currentUserRole={user?.role ?? ""} team={team} setTeam={setTeam} />
+      )}
       {step === 5 && <StepReview data={data} />}
     </MultiStepPage>
   );
@@ -464,6 +496,8 @@ function StepTeam({
   data,
   set,
   currentUserRole,
+  team,
+  setTeam,
 }: {
   data: ProjectFormData;
   set: <K extends keyof ProjectFormData>(
@@ -471,6 +505,8 @@ function StepTeam({
     value: ProjectFormData[K],
   ) => void;
   currentUserRole: string;
+  team: TeamSelections;
+  setTeam: (updater: (prev: TeamSelections) => TeamSelections) => void;
 }) {
   // A Project Manager creating their own project can't assign a different
   // PM — it's always them. Admin/Super Admin still assign a real PM, picked
@@ -521,7 +557,71 @@ function StepTeam({
             </Select>
           )}
         </div>
+
+        {ASSIGNABLE_TEAM_ROLES.map(({ role, label }) => (
+          <TeamRolePicker
+            key={role}
+            role={role}
+            label={label}
+            selected={team[role] ?? null}
+            onChange={(person) =>
+              setTeam((prev) => {
+                const next = { ...prev };
+                if (person) next[role] = person;
+                else delete next[role];
+                return next;
+              })
+            }
+          />
+        ))}
       </div>
+      <p className="text-xs text-muted-foreground">
+        Team assignment is optional here — the Project Manager can also add or
+        change team members later from the project's detail page.
+      </p>
+    </div>
+  );
+}
+
+function TeamRolePicker({
+  role,
+  label,
+  selected,
+  onChange,
+}: {
+  role: ProjectMemberRole;
+  label: string;
+  selected: { id: number; name: string } | null;
+  onChange: (person: { id: number; name: string } | null) => void;
+}) {
+  const { users, loading } = useUsersByRole(role);
+
+  return (
+    <div className="space-y-1.5">
+      <Label>{label}</Label>
+      <Select
+        value={selected ? String(selected.id) : ""}
+        onValueChange={(v) => {
+          const user = users.find((u) => String(u.id) === v);
+          onChange(user ? { id: user.id, name: user.name } : null);
+        }}
+      >
+        <SelectTrigger className="rounded-xl">
+          <SelectValue placeholder={loading ? "Loading…" : `Select ${label.toLowerCase()} (optional)`} />
+        </SelectTrigger>
+        <SelectContent>
+          {users.length === 0 && !loading && (
+            <div className="px-2 py-1.5 text-xs text-muted-foreground">
+              No {label.toLowerCase()}s on file
+            </div>
+          )}
+          {users.map((u) => (
+            <SelectItem key={u.id} value={String(u.id)}>
+              {u.name}
+            </SelectItem>
+          ))}
+        </SelectContent>
+      </Select>
     </div>
   );
 }

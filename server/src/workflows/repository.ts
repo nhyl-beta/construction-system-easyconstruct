@@ -84,6 +84,22 @@ export const updateWorkflowStatus = async (id: number, status: string) => {
   return updated ?? null;
 };
 
+export const updateWorkflow = async (id: number, data: Partial<typeof workflows.$inferInsert>) => {
+  const [updated] = await db
+    .update(workflows)
+    .set({ ...data, updatedAt: new Date() })
+    .where(eq(workflows.id, id))
+    .returning();
+  return updated ?? null;
+};
+
+// workflow_stages.workflow_id has onDelete: "cascade" — deleting the
+// workflow row cascades the stage rows automatically.
+export const deleteWorkflow = async (id: number) => {
+  const [deleted] = await db.delete(workflows).where(eq(workflows.id, id)).returning();
+  return deleted ?? null;
+};
+
 // ── Stages ─────────────────────────────────────────────────────────────────
 
 export const findStageById = async (id: number) => {

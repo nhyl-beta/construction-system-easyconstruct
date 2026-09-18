@@ -4,14 +4,16 @@ import { formatSuccess } from "../utils/response.js";
 import { logAudit } from "../utils/audit.js";
 import type { AuthedRequest } from "../middleware/auth.js";
 import * as service from "./service.js";
+import type { ProjectMemberRole } from "./types.js";
 
 export const getAll = async (req: AuthedRequest, res: Response, next: NextFunction) => {
   try {
     const data = await service.getAll({
       projectCode: req.query.projectCode as string,
       userId: req.query.userId ? Number(req.query.userId) : undefined,
+      role: req.query.role as ProjectMemberRole | undefined,
     });
-    res.json(formatSuccess(data, "Project engineers retrieved"));
+    res.json(formatSuccess(data, "Project members retrieved"));
   } catch (err) {
     next(err);
   }
@@ -19,18 +21,22 @@ export const getAll = async (req: AuthedRequest, res: Response, next: NextFuncti
 
 export const create = async (req: AuthedRequest, res: Response, next: NextFunction) => {
   try {
-    const data = await service.create({
-      ...req.body,
-      addedBy: req.authUser?.name ?? "unknown",
-    });
+    const data = await service.create(
+      {
+        ...req.body,
+        addedBy: req.authUser?.name ?? "unknown",
+      },
+      req.authUser?.role ?? "",
+      req.authUser?.name ?? "",
+    );
     await logAudit({
-      entityType: "project_engineer",
+      entityType: "project_member",
       entityId: String(data.id),
       action: "created",
       actor: req.authUser?.name ?? "unknown",
-      summary: `Marked ${data.userName} available on project ${data.projectCode}`,
+      summary: `Added ${data.userName} to project ${data.projectCode} as ${data.role}`,
     });
-    res.status(HTTP.CREATED).json(formatSuccess(data, "Project engineer added"));
+    res.status(HTTP.CREATED).json(formatSuccess(data, "Project member added"));
   } catch (err) {
     next(err);
   }
@@ -38,15 +44,19 @@ export const create = async (req: AuthedRequest, res: Response, next: NextFuncti
 
 export const remove = async (req: AuthedRequest, res: Response, next: NextFunction) => {
   try {
-    const data = await service.remove(Number(req.params.id));
+    const data = await service.remove(
+      Number(req.params.id),
+      req.authUser?.role ?? "",
+      req.authUser?.name ?? "",
+    );
     await logAudit({
-      entityType: "project_engineer",
+      entityType: "project_member",
       entityId: String(req.params.id),
       action: "deleted",
       actor: req.authUser?.name ?? "unknown",
-      summary: `Removed ${data.userName} from project ${data.projectCode}`,
+      summary: `Removed ${data.userName} (${data.role}) from project ${data.projectCode}`,
     });
-    res.json(formatSuccess(data, "Project engineer removed"));
+    res.json(formatSuccess(data, "Project member removed"));
   } catch (err) {
     next(err);
   }

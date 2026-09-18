@@ -13,3 +13,12 @@ export const decideStageSchema = z.object({
   decision: z.enum(["approve", "reject", "revise"]),
   comments: z.string().max(1000).optional(),
 });
+
+// Title/projectCode/severity/type only — stage reassignment goes through
+// stageAssignments on create, and decisions go through decideStageSchema.
+export const updateWorkflowSchema = z.object({
+  title: z.string().min(2).max(255).optional(),
+  projectCode: z.string().min(1).max(50).optional(),
+  severity: z.enum(["low", "medium", "high"]).optional(),
+  type: z.string().max(50).optional(),
+});

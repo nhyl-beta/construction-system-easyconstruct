@@ -28,6 +28,14 @@ export const findAll = async (filters: ProjectFilters = {}) => {
     : await db.select().from(projects);
 };
 
+export const findByCode = async (code: string) => {
+  const [project] = await db
+    .select()
+    .from(projects)
+    .where(eq(projects.code, code));
+  return project ?? null;
+};
+
 export const findById = async (id: number) => {
   const [project] = await db
     .select()

@@ -58,6 +58,13 @@ export interface CreateWorkflowInput {
   stageAssignments?: Record<string, string>;
 }
 
+export interface UpdateWorkflowInput {
+  title?: string;
+  projectCode?: string;
+  severity?: "low" | "medium" | "high";
+  type?: string;
+}
+
 export type Decision = "approve" | "reject" | "revise";
 
 export interface DecideStageInput {
