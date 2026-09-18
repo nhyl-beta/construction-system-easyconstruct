@@ -1,3 +1,4 @@
+import os from "node:os";
 import path from "node:path";
 import express from "express";
 import designReviewsRoutes from "../src/designs/design-reviews/routes.js";
@@ -51,10 +52,9 @@ app.use(logger);
 app.use(
   "/uploads",
   express.static(
-    path.resolve(
-      process.cwd(),
-      "uploads",
-    ),
+    process.env.VERCEL
+      ? path.join(os.tmpdir(), "uploads")
+      : path.resolve(process.cwd(), "uploads"),
   ),
 );
 

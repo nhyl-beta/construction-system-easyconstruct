@@ -1,12 +1,13 @@
 import multer from "multer";
+import os from "node:os";
 import path from "node:path";
 import fs from "node:fs";
 
-const uploadDirectory = path.resolve(
-  process.cwd(),
-  "uploads",
-  "documents",
-);
+// Vercel's serverless functions only allow writes under os.tmpdir();
+// the rest of the deployment bundle is a read-only filesystem.
+const uploadDirectory = process.env.VERCEL
+  ? path.join(os.tmpdir(), "uploads", "documents")
+  : path.resolve(process.cwd(), "uploads", "documents");
 
 fs.mkdirSync(uploadDirectory, {
   recursive: true,
