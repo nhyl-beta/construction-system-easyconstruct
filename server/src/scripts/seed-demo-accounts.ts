@@ -1,0 +1,145 @@
+import bcrypt from "bcryptjs";
+import { eq, or } from "drizzle-orm";
+
+import { db } from "../db/connection.js";
+import { employees } from "../db/schema/employees.js";
+import { users } from "../db/schema/users.js";
+import { workflowTemplates } from "../db/schema/workflows.js";
+
+const PASSWORD = "Demo@12345";
+
+const ACCOUNTS = [
+  { name: "Sam Cruz", email: "superadmin@easyconstruct.demo", role: "super-admin", employeeRole: "Super Admin", department: "Administration" },
+  { name: "Dana Reyes", email: "admin@easyconstruct.demo", role: "admin", employeeRole: "Admin", department: "Administration" },
+  { name: "Miguel Santos", email: "pm@easyconstruct.demo", role: "project-manager", employeeRole: "Project Manager", department: "Project Management" },
+  { name: "Liza Torres", email: "hr@easyconstruct.demo", role: "human-resources", employeeRole: "HR Officer", department: "Human Resources" },
+  { name: "Carlo Ramos", email: "finance@easyconstruct.demo", role: "finance-manager", employeeRole: "Finance Manager", department: "Finance" },
+  { name: "Ana Villanueva", email: "architect@easyconstruct.demo", role: "architect", employeeRole: "Architect", department: "Design" },
+  { name: "Paolo Mendoza", email: "engineer@easyconstruct.demo", role: "engineer", employeeRole: "Site Engineer", department: "Engineering" },
+  { name: "Rico Domingo", email: "site@easyconstruct.demo", role: "site-personnel", employeeRole: "Construction Worker", department: "Field Operations" },
+  { name: "Elena Bautista", email: "consultant@easyconstruct.demo", role: "consultant", employeeRole: "Consultant", department: "Advisory" },
+] as const;
+
+const TEMPLATES = [
+  {
+    name: "Design Proposal Approval",
+    description: "Architect submits a design; Consultant reviews it; PM signs off.",
+    avgDurationHours: "48.0",
+    defaultStages: [
+      { role: "architect", roleLabel: "Architect Submission", iconKey: "FileSignature" },
+      { role: "consultant", roleLabel: "Consultant Review", iconKey: "UserCheck" },
+      { role: "project-manager", roleLabel: "PM Approval", iconKey: "ShieldCheck" },
+    ],
+  },
+  {
+    name: "Budget Change Request",
+    description: "Engineer justifies a change; Finance reviews cost impact; PM and Admin sign off.",
+    avgDurationHours: "72.0",
+    defaultStages: [
+      { role: "engineer", roleLabel: "Engineer Justification", iconKey: "FileSignature" },
+      { role: "finance-manager", roleLabel: "Finance Review", iconKey: "Wallet" },
+      { role: "project-manager", roleLabel: "PM Sign-off", iconKey: "ShieldCheck" },
+      { role: "admin", roleLabel: "Admin Final Approval", iconKey: "ShieldCheck" },
+    ],
+  },
+] as const;
+
+function initials(name: string) {
+  return name
+    .split(/\s+/)
+    .map((part) => part[0] ?? "")
+    .join("")
+    .slice(0, 2)
+    .toUpperCase();
+}
+
+async function main() {
+  const password = await bcrypt.hash(PASSWORD, 10);
+  let createdUsers = 0;
+  let createdEmployees = 0;
+
+  await db.transaction(async (tx) => {
+    for (const [index, account] of ACCOUNTS.entries()) {
+      let [user] = await tx
+        .select()
+        .from(users)
+        .where(eq(users.email, account.email));
+
+      if (!user) {
+        [user] = await tx
+          .insert(users)
+          .values({
+            name: account.name,
+            email: account.email,
+            password,
+            role: account.role,
+          })
+          .returning();
+        createdUsers++;
+        console.log(`created user: ${account.email}`);
+      } else {
+        console.log(`skip user (exists): ${account.email}`);
+      }
+
+      if (!user) throw new Error(`Failed to create or find ${account.email}`);
+
+      const [employee] = await tx
+        .select()
+        .from(employees)
+        .where(
+          or(
+            eq(employees.userId, user.id),
+            eq(employees.email, account.email),
+          ),
+        );
+
+      if (employee) {
+        if (employee.userId !== user.id) {
+          await tx
+            .update(employees)
+            .set({ userId: user.id, updatedAt: new Date() })
+            .where(eq(employees.id, employee.id));
+        }
+        console.log(`skip employee (exists): ${account.email}`);
+        continue;
+      }
+
+      await tx.insert(employees).values({
+        employeeId: `EMP-DEMO-${String(index + 1).padStart(2, "0")}`,
+        name: account.name,
+        initials: initials(account.name),
+        role: account.employeeRole,
+        department: account.department,
+        site: "Main Site",
+        hiredOn: new Date().toISOString().slice(0, 10),
+        email: account.email,
+        userId: user.id,
+      });
+      createdEmployees++;
+      console.log(`created employee: ${account.email}`);
+    }
+
+    for (const template of TEMPLATES) {
+      const [existing] = await tx
+        .select()
+        .from(workflowTemplates)
+        .where(eq(workflowTemplates.name, template.name));
+
+      if (existing) {
+        console.log(`skip workflow template (exists): ${template.name}`);
+        continue;
+      }
+
+      await tx.insert(workflowTemplates).values(template);
+      console.log(`created workflow template: ${template.name}`);
+    }
+  });
+
+  console.log(`\nDone. Created ${createdUsers} users and ${createdEmployees} employees.`);
+  console.log(`Password for demo accounts: ${PASSWORD}`);
+}
+
+main().catch((error) => {
+  console.error(error);
+  process.exitCode = 1;
+});

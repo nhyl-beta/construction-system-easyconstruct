@@ -331,16 +331,16 @@ export const ROLE_CONFIGS: Record<string, RoleConfig> = {
         items: [
           { label: "Dashboard", icon: LayoutDashboard, route: "/dashboard" },
           { label: "Designs", icon: Layers, route: "/dashboard" },
-          { label: "Blueprints", icon: NotepadTextDashed, route: "/dashboard" },
+          { label: "Blueprints", icon: NotepadTextDashed, route: "/blueprints" },
         ],
       },
 
       {
         label: "Collaboration",
         items: [
-          { label: "Reviews", icon: BadgeCheck, route: "/dashboard" }, // TODO: no reviews page yet
-          { label: "Revisions", icon: SquarePen, route: "/dashboard" }, // TODO: no revisions page yet
-          { label: "Documentation", icon: BarChart2, route: "/dashboard" }, // TODO: no documentation page yet
+          { label: "Reviews", icon: BadgeCheck, route: "/reviews" },
+          { label: "Revisions", icon: SquarePen, route: "/revisions" },
+          { label: "Documentation", icon: BarChart2, route: "/architect/documents" },
           { label: "AI Function", icon: BarChart2, route: "/impact-awareness" },
         ],
       },
