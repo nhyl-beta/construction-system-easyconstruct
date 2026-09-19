@@ -1,17 +1,4 @@
 export const ROLE_RESOURCE_ACCESS: Record<string, string[]> = {
-  super_admin: [
-    "dashboard",
-    "admin-projects",
-    "admin-workflows",
-    "admin-documents",
-    "admin-activity-logs",
-    "admin-security",
-    "admin-notifications",
-    "admin-roles-permissions",
-    "admin-workflow-configuration",
-    "admin-approval-hierarchy",
-    "admin-support",
-  ],
   admin: [
     "dashboard",
     "admin-projects",
@@ -28,6 +15,7 @@ export const ROLE_RESOURCE_ACCESS: Record<string, string[]> = {
   owner: [
     "dashboard",
     "owner-portfolio",
+    "owner-proposals",
     "owner-audit-trail",
     "owner-oversight",
     "reports",
@@ -36,6 +24,13 @@ export const ROLE_RESOURCE_ACCESS: Record<string, string[]> = {
   it_designer: [
     "dashboard",
     "it-designer-users",
+    "it-designer-proposals",
+    // Absorbed from the former Super Admin role.
+    "admin-projects",
+    "admin-workflows",
+    "admin-documents",
+    "admin-workflow-configuration",
+    "admin-approval-hierarchy",
     "it-designer-roles-permissions",
     "it-designer-activity-logs",
     "it-designer-security",
@@ -95,9 +90,10 @@ export const ROLE_RESOURCE_ACCESS: Record<string, string[]> = {
   consultant: [
     "dashboard",
     "proposals",
+    "consultant-designs",
     "advisory-docs",
     "approvals",
-    "projects",
+    "consultant-projects",
     "ai-insights",
   ],
 };

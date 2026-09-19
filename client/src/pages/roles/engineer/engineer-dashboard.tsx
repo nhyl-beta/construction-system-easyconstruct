@@ -1,4 +1,11 @@
-import { AlertTriangle, ClipboardList, FolderKanban, ListChecks } from "lucide-react";
+import {
+  AlertTriangle,
+  CheckCircle2,
+  ClipboardList,
+  FolderKanban,
+  ListChecks,
+  TrendingUp,
+} from "lucide-react";
 
 import { PageContainer } from "@/components/refine-ui/views/page-container";
 import { PageHeader } from "@/components/refine-ui/views/page-header";
@@ -54,6 +61,44 @@ export default function EngineerDashboardPage() {
               icon: ListChecks,
               tone: c.requirements.pending > 0 ? "warn" : "neutral",
               hint: `${c.requirements.total} on file`,
+            },
+          ]}
+        />
+
+        {/* Issue + progress analytics, from /api/issues and the engineer's
+            own assigned projects — no new backend endpoint needed. */}
+        <KpiStrip
+          items={[
+            {
+              label: "Open issues",
+              value: c.loading ? "…" : `${c.issues.open}`,
+              icon: AlertTriangle,
+              tone: c.issues.open > 0 ? "bad" : "good",
+              hint: `${c.issues.underReview} under review`,
+            },
+            {
+              label: "Issue resolution rate",
+              value: c.loading ? "…" : `${c.issues.resolutionRate}%`,
+              icon: CheckCircle2,
+              tone:
+                c.issues.resolutionRate >= 80
+                  ? "good"
+                  : c.issues.resolutionRate >= 50
+                  ? "warn"
+                  : "bad",
+              hint: `${c.issues.resolved} of ${c.issues.total} resolved`,
+            },
+            {
+              label: "Average progress",
+              value: c.loading ? "…" : `${c.averageProgress}%`,
+              icon: TrendingUp,
+              hint: "across your projects",
+            },
+            {
+              label: "Issues reported",
+              value: c.loading ? "…" : `${c.issues.total}`,
+              icon: ListChecks,
+              hint: "on your projects",
             },
           ]}
         />

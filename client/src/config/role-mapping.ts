@@ -1,5 +1,7 @@
+// NOTE: "super-admin" is intentionally absent — the role was merged into
+// "it-designer". Any token still carrying it falls through toFrontendRole()
+// unchanged and lands on the default role config.
 export const BACKEND_TO_FRONTEND_ROLE: Record<string, string> = {
-  "super-admin": "super_admin",
   admin: "admin",
   owner: "owner",
   "it-designer": "it_designer",

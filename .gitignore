@@ -4,3 +4,7 @@ docs/
 # Uploaded advisory documents
 server/uploads/documents
 !server/uploads/documents/.gitkeep
+
+# Locally-stored uploads (design files, photos, task evidence) — written
+# when no Vercel Blob store is usable; see server/src/uploads/service.ts
+server/uploads/generic

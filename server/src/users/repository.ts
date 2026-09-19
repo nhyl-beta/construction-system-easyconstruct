@@ -53,3 +53,17 @@ export const setActive = async (id: number, isActive: boolean) => {
     .returning(PUBLIC_COLUMNS);
   return updated ?? null;
 };
+
+/**
+ * Hard delete. Callers must have checked references first
+ * (service.remove) — this does not cascade, so a surviving FK will
+ * surface as a Postgres foreign-key violation rather than silently
+ * orphaning an employee record or a project membership.
+ */
+export const remove = async (id: number) => {
+  const [deleted] = await db
+    .delete(users)
+    .where(eq(users.id, id))
+    .returning(PUBLIC_COLUMNS);
+  return deleted ?? null;
+};

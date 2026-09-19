@@ -3,11 +3,11 @@ import * as projectsService from "../projects/service.js";
 import * as repo from "./repository.js";
 import type { CreateProjectMemberInput, ProjectMemberFilters } from "./types.js";
 
-const PRIVILEGED_ROLES = ["admin", "super-admin"];
+const PRIVILEGED_ROLES = ["admin", "it-designer"];
 
 // Same ownership rule as the documents PM-scoping fix: a project-manager may
 // only mutate assignments on a project they actually manage (projects.pm).
-// Admin/super-admin bypass this, same as everywhere else in the app.
+// Admin/IT Designer bypass this, same as everywhere else in the app.
 const assertCanManageProject = async (projectCode: string, requesterRole: string, requesterName: string) => {
   if (PRIVILEGED_ROLES.includes(requesterRole)) return;
   const project = await projectsService.getByCode(projectCode);

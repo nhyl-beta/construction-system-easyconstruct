@@ -43,6 +43,20 @@ export function errorMiddleware(
     return;
   }
 
+  // body-parser rejecting an oversized JSON body (a base64 upload past the
+  // limit set in app.ts). Without this it reached the generic branch below
+  // and reported as a 500, which read as a server crash rather than "your
+  // file is too big".
+  if ((err as { type?: string }).type === "entity.too.large") {
+    res.status(413).json(
+      formatError(
+        "The uploaded file is too large. Maximum size is 8 MB.",
+        "FILE_TOO_LARGE",
+      ),
+    );
+    return;
+  }
+
   if (err instanceof AppError) {
     res.status(err.statusCode).json(formatError(err.message, err.code));
     return;

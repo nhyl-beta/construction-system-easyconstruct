@@ -20,24 +20,24 @@ router.get("/:id", controller.getById);
 
 router.post(
   "/",
-  requireRole("project-manager", "admin", "super-admin"),
+  requireRole("project-manager", "admin", "it-designer"),
   validate(createWorkflowSchema),
   controller.create,
 );
 
-// Route-level gate is "who may ever call this" (PM/admin/super-admin);
+// Route-level gate is "who may ever call this" (PM/admin/it-designer);
 // "who may call it on THIS workflow" (creator, or admin bypass) is
 // enforced in service.assertCanManageWorkflow.
 router.patch(
   "/:id",
-  requireRole("project-manager", "admin", "super-admin"),
+  requireRole("project-manager", "admin", "it-designer"),
   validate(updateWorkflowSchema),
   controller.update,
 );
 
 router.delete(
   "/:id",
-  requireRole("project-manager", "admin", "super-admin"),
+  requireRole("project-manager", "admin", "it-designer"),
   controller.remove,
 );
 
@@ -51,7 +51,7 @@ router.patch(
     "engineer",
     "consultant",
     "admin",
-    "super-admin",
+    "it-designer",
   ),
   validate(decideStageSchema),
   controller.decideStage,

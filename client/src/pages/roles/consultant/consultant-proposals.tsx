@@ -15,6 +15,11 @@ import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { StatusBadge } from "@/components/ui/status-badge";
 import { apiClient } from "@/services/api.client";
+import { ConfirmDialog } from "@/components/ui/confirm-dialog";
+import {
+  PROPOSAL_DECISIONS,
+  findProposalDecision,
+} from "@/features/proposals/lib/proposal-decisions";
 
 /*
  * ============================================================
@@ -92,6 +97,12 @@ export default function ConsultantProposalsPage() {
 
   const [reviewing, setReviewing] =
     useState(false);
+
+  // Approve / Request Revision / Reject are irreversible once submitted —
+  // the proposal's status and reviewer are overwritten with no undo — so the
+  // decision is confirmed first. Same guard as IT Designer's review screen.
+  const [pendingDecision, setPendingDecision] =
+    useState<ReviewStatus | null>(null);
 
   /*
    * ----------------------------------------------------------
@@ -628,60 +639,22 @@ export default function ConsultantProposalsPage() {
                 {/* Decision Buttons */}
 
                 <div className="flex flex-wrap gap-3">
-
-                  {/* APPROVE */}
-
-                  <Button
-                    type="button"
-                    disabled={reviewing}
-                    onClick={() =>
-                      reviewProposal(
-                        selectedProposal,
-                        "Approved",
-                      )
-                    }
-                    className="gap-2"
-                  >
-                    <Check className="h-4 w-4" />
-
-                    Approve
-                  </Button>
-
-                  {/* REQUEST REVISION */}
-
-                  <Button
-                    type="button"
-                    variant="outline"
-                    disabled={reviewing}
-                    onClick={() =>
-                      reviewProposal(
-                        selectedProposal,
-                        "Revision Requested",
-                      )
-                    }
-                  >
-                    Request Revision
-                  </Button>
-
-                  {/* REJECT */}
-
-                  <Button
-                    type="button"
-                    variant="destructive"
-                    disabled={reviewing}
-                    onClick={() =>
-                      reviewProposal(
-                        selectedProposal,
-                        "Rejected",
-                      )
-                    }
-                    className="gap-2"
-                  >
-                    <X className="h-4 w-4" />
-
-                    Reject
-                  </Button>
-
+                  {PROPOSAL_DECISIONS.map((decision) => {
+                    const Icon = decision.icon;
+                    return (
+                      <Button
+                        key={decision.status}
+                        type="button"
+                        variant={decision.variant}
+                        disabled={reviewing}
+                        onClick={() => setPendingDecision(decision.status)}
+                        className="gap-2"
+                      >
+                        <Icon className="h-4 w-4" />
+                        {decision.label}
+                      </Button>
+                    );
+                  })}
                 </div>
 
                 {/* Loading */}
@@ -918,6 +891,38 @@ export default function ConsultantProposalsPage() {
         )}
 
       </PageContent>
+
+      <ConfirmDialog
+        open={pendingDecision !== null}
+        onOpenChange={(open) => !open && setPendingDecision(null)}
+        title={
+          pendingDecision
+            ? findProposalDecision(pendingDecision)?.confirmTitle ?? "Submit review?"
+            : ""
+        }
+        description={
+          pendingDecision
+            ? findProposalDecision(pendingDecision)?.confirmDescription
+            : undefined
+        }
+        confirmLabel={
+          pendingDecision
+            ? findProposalDecision(pendingDecision)?.label ?? "Confirm"
+            : "Confirm"
+        }
+        destructive={
+          pendingDecision
+            ? findProposalDecision(pendingDecision)?.destructive ?? false
+            : false
+        }
+        loading={reviewing}
+        onConfirm={() => {
+          if (!selectedProposal || !pendingDecision) return;
+          const decision = pendingDecision;
+          setPendingDecision(null);
+          void reviewProposal(selectedProposal, decision);
+        }}
+      />
 
     </PageContainer>
   );

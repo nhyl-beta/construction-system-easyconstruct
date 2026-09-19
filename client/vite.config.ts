@@ -14,6 +14,12 @@ export default defineConfig({
   server: {
     proxy: {
       "/api": "http://localhost:8000",
+      // Uploaded files are served as static assets by the API
+      // (app.use("/uploads", express.static(...))). Without this, a stored
+      // "/uploads/documents/x.pdf" link hit Vite instead, fell through to the
+      // SPA shell, and rendered the catch-all "Page Not Found" — or bounced to
+      // /login, since a new tab has no sessionStorage token.
+      "/uploads": "http://localhost:8000",
     },
   },
 });

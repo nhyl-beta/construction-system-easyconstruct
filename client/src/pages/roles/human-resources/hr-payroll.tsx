@@ -37,11 +37,14 @@ import {
   RefreshCw,
   Wallet,
 } from "lucide-react";
+import { ProjectPicker } from "@/components/shared/project-picker";
+import { downloadCsv } from "@/lib/export-csv";
+import { formatCompactCurrency } from "@/lib/format-currency";
+import { PayrollPeriodPicker } from "@/components/shared/payroll-period-picker";
 
+// Delegates to the shared peso formatter — this used to hardcode "$".
 function money(n: number) {
-  if (Math.abs(n) >= 1_000_000) return `$${(n / 1_000_000).toFixed(2)}M`;
-  if (Math.abs(n) >= 1_000) return `$${(n / 1_000).toFixed(0)}K`;
-  return `$${n.toLocaleString()}`;
+  return formatCompactCurrency(n);
 }
 
 function batchStatusLabel(status: string) {
@@ -70,6 +73,27 @@ export default function HRPayrollPage() {
   const [hoursInput, setHoursInput] = useState("160");
   const [overtimeInput, setOvertimeInput] = useState("0");
   const [showGenerateForm, setShowGenerateForm] = useState(false);
+
+  // The Export button was rendered with no handler at all — clicking it did
+  // nothing. Exports the tracksheet currently on screen.
+  const handleExportCsv = () => {
+    downloadCsv(
+      "payroll-tracksheet",
+      ["Employee ID", "Name", "Role", "Period", "Hours", "Overtime", "Gross", "Deductions", "Net", "Status"],
+      rows.map((r) => [
+        r.empId,
+        r.name,
+        r.role,
+        r.period,
+        r.hours,
+        r.overtime,
+        r.gross,
+        r.deductions,
+        r.net,
+        r.status,
+      ]),
+    );
+  };
   const [generating, setGenerating] = useState(false);
 
   const loadPayroll = async () => {
@@ -200,7 +224,14 @@ export default function HRPayrollPage() {
               />
               {refreshing ? "Refreshing…" : "Refresh Status"}
             </Button>
-            <Button size="sm" variant="outline" className="rounded-xl">
+            <Button
+              size="sm"
+              variant="outline"
+              className="rounded-xl"
+              disabled={rows.length === 0}
+              title={rows.length === 0 ? "No payroll lines to export" : "Export the tracksheet as CSV"}
+              onClick={handleExportCsv}
+            >
               <Download className="h-4 w-4" /> Export
             </Button>
             <Button
@@ -233,13 +264,10 @@ export default function HRPayrollPage() {
             </p>
           </CardHeader>
           <CardContent className="grid gap-4 md:grid-cols-5">
-            <input
-              className="h-9 rounded-md border bg-background px-3 text-sm"
-              placeholder="Period"
+            <PayrollPeriodPicker
               value={periodInput}
-              onChange={(event) =>
-                setPeriodInput(event.target.value)
-              }
+              onChange={setPeriodInput}
+              className="h-9 rounded-md border bg-background px-3 text-sm"
             />
             <input
               className="h-9 rounded-md border bg-background px-3 text-sm"
@@ -249,13 +277,11 @@ export default function HRPayrollPage() {
                 setGroupInput(event.target.value)
               }
             />
-            <input
-              className="h-9 rounded-md border bg-background px-3 text-sm"
-              placeholder="Project code"
+            <ProjectPicker
               value={projectCodeInput}
-              onChange={(event) =>
-                setProjectCodeInput(event.target.value)
-              }
+              onChange={setProjectCodeInput}
+              placeholder="Project code"
+              className="h-9 rounded-md border bg-background px-3 text-sm"
             />
             <input
               className="h-9 rounded-md border bg-background px-3 text-sm"

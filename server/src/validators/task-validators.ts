@@ -16,6 +16,21 @@ export const createTaskSchema = z.object({
 
 export const updateTaskSchema = createTaskSchema.partial();
 
-export const updateTaskStatusSchema = z.object({
-  status: z.enum(["Pending", "In Progress", "Completed"]),
-});
+// Completing a task now carries evidence: a note describing what was done,
+// and optionally a photo/document. The note is only mandatory on the
+// transition to Completed — moving Pending → In Progress stays a bare flip.
+export const updateTaskStatusSchema = z
+  .object({
+    status: z.enum(["Pending", "In Progress", "Completed"]),
+    completionNote: z.string().max(2000).optional(),
+    completionFileUrl: z.string().max(500).optional(),
+  })
+  .refine(
+    (data) =>
+      data.status !== "Completed" ||
+      (data.completionNote?.trim().length ?? 0) > 0,
+    {
+      path: ["completionNote"],
+      message: "Describe what was completed before marking the task done",
+    },
+  );

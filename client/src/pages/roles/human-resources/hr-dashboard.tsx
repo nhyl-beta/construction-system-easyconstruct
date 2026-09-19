@@ -470,7 +470,7 @@ function OverviewSection() {
               <div className="flex items-end justify-between">
                 <div>
                   <div className="text-3xl font-semibold tracking-tight">
-                    $2.84M
+                    ₱2.84M
                   </div>
                   <div className="text-xs text-muted-foreground">
                     Gross labor (period)
@@ -912,19 +912,19 @@ function PayrollSection() {
       <div className="grid grid-cols-2 gap-3 md:grid-cols-4">
         <KpiMini
           label="Gross labor (period)"
-          value="$2.84M"
+          value="₱2.84M"
           tone="info"
           icon={Wallet}
         />
         <KpiMini
           label="Net payable"
-          value="$2.28M"
+          value="₱2.28M"
           tone="success"
           icon={CheckCircle2}
         />
         <KpiMini
           label="Overtime cost"
-          value="$184K"
+          value="₱184K"
           tone="warning"
           icon={Clock}
         />
@@ -1025,7 +1025,7 @@ function PayrollSection() {
             <div className="rounded-xl border bg-muted/30 p-4">
               <div className="text-xs text-muted-foreground">Total payable</div>
               <div className="mt-1 text-2xl font-semibold tracking-tight">
-                $2,284,910
+                ₱2,284,910
               </div>
               <div className="mt-2 text-[11px] text-success">
                 +4.1% vs prev period
@@ -1033,10 +1033,10 @@ function PayrollSection() {
             </div>
             <div className="space-y-3">
               {[
-                { label: "Base wages", value: 78, amount: "$2.21M" },
-                { label: "Overtime", value: 6, amount: "$184K" },
-                { label: "Bonuses", value: 4, amount: "$112K" },
-                { label: "Deductions", value: 12, amount: "$336K" },
+                { label: "Base wages", value: 78, amount: "₱2.21M" },
+                { label: "Overtime", value: 6, amount: "₱184K" },
+                { label: "Bonuses", value: 4, amount: "₱112K" },
+                { label: "Deductions", value: 12, amount: "₱336K" },
               ].map((s) => (
                 <div key={s.label}>
                   <div className="flex items-center justify-between text-xs">

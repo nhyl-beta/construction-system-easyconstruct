@@ -7,6 +7,7 @@ import { eq } from "drizzle-orm";
 import { db } from "../db/connection.js";
 import { projects } from "../db/schema/projects.js";
 import {
+  ForbiddenError,
   NotFoundError,
   ValidationError,
 } from "../utils/errors.js";
@@ -242,6 +243,51 @@ export const create = async (
       input.attendanceStatus ?? "Present",
     hours,
   } as Parameters<typeof repo.create>[0]);
+};
+
+/**
+ * Ownership + field scoping for Site Personnel.
+ *
+ * A worker may PATCH attendance only to close out their own still-open
+ * record for that day. Everything else on this endpoint (editing hours,
+ * flipping attendance status, back-dating) stays with HR/PM/Admin — the
+ * route-level guard lets Site Personnel in, this decides what they may do
+ * once inside.
+ */
+const SITE_PERSONNEL_UPDATABLE_FIELDS = new Set(["clockOut"]);
+
+export const assertCanUpdateAttendance = async (
+  record: { employeeId: string; clockOut: string | null },
+  input: UpdateAttendanceInput,
+  actor: { role: string; employeeId: string | null },
+) => {
+  if (actor.role !== "site-personnel") return;
+
+  if (!actor.employeeId || record.employeeId !== actor.employeeId) {
+    throw new ForbiddenError(
+      "You can only update your own attendance record",
+    );
+  }
+
+  const attemptedFields = Object.keys(input).filter(
+    (key) => input[key as keyof UpdateAttendanceInput] !== undefined,
+  );
+
+  const disallowed = attemptedFields.filter(
+    (field) => !SITE_PERSONNEL_UPDATABLE_FIELDS.has(field),
+  );
+
+  if (disallowed.length > 0) {
+    throw new ForbiddenError(
+      `You can only clock out; ask HR to change ${disallowed.join(", ")}`,
+    );
+  }
+
+  if (record.clockOut) {
+    throw new ValidationError(
+      "You have already clocked out of this record",
+    );
+  }
 };
 
 /**

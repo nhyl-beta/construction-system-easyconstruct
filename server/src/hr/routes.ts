@@ -13,7 +13,7 @@ import {
 const router = Router();
 
 router.use(authenticate);
-router.use(requireRole("human-resources", "admin", "super-admin"));
+router.use(requireRole("human-resources", "admin", "it-designer"));
 
 router.get("/employees", controller.listEmployees);
 router.post("/employees", validate(createEmployeeSchema), controller.createEmployee);

@@ -21,6 +21,7 @@ import {
 import { useEffect, useMemo, useState } from "react";
 import { listAttendance, type AttendanceEntry } from "@/features/hr/attendance-api";
 import { listEmployees } from "@/features/hr/hr-api";
+import { openFileUrl } from "@/lib/file-url";
 
 import { Camera, CheckCircle2, Clock, MapPin, ShieldCheck } from "lucide-react";
 
@@ -186,7 +187,7 @@ export default function HRAttendancePage() {
                         type="button"
                         disabled={!l.photoUrl}
                         title={l.photoUrl ? "View clock-in photo" : "No photo on file"}
-                        onClick={() => l.photoUrl && window.open(l.photoUrl, "_blank", "noopener,noreferrer")}
+                        onClick={() => openFileUrl(l.photoUrl)}
                         className={l.photoUrl ? "cursor-pointer" : "cursor-not-allowed opacity-70"}
                       >
                         <Badge

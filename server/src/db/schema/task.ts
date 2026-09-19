@@ -21,6 +21,13 @@ export const tasks = pgTable("tasks", {
   dueDate: varchar("due_date", { length: 20 }),
   assignedToUserId: integer("assigned_to_user_id").references(() => users.id),
   assignedToName: varchar("assigned_to_name", { length: 100 }), // denormalized display fallback
+  // Completion evidence. A status flip alone recorded that work finished but
+  // nothing about what was done, so field work could not be reviewed after
+  // the fact; the note is required when moving to Completed, the attachment
+  // is optional (see tasks/service.ts updateStatus).
+  completionNote: text("completion_note"),
+  completionFileUrl: varchar("completion_file_url", { length: 500 }),
+  completedAt: timestamp("completed_at"),
   createdAt: timestamp("created_at").defaultNow(),
   updatedAt: timestamp("updated_at").defaultNow(),
 });

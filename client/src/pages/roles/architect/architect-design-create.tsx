@@ -18,6 +18,8 @@ import {
   type DesignFormData,
 } from "@/features/designs/hooks/useDesignCreate.ts";
 import { useProjectMembers } from "@/features/project-members/hooks/use-project-members";
+import { resolveFileUrl } from "@/lib/file-url";
+import { Checkbox } from "@/components/ui/checkbox";
 
 const STEPS: Step[] = [
   {
@@ -408,36 +410,54 @@ function StepTeam({
           />
         </div>
         <div className="space-y-1.5">
-          <Label>Assigned engineer</Label>
+          <Label>Assigned engineers</Label>
           {!data.projectCode ? (
             <p className="text-xs text-muted-foreground">
               Pick a project first (Step 2).
             </p>
           ) : (
-            <Select
-              value={data.assignedEngineerId ? String(data.assignedEngineerId) : ""}
-              onValueChange={(v) => {
-                const engineer = engineers.find((e) => String(e.userId) === v);
-                set("assignedEngineerId", engineer?.userId ?? null);
-                set("assignedEngineerName", engineer?.userName ?? "");
-              }}
-            >
-              <SelectTrigger className="rounded-xl">
-                <SelectValue placeholder={engineersLoading ? "Loading…" : "Select engineer"} />
-              </SelectTrigger>
-              <SelectContent>
-                {engineers.length === 0 && !engineersLoading && (
-                  <div className="px-2 py-1.5 text-xs text-muted-foreground">
-                    No engineers available on this project yet — ask the PM to add one.
-                  </div>
-                )}
-                {engineers.map((e) => (
-                  <SelectItem key={e.userId} value={String(e.userId)}>
+            // Checkbox list rather than a Select: a design routinely needs
+            // several engineers (structural + MEP + civil), and the project's
+            // engineer roster is short enough to show in full.
+            <div className="space-y-2 rounded-xl border border-border p-3">
+              {engineersLoading && (
+                <p className="text-xs text-muted-foreground">Loading engineers…</p>
+              )}
+              {!engineersLoading && engineers.length === 0 && (
+                <p className="text-xs text-muted-foreground">
+                  No engineers available on this project yet — ask the PM to add one.
+                </p>
+              )}
+              {engineers.map((e) => {
+                const checked = data.assignedEngineers.some(
+                  (a) => a.userId === e.userId,
+                );
+                return (
+                  <label
+                    key={e.userId}
+                    className="flex cursor-pointer items-center gap-2 text-sm"
+                  >
+                    <Checkbox
+                      checked={checked}
+                      onCheckedChange={(next) =>
+                        set(
+                          "assignedEngineers",
+                          next
+                            ? [
+                                ...data.assignedEngineers,
+                                { userId: e.userId, userName: e.userName },
+                              ]
+                            : data.assignedEngineers.filter(
+                                (a) => a.userId !== e.userId,
+                              ),
+                        )
+                      }
+                    />
                     {e.userName}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
+                  </label>
+                );
+              })}
+            </div>
           )}
         </div>
       </div>
@@ -494,7 +514,7 @@ function StepFiles({
                 className="flex items-center justify-between gap-2 rounded-lg border border-border bg-card px-3 py-2 text-sm"
               >
                 <a
-                  href={f.url}
+                  href={resolveFileUrl(f.url)}
                   target="_blank"
                   rel="noopener noreferrer"
                   className="truncate text-primary underline-offset-2 hover:underline"
@@ -569,7 +589,10 @@ function StepReview({ data }: { data: DesignFormData }) {
     ["Phase", data.phase],
     ["Status", data.status],
     ["Lead architect", data.leadArchitect || "—"],
-    ["Assigned engineer", data.assignedEngineerName || "—"],
+    [
+      "Assigned engineers",
+      data.assignedEngineers.map((e) => e.userName).join(", ") || "—",
+    ],
     ["File count", `${data.fileCount}`],
   ];
   return (

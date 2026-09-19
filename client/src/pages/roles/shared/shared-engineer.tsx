@@ -27,6 +27,7 @@ import type {
   ReportStatus,
 } from "@/features/engineering-reports/types/engineering-reports.types";
 import { REPORT_PRIORITIES } from "@/features/engineering-reports/types/engineering-reports.types";
+import { ProjectPicker } from "@/components/shared/project-picker";
 
 const TODAY = () => new Date().toISOString().slice(0, 10);
 
@@ -208,12 +209,10 @@ export function NewReportDialog({
           <div className="grid grid-cols-2 gap-3">
             <div className="space-y-1.5">
               <Label htmlFor="report-project">Project code</Label>
-              <Input
-                id="report-project"
+              <ProjectPicker
                 value={form.project}
-                onChange={(e) => set("project", e.target.value)}
-                placeholder="WMT-204"
-                required
+                onChange={(code) => set("project", code)}
+                className="w-full"
               />
             </div>
             <div className="space-y-1.5">

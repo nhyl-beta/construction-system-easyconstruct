@@ -16,6 +16,7 @@ import { useUsersByRole } from "@/features/users/hooks/use-users-by-role";
 import { Calendar, Info, MapPin, UserCheck } from "lucide-react";
 import { useState } from "react";
 import { useNavigate } from "react-router";
+import { RISK_LEVELS } from "@/features/projects/types/project.types";
 
 const ASSIGNABLE_TEAM_ROLES: { role: ProjectMemberRole; label: string }[] = [
   { role: "architect", label: "Architect" },
@@ -110,7 +111,7 @@ export default function ProjectCreatePage() {
     value: ProjectFormData[K],
   ) => setData((prev) => ({ ...prev, [key]: value }));
 
-  const isAdmin = user?.role === "admin" || user?.role === "super-admin";
+  const isAdmin = user?.role === "admin" || user?.role === "it-designer";
   const projectsListRoute = isAdmin ? "/admin/projects" : "/projects";
 
   const handleCancel = () => navigate(projectsListRoute);
@@ -323,9 +324,9 @@ function StepProjectInfo({
               <SelectValue />
             </SelectTrigger>
             <SelectContent>
-              <SelectItem value="high">🔴 High</SelectItem>
-              <SelectItem value="medium">🟡 Medium</SelectItem>
-              <SelectItem value="low">🟢 Low</SelectItem>
+              {RISK_LEVELS.map((level) => (
+                <SelectItem key={level.value} value={level.value}>{level.label}</SelectItem>
+              ))}
             </SelectContent>
           </Select>
         </div>
@@ -347,16 +348,14 @@ function StepProjectInfo({
 
         <div className="space-y-1.5">
           <Label>Currency</Label>
-          <Select defaultValue="PHP" onValueChange={(v) => set("currency", v)}>
-            <SelectTrigger className="rounded-xl">
-              <SelectValue />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="PHP">Philippine Peso (PHP)</SelectItem>
-              <SelectItem value="USD">US Dollar (USD)</SelectItem>
-              <SelectItem value="EUR">Euro (EUR)</SelectItem>
-            </SelectContent>
-          </Select>
+          {/* Not a select: `currency` was never sent to the API and `projects`
+              has no currency column, so USD/EUR were choices the system could
+              not honour — every amount renders through the PHP formatters in
+              lib/format-currency.ts. Shown as a fixed value rather than a
+              control that silently does nothing. */}
+          <div className="flex h-9 items-center rounded-xl border border-input bg-muted/40 px-3 text-sm text-muted-foreground">
+            Philippine Peso (₱ PHP)
+          </div>
         </div>
       </div>
 

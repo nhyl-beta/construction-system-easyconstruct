@@ -17,7 +17,9 @@ export function formatDue(due: string | null | undefined): string {
 
 export function formatContractValue(value: number | null | undefined): string {
   if (value == null || Number.isNaN(value)) return "—";
-  return value.toLocaleString(undefined, {
+  // Pinned to en-PH: with an undefined locale this rendered "PHP 1,234" for
+  // anyone whose browser wasn't set to a locale that knows the ₱ symbol.
+  return value.toLocaleString("en-PH", {
     style: "currency",
     currency: "PHP",
     maximumFractionDigits: 0,

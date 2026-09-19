@@ -58,5 +58,14 @@ export function useUsers() {
     [reload],
   );
 
-  return { users, loading, error, reload, create, update, setActive } as const;
+  const remove = useCallback(
+    async (id: number) => {
+      const deleted = await UserRepository.remove(id);
+      await reload();
+      return deleted;
+    },
+    [reload],
+  );
+
+  return { users, loading, error, reload, create, update, setActive, remove } as const;
 }

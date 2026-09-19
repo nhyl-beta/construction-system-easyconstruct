@@ -1,5 +1,6 @@
-import { and, eq, ilike, or, SQL } from "drizzle-orm";
+import { and, eq, ilike, inArray, or, SQL } from "drizzle-orm";
 import { db } from "../db/connection.js";
+import { designEngineers } from "../db/schema/design-engineers.js";
 import { designs } from "../db/schema/designs.js";
 import type {
   CreateDesignInput,
@@ -63,4 +64,43 @@ export const remove = async (id: number) => {
     .where(eq(designs.id, id))
     .returning();
   return deleted ?? null;
+};
+
+// ── Assigned engineers (many-to-many) ───────────────────────────────────────
+
+export const findEngineersForDesigns = async (designIds: number[]) => {
+  if (designIds.length === 0) return [];
+  return db
+    .select()
+    .from(designEngineers)
+    .where(inArray(designEngineers.designId, designIds));
+};
+
+export const findEngineers = async (designId: number) => {
+  return db
+    .select()
+    .from(designEngineers)
+    .where(eq(designEngineers.designId, designId));
+};
+
+/**
+ * Replace a design's engineer set wholesale. The form submits the complete
+ * list every time, so a diff would only add a way for the two to disagree.
+ */
+export const replaceEngineers = async (
+  designId: number,
+  engineers: Array<{ userId: number; userName: string }>,
+) => {
+  await db.transaction(async (tx) => {
+    await tx.delete(designEngineers).where(eq(designEngineers.designId, designId));
+    if (engineers.length > 0) {
+      await tx.insert(designEngineers).values(
+        engineers.map((e) => ({
+          designId,
+          userId: e.userId,
+          userName: e.userName,
+        })),
+      );
+    }
+  });
 };

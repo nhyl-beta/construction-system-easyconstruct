@@ -17,7 +17,14 @@ export const getAll = async (
       risk: req.query.risk as string,
       search: req.query.search as string,
     };
-    const data = await service.getAll(filters);
+    // Consultant is scoped to the projects it advises on, with commercial
+    // fields stripped — see projects/service.ts getAll.
+    const data = await service.getAll(
+      filters,
+      req.authUser
+        ? { role: req.authUser.role, userId: req.authUser.id }
+        : undefined,
+    );
     res.json(formatSuccess(data, MSG.projects.retrieved));
   } catch (err) {
     next(err);
@@ -45,7 +52,7 @@ export const create = async (
   try {
     // A Project Manager cannot assign a different PM on their own project —
     // the creator's own name is authoritative here regardless of what the
-    // client sends. Admin/Super Admin retain the ability to assign any PM
+    // client sends. Admin/IT Designer retain the ability to assign any PM
     // (e.g. creating a project on behalf of the org).
     const body =
       req.authUser?.role === "project-manager"
@@ -64,7 +71,16 @@ export const update = async (
   next: NextFunction,
 ) => {
   try {
-    const data = await service.update(Number(req.params.id), req.body);
+    const id = Number(req.params.id);
+    // Engineer may only move `progress`, and only on its own projects —
+    // see projects/service.ts assertCanUpdateProject.
+    const existing = await service.getById(id);
+    await service.assertCanUpdateProject(existing.code, req.body, {
+      role: req.authUser?.role ?? "",
+      userId: req.authUser?.id ?? 0,
+    });
+
+    const data = await service.update(id, req.body);
     res.json(formatSuccess(data, MSG.projects.updated));
   } catch (err) {
     next(err);

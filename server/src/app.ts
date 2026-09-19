@@ -44,7 +44,14 @@ import uploadRoutes from "./uploads/routes.js";
 
 const app = express();
 
-app.use(express.json());
+// Uploads (design files, attendance photos, task completion evidence) POST a
+// base64 data URL through this JSON body parser — see uploads/service.ts,
+// which caps the *decoded* file at 8MB. Base64 inflates by ~4/3, so the
+// request body can legitimately reach ~11MB. The default limit is 100kb, so
+// every real file threw PayloadTooLargeError, which is neither a MulterError
+// nor an AppError and fell through to the generic handler as a bare
+// "Internal server error".
+app.use(express.json({ limit: "12mb" }));
 app.use(corsMiddleware);
 app.use(requestId);
 app.use(logger);
@@ -75,12 +82,12 @@ app.use("/api/tasks", taskRoutes);
 app.use("/api/issues", issueRoutes);
 app.use("/api/documents", documentRoutes);
 
-// Admin/Super Admin keep the same override they have on workflow-stage
+// Admin/IT Designer keep the same override they have on workflow-stage
 // decisions, so a stuck payroll batch can still be cleared.
 app.use(
   "/api/finance/payroll-review",
   authenticate,
-  requireRole("finance-manager", "finance_manager", "admin", "super-admin"),
+  requireRole("finance-manager", "finance_manager", "admin", "it-designer"),
   payrollReviewRoutes,
 );
 

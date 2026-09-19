@@ -82,3 +82,26 @@ export const setStatus = async (
     next(err);
   }
 };
+
+export const remove = async (
+  req: AuthedRequest,
+  res: Response,
+  next: NextFunction,
+) => {
+  try {
+    const data = await service.remove(
+      Number(req.params.id),
+      req.authUser!.id,
+    );
+    await logAudit({
+      entityType: "user",
+      entityId: String(req.params.id),
+      action: "deleted",
+      actor: req.authUser?.name ?? "unknown",
+      summary: `Permanently deleted account ${data.email}`,
+    });
+    res.json(formatSuccess(data, "User deleted"));
+  } catch (err) {
+    next(err);
+  }
+};

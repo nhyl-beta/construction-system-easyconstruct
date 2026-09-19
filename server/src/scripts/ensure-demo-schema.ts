@@ -85,6 +85,44 @@ async function main() {
     ALTER TABLE users
       ADD COLUMN IF NOT EXISTS is_active boolean NOT NULL DEFAULT true;
 
+    -- Task completion evidence: a status flip recorded that work finished
+    -- but nothing about what was done or any proof of it.
+    ALTER TABLE tasks
+      ADD COLUMN IF NOT EXISTS completion_note text,
+      ADD COLUMN IF NOT EXISTS completion_file_url varchar(500),
+      ADD COLUMN IF NOT EXISTS completed_at timestamp;
+
+    -- Designs are reviewed by more than one engineer in practice, but the
+    -- designs table only had a single assigned_engineer_id. This join table
+    -- carries the real many-to-many; the old column stays as a denormalized
+    -- first engineer so existing reads keep working.
+    CREATE TABLE IF NOT EXISTS design_engineers (
+      id serial PRIMARY KEY,
+      design_id integer NOT NULL REFERENCES designs(id) ON DELETE CASCADE,
+      user_id integer NOT NULL REFERENCES users(id),
+      user_name varchar(100) NOT NULL,
+      created_at timestamp DEFAULT now(),
+      CONSTRAINT design_engineers_design_user_unique UNIQUE (design_id, user_id)
+    );
+
+    -- Backfill: every design that already names one engineer becomes a
+    -- single-row membership, so the join table is authoritative from day one.
+    INSERT INTO design_engineers (design_id, user_id, user_name)
+    SELECT d.id, d.assigned_engineer_id, COALESCE(d.assigned_engineer_name, u.name)
+      FROM designs d
+      JOIN users u ON u.id = d.assigned_engineer_id
+     WHERE d.assigned_engineer_id IS NOT NULL
+    ON CONFLICT (design_id, user_id) DO NOTHING;
+
+    -- Super Admin was merged into IT Designer: every grant the role held is
+    -- now an it-designer grant (see the requireRole calls across server/src).
+    -- Existing rows have to move with it, or those accounts would hold a role
+    -- string no requireRole() check matches any more and would be locked out
+    -- of every guarded route.
+    UPDATE users SET role = 'it-designer' WHERE role = 'super-admin';
+    UPDATE project_members SET role = 'it-designer' WHERE role = 'super-admin';
+    DELETE FROM roles WHERE name = 'super-admin';
+
     -- duplicate_table, not just duplicate_object: on a re-run Postgres fails
     -- on the *index* backing the constraint (42P07), which duplicate_object
     -- doesn't catch — that aborted the whole script on every run after the

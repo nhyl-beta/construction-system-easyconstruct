@@ -21,7 +21,6 @@ const ROLE_DASHBOARD: Record<string, React.ComponentType> = {
   site_personnel: SPDashboardPage,
   consultant:      ConsultantDashboardPage,
   admin:           AdminDashboardPage,
-  super_admin:     AdminDashboardPage,
   owner:           OwnerDashboardPage,
   it_designer:     ITDesignerDashboardPage,
 };

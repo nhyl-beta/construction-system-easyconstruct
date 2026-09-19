@@ -37,6 +37,7 @@ import {
   listEmployees,
 } from "@/features/hr/hr-api";
 import type { Employee } from "@/features/hr/types";
+import { downloadCsv } from "@/lib/export-csv";
 
 function EmployeeRow({
   e,
@@ -167,30 +168,21 @@ export default function HREmployeesPage() {
   };
 
   const handleExportCsv = () => {
-    const headers = ["Employee ID", "Name", "Role", "Department", "Site", "Status", "Hired On", "Email", "Phone"];
-    const rows = filtered.map((e) => [
-      e.id,
-      e.name,
-      e.role,
-      e.department,
-      e.site,
-      e.status,
-      e.hiredOn,
-      e.email,
-      e.phone,
-    ]);
-    const csv = [headers, ...rows]
-      .map((row) => row.map((cell) => `"${String(cell ?? "").replace(/"/g, '""')}"`).join(","))
-      .join("\r\n");
-    const blob = new Blob([csv], { type: "text/csv;charset=utf-8;" });
-    const url = URL.createObjectURL(blob);
-    const link = document.createElement("a");
-    link.href = url;
-    link.download = `employees-${new Date().toISOString().slice(0, 10)}.csv`;
-    document.body.appendChild(link);
-    link.click();
-    document.body.removeChild(link);
-    URL.revokeObjectURL(url);
+    downloadCsv(
+      "employees",
+      ["Employee ID", "Name", "Role", "Department", "Site", "Status", "Hired On", "Email", "Phone"],
+      filtered.map((e) => [
+        e.id,
+        e.name,
+        e.role,
+        e.department,
+        e.site,
+        e.status,
+        e.hiredOn,
+        e.email,
+        e.phone,
+      ]),
+    );
   };
 
   return (

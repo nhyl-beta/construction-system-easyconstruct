@@ -10,6 +10,9 @@ export interface TaskRecord {
   dueDate: string | null;
   assignedToUserId: number | null;
   assignedToName: string | null;
+  completionNote: string | null;
+  completionFileUrl: string | null;
+  completedAt: Date | null;
   createdAt: Date | null;
   updatedAt: Date | null;
 }
@@ -25,6 +28,12 @@ export interface CreateTaskInput {
   dueDate?: string;
   assignedToUserId?: number;
   assignedToName?: string;
+}
+
+export interface UpdateTaskStatusInput {
+  status: string;
+  completionNote?: string;
+  completionFileUrl?: string;
 }
 
 export interface UpdateTaskInput extends Partial<CreateTaskInput> {}

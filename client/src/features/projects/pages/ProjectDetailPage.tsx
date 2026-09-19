@@ -10,7 +10,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { ProjectRepository } from "@/features/projects/repositories/project.repository";
-import type { Project } from "@/features/projects/types/project.types";
+import { RISK_LEVELS, type Project } from "@/features/projects/types/project.types";
 import { useProjectMembers } from "@/features/project-members/hooks/use-project-members";
 import type { ProjectMemberRole } from "@/features/project-members/repositories/project-member.repository";
 import { useUsersByRole } from "@/features/users/hooks/use-users-by-role";
@@ -23,7 +23,13 @@ export default function ProjectDetailPage() {
   const { projectId } = useParams();
   const navigate = useNavigate();
   const { user } = useAuth();
-  const readOnly = user?.role === "engineer";
+  // Engineer is read-only on the record as a whole but owns progress
+  // reporting — the backend enforces exactly this split (projects/service.ts
+  // assertCanUpdateProject) and refuses an Engineer PATCH of any other field,
+  // so the form must not offer one.
+  const isEngineer = user?.role === "engineer";
+  const readOnly = isEngineer;
+  const canEditProgress = !readOnly || isEngineer;
   const [project, setProject] = useState<Project | null>(null);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
@@ -55,6 +61,23 @@ export default function ProjectDetailPage() {
 
   const update = <K extends keyof Project>(key: K, value: Project[K]) => {
     setProject((current) => (current ? { ...current, [key]: value } : current));
+  };
+
+  // Sends only `progress` — an Engineer PATCH carrying any other field is
+  // rejected by the API, so the payload has to match the grant exactly.
+  const saveProgress = async () => {
+    if (!project) return;
+    setSaving(true);
+    setError(null);
+    setMessage(null);
+    try {
+      await ProjectRepository.patch(project.code, { progress: project.progress });
+      setMessage("Progress updated.");
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Failed to update progress.");
+    } finally {
+      setSaving(false);
+    }
   };
 
   const save = async () => {
@@ -141,8 +164,27 @@ export default function ProjectDetailPage() {
         <Field label="Client"><Input readOnly={readOnly} value={project.client} onChange={(e) => update("client", e.target.value)} /></Field>
         <Field label="Location"><Input readOnly={readOnly} value={project.location} onChange={(e) => update("location", e.target.value)} /></Field>
         <Field label="Status"><Input readOnly={readOnly} value={project.status} onChange={(e) => update("status", e.target.value)} /></Field>
-        <Field label="Risk"><Input readOnly={readOnly} value={project.risk} onChange={(e) => update("risk", e.target.value as Project["risk"])} /></Field>
-        <Field label="Progress (%)"><Input readOnly={readOnly} type="number" min="0" max="100" value={project.progress} onChange={(e) => update("progress", Number(e.target.value))} /></Field>
+        {/* Risk was a free-text Input, so any spelling ("hi", "Severe") could
+            be typed here; the value drives risk sorting on the Admin/PM/Owner
+            dashboards and the backend enum only accepts Low/Medium/High, so a
+            typo either failed the save or produced a project that sorted as
+            "low" forever. Constrained to the same three levels the New
+            Project form offers. */}
+        <Field label="Risk">
+          <Select
+            value={project.risk}
+            disabled={readOnly}
+            onValueChange={(v) => update("risk", v as Project["risk"])}
+          >
+            <SelectTrigger><SelectValue /></SelectTrigger>
+            <SelectContent>
+              {RISK_LEVELS.map((level) => (
+                <SelectItem key={level.value} value={level.value}>{level.label}</SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        </Field>
+        <Field label="Progress (%)"><Input readOnly={!canEditProgress} type="number" min="0" max="100" value={project.progress} onChange={(e) => update("progress", Number(e.target.value))} /></Field>
         <Field label="Budget used (%)"><Input readOnly={readOnly} type="number" min="0" value={project.budget} onChange={(e) => update("budget", Number(e.target.value))} /></Field>
         <Field label="Total contract value"><Input readOnly={readOnly} type="number" min="0" value={project.contractValue ?? ""} onChange={(e) => update("contractValue", e.target.value === "" ? null : Number(e.target.value))} /></Field>
         <Field label="Workforce"><Input readOnly={readOnly} type="number" min="0" value={project.workforce} onChange={(e) => update("workforce", Number(e.target.value))} /></Field>
@@ -151,6 +193,18 @@ export default function ProjectDetailPage() {
         <Field label="Description" wide><Textarea readOnly={readOnly} value={project.description ?? ""} onChange={(e) => update("description", e.target.value)} /></Field>
         {!readOnly && (
           <div className="md:col-span-2"><Button onClick={save} disabled={saving || deleting}>{saving && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}{saving ? "Saving…" : "Save changes"}</Button></div>
+        )}
+        {isEngineer && (
+          <div className="space-y-2 md:col-span-2">
+            <p className="text-xs text-muted-foreground">
+              You can report progress on this project. Everything else is the
+              Project Manager's to change.
+            </p>
+            <Button onClick={saveProgress} disabled={saving}>
+              {saving && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+              {saving ? "Saving…" : "Save progress"}
+            </Button>
+          </div>
         )}
       </div>
 

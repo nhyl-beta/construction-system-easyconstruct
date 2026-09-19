@@ -1,5 +1,11 @@
 import bcrypt from "bcryptjs";
 
+import { count, eq } from "drizzle-orm";
+
+import { db } from "../db/connection.js";
+import { employees } from "../db/schema/employees.js";
+import { projectMembers } from "../db/schema/project-members.js";
+import { tasks } from "../db/schema/task.js";
 import * as roleRepo from "../roles/repository.js";
 import { ConflictError, NotFoundError, ValidationError } from "../utils/errors.js";
 import * as repo from "./repository.js";
@@ -77,4 +83,63 @@ export const setActive = async (
   const updated = await repo.setActive(id, isActive);
   if (!updated) throw new NotFoundError("User", String(id));
   return updated;
+};
+
+/**
+ * Permanently delete an account.
+ *
+ * Deliberately narrow, because this is the one irreversible action on this
+ * module:
+ *  - only an already-deactivated account can be removed, so deletion is
+ *    always a second, separate decision after access has been revoked;
+ *  - it refuses while anything still references the row (employee record,
+ *    project membership, assigned task) rather than cascading, so removing a
+ *    user can never silently destroy HR or project history;
+ *  - you cannot delete yourself.
+ *
+ * Audit-log entries survive: audit_logs stores an actor *name*, not a user
+ * FK, so the trail of what this person did remains intact.
+ */
+export const remove = async (id: number, actingUserId: number) => {
+  if (id === actingUserId) {
+    throw new ValidationError("You cannot delete your own account");
+  }
+
+  const user = await getById(id);
+
+  if (user.isActive) {
+    throw new ValidationError(
+      "Deactivate the account before deleting it",
+    );
+  }
+
+  const blockers: string[] = [];
+
+  const [employeeRef] = await db
+    .select({ n: count() })
+    .from(employees)
+    .where(eq(employees.userId, id));
+  if ((employeeRef?.n ?? 0) > 0) blockers.push("an employee record");
+
+  const [memberRef] = await db
+    .select({ n: count() })
+    .from(projectMembers)
+    .where(eq(projectMembers.userId, id));
+  if ((memberRef?.n ?? 0) > 0) blockers.push("project assignments");
+
+  const [taskRef] = await db
+    .select({ n: count() })
+    .from(tasks)
+    .where(eq(tasks.assignedToUserId, id));
+  if ((taskRef?.n ?? 0) > 0) blockers.push("assigned tasks");
+
+  if (blockers.length > 0) {
+    throw new ConflictError(
+      `This account still has ${blockers.join(", ")}. Reassign or remove those first — the account stays deactivated in the meantime.`,
+    );
+  }
+
+  const deleted = await repo.remove(id);
+  if (!deleted) throw new NotFoundError("User", String(id));
+  return deleted;
 };

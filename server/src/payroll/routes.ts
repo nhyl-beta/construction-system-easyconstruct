@@ -10,7 +10,7 @@ import {
 const router = Router();
 
 router.use(authenticate);
-router.use(requireRole("human-resources", "finance-manager", "admin", "super-admin"));
+router.use(requireRole("human-resources", "finance-manager", "admin", "it-designer"));
 
 // Tracksheet
 router.get("/", controller.getAll);

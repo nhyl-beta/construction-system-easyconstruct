@@ -91,6 +91,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { useBudgetApproval } from "@/features/finance/budgets/hooks/useBudgetApproval";
 import { Check, RotateCcw, X } from "lucide-react";
 import type { CreateBudgetInput } from "@/features/finance/budgets/controllers/budget.controllers";
+import { OwnerDepartmentPicker } from "@/components/shared/owner-department-picker";
 
 const BUDGET_CATEGORIES = ["Materials", "Labor", "Equipment", "Subcontractors", "Permits", "Contingency", "Other"];
 
@@ -174,7 +175,7 @@ function NewBudgetDialog({
           </div>
           <div className="space-y-1.5">
             <Label>Owner / department</Label>
-            <Input value={owner} onChange={(e) => setOwner(e.target.value)} placeholder="Structural Engineering" />
+            <OwnerDepartmentPicker value={owner} onChange={setOwner} />
           </div>
           <div className="space-y-1.5">
             <Label>Planned amount</Label>

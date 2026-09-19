@@ -1,11 +1,11 @@
 import { useMemo } from "react";
-import { AlertTriangle, ShieldAlert, Trash2 } from "lucide-react";
+import { AlertTriangle, KeyRound, ShieldAlert, Trash2, Users } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { PageContainer } from "@/components/refine-ui/views/page-container";
 import { PageHeader } from "@/components/refine-ui/views/page-header";
 import { PageContent } from "@/components/refine-ui/views/page-content";
-import { ComingSoonCard } from "@/components/refine-ui/views/coming-soon-card";
 import { useAuditLogs } from "@/features/audit-logs/hooks/useAuditLogs";
+import { useSecurityOverview } from "@/features/audit-logs/hooks/useSecurityOverview";
 import { formatRelativeTime } from "@/lib/format-relative-time";
 
 // Sensitive actions worth surfacing prominently — the audit-logs table
@@ -15,6 +15,7 @@ const SENSITIVE_ACTIONS = new Set(["rejected", "deleted"]);
 
 export default function AdminSecurityPage() {
   const { logs, loading, error } = useAuditLogs();
+  const security = useSecurityOverview();
 
   const sensitiveEvents = useMemo(
     () => logs.filter((log) => SENSITIVE_ACTIONS.has(log.action)).slice(0, 20),
@@ -76,10 +77,87 @@ export default function AdminSecurityPage() {
           )}
         </div>
 
-        <ComingSoonCard
-          title="Login & session monitoring"
-          description="Failed-login tracking and active-session management aren't recorded by the backend yet (the auth endpoint doesn't log attempts). This panel will populate once that tracking exists."
-        />
+        {/* Login & session monitoring. The auth endpoint now records every
+            sign-in attempt into the audit trail (server/src/auth/service.ts),
+            so this panel reads real data instead of standing empty. "Active
+            sessions" is derived from successful sign-ins inside the token's
+            8h lifetime — the JWT is stateless, so there is no session table
+            to enumerate. */}
+        <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">
+          <div className="space-y-3">
+            <h3 className="flex items-center gap-2 text-sm font-semibold text-foreground">
+              <Users className="h-4 w-4 text-primary" />
+              Active sessions
+              {!security.loading && (
+                <span className="text-xs font-normal text-muted-foreground">
+                  ({security.sessions.length})
+                </span>
+              )}
+            </h3>
+            {security.loading && <p className="text-sm text-muted-foreground">Loading…</p>}
+            {!security.loading && security.error && (
+              <p className="text-sm text-destructive">
+                Couldn't load sign-in activity. {security.error.message}
+              </p>
+            )}
+            {!security.loading && !security.error && security.sessions.length === 0 && (
+              <p className="text-sm text-muted-foreground">
+                Nobody has signed in within the last 8 hours.
+              </p>
+            )}
+            {security.sessions.map((s) => (
+              <div
+                key={s.id}
+                className="flex items-center justify-between gap-3 rounded-xl border border-border/70 bg-card px-4 py-3"
+              >
+                <div>
+                  <p className="text-sm font-medium">{s.actor}</p>
+                  <p className="text-xs text-muted-foreground">
+                    {s.entityId}
+                    {s.summary ? ` · ${s.summary}` : ""}
+                  </p>
+                </div>
+                <span className="text-xs text-muted-foreground">
+                  {formatRelativeTime(s.createdAt)}
+                </span>
+              </div>
+            ))}
+          </div>
+
+          <div className="space-y-3">
+            <h3 className="flex items-center gap-2 text-sm font-semibold text-foreground">
+              <KeyRound className="h-4 w-4 text-destructive" />
+              Failed sign-in attempts
+              {!security.loading && (
+                <span className="text-xs font-normal text-muted-foreground">
+                  ({security.failedLogins.length})
+                </span>
+              )}
+            </h3>
+            {security.loading && <p className="text-sm text-muted-foreground">Loading…</p>}
+            {!security.loading && !security.error && security.failedLogins.length === 0 && (
+              <p className="text-sm text-muted-foreground">
+                No failed sign-in attempts recorded.
+              </p>
+            )}
+            {security.failedLogins.map((f) => (
+              <div
+                key={f.id}
+                className="flex items-center justify-between gap-3 rounded-xl border border-border/70 bg-card px-4 py-3"
+              >
+                <div>
+                  <p className="text-sm font-medium">{f.entityId}</p>
+                  {f.summary && (
+                    <p className="text-xs text-muted-foreground">{f.summary}</p>
+                  )}
+                </div>
+                <span className="text-xs text-muted-foreground">
+                  {formatRelativeTime(f.createdAt)}
+                </span>
+              </div>
+            ))}
+          </div>
+        </div>
       </PageContent>
     </PageContainer>
   );

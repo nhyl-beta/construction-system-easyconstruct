@@ -3,6 +3,7 @@ import { useCallback, useEffect, useState } from "react";
 import {
   tasksRepository,
   type CreateTaskInput,
+  type TaskCompletionInput,
   type TaskRecord,
 } from "../repositories/task.repository";
 
@@ -35,16 +36,21 @@ export function useMyTasks() {
     refresh();
   }, [refresh]);
 
+  // `completion` carries the note/attachment the completion dialog collects.
+  // Rethrows so the dialog can keep itself open and show the server's message
+  // (e.g. a missing note) instead of closing over a failed save.
   const advance = useCallback(
-    async (task: TaskRecord) => {
+    async (task: TaskRecord, completion: TaskCompletionInput = {}) => {
       const next = NEXT_STATUS[task.status];
       if (!next) return;
       setUpdatingId(task.id);
       try {
-        await tasksRepository.updateStatus(task.id, next);
+        await tasksRepository.updateStatus(task.id, next, completion);
         await refresh();
       } catch (e) {
-        setError(e instanceof Error ? e.message : "Failed to update task");
+        const message = e instanceof Error ? e.message : "Failed to update task";
+        setError(message);
+        throw new Error(message);
       } finally {
         setUpdatingId(null);
       }

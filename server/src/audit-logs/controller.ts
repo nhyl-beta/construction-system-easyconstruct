@@ -12,3 +12,15 @@ export const getAll = async (req: Request, res: Response, next: NextFunction) =>
     res.json(formatSuccess(data, MSG.auditLogs.retrieved));
   } catch (err) { next(err); }
 };
+export const getSecurityOverview = async (
+  _req: Request,
+  res: Response,
+  next: NextFunction,
+) => {
+  try {
+    const data = await service.getSecurityOverview();
+    res.json(formatSuccess(data, "Security overview retrieved"));
+  } catch (err) {
+    next(err);
+  }
+};

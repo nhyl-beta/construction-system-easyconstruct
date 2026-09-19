@@ -1,3 +1,9 @@
+/** One engineer assigned to a design (design_engineers row, flattened). */
+export interface AssignedEngineer {
+  userId: number;
+  userName: string;
+}
+
 export interface DesignRecord {
   id: number;
   code: string;
@@ -17,8 +23,10 @@ export interface DesignRecord {
   description: string | null;
   fileCount: number;
   fileUrls: Array<{ name: string; url: string }>;
+  // Denormalized first engineer, kept in sync with assignedEngineers[0].
   assignedEngineerId: number | null;
   assignedEngineerName: string | null;
+  assignedEngineers: AssignedEngineer[];
   aiCompleteness: number;
   aiConfidence: number;
   createdAt: Date | null;
@@ -43,8 +51,10 @@ export interface CreateDesignInput {
   description?: string;
   fileCount?: number;
   fileUrls?: Array<{ name: string; url: string }>;
-  assignedEngineerId?: number;
-  assignedEngineerName?: string;
+  // Derived from assignedEngineers on write — callers send the list, not these.
+  assignedEngineerId?: number | null;
+  assignedEngineerName?: string | null;
+  assignedEngineers?: AssignedEngineer[];
   aiCompleteness?: number;
   aiConfidence?: number;
 }

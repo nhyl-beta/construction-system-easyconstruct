@@ -1,5 +1,5 @@
 import { useMemo, useState } from "react";
-import { Pencil, Plus, Search, UserCheck, UserX, UsersRound } from "lucide-react";
+import { Pencil, Plus, Search, Trash2, UserCheck, UserX, UsersRound } from "lucide-react";
 
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -7,13 +7,14 @@ import { Input } from "@/components/ui/input";
 import { PageContainer } from "@/components/refine-ui/views/page-container";
 import { PageContent } from "@/components/refine-ui/views/page-content";
 import { PageHeader } from "@/components/refine-ui/views/page-header";
+import { ConfirmDialog } from "@/components/ui/confirm-dialog";
 import { UserAccountDialog } from "@/components/users/user-account-dialog";
 import { useRoles } from "@/features/roles/hooks/useRoles";
 import { useUsers } from "@/features/users/hooks/use-users";
 import type { PublicUser } from "@/features/users/repositories/user.repository";
 
 export default function ITDesignerUsersPage() {
-  const { users, loading, error, create, update, setActive } = useUsers();
+  const { users, loading, error, create, update, setActive, remove } = useUsers();
   const { roles } = useRoles();
 
   const [search, setSearch] = useState("");
@@ -21,6 +22,10 @@ export default function ITDesignerUsersPage() {
   const [dialogOpen, setDialogOpen] = useState(false);
   const [editing, setEditing] = useState<PublicUser | null>(null);
   const [statusError, setStatusError] = useState<string | null>(null);
+  // Deletion is permanent and only offered once an account is deactivated,
+  // so it is always a second, deliberate step after access has been revoked.
+  const [deleting, setDeleting] = useState<PublicUser | null>(null);
+  const [removing, setRemoving] = useState(false);
 
   const roleLabels = useMemo(() => {
     const map = new Map<string, string>();
@@ -57,6 +62,22 @@ export default function ITDesignerUsersPage() {
     } catch (err) {
       // Most likely the server refusing a self-deactivation.
       setStatusError(err instanceof Error ? err.message : "Couldn't update the account");
+    }
+  };
+
+  const confirmDelete = async () => {
+    if (!deleting) return;
+    setRemoving(true);
+    setStatusError(null);
+    try {
+      await remove(deleting.id);
+      setDeleting(null);
+    } catch (err) {
+      // Surfaces the API's reason: still referenced, still active, or self.
+      setStatusError(err instanceof Error ? err.message : "Couldn't delete the account");
+      setDeleting(null);
+    } finally {
+      setRemoving(false);
     }
   };
 
@@ -178,6 +199,20 @@ export default function ITDesignerUsersPage() {
                         >
                           {user.isActive ? "Deactivate" : "Reactivate"}
                         </Button>
+                        {/* Only offered for accounts that are already
+                            deactivated — the API enforces the same rule. */}
+                        {!user.isActive && (
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            className="rounded-lg text-destructive hover:text-destructive"
+                            title={`Permanently delete ${user.name}`}
+                            onClick={() => setDeleting(user)}
+                          >
+                            <Trash2 className="h-4 w-4" />
+                            <span className="sr-only">Delete {user.name}</span>
+                          </Button>
+                        )}
                       </div>
                     </td>
                   </tr>
@@ -187,6 +222,17 @@ export default function ITDesignerUsersPage() {
           </div>
         )}
       </PageContent>
+
+      <ConfirmDialog
+        open={deleting !== null}
+        onOpenChange={(open) => !open && setDeleting(null)}
+        title={`Permanently delete ${deleting?.name ?? "this account"}?`}
+        description="The sign-in and its details are removed for good. The audit trail of what this person did is kept. If the account still has an employee record, project assignment, or an assigned task, the delete is refused and the account stays deactivated."
+        confirmLabel="Delete account"
+        destructive
+        loading={removing}
+        onConfirm={() => void confirmDelete()}
+      />
 
       <UserAccountDialog
         open={dialogOpen}

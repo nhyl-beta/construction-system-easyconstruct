@@ -8,6 +8,12 @@ export interface DesignFileUpload {
   url: string;
 }
 
+/** One engineer assigned to a design — mirrors the API's AssignedEngineer. */
+export interface DesignEngineer {
+  userId: number;
+  userName: string;
+}
+
 export interface DesignFormData {
   name: string;
   code: string;
@@ -23,8 +29,9 @@ export interface DesignFormData {
   phase: string;
   status: string;
   leadArchitect: string;
-  assignedEngineerId: number | null;
-  assignedEngineerName: string;
+  // A design can be reviewed by several engineers at once (structural + MEP
+  // + civil on one drawing set) — backed by the design_engineers join table.
+  assignedEngineers: DesignEngineer[];
   fileCount: number;
   fileUrls: DesignFileUpload[];
   aiCompleteness: number;
@@ -47,8 +54,7 @@ const initialForm: DesignFormData = {
   phase: "Design Development",
   status: "Draft",
   leadArchitect: "",
-  assignedEngineerId: null,
-  assignedEngineerName: "",
+  assignedEngineers: [],
   fileCount: 0,
   fileUrls: [],
   aiCompleteness: 0,
@@ -149,13 +155,7 @@ export const useDesignCreateController = () => {
     setSubmitting(true);
     setError(null);
     try {
-      const { assignedEngineerId, assignedEngineerName, ...rest } = data;
-      const payload = {
-        ...rest,
-        ...(assignedEngineerId
-          ? { assignedEngineerId, assignedEngineerName }
-          : {}),
-      };
+      const payload = { ...data };
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
       const json: any = await apiClient.post("/designs", payload);
       navigate(`/designs/${json.data.id}`);

@@ -18,8 +18,20 @@ export const createDesignSchema = z.object({
   description: z.string().optional(),
   fileCount: z.number().int().nonnegative().optional(),
   fileUrls: z.array(z.object({ name: z.string(), url: z.string() })).optional(),
+  // Legacy single-engineer fields. Still accepted so older callers keep
+  // working, but the service derives them from assignedEngineers.
   assignedEngineerId: z.number().int().positive().optional(),
   assignedEngineerName: z.string().max(100).optional(),
+  // A design can be reviewed by several engineers (structural + MEP + civil
+  // on one drawing set); this is the authoritative list.
+  assignedEngineers: z
+    .array(
+      z.object({
+        userId: z.number().int().positive(),
+        userName: z.string().min(1).max(100),
+      }),
+    )
+    .optional(),
   aiCompleteness: z.number().int().min(0).max(100).optional(),
   aiConfidence: z.number().int().min(0).max(100).optional(),
 });

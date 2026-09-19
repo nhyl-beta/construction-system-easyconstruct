@@ -22,6 +22,9 @@ import { Textarea } from "@/components/ui/textarea";
 import { useAuth } from "@/auth/auth-context";
 import { useUsersByRole } from "@/features/users/hooks/use-users-by-role";
 import { useMyTasks } from "@/features/tasks/hooks/use-my-tasks";
+import { CompleteTaskDialog } from "@/components/tasks/complete-task-dialog";
+import { isRealFileUrl, openFileUrl } from "@/lib/file-url";
+import type { TaskRecord } from "@/features/tasks/repositories/task.repository";
 import { useState } from "react";
 
 const NEXT_LABEL: Record<string, string> = {
@@ -39,6 +42,10 @@ export default function TasksPage() {
   // control the caller can't use just produces a 403 mid-demo.
   const canCreate = user?.role === "project-manager" || user?.role === "engineer";
   const canAdvance = user?.role === "site-personnel";
+
+  // Completing needs evidence (note + optional attachment), so that
+  // transition goes through a dialog; starting a task is still a direct flip.
+  const [completing, setCompleting] = useState<TaskRecord | null>(null);
 
   return (
     <PageContainer>
@@ -86,6 +93,24 @@ export default function TasksPage() {
                         {t.description && (
                           <p className="mt-0.5 max-w-lg text-xs text-muted-foreground">{t.description}</p>
                         )}
+                        {t.completionNote && (
+                          <p className="mt-1 max-w-lg text-xs text-muted-foreground">
+                            <span className="font-medium text-foreground">Completed:</span>{" "}
+                            {t.completionNote}
+                            {isRealFileUrl(t.completionFileUrl) && (
+                              <>
+                                {" · "}
+                                <button
+                                  type="button"
+                                  className="text-primary underline-offset-2 hover:underline"
+                                  onClick={() => openFileUrl(t.completionFileUrl)}
+                                >
+                                  attachment
+                                </button>
+                              </>
+                            )}
+                          </p>
+                        )}
                         <div className="mt-2 flex items-center gap-2">
                           <Progress value={t.progress} className="h-1.5 w-32" />
                           <span className="text-xs tabular-nums text-muted-foreground">{t.progress}%</span>
@@ -99,7 +124,11 @@ export default function TasksPage() {
                             size="sm"
                             className="h-8 rounded-lg"
                             disabled={updatingId === t.id}
-                            onClick={() => advance(t)}
+                            onClick={() =>
+                              t.status === "In Progress"
+                                ? setCompleting(t)
+                                : void advance(t).catch(() => {})
+                            }
                           >
                             <CheckSquare className="h-3.5 w-3.5" />
                             {updatingId === t.id ? "Saving…" : nextLabel}
@@ -114,6 +143,12 @@ export default function TasksPage() {
           </CardContent>
         </Card>
       </PageContent>
+
+      <CompleteTaskDialog
+        task={completing}
+        onOpenChange={(open) => !open && setCompleting(null)}
+        onConfirm={(task, completion) => advance(task, completion)}
+      />
     </PageContainer>
   );
 }

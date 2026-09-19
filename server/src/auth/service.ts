@@ -22,16 +22,60 @@ const PASSWORD_SALT_ROUNDS = 10;
 // cleanup job, and no window where a leaked-then-used link still works.
 const resetSecret = (passwordHash: string) => `${env.JWT_SECRET}${passwordHash}`;
 
+/**
+ * Records every sign-in attempt, successful or not, into the existing audit
+ * trail rather than a parallel table — audit_logs already stores
+ * actor/action/summary and is already surfaced by the Security and System
+ * Oversight screens, so login history lands where operators look.
+ *
+ * `entityType` is "auth" and `action` is "login" / "login-failed", which is
+ * what the oversight panel filters on.
+ */
+const recordLoginAttempt = (
+  email: string,
+  outcome: "login" | "login-failed",
+  summary: string,
+  actorName?: string,
+) =>
+  logAudit({
+    entityType: "auth",
+    entityId: email,
+    action: outcome,
+    actor: actorName ?? email,
+    summary,
+  });
+
 export const login = async (input: LoginInput) => {
   const user = await repo.findByEmail(input.email);
-  if (!user) throw new UnauthorizedError("Invalid email or password");
+  if (!user) {
+    await recordLoginAttempt(
+      input.email,
+      "login-failed",
+      "Sign-in failed: no account with that email",
+    );
+    throw new UnauthorizedError("Invalid email or password");
+  }
 
   const valid = await bcrypt.compare(input.password, user.password);
-  if (!valid) throw new UnauthorizedError("Invalid email or password");
+  if (!valid) {
+    await recordLoginAttempt(
+      input.email,
+      "login-failed",
+      "Sign-in failed: incorrect password",
+      user.name,
+    );
+    throw new UnauthorizedError("Invalid email or password");
+  }
 
   // Deactivated accounts (IT Designer's "deactivate accounts" scope) keep
   // their row and their history but can no longer obtain a token.
   if (!user.isActive) {
+    await recordLoginAttempt(
+      input.email,
+      "login-failed",
+      "Sign-in refused: account is deactivated",
+      user.name,
+    );
     throw new UnauthorizedError(
       "This account has been deactivated. Contact your system administrator.",
     );
@@ -41,6 +85,16 @@ export const login = async (input: LoginInput) => {
     { sub: user.id, email: user.email, name: user.name, role: user.role },
     env.JWT_SECRET,
     { expiresIn: JWT_EXPIRES_IN },
+  );
+
+  // The JWT is stateless with an 8h expiry, so "active session" is derived
+  // from the most recent successful sign-in rather than a session table —
+  // see audit-logs/repository.ts findRecentSessions.
+  await recordLoginAttempt(
+    input.email,
+    "login",
+    `Signed in as ${user.role}`,
+    user.name,
   );
 
   return {

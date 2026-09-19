@@ -18,7 +18,8 @@ import {
   useParsed,
   useRefineOptions,
 } from "@refinedev/core";
-import { Bell, LogOutIcon, Search } from "lucide-react";
+import { LogOutIcon, Search } from "lucide-react";
+import { NotificationBell } from "@/components/notifications/notification-bell";
 import { Link, useNavigate } from "react-router";
 
 export const Header = () => {
@@ -100,14 +101,7 @@ function DesktopHeader() {
         </div>
 
         <ThemeToggle />
-        <Button
-          variant="ghost"
-          size="icon"
-          className="rounded-xl"
-          aria-label="Notifications"
-        >
-          <Bell className="h-4 w-4" />
-        </Button>
+        <NotificationBell />
 
         {config.primaryAction.route && (
           <Button asChild size="sm" className="rounded-xl">

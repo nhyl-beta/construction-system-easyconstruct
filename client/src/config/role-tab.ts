@@ -61,57 +61,10 @@ export type RoleConfig = {
   sections: SidebarSection[];
 };
 
+// NOTE: there is no `super_admin` entry — that role was merged into
+// `it_designer`, which now carries its platform-administration scope on
+// top of its own user/system administration.
 export const ROLE_CONFIGS: Record<string, RoleConfig> = {
-  super_admin: {
-    label: "Super Admin",
-    initials: "SA",
-    subtitle: "Platform administration",
-    icon: UserCheck,
-    avatarColor: "bg-red-700",
-    accentBg: "bg-red-600",
-    searchPlaceholder: "Search projects, workflows, activity...",
-    primaryAi: "Operations Intelligence",
-    primaryAction: { label: "New Workflow", icon: GitBranch, route: "/admin/workflows" },
-
-    tabs: [
-      { label: "Projects", icon: FolderKanban, route: "/admin/projects" },
-      { label: "Workflows", icon: GitBranch, route: "/admin/workflows" },
-      { label: "Documents", icon: FileText, route: "/admin/documents" },
-      { label: "Activity Logs", icon: ShieldCheck, route: "/admin/activity-logs" },
-    ],
-
-    sections: [
-      {
-        label: "Operations",
-        items: [
-          { label: "Dashboard", icon: LayoutDashboard, route: "/dashboard" },
-          { label: "Projects", icon: FolderKanban, route: "/admin/projects" },
-          { label: "Workflows", icon: GitBranch, route: "/admin/workflows" },
-          { label: "Documents", icon: FileText, route: "/admin/documents" },
-        ],
-      },
-      {
-        label: "Monitoring",
-        items: [
-          { label: "Activity Logs", icon: ShieldCheck, route: "/admin/activity-logs" },
-          { label: "Security", icon: ShieldAlert, route: "/admin/security" },
-          { label: "Notifications", icon: Bell, route: "/admin/notifications" },
-        ],
-      },
-      {
-        label: "Configuration",
-        items: [
-          { label: "Roles & Permissions", icon: UserCheck, route: "/admin/roles-permissions" },
-          { label: "Workflow Configuration", icon: GitBranch, route: "/admin/workflow-configuration" },
-          { label: "Approval Hierarchy", icon: CheckSquare, route: "/admin/approval-hierarchy" },
-        ],
-      },
-      {
-        label: "Support",
-        items: [{ label: "User Support", icon: LifeBuoy, route: "/admin/support" }],
-      },
-    ],
-  },
   admin: {
     label: "Admin",
     initials: "AD",
@@ -178,6 +131,7 @@ export const ROLE_CONFIGS: Record<string, RoleConfig> = {
 
     tabs: [
       { label: "Portfolio", icon: FolderKanban, route: "/owner/portfolio" },
+      { label: "Proposals", icon: FileText, route: "/owner/proposals" },
       { label: "Audit Trail", icon: ShieldCheck, route: "/owner/audit-trail" },
       { label: "Oversight", icon: ShieldAlert, route: "/owner/oversight" },
     ],
@@ -188,6 +142,7 @@ export const ROLE_CONFIGS: Record<string, RoleConfig> = {
         items: [
           { label: "Dashboard", icon: LayoutDashboard, route: "/dashboard" },
           { label: "Portfolio", icon: FolderKanban, route: "/owner/portfolio" },
+          { label: "Proposals", icon: FileText, route: "/owner/proposals" },
         ],
       },
       {
@@ -222,6 +177,7 @@ export const ROLE_CONFIGS: Record<string, RoleConfig> = {
 
     tabs: [
       { label: "Users", icon: UsersRound, route: "/it-designer/users" },
+      { label: "Proposals", icon: FileText, route: "/it-designer/proposals" },
       { label: "Activity Logs", icon: ShieldCheck, route: "/it-designer/activity-logs" },
       { label: "Security", icon: ShieldAlert, route: "/it-designer/security" },
     ],
@@ -235,9 +191,27 @@ export const ROLE_CONFIGS: Record<string, RoleConfig> = {
           { label: "Roles & Permissions", icon: UserCheck, route: "/it-designer/roles-permissions" },
         ],
       },
+      // Absorbed from the former Super Admin role: platform administration
+      // over projects, workflows and documents, plus system configuration.
+      {
+        label: "Operations",
+        items: [
+          { label: "Projects", icon: FolderKanban, route: "/admin/projects" },
+          { label: "Workflows", icon: GitBranch, route: "/admin/workflows" },
+          { label: "Documents", icon: FileText, route: "/admin/documents" },
+        ],
+      },
+      {
+        label: "Configuration",
+        items: [
+          { label: "Workflow Configuration", icon: GitBranch, route: "/admin/workflow-configuration" },
+          { label: "Approval Hierarchy", icon: CheckSquare, route: "/admin/approval-hierarchy" },
+        ],
+      },
       {
         label: "Monitoring",
         items: [
+          { label: "Proposals", icon: FileText, route: "/it-designer/proposals" },
           { label: "Activity Logs", icon: ShieldCheck, route: "/it-designer/activity-logs" },
           { label: "Security", icon: ShieldAlert, route: "/it-designer/security" },
         ],
@@ -543,9 +517,10 @@ export const ROLE_CONFIGS: Record<string, RoleConfig> = {
     },
       tabs: [
         { label: "Proposal Review", icon: FileText, route: "/consultant/proposals" },
+        { label: "Designs", icon: Ruler, route: "/consultant/designs" },
         { label: "Advisory Docs", icon: ClipboardList, route: "/advisory-docs" },
         { label: "Approvals", icon: CheckSquare, route: "/approvals" },
-        { label: "Projects", icon: FolderKanban, route: "/projects" },
+        { label: "Projects", icon: FolderKanban, route: "/consultant/projects" },
       ],
 
         sections: [
@@ -558,6 +533,8 @@ export const ROLE_CONFIGS: Record<string, RoleConfig> = {
             icon: FileText,
             route: "/consultant/proposals"
           },
+          { label: "Designs", icon: Ruler, route: "/consultant/designs" },
+          { label: "Projects", icon: FolderKanban, route: "/consultant/projects" },
         ],
       },
 

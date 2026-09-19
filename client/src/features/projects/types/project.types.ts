@@ -1,4 +1,17 @@
 export type RiskLevel = "low" | "medium" | "high";
+
+/**
+ * The single list of risk categories the UI offers. Kept here, next to
+ * RiskLevel, so the New Project form and the project detail form can't drift
+ * apart — and so neither can offer a value the backend's zod enum
+ * (server/src/validators/project-validator.ts: 'Low' | 'Medium' | 'High')
+ * would reject. Case is normalized on the wire by serializeProject().
+ */
+export const RISK_LEVELS: ReadonlyArray<{ value: RiskLevel; label: string }> = [
+  { value: "high", label: "🔴 High" },
+  { value: "medium", label: "🟡 Medium" },
+  { value: "low", label: "🟢 Low" },
+];
 export type StatusTone = "success" | "warning" | "destructive" | "neutral";
 
 export interface Project {

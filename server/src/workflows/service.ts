@@ -10,7 +10,7 @@ import type {
   WorkflowWithStages,
 } from "./types.js";
 
-// Same ownership rule used for project-engineers (EC-017): admin/super-admin
+// Same ownership rule used for project-engineers (EC-017): admin/it-designer
 // may manage any workflow; anyone else only the one they created.
 const assertCanManageWorkflow = async (id: number, requesterRole: string, requesterName: string) => {
   if (PRIVILEGED_ROLES.includes(requesterRole)) return;
@@ -180,11 +180,11 @@ export const decideStage = async (
       `Stage ${stageId} is '${stage.status}' and is not awaiting a decision`,
     );
   }
-  // Intentional (EC-003, decided): admin/super-admin can decide ANY stage
+  // Intentional (EC-003, decided): admin/it-designer can decide ANY stage
   // regardless of its assigned role. This is a deliberate escalation/
   // override path (e.g. a role-holder is unavailable) — do not remove or
   // restrict this without a product decision to do so.
-  const isPrivileged = requesterRole === "admin" || requesterRole === "super-admin";
+  const isPrivileged = requesterRole === "admin" || requesterRole === "it-designer";
   if (!isPrivileged && stage.role !== requesterRole) {
     throw new ForbiddenError(
       `This stage requires a '${stage.role}' decision; you are '${requesterRole}'`,
@@ -230,7 +230,7 @@ const ageLabel = (from: Date | null): string => {
   return `${Math.round(hours / 24)}d`;
 };
 
-const PRIVILEGED_ROLES = ["admin", "super-admin"];
+const PRIVILEGED_ROLES = ["admin", "it-designer"];
 
 export const getApprovalQueue = async (
   scope: ApprovalScope,

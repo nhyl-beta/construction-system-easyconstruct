@@ -23,7 +23,7 @@ import {
 
 export default function WorkflowsPage() {
   const { user } = useAuth();
-  const isAdmin = user?.role === "admin" || user?.role === "super-admin";
+  const isAdmin = user?.role === "admin" || user?.role === "it-designer";
   const { templates, loading: templatesLoading, creating, createWorkflow } = useWorkflowTemplates();
   const { workflows, loading: workflowsLoading, reload, update, remove } = useActiveWorkflows();
   const [dialogOpen, setDialogOpen] = useState(false);

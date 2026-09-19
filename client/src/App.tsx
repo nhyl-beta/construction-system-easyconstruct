@@ -71,6 +71,8 @@ import IssuesRouter from "./pages/routers/issues-router";
 // ── Consultant Pages ──
 import ConsultantAdvisoryDocs from "./pages/roles/consultant/consultant-advisory-docs";
 import ConsultantProposals from "./pages/roles/consultant/consultant-proposals";
+import ConsultantDesigns from "./pages/roles/consultant/consultant-designs";
+import ConsultantProjects from "./pages/roles/consultant/consultant-projects";
 
 // ── Admin Pages ──
 import AdminProjects from "./pages/roles/admin/admin-projects";
@@ -86,9 +88,11 @@ import AdminSupport from "./pages/roles/admin/admin-support";
 
 // ── Owner Pages ──
 import OwnerPortfolio from "./pages/roles/owner/owner-portfolio";
+import OwnerProposals from "./pages/roles/owner/owner-proposals";
 
 // ── IT Designer Pages ──
 import ITDesignerUsers from "./pages/roles/it-designer/it-designer-users";
+import ITDesignerProposals from "./pages/roles/it-designer/it-designer-proposals";
 
 // ── Shared Pages ──
 import EmployeeCreatePage from "@/features/employees/pages/EmployeeCreatePage";
@@ -240,11 +244,31 @@ function App() {
                     element={<ConsultantProposals />}
                   />
 
+                  {/* Read-only advisory views. Consultant previously landed on
+                      the shared PM projects page, which offers create/edit and
+                      full commercial data. */}
+                  <Route
+                    path="/consultant/designs"
+                    element={
+                      <RequireRole allow={["consultant"]}>
+                        <ConsultantDesigns />
+                      </RequireRole>
+                    }
+                  />
+                  <Route
+                    path="/consultant/projects"
+                    element={
+                      <RequireRole allow={["consultant"]}>
+                        <ConsultantProjects />
+                      </RequireRole>
+                    }
+                  />
+
                   {/* ── Admin Routes ── */}
                   <Route
                     path="/admin/projects"
                     element={
-                      <RequireRole allow={["admin", "super_admin"]}>
+                      <RequireRole allow={["admin", "it_designer"]}>
                         <AdminProjects />
                       </RequireRole>
                     }
@@ -252,7 +276,7 @@ function App() {
                   <Route
                     path="/admin/workflows"
                     element={
-                      <RequireRole allow={["admin", "super_admin"]}>
+                      <RequireRole allow={["admin", "it_designer"]}>
                         <AdminWorkflows />
                       </RequireRole>
                     }
@@ -260,7 +284,7 @@ function App() {
                   <Route
                     path="/admin/documents"
                     element={
-                      <RequireRole allow={["admin", "super_admin"]}>
+                      <RequireRole allow={["admin", "it_designer"]}>
                         <AdminDocuments />
                       </RequireRole>
                     }
@@ -268,7 +292,7 @@ function App() {
                   <Route
                     path="/admin/activity-logs"
                     element={
-                      <RequireRole allow={["admin", "super_admin"]}>
+                      <RequireRole allow={["admin", "it_designer"]}>
                         <AdminActivityLogs />
                       </RequireRole>
                     }
@@ -276,7 +300,7 @@ function App() {
                   <Route
                     path="/admin/security"
                     element={
-                      <RequireRole allow={["admin", "super_admin"]}>
+                      <RequireRole allow={["admin", "it_designer"]}>
                         <AdminSecurity />
                       </RequireRole>
                     }
@@ -284,7 +308,7 @@ function App() {
                   <Route
                     path="/admin/notifications"
                     element={
-                      <RequireRole allow={["admin", "super_admin"]}>
+                      <RequireRole allow={["admin", "it_designer"]}>
                         <AdminNotifications />
                       </RequireRole>
                     }
@@ -292,7 +316,7 @@ function App() {
                   <Route
                     path="/admin/roles-permissions"
                     element={
-                      <RequireRole allow={["admin", "super_admin"]}>
+                      <RequireRole allow={["admin", "it_designer"]}>
                         <AdminRolesPermissions />
                       </RequireRole>
                     }
@@ -300,7 +324,7 @@ function App() {
                   <Route
                     path="/admin/workflow-configuration"
                     element={
-                      <RequireRole allow={["admin", "super_admin"]}>
+                      <RequireRole allow={["admin", "it_designer"]}>
                         <AdminWorkflowConfiguration />
                       </RequireRole>
                     }
@@ -308,7 +332,7 @@ function App() {
                   <Route
                     path="/admin/approval-hierarchy"
                     element={
-                      <RequireRole allow={["admin", "super_admin"]}>
+                      <RequireRole allow={["admin", "it_designer"]}>
                         <AdminApprovalHierarchy />
                       </RequireRole>
                     }
@@ -316,7 +340,7 @@ function App() {
                   <Route
                     path="/admin/support"
                     element={
-                      <RequireRole allow={["admin", "super_admin"]}>
+                      <RequireRole allow={["admin", "it_designer"]}>
                         <AdminSupport />
                       </RequireRole>
                     }
@@ -333,6 +357,14 @@ function App() {
                     element={
                       <RequireRole allow={["owner"]}>
                         <OwnerPortfolio />
+                      </RequireRole>
+                    }
+                  />
+                  <Route
+                    path="/owner/proposals"
+                    element={
+                      <RequireRole allow={["owner"]}>
+                        <OwnerProposals />
                       </RequireRole>
                     }
                   />
@@ -359,6 +391,14 @@ function App() {
                     element={
                       <RequireRole allow={["it_designer"]}>
                         <ITDesignerUsers />
+                      </RequireRole>
+                    }
+                  />
+                  <Route
+                    path="/it-designer/proposals"
+                    element={
+                      <RequireRole allow={["it_designer"]}>
+                        <ITDesignerProposals />
                       </RequireRole>
                     }
                   />

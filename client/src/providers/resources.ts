@@ -158,11 +158,28 @@ export const resources: ResourceProps[] = [
     meta: { label: "Tasks", group: "Workspace" },
   },
 
+  // Consultant (read-only advisory views)
+  {
+    name: "consultant-designs",
+    list: "/consultant/designs",
+    meta: { label: "Designs", group: "Overview" },
+  },
+  {
+    name: "consultant-projects",
+    list: "/consultant/projects",
+    meta: { label: "Projects", group: "Overview" },
+  },
+
   // Owner
   {
     name: "owner-portfolio",
     list: "/owner/portfolio",
     meta: { label: "Portfolio", group: "Executive" },
+  },
+  {
+    name: "owner-proposals",
+    list: "/owner/proposals",
+    meta: { label: "Proposals", group: "Executive" },
   },
   {
     name: "owner-audit-trail",
@@ -180,6 +197,11 @@ export const resources: ResourceProps[] = [
     name: "it-designer-users",
     list: "/it-designer/users",
     meta: { label: "User Accounts", group: "Administration" },
+  },
+  {
+    name: "it-designer-proposals",
+    list: "/it-designer/proposals",
+    meta: { label: "Proposals", group: "Monitoring" },
   },
   {
     name: "it-designer-roles-permissions",

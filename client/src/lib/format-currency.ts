@@ -1,8 +1,17 @@
+// EasyConstruct is a Philippine construction system — every amount in the
+// product is pesos. Keep the default here rather than per-screen, so a screen
+// that forgets to pass a currency still renders ₱ and not $.
+export const DEFAULT_CURRENCY = "PHP";
+export const CURRENCY_SYMBOL = "₱";
+
+// en-PH renders PHP as "₱1,234.00"; en-US renders it as "PHP 1,234.00".
+const LOCALE = "en-PH";
+
 export function formatCurrency(
   amount: number,
-  currency: string = "USD",
+  currency: string = DEFAULT_CURRENCY,
 ): string {
-  return new Intl.NumberFormat("en-US", {
+  return new Intl.NumberFormat(LOCALE, {
     style: "currency",
     currency,
     minimumFractionDigits: 2,
@@ -10,9 +19,19 @@ export function formatCurrency(
   }).format(amount);
 }
 
-/** e.g. formatCompactCurrency(12400000) -> "$12.40M" */
+/**
+ * Compact form for KPI tiles. Scales the unit to the amount so a ₱184,000
+ * payroll line doesn't render as "₱0.18M".
+ * e.g. 12_400_000 -> "₱12.40M", 184_000 -> "₱184.0K", 950 -> "₱950"
+ */
 export function formatCompactCurrency(amount: number): string {
-  return `$${(amount / 1_000_000).toFixed(2)}M`;
+  const abs = Math.abs(amount);
+  const sign = amount < 0 ? "-" : "";
+
+  if (abs >= 1_000_000_000) return `${sign}${CURRENCY_SYMBOL}${(abs / 1_000_000_000).toFixed(2)}B`;
+  if (abs >= 1_000_000) return `${sign}${CURRENCY_SYMBOL}${(abs / 1_000_000).toFixed(2)}M`;
+  if (abs >= 1_000) return `${sign}${CURRENCY_SYMBOL}${(abs / 1_000).toFixed(1)}K`;
+  return `${sign}${CURRENCY_SYMBOL}${abs.toFixed(0)}`;
 }
 
 /** e.g. formatPercent(0.862) -> "86.2%" */

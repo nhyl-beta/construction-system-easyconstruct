@@ -4,13 +4,17 @@ import {
   type NewProposal,
 } from "../db/schema/proposals.js";
 
-import { eq } from "drizzle-orm";
+import { asc, eq } from "drizzle-orm";
 
 export const proposalRepository = {
   async findAll() {
+    // Explicit ascending order by id (submission order). Without an ORDER BY
+    // Postgres gives no ordering guarantee at all, so the proposal tables
+    // reshuffled between loads and looked random to reviewers.
     return db
       .select()
-      .from(proposals);
+      .from(proposals)
+      .orderBy(asc(proposals.id));
   },
 
   async findById(id: number) {

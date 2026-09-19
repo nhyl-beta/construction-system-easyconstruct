@@ -21,7 +21,7 @@ router.get("/", controller.getAll);
 // Admin are included because every other administrative write route in this
 // codebase includes them. Owner is deliberately absent — its scope is
 // read-only executive oversight, so it must not be able to mint accounts.
-const canManageAccounts = requireRole("admin", "super-admin", "it-designer");
+const canManageAccounts = requireRole("admin", "it-designer");
 
 router.post("/", canManageAccounts, validate(createUserSchema), controller.create);
 router.patch("/:id", canManageAccounts, validate(updateUserSchema), controller.update);
@@ -31,5 +31,10 @@ router.patch(
   validate(setUserStatusSchema),
   controller.setStatus,
 );
+
+// Permanent removal. Guarded in users/service.ts: the account must already
+// be deactivated, must not be the caller's own, and must have no employee
+// record, project assignment, or assigned task still pointing at it.
+router.delete("/:id", canManageAccounts, controller.remove);
 
 export default router;

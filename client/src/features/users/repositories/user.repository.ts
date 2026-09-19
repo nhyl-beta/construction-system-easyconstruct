@@ -48,4 +48,10 @@ export const UserRepository = {
   async setActive(id: number, isActive: boolean): Promise<PublicUser> {
     return unwrap<PublicUser>(apiClient.patch(`/users/${id}/status`, { isActive }));
   },
+
+  // Permanent. The API refuses unless the account is already deactivated and
+  // nothing references it — see server/src/users/service.ts remove().
+  async remove(id: number): Promise<PublicUser> {
+    return unwrap<PublicUser>(apiClient.del(`/users/${id}`));
+  },
 };

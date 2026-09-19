@@ -62,6 +62,10 @@ export const updateStatus = async (req: AuthedRequest, res: Response, next: Next
       Number(req.params.id),
       req.body.status,
       req.authUser!.id,
+      {
+        completionNote: req.body.completionNote,
+        completionFileUrl: req.body.completionFileUrl,
+      },
     );
     await logAudit({
       entityType: "task",

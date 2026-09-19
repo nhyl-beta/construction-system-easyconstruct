@@ -20,6 +20,7 @@ import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
 
 import { useFieldDocuments } from "@/features/documents/hooks/use-field-documents";
+import { isRealFileUrl, resolveFileUrl } from "@/lib/file-url";
 
 type UploadForm = {
   title: string;
@@ -643,9 +644,9 @@ const handleUpload = async () => {
                       </div>
                     </div>
 
-                    {document.fileUrl && (
+                    {isRealFileUrl(document.fileUrl) && (
                       <a
-                        href={document.fileUrl}
+                        href={resolveFileUrl(document.fileUrl as string)}
                         target="_blank"
                         rel="noreferrer"
                         className="inline-flex h-9 items-center justify-center rounded-md border px-3 text-sm font-medium transition-colors hover:bg-muted"

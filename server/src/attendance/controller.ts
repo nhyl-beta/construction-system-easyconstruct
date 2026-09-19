@@ -5,6 +5,7 @@ import { formatSuccess } from "../utils/response.js";
 import { logAudit } from "../utils/audit.js";
 import type { AuthedRequest } from "../middleware/auth.js";
 import * as service from "./service.js";
+import * as employeeService from "../employees/service.js";
 import type { AttendanceFilters } from "./types.js";
 
 export const getAll = async (req: Request, res: Response, next: NextFunction) => {
@@ -43,7 +44,25 @@ export const create = async (req: Request, res: Response, next: NextFunction) =>
 
 export const update = async (req: AuthedRequest, res: Response, next: NextFunction) => {
   try {
-    const data = await service.update(Number(req.params.id), req.body);
+    const id = Number(req.params.id);
+    const existing = await service.getById(id);
+
+    // Site Personnel reach this route to clock out; the check confines them
+    // to their own open record and to the clockOut field.
+    const actorEmployee =
+      req.authUser?.role === "site-personnel"
+        ? await employeeService.getMyEmployeeRecord(
+            req.authUser.id,
+            req.authUser.email,
+          )
+        : null;
+
+    await service.assertCanUpdateAttendance(existing, req.body, {
+      role: req.authUser?.role ?? "",
+      employeeId: actorEmployee?.employeeId ?? null,
+    });
+
+    const data = await service.update(id, req.body);
     await logAudit({
       entityType: "attendance",
       entityId: String(req.params.id),

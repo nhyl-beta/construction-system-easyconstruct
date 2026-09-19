@@ -1,3 +1,9 @@
+/** One engineer assigned to a design (design_engineers row, flattened). */
+export interface DesignAssignedEngineer {
+  userId: number;
+  userName: string;
+}
+
 export interface Design {
   id: number;
   code: string;
@@ -16,6 +22,11 @@ export interface Design {
   zone: string | null;
   description: string | null;
   fileCount: number;
+  // Denormalized first engineer, kept in sync with assignedEngineers[0] by
+  // the API; prefer assignedEngineers.
+  assignedEngineerId: number | null;
+  assignedEngineerName: string | null;
+  assignedEngineers: DesignAssignedEngineer[];
   aiCompleteness: number;
   aiConfidence: number;
   createdAt: string | null;

@@ -39,7 +39,7 @@ router.post(
 // via the same useFieldDocuments hook.
 router.post(
   "/upload",
-  requireRole("project-manager", "admin", "super-admin", "site-personnel", "consultant"),
+  requireRole("project-manager", "admin", "it-designer", "site-personnel", "consultant"),
   advisoryDocumentUpload.single("file"),
   controller.upload,
 );
