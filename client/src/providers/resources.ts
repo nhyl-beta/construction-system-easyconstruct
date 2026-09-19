@@ -158,21 +158,48 @@ export const resources: ResourceProps[] = [
     meta: { label: "Tasks", group: "Workspace" },
   },
 
-  // Owner / IT Designer
+  // Owner
   {
-    name: "users",
-    list: "/users",
-    meta: { label: "User Accounts", group: "Workspace" },
+    name: "owner-portfolio",
+    list: "/owner/portfolio",
+    meta: { label: "Portfolio", group: "Executive" },
   },
   {
-    name: "audit-logs",
-    list: "/audit-logs",
-    meta: { label: "Audit Logs", group: "Workspace" },
+    name: "owner-audit-trail",
+    list: "/owner/audit-trail",
+    meta: { label: "Audit Trail", group: "Oversight" },
   },
   {
-    name: "monitoring",
-    list: "/monitoring",
-    meta: { label: "Monitoring", group: "Workspace" },
+    name: "owner-oversight",
+    list: "/owner/oversight",
+    meta: { label: "System Oversight", group: "Oversight" },
+  },
+
+  // IT Designer
+  {
+    name: "it-designer-users",
+    list: "/it-designer/users",
+    meta: { label: "User Accounts", group: "Administration" },
+  },
+  {
+    name: "it-designer-roles-permissions",
+    list: "/it-designer/roles-permissions",
+    meta: { label: "Roles & Permissions", group: "Administration" },
+  },
+  {
+    name: "it-designer-activity-logs",
+    list: "/it-designer/activity-logs",
+    meta: { label: "Activity Logs", group: "Monitoring" },
+  },
+  {
+    name: "it-designer-security",
+    list: "/it-designer/security",
+    meta: { label: "Security", group: "Monitoring" },
+  },
+  {
+    name: "it-designer-support",
+    list: "/it-designer/support",
+    meta: { label: "User Support", group: "Support" },
   },
 
   // Admin

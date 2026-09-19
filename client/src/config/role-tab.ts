@@ -14,6 +14,7 @@ import {
   Bell,
   CheckSquare,
   ClipboardList,
+  Crown,
   DollarSign,
   FileText,
   FolderKanban,
@@ -22,6 +23,7 @@ import {
   LifeBuoy,
   MapPin,
   Ruler,
+  Server,
   ShieldAlert,
   ShieldCheck,
   UserCheck,
@@ -157,6 +159,92 @@ export const ROLE_CONFIGS: Record<string, RoleConfig> = {
       {
         label: "Support",
         items: [{ label: "User Support", icon: LifeBuoy, route: "/admin/support" }],
+      },
+    ],
+  },
+  // Owner is admin-adjacent but read-only: the executive sees everything the
+  // organization is doing and nothing that changes it, so the Configuration
+  // and Support sections Super Admin carries are deliberately absent.
+  owner: {
+    label: "Owner",
+    initials: "OW",
+    subtitle: "Executive oversight",
+    icon: Crown,
+    avatarColor: "bg-amber-700",
+    accentBg: "bg-amber-600",
+    searchPlaceholder: "Search projects, activity...",
+    primaryAi: "Executive Intelligence",
+    primaryAction: { label: "Audit Trail", icon: ShieldCheck, route: "/owner/audit-trail" },
+
+    tabs: [
+      { label: "Portfolio", icon: FolderKanban, route: "/owner/portfolio" },
+      { label: "Audit Trail", icon: ShieldCheck, route: "/owner/audit-trail" },
+      { label: "Oversight", icon: ShieldAlert, route: "/owner/oversight" },
+    ],
+
+    sections: [
+      {
+        label: "Executive",
+        items: [
+          { label: "Dashboard", icon: LayoutDashboard, route: "/dashboard" },
+          { label: "Portfolio", icon: FolderKanban, route: "/owner/portfolio" },
+        ],
+      },
+      {
+        label: "Oversight",
+        items: [
+          { label: "Audit Trail", icon: ShieldCheck, route: "/owner/audit-trail" },
+          { label: "System Oversight", icon: ShieldAlert, route: "/owner/oversight" },
+        ],
+      },
+      {
+        label: "Intelligence",
+        items: [
+          { label: "AI Insights", icon: ActivitySquare, route: "/ai-insights" },
+          { label: "Reports", icon: BarChart2, route: "/reports" },
+        ],
+      },
+    ],
+  },
+  // IT Designer is Admin scoped to system/user administration: it keeps the
+  // Monitoring and Configuration halves of the Admin sidebar and drops the
+  // Operations half (projects, workflows, documents) entirely.
+  it_designer: {
+    label: "IT Designer",
+    initials: "IT",
+    subtitle: "System administration",
+    icon: Server,
+    avatarColor: "bg-indigo-700",
+    accentBg: "bg-indigo-600",
+    searchPlaceholder: "Search users, activity...",
+    primaryAi: "System Intelligence",
+    primaryAction: { label: "New User", icon: UserPlus, route: "/it-designer/users" },
+
+    tabs: [
+      { label: "Users", icon: UsersRound, route: "/it-designer/users" },
+      { label: "Activity Logs", icon: ShieldCheck, route: "/it-designer/activity-logs" },
+      { label: "Security", icon: ShieldAlert, route: "/it-designer/security" },
+    ],
+
+    sections: [
+      {
+        label: "Administration",
+        items: [
+          { label: "Dashboard", icon: LayoutDashboard, route: "/dashboard" },
+          { label: "User Accounts", icon: UsersRound, route: "/it-designer/users" },
+          { label: "Roles & Permissions", icon: UserCheck, route: "/it-designer/roles-permissions" },
+        ],
+      },
+      {
+        label: "Monitoring",
+        items: [
+          { label: "Activity Logs", icon: ShieldCheck, route: "/it-designer/activity-logs" },
+          { label: "Security", icon: ShieldAlert, route: "/it-designer/security" },
+        ],
+      },
+      {
+        label: "Support",
+        items: [{ label: "User Support", icon: LifeBuoy, route: "/it-designer/support" }],
       },
     ],
   },

@@ -10,7 +10,13 @@ export const ProjectsToolbar: React.FC<{
   setQuery: (q: string) => void;
   view: "table" | "grid";
   setView: (v: "table" | "grid") => void;
-}> = ({ query, setQuery, view, setView }) => {
+  /**
+   * Defaults to true so every existing caller keeps the button. Read-only
+   * roles (Owner) pass false — they have no create grant on /api/projects,
+   * so the link would only ever lead to a form that 403s on submit.
+   */
+  showCreate?: boolean;
+}> = ({ query, setQuery, view, setView, showCreate = true }) => {
   return (
     <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
       <div>
@@ -33,11 +39,13 @@ export const ProjectsToolbar: React.FC<{
         <Button variant="outline" size="sm" className="rounded-xl">
           <Filter className="h-4 w-4" /> Filters
         </Button>
-        <Button asChild className="rounded-xl">
-          <Link to="/projects/new">
-            <Plus className="h-4 w-4" /> New project
-          </Link>
-        </Button>
+        {showCreate && (
+          <Button asChild className="rounded-xl">
+            <Link to="/projects/new">
+              <Plus className="h-4 w-4" /> New project
+            </Link>
+          </Button>
+        )}
 
         <Tabs
           value={view}

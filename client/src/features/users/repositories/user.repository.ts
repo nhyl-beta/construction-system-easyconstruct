@@ -5,6 +5,20 @@ export interface PublicUser {
   name: string;
   email: string;
   role: string;
+  isActive: boolean;
+}
+
+export interface CreateUserInput {
+  name: string;
+  email: string;
+  password: string;
+  role: string;
+}
+
+export interface UpdateUserInput {
+  name?: string;
+  email?: string;
+  role?: string;
 }
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -15,7 +29,23 @@ async function unwrap<T>(promise: Promise<any>): Promise<T> {
 }
 
 export const UserRepository = {
+  async list(): Promise<PublicUser[]> {
+    return unwrap<PublicUser[]>(apiClient.get("/users"));
+  },
+
   async listByRole(role: string): Promise<PublicUser[]> {
     return unwrap<PublicUser[]>(apiClient.get(`/users?role=${encodeURIComponent(role)}`));
+  },
+
+  async create(input: CreateUserInput): Promise<PublicUser> {
+    return unwrap<PublicUser>(apiClient.post("/users", input));
+  },
+
+  async update(id: number, input: UpdateUserInput): Promise<PublicUser> {
+    return unwrap<PublicUser>(apiClient.patch(`/users/${id}`, input));
+  },
+
+  async setActive(id: number, isActive: boolean): Promise<PublicUser> {
+    return unwrap<PublicUser>(apiClient.patch(`/users/${id}/status`, { isActive }));
   },
 };

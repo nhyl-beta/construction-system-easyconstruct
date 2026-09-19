@@ -19,6 +19,8 @@ const ACCOUNTS = [
   { name: "Paolo Mendoza", email: "engineer@easyconstruct.demo", role: "engineer", employeeRole: "Site Engineer", department: "Engineering" },
   { name: "Rico Domingo", email: "site@easyconstruct.demo", role: "site-personnel", employeeRole: "Construction Worker", department: "Field Operations" },
   { name: "Elena Bautista", email: "consultant@easyconstruct.demo", role: "consultant", employeeRole: "Consultant", department: "Advisory" },
+  { name: "Teresa Aquino", email: "owner@easyconstruct.demo", role: "owner", employeeRole: "Owner", department: "Executive" },
+  { name: "Noel Garcia", email: "itdesigner@easyconstruct.demo", role: "it-designer", employeeRole: "IT Designer", department: "Information Technology" },
 ] as const;
 
 // Backs Admin's read-only Roles & Permissions screen. `name` must match the
@@ -34,6 +36,8 @@ const ROLES = [
   { name: "engineer", label: "Engineer", description: "Technical requirements, progress reports, task creation, and issue resolution." },
   { name: "site-personnel", label: "Site Personnel", description: "Geofenced attendance, field task updates, documents, and issue reporting." },
   { name: "consultant", label: "Consultant", description: "Advisory review of design proposals and advisory documentation." },
+  { name: "owner", label: "Owner", description: "Executive read-only oversight: org-wide performance, audit trail, and system activity." },
+  { name: "it-designer", label: "IT Designer", description: "User account administration, system monitoring, and maintenance." },
 ] as const;
 
 const TEMPLATES = [
@@ -175,6 +179,13 @@ async function main() {
 
   console.log(`\nDone. Created ${createdUsers} users and ${createdEmployees} employees.`);
   console.log(`Password for demo accounts: ${PASSWORD}`);
+
+  // Every demo login, printed together so the two newest roles (owner,
+  // it-designer) are as easy to find as the nine that predate them.
+  console.log("\nDemo logins:");
+  for (const account of ACCOUNTS) {
+    console.log(`  ${account.role.padEnd(16)} ${account.email}`);
+  }
 }
 
 main().catch((error) => {

@@ -4,7 +4,10 @@ import { authenticate, requireRole } from "../middleware/auth.js";
 
 const router = Router();
 
-router.use(authenticate, requireRole("admin", "super-admin"));
+// GET-only router (the roles catalogue is seeded, never edited over HTTP).
+// IT Designer needs it to pick a role when creating/editing an account;
+// Owner needs it for the read-only "who can do what" side of oversight.
+router.use(authenticate, requireRole("admin", "super-admin", "owner", "it-designer"));
 
 router.get("/", controller.getAll);
 router.get("/:id", controller.getById);

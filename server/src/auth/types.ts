@@ -3,6 +3,15 @@ export interface LoginInput {
   password: string;
 }
 
+export interface ForgotPasswordInput {
+  email: string;
+}
+
+export interface ResetPasswordInput {
+  token: string;
+  password: string;
+}
+
 export interface AuthenticatedUser {
   id: number;
   email: string;

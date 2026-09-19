@@ -7,6 +7,8 @@ import EngineerDashboardPage from "../roles/engineer/engineer-dashboard";
 import SPDashboardPage from "../roles/site-personnel/sp-dashboard";
 import ConsultantDashboardPage from "../roles/consultant/consultant-dashboard";
 import AdminDashboardPage from "../roles/admin/admin-dashboard";
+import OwnerDashboardPage from "../roles/owner/owner-dashboard";
+import ITDesignerDashboardPage from "../roles/it-designer/it-designer-dashboard";
 
 // ── Role → Dashboard map ──────────────────────────────────────────────────────
 
@@ -20,8 +22,8 @@ const ROLE_DASHBOARD: Record<string, React.ComponentType> = {
   consultant:      ConsultantDashboardPage,
   admin:           AdminDashboardPage,
   super_admin:     AdminDashboardPage,
-  // owner:           OwnerDashboardPage,
-  // it_designer:     ITDesignerDashboardPage,
+  owner:           OwnerDashboardPage,
+  it_designer:     ITDesignerDashboardPage,
 };
 
 // Fallback for roles without a dashboard yet

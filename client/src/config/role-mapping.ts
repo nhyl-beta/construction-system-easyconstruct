@@ -1,6 +1,8 @@
 export const BACKEND_TO_FRONTEND_ROLE: Record<string, string> = {
   "super-admin": "super_admin",
   admin: "admin",
+  owner: "owner",
+  "it-designer": "it_designer",
   "human-resources": "human_resources",
   "finance-manager": "finance_manager",
   "project-manager": "project_manager",

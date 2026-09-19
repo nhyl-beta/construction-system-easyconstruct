@@ -79,11 +79,21 @@ async function main() {
     ALTER TABLE project_members
       DROP CONSTRAINT IF EXISTS project_engineers_project_user_unique;
 
+    -- IT Designer's "deactivate accounts" scope needs a soft-disable flag.
+    -- Defaults to true so every pre-existing account keeps working; login
+    -- rejects users whose flag is false (see auth/service.ts).
+    ALTER TABLE users
+      ADD COLUMN IF NOT EXISTS is_active boolean NOT NULL DEFAULT true;
+
+    -- duplicate_table, not just duplicate_object: on a re-run Postgres fails
+    -- on the *index* backing the constraint (42P07), which duplicate_object
+    -- doesn't catch — that aborted the whole script on every run after the
+    -- first, taking the statements above down with it.
     DO $$ BEGIN
       ALTER TABLE project_members
         ADD CONSTRAINT project_members_project_user_role_unique
         UNIQUE (project_code, user_id, role);
-    EXCEPTION WHEN duplicate_object THEN NULL;
+    EXCEPTION WHEN duplicate_object OR duplicate_table THEN NULL;
     END $$;
   `);
 

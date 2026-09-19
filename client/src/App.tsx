@@ -84,6 +84,12 @@ import AdminWorkflowConfiguration from "./pages/roles/admin/admin-workflow-confi
 import AdminApprovalHierarchy from "./pages/roles/admin/admin-approval-hierarchy";
 import AdminSupport from "./pages/roles/admin/admin-support";
 
+// ── Owner Pages ──
+import OwnerPortfolio from "./pages/roles/owner/owner-portfolio";
+
+// ── IT Designer Pages ──
+import ITDesignerUsers from "./pages/roles/it-designer/it-designer-users";
+
 // ── Shared Pages ──
 import EmployeeCreatePage from "@/features/employees/pages/EmployeeCreatePage";
 import ProjectCreatePage from "@/features/projects/pages/ProjectCreatePage";
@@ -311,6 +317,79 @@ function App() {
                     path="/admin/support"
                     element={
                       <RequireRole allow={["admin", "super_admin"]}>
+                        <AdminSupport />
+                      </RequireRole>
+                    }
+                  />
+
+                  {/* ── Owner Routes ── */}
+                  {/* Owner's oversight screens are the Admin components
+                      themselves, not copies: both are read-only views over
+                      /api/audit-logs, which Owner is authorized for. Mounting
+                      them on /owner/* keeps the existing /admin/* guards
+                      untouched. */}
+                  <Route
+                    path="/owner/portfolio"
+                    element={
+                      <RequireRole allow={["owner"]}>
+                        <OwnerPortfolio />
+                      </RequireRole>
+                    }
+                  />
+                  <Route
+                    path="/owner/audit-trail"
+                    element={
+                      <RequireRole allow={["owner"]}>
+                        <AdminActivityLogs />
+                      </RequireRole>
+                    }
+                  />
+                  <Route
+                    path="/owner/oversight"
+                    element={
+                      <RequireRole allow={["owner"]}>
+                        <AdminSecurity />
+                      </RequireRole>
+                    }
+                  />
+
+                  {/* ── IT Designer Routes ── */}
+                  <Route
+                    path="/it-designer/users"
+                    element={
+                      <RequireRole allow={["it_designer"]}>
+                        <ITDesignerUsers />
+                      </RequireRole>
+                    }
+                  />
+                  <Route
+                    path="/it-designer/roles-permissions"
+                    element={
+                      <RequireRole allow={["it_designer"]}>
+                        <AdminRolesPermissions />
+                      </RequireRole>
+                    }
+                  />
+                  <Route
+                    path="/it-designer/activity-logs"
+                    element={
+                      <RequireRole allow={["it_designer"]}>
+                        <AdminActivityLogs />
+                      </RequireRole>
+                    }
+                  />
+                  <Route
+                    path="/it-designer/security"
+                    element={
+                      <RequireRole allow={["it_designer"]}>
+                        <AdminSecurity />
+                      </RequireRole>
+                    }
+                  />
+                  <Route
+                    path="/it-designer/support"
+                    element={
+                      <RequireRole allow={["it_designer"]}>
                         <AdminSupport />
                       </RequireRole>
                     }

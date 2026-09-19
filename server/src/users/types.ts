@@ -3,8 +3,26 @@ export interface PublicUserRecord {
   name: string;
   email: string;
   role: string;
+  isActive: boolean;
 }
 
 export interface UserFilters {
   role?: string;
+}
+
+export interface CreateUserInput {
+  name: string;
+  email: string;
+  password: string;
+  role: string;
+}
+
+export interface UpdateUserInput {
+  name?: string;
+  email?: string;
+  role?: string;
+}
+
+export interface SetUserStatusInput {
+  isActive: boolean;
 }
