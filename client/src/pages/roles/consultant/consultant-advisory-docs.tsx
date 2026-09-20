@@ -19,8 +19,9 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
 
+import { FilePreviewDialog } from "@/components/shared/file-preview-dialog";
 import { useFieldDocuments } from "@/features/documents/hooks/use-field-documents";
-import { isRealFileUrl, resolveFileUrl } from "@/lib/file-url";
+import type { DocumentRecord } from "@/features/documents/repositories/documents.repository";
 
 type UploadForm = {
   title: string;
@@ -117,6 +118,14 @@ export default function AdvisoryDocsPage() {
   const [search, setSearch] = useState("");
   const [formError, setFormError] = useState<string | null>(null);
   const [successMessage, setSuccessMessage] = useState<string | null>(null);
+
+  // The advisory document currently open in the preview dialog. "View
+  // Document" used to be an <a target="_blank"> that only rendered when the
+  // row had a usable fileUrl, so a document with a missing or legacy path
+  // offered no affordance at all and the ones that did render handed the
+  // reviewer a browser 404. Every row now opens the same viewer, which shows
+  // the file inline and says plainly when it cannot.
+  const [previewing, setPreviewing] = useState<DocumentRecord | null>(null);
 
   const filteredDocuments = useMemo(() => {
     const query = search.trim().toLowerCase();
@@ -644,16 +653,14 @@ const handleUpload = async () => {
                       </div>
                     </div>
 
-                    {isRealFileUrl(document.fileUrl) && (
-                      <a
-                        href={resolveFileUrl(document.fileUrl as string)}
-                        target="_blank"
-                        rel="noreferrer"
-                        className="inline-flex h-9 items-center justify-center rounded-md border px-3 text-sm font-medium transition-colors hover:bg-muted"
-                      >
-                        View Document
-                      </a>
-                    )}
+                    <Button
+                      type="button"
+                      variant="outline"
+                      className="shrink-0"
+                      onClick={() => setPreviewing(document)}
+                    >
+                      View Document
+                    </Button>
                   </div>
                 ))}
               </div>
@@ -661,6 +668,20 @@ const handleUpload = async () => {
           </CardContent>
         </Card>
       </PageContent>
+
+      <FilePreviewDialog
+        open={previewing !== null}
+        onOpenChange={(open) => !open && setPreviewing(null)}
+        url={previewing?.fileUrl}
+        title={previewing?.title ?? ""}
+        description={
+          previewing
+            ? `${previewing.documentId} · ${previewing.project} · version ${
+                previewing.version || "1.0"
+              }`
+            : undefined
+        }
+      />
     </PageContainer>
   );
 }

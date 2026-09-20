@@ -123,6 +123,35 @@ async function main() {
     UPDATE project_members SET role = 'it-designer' WHERE role = 'super-admin';
     DELETE FROM roles WHERE name = 'super-admin';
 
+    -- Clock-ins recorded before attendance/service.ts distinguished "the
+    -- fence was not evaluated" from "the fence was breached" all carry
+    -- geofence = 'Outside' with no distance behind it, because 'Outside' was
+    -- the default the code fell through to. Relabel the ones that were never
+    -- measured, and return the automatic 'Flagged' verdict to 'Pending' where
+    -- no human has since recorded a note on the record.
+    UPDATE attendance
+       SET status = 'Pending'
+     WHERE geofence = 'Outside'
+       AND distance_from_site_m IS NULL
+       AND status = 'Flagged'
+       AND (remarks IS NULL OR remarks = '');
+
+    UPDATE attendance
+       SET geofence = 'Unverified'
+     WHERE geofence = 'Outside'
+       AND distance_from_site_m IS NULL;
+
+    -- Advisory/field documents uploaded before documents/service.ts started
+    -- writing the "/uploads/documents/" prefix were stored as
+    -- "/uploads/<file>", while multer has always written the file itself into
+    -- uploads/documents/. express.static serves uploads/ at /uploads, so those
+    -- rows resolved to a path with no file behind it and every "View Document"
+    -- on them 404'd. Rewrite the stored prefix to match where the bytes are.
+    UPDATE documents
+       SET file_url = '/uploads/documents/' || substring(file_url from 10)
+     WHERE file_url LIKE '/uploads/%'
+       AND file_url NOT LIKE '/uploads/%/%';
+
     -- duplicate_table, not just duplicate_object: on a re-run Postgres fails
     -- on the *index* backing the constraint (42P07), which duplicate_object
     -- doesn't catch — that aborted the whole script on every run after the

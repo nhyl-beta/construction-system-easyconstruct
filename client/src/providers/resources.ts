@@ -87,18 +87,6 @@ export const resources: ResourceProps[] = [
   {
     name: "designs",
     list: "/designs",
-    meta: { label: "Designs", group: "Workspace" },
-  },
-  {
-    name: "proposals",
-    list: "/proposals",
-    meta: { label: "Proposals", group: "Workspace" },
-  },
-
-  // Architect
-  {
-    name: "designs",
-    list: "/designs",
     create: "/designs/new",
     show: "/designs/:id",
     meta: { label: "Designs", group: "Workspace" },
@@ -158,16 +146,34 @@ export const resources: ResourceProps[] = [
     meta: { label: "Tasks", group: "Workspace" },
   },
 
-  // Consultant (read-only advisory views)
+  // Consultant (advisory views)
+  //
+  // Consultant's own proposal-review screen lives at /consultant/proposals,
+  // but the role was granted the generic "proposals" resource, whose list
+  // route is the Architect authoring page at /proposals. The sidebar is built
+  // from these resources (components/refine-ui/layout/sidebar.tsx), so
+  // Consultant's own review screen had no entry at all and the one labelled
+  // "Proposals" led somewhere else. Advisory Docs was granted in
+  // role-resources.ts but never registered here, so it was dropped too.
+  {
+    name: "consultant-proposals",
+    list: "/consultant/proposals",
+    meta: { label: "Proposal Review", group: "Workspace" },
+  },
   {
     name: "consultant-designs",
     list: "/consultant/designs",
-    meta: { label: "Designs", group: "Overview" },
+    meta: { label: "Designs", group: "Workspace" },
+  },
+  {
+    name: "advisory-docs",
+    list: "/advisory-docs",
+    meta: { label: "Advisory Docs", group: "Workspace" },
   },
   {
     name: "consultant-projects",
     list: "/consultant/projects",
-    meta: { label: "Projects", group: "Overview" },
+    meta: { label: "Projects", group: "Workspace" },
   },
 
   // Owner

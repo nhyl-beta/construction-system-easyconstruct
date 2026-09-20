@@ -18,40 +18,54 @@ import {
   StatusBadge,
 } from "@/pages/roles/shared/shared-hr";
 
-import { useEffect, useMemo, useState } from "react";
-import { listAttendance, type AttendanceEntry } from "@/features/hr/attendance-api";
+import { useCallback, useEffect, useMemo, useState } from "react";
+import {
+  listAttendance,
+  setAttendanceVerification,
+  type AttendanceEntry,
+} from "@/features/hr/attendance-api";
 import { listEmployees } from "@/features/hr/hr-api";
-import { openFileUrl } from "@/lib/file-url";
+import { AttendanceVerificationDialog } from "@/components/hr/attendance-verification-dialog";
 
 import { Camera, CheckCircle2, Clock, MapPin, ShieldCheck } from "lucide-react";
 
 export default function HRAttendancePage() {
   const [logs, setLogs] = useState<AttendanceEntry[]>([]);
   const [loading, setLoading] = useState(true);
+  // The clock-in HR is currently confirming — photo and coordinates side by
+  // side in AttendanceVerificationDialog.
+  const [reviewing, setReviewing] = useState<AttendanceEntry | null>(null);
+
+  const load = useCallback(async () => {
+    setLoading(true);
+    const employees = await listEmployees();
+    const nameLookup = new Map(
+      employees.map((e) => [e.id, { name: e.name, initials: e.initials }]),
+    );
+    const rows = await listAttendance({}, nameLookup);
+    setLogs(rows);
+    setLoading(false);
+  }, []);
 
   useEffect(() => {
-    let cancelled = false;
-    (async () => {
-      setLoading(true);
-      const employees = await listEmployees();
-      const nameLookup = new Map(
-        employees.map((e) => [e.id, { name: e.name, initials: e.initials }]),
-      );
-      const rows = await listAttendance({}, nameLookup);
-      if (!cancelled) {
-        setLogs(rows);
-        setLoading(false);
-      }
-    })();
-    return () => {
-      cancelled = true;
-    };
-  }, []);
+    void load();
+  }, [load]);
+
+  const verify = useCallback(
+    async (id: number, status: "Verified" | "Flagged", remarks: string) => {
+      await setAttendanceVerification(id, status, remarks || undefined);
+      await load();
+    },
+    [load],
+  );
 
   const kpis = useMemo(() => {
     const verified = logs.filter((l) => l.status === "Verified").length;
     const pending = logs.filter((l) => l.status === "Pending").length;
-    const geofenceFlags = logs.filter((l) => l.geofence !== "Inside").length;
+    // Only a measured breach counts as a flag. "Unverified" means the fence
+    // was never evaluated (no coordinates, or a project with no registered
+    // site) — that is work for HR, not a boundary violation.
+    const geofenceFlags = logs.filter((l) => l.geofence === "Outside").length;
     const photoFailures = logs.filter((l) => l.photo === "Failed").length;
     return { verified, pending, geofenceFlags, photoFailures };
   }, [logs]);
@@ -122,19 +136,20 @@ export default function HRAttendancePage() {
                   <TableHead>Geofence</TableHead>
                   <TableHead>Photo</TableHead>
                   <TableHead>Attendance</TableHead>
+                  <TableHead className="text-right">Check</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
                 {loading && (
                   <TableRow>
-                    <TableCell colSpan={8} className="py-8 text-center text-sm text-muted-foreground">
+                    <TableCell colSpan={9} className="py-8 text-center text-sm text-muted-foreground">
                       Loading attendance…
                     </TableCell>
                   </TableRow>
                 )}
                 {!loading && logs.length === 0 && (
                   <TableRow>
-                    <TableCell colSpan={8} className="py-8 text-center text-sm text-muted-foreground">
+                    <TableCell colSpan={9} className="py-8 text-center text-sm text-muted-foreground">
                       No attendance records yet.
                     </TableCell>
                   </TableRow>
@@ -176,19 +191,25 @@ export default function HRAttendancePage() {
                             ? "border-success/30 text-success"
                             : l.geofence === "Edge"
                             ? "border-warning/30 text-warning"
-                            : "border-destructive/30 text-destructive"
+                            : l.geofence === "Outside"
+                            ? "border-destructive/30 text-destructive"
+                            : "border-border text-muted-foreground"
                         }`}
                       >
                         <MapPin className="mr-1 h-3 w-3" /> {l.geofence}
                       </Badge>
+                      {l.distanceFromSiteM != null && (
+                        <div className="mt-0.5 text-[10px] tabular-nums text-muted-foreground">
+                          {l.distanceFromSiteM} m from site
+                        </div>
+                      )}
                     </TableCell>
                     <TableCell>
                       <button
                         type="button"
-                        disabled={!l.photoUrl}
-                        title={l.photoUrl ? "View clock-in photo" : "No photo on file"}
-                        onClick={() => openFileUrl(l.photoUrl)}
-                        className={l.photoUrl ? "cursor-pointer" : "cursor-not-allowed opacity-70"}
+                        title="Check the photo and location for this clock-in"
+                        onClick={() => setReviewing(l)}
+                        className="cursor-pointer"
                       >
                         <Badge
                           variant="outline"
@@ -206,6 +227,16 @@ export default function HRAttendancePage() {
                     </TableCell>
                     <TableCell>
                       <StatusBadge status={l.attendanceStatus} />
+                    </TableCell>
+                    <TableCell className="text-right">
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        className="rounded-lg"
+                        onClick={() => setReviewing(l)}
+                      >
+                        Verify
+                      </Button>
                     </TableCell>
                   </TableRow>
                 ))}
@@ -272,6 +303,12 @@ export default function HRAttendancePage() {
           </CardContent>
         </Card>
       </div>
+
+      <AttendanceVerificationDialog
+        entry={reviewing}
+        onOpenChange={(open) => !open && setReviewing(null)}
+        onVerify={verify}
+      />
     </div>
   );
 }

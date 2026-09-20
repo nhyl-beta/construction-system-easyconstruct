@@ -89,7 +89,9 @@ export const ROLE_RESOURCE_ACCESS: Record<string, string[]> = {
   site_personnel: ["dashboard", "attendance", "tasks", "requirements", "documents", "issues"],
   consultant: [
     "dashboard",
-    "proposals",
+    // Consultant's review screen, not the Architect authoring page the
+    // generic "proposals" resource points at.
+    "consultant-proposals",
     "consultant-designs",
     "advisory-docs",
     "approvals",

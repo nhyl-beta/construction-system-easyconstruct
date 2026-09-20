@@ -5,7 +5,7 @@ import {
   Upload,
   FolderTree,
   Search,
-  Download,
+  Eye,
   FileSignature,
   Image as ImageIcon,
   FileSpreadsheet,
@@ -16,9 +16,10 @@ import { Badge }   from "@/components/ui/badge";
 import { Button }  from "@/components/ui/button";
 import { Input }   from "@/components/ui/input";
 import { UploadDocumentDialog } from "@/components/documents/upload-document-dialog";
+import { FilePreviewDialog } from "@/components/shared/file-preview-dialog";
 import { useFieldDocuments } from "@/features/documents/hooks/use-field-documents";
+import type { DocumentRecord } from "@/features/documents/repositories/documents.repository";
 import { formatRelativeTime } from "@/lib/format-relative-time";
-import { isRealFileUrl, openFileUrl } from "@/lib/file-url";
 
 // Icon resolver — mapped from real `type` values (the schema's enum), not
 // a separate iconKey field that doesn't exist on this table.
@@ -33,6 +34,10 @@ const TYPE_ICONS: Record<string, LucideIcon> = {
 export default function DocumentsPage() {
   const { documents, loading, uploading, upload } = useFieldDocuments();
   const [uploadOpen, setUploadOpen] = useState(false);
+  // Same viewer Consultant's advisory register uses — both read the same
+  // `documents` table, so both hit the same missing-file and legacy-path
+  // rows, and both now report that instead of opening a blank tab.
+  const [previewing, setPreviewing] = useState<DocumentRecord | null>(null);
   const [search, setSearch] = useState("");
   const [activeType, setActiveType] = useState<string | null>(null);
 
@@ -151,11 +156,10 @@ export default function DocumentsPage() {
                               variant="ghost"
                               size="icon"
                               className="h-8 w-8 rounded-lg"
-                              disabled={!isRealFileUrl(d.fileUrl)}
-                              title={isRealFileUrl(d.fileUrl) ? "Download" : "No downloadable file on this record"}
-                              onClick={() => openFileUrl(d.fileUrl)}
+                              title="View document"
+                              onClick={() => setPreviewing(d)}
                             >
-                              <Download className="h-3.5 w-3.5" />
+                              <Eye className="h-3.5 w-3.5" />
                             </Button>
                           </div>
                         </td>
@@ -170,6 +174,18 @@ export default function DocumentsPage() {
       </Card>
 
       <UploadDocumentDialog open={uploadOpen} onOpenChange={setUploadOpen} uploading={uploading} onSubmit={upload} />
+
+      <FilePreviewDialog
+        open={previewing !== null}
+        onOpenChange={(open) => !open && setPreviewing(null)}
+        url={previewing?.fileUrl}
+        title={previewing?.title ?? ""}
+        description={
+          previewing
+            ? `${previewing.documentId} · ${previewing.project} · ${previewing.type}`
+            : undefined
+        }
+      />
     </div>
   );
 }

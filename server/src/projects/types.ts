@@ -15,6 +15,9 @@ export interface ProjectRecord {
   client: string | null;
   workforce: number | null;
   description: string | null;
+  siteLatitude: string | null;
+  siteLongitude: string | null;
+  geofenceRadiusM: number | null;
   createdAt: Date | null;
   updatedAt: Date | null;
 }
@@ -35,6 +38,9 @@ export interface CreateProjectInput {
   client?: string;
   workforce?: number;
   description?: string;
+  siteLatitude?: number | string | null;
+  siteLongitude?: number | string | null;
+  geofenceRadiusM?: number | null;
 }
 
 export interface UpdateProjectInput extends Partial<CreateProjectInput> {}

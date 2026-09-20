@@ -5,13 +5,15 @@
 // became two different owners and no roll-up by department could ever be
 // trusted.
 //
-// A datalist rather than a Select: the owning party is usually one of the
-// departments already on the employee roster, but it is legitimately
-// open-ended (an external consultancy, a joint venture), so the real values
-// are offered as suggestions without forbidding a new one.
+// The owning party is usually one of the departments already on the employee
+// roster, but it is legitimately open-ended (an external consultancy, a joint
+// venture), so the real values are offered as suggestions without forbidding
+// a new one. That was originally a `<datalist>`, which offers no visible
+// affordance — the field reads as a plain textbox and the suggestions never
+// surface — so it is now a SuggestInput with a dropdown the user can see.
 import { useMemo } from "react";
 
-import { Input } from "@/components/ui/input";
+import { SuggestInput } from "@/components/shared/suggest-input";
 import { useEmployees } from "@/features/hr/hooks/use-hr";
 
 interface OwnerDepartmentPickerProps {
@@ -21,8 +23,6 @@ interface OwnerDepartmentPickerProps {
   placeholder?: string;
   className?: string;
 }
-
-const DATALIST_ID = "owner-department-suggestions";
 
 export function OwnerDepartmentPicker({
   value,
@@ -51,22 +51,16 @@ export function OwnerDepartmentPicker({
   }, [employees]);
 
   return (
-    <>
-      <Input
-        id={id}
-        list={DATALIST_ID}
-        value={value}
-        onChange={(e) => onChange(e.target.value)}
-        placeholder={loading ? "Loading departments…" : placeholder}
-        className={className}
-        autoComplete="off"
-      />
-      <datalist id={DATALIST_ID}>
-        {suggestions.map((s) => (
-          <option key={s} value={s} />
-        ))}
-      </datalist>
-    </>
+    <SuggestInput
+      id={id}
+      value={value}
+      onChange={onChange}
+      suggestions={suggestions}
+      placeholder={placeholder}
+      loading={loading}
+      className={className}
+      emptyMessage="No matching department or person — the typed value will be used."
+    />
   );
 }
 

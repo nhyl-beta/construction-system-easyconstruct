@@ -241,7 +241,11 @@ function App() {
 
                   <Route
                     path="/consultant/proposals"
-                    element={<ConsultantProposals />}
+                    element={
+                      <RequireRole allow={["consultant"]}>
+                        <ConsultantProposals />
+                      </RequireRole>
+                    }
                   />
 
                   {/* Read-only advisory views. Consultant previously landed on

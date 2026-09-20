@@ -18,6 +18,9 @@ interface BackendProject {
   client?: string | null;
   workforce?: number | null;
   description?: string | null;
+  siteLatitude?: string | number | null;
+  siteLongitude?: string | number | null;
+  geofenceRadiusM?: number | null;
 }
 
 const VALID_TONES: StatusTone[] = ["success", "warning", "destructive", "neutral"];
@@ -50,6 +53,10 @@ function normalizeProject(raw: BackendProject): Project {
     workforce: raw.workforce ?? 0,
     due: raw.due,
     risk: normalizeRisk(raw.risk),
+    // numeric() columns come back from drizzle as strings.
+    siteLatitude: raw.siteLatitude == null ? null : Number(raw.siteLatitude),
+    siteLongitude: raw.siteLongitude == null ? null : Number(raw.siteLongitude),
+    geofenceRadiusM: raw.geofenceRadiusM ?? null,
   };
 }
 

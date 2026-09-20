@@ -11,6 +11,7 @@ import {
 } from "@/components/ui/select";
 import { ProjectRepository } from "@/features/projects/repositories/project.repository";
 import { RISK_LEVELS, type Project } from "@/features/projects/types/project.types";
+import { formatCurrency } from "@/lib/format-currency";
 import { useProjectMembers } from "@/features/project-members/hooks/use-project-members";
 import type { ProjectMemberRole } from "@/features/project-members/repositories/project-member.repository";
 import { useUsersByRole } from "@/features/users/hooks/use-users-by-role";
@@ -19,17 +20,44 @@ import { useEffect, useMemo, useState } from "react";
 import { Link, useNavigate, useParams } from "react-router";
 import { useAuth } from "@/auth/auth-context";
 
+/**
+ * Who may change the record itself. This mirrors the route guards on
+ * /api/projects (server/src/projects/routes.ts): POST, PATCH and DELETE are
+ * granted to project-manager, admin and it-designer, plus engineer on PATCH
+ * for progress only. Everyone else — Owner, Consultant, Architect, HR,
+ * Finance — can read a project but any write they attempt comes back 403.
+ */
+const PROJECT_EDITORS = ["project-manager", "admin", "it-designer"];
+
+/**
+ * Where "Back" goes for each role. A viewer who reached this page from their
+ * own list should return to it; /projects is the Project Manager's page and
+ * is not in most of these roles' navigation at all.
+ */
+const LIST_ROUTE_BY_ROLE: Record<string, string> = {
+  owner: "/owner/portfolio",
+  consultant: "/consultant/projects",
+  architect: "/architect/projects",
+  admin: "/admin/projects",
+  "it-designer": "/admin/projects",
+};
+
 export default function ProjectDetailPage() {
   const { projectId } = useParams();
   const navigate = useNavigate();
   const { user } = useAuth();
-  // Engineer is read-only on the record as a whole but owns progress
-  // reporting — the backend enforces exactly this split (projects/service.ts
-  // assertCanUpdateProject) and refuses an Engineer PATCH of any other field,
-  // so the form must not offer one.
-  const isEngineer = user?.role === "engineer";
-  const readOnly = isEngineer;
-  const canEditProgress = !readOnly || isEngineer;
+
+  const role = user?.role ?? "";
+  const isEngineer = role === "engineer";
+  // Editability is derived from the actual API grant rather than from a
+  // single "is this the engineer" check. Owner reached this page from the
+  // executive portfolio and was handed the Project Manager's full edit form —
+  // Save and Delete included — every button on which returns 403. Read-only
+  // roles now get a read-only record.
+  const canEdit = PROJECT_EDITORS.includes(role);
+  const canEditProgress = canEdit || isEngineer;
+  const listRoute = LIST_ROUTE_BY_ROLE[role] ?? "/projects";
+
   const [project, setProject] = useState<Project | null>(null);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
@@ -104,6 +132,9 @@ export default function ProjectDetailPage() {
         due: project.due,
         risk: project.risk,
         description: project.description,
+        siteLatitude: project.siteLatitude,
+        siteLongitude: project.siteLongitude,
+        geofenceRadiusM: project.geofenceRadiusM,
       });
       if (!updated) throw new Error("Project could not be updated.");
       setProject(updated);
@@ -122,7 +153,7 @@ export default function ProjectDetailPage() {
     try {
       const deleted = await ProjectRepository.delete(project.code);
       if (!deleted) throw new Error("Project could not be deleted.");
-      navigate("/projects");
+      navigate(listRoute);
     } catch (err: unknown) {
       setError(err instanceof Error ? err.message : "Failed to delete project.");
       setDeleting(false);
@@ -134,22 +165,25 @@ export default function ProjectDetailPage() {
     return (
       <div className="space-y-4 p-8">
         <p className="text-sm text-destructive">{error ?? "Project not found."}</p>
-        <Button asChild variant="outline"><Link to="/projects">Back to projects</Link></Button>
+        <Button asChild variant="outline"><Link to={listRoute}>Back to projects</Link></Button>
       </div>
     );
   }
 
+  const riskLabel =
+    RISK_LEVELS.find((level) => level.value === project.risk)?.label ?? project.risk;
+
   return (
     <div className="flex-1 space-y-6 p-4 md:p-8">
       <Button asChild variant="ghost" className="rounded-xl">
-        <Link to="/projects"><ArrowLeft className="mr-2 h-4 w-4" />Back to projects</Link>
+        <Link to={listRoute}><ArrowLeft className="mr-2 h-4 w-4" />Back to projects</Link>
       </Button>
       <div className="flex items-start justify-between gap-4">
         <div>
           <h1 className="text-2xl font-semibold">{project.name}</h1>
           <p className="text-sm text-muted-foreground">{project.code}</p>
         </div>
-        {!readOnly && (
+        {canEdit && (
           <Button variant="destructive" onClick={remove} disabled={saving || deleting}>
             {deleting ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Trash2 className="mr-2 h-4 w-4" />}
             Delete
@@ -158,12 +192,45 @@ export default function ProjectDetailPage() {
       </div>
       {error && <div className="rounded-xl border border-destructive/30 bg-destructive/10 px-4 py-3 text-sm text-destructive">{error}</div>}
       {message && <div className="rounded-xl border border-green-500/30 bg-green-500/10 px-4 py-3 text-sm text-green-700">{message}</div>}
+
+      {!canEdit && !isEngineer && (
+        <p className="max-w-4xl text-sm text-muted-foreground">
+          This is a read-only view of the project record. Changes are the
+          Project Manager's to make.
+        </p>
+      )}
+
+      {/* Fields the current role cannot change are rendered as plain values.
+          They used to be `<Input readOnly>` / `<Textarea readOnly>` /
+          disabled `<Select>`, which look like editable controls, carry
+          placeholder text where the record is simply empty, and invite an
+          edit the API would refuse. A value nobody can change is text. */}
       <div className="grid max-w-4xl grid-cols-1 gap-5 rounded-2xl border border-border bg-card p-6 md:grid-cols-2">
-        <Field label="Project name"><Input readOnly={readOnly} value={project.name} onChange={(e) => update("name", e.target.value)} /></Field>
-        <Field label="Project code"><Input readOnly={readOnly} value={project.code} onChange={(e) => update("code", e.target.value)} /></Field>
-        <Field label="Client"><Input readOnly={readOnly} value={project.client} onChange={(e) => update("client", e.target.value)} /></Field>
-        <Field label="Location"><Input readOnly={readOnly} value={project.location} onChange={(e) => update("location", e.target.value)} /></Field>
-        <Field label="Status"><Input readOnly={readOnly} value={project.status} onChange={(e) => update("status", e.target.value)} /></Field>
+        <Field label="Project name">
+          {canEdit
+            ? <Input value={project.name} onChange={(e) => update("name", e.target.value)} />
+            : <ReadOnlyValue value={project.name} />}
+        </Field>
+        <Field label="Project code">
+          {canEdit
+            ? <Input value={project.code} onChange={(e) => update("code", e.target.value)} />
+            : <ReadOnlyValue value={project.code} mono />}
+        </Field>
+        <Field label="Client">
+          {canEdit
+            ? <Input value={project.client} onChange={(e) => update("client", e.target.value)} />
+            : <ReadOnlyValue value={project.client} />}
+        </Field>
+        <Field label="Location">
+          {canEdit
+            ? <Input value={project.location} onChange={(e) => update("location", e.target.value)} />
+            : <ReadOnlyValue value={project.location} />}
+        </Field>
+        <Field label="Status">
+          {canEdit
+            ? <Input value={project.status} onChange={(e) => update("status", e.target.value)} />
+            : <ReadOnlyValue value={project.status} />}
+        </Field>
         {/* Risk was a free-text Input, so any spelling ("hi", "Severe") could
             be typed here; the value drives risk sorting on the Admin/PM/Owner
             dashboards and the backend enum only accepts Low/Medium/High, so a
@@ -171,30 +238,90 @@ export default function ProjectDetailPage() {
             "low" forever. Constrained to the same three levels the New
             Project form offers. */}
         <Field label="Risk">
-          <Select
-            value={project.risk}
-            disabled={readOnly}
-            onValueChange={(v) => update("risk", v as Project["risk"])}
-          >
-            <SelectTrigger><SelectValue /></SelectTrigger>
-            <SelectContent>
-              {RISK_LEVELS.map((level) => (
-                <SelectItem key={level.value} value={level.value}>{level.label}</SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
+          {canEdit ? (
+            <Select
+              value={project.risk}
+              onValueChange={(v) => update("risk", v as Project["risk"])}
+            >
+              <SelectTrigger><SelectValue /></SelectTrigger>
+              <SelectContent>
+                {RISK_LEVELS.map((level) => (
+                  <SelectItem key={level.value} value={level.value}>{level.label}</SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          ) : (
+            <ReadOnlyValue value={riskLabel} />
+          )}
         </Field>
-        <Field label="Progress (%)"><Input readOnly={!canEditProgress} type="number" min="0" max="100" value={project.progress} onChange={(e) => update("progress", Number(e.target.value))} /></Field>
-        <Field label="Budget used (%)"><Input readOnly={readOnly} type="number" min="0" value={project.budget} onChange={(e) => update("budget", Number(e.target.value))} /></Field>
-        <Field label="Total contract value"><Input readOnly={readOnly} type="number" min="0" value={project.contractValue ?? ""} onChange={(e) => update("contractValue", e.target.value === "" ? null : Number(e.target.value))} /></Field>
-        <Field label="Workforce"><Input readOnly={readOnly} type="number" min="0" value={project.workforce} onChange={(e) => update("workforce", Number(e.target.value))} /></Field>
-        <Field label="Due date"><Input readOnly={readOnly} type="date" value={project.due} onChange={(e) => update("due", e.target.value)} /></Field>
-        <Field label="Project manager"><Input readOnly={readOnly} value={project.pm ?? ""} onChange={(e) => update("pm", e.target.value)} /></Field>
-        <Field label="Description" wide><Textarea readOnly={readOnly} value={project.description ?? ""} onChange={(e) => update("description", e.target.value)} /></Field>
-        {!readOnly && (
+        <Field label="Progress (%)">
+          {canEditProgress
+            ? <Input type="number" min="0" max="100" value={project.progress} onChange={(e) => update("progress", Number(e.target.value))} />
+            : <ReadOnlyValue value={`${project.progress}%`} />}
+        </Field>
+        <Field label="Budget used (%)">
+          {canEdit
+            ? <Input type="number" min="0" value={project.budget} onChange={(e) => update("budget", Number(e.target.value))} />
+            : <ReadOnlyValue value={`${project.budget}%`} />}
+        </Field>
+        <Field label="Total contract value">
+          {canEdit
+            ? <Input type="number" min="0" value={project.contractValue ?? ""} onChange={(e) => update("contractValue", e.target.value === "" ? null : Number(e.target.value))} />
+            : <ReadOnlyValue value={project.contractValue == null ? null : formatCurrency(project.contractValue)} />}
+        </Field>
+        <Field label="Workforce">
+          {canEdit
+            ? <Input type="number" min="0" value={project.workforce} onChange={(e) => update("workforce", Number(e.target.value))} />
+            : <ReadOnlyValue value={String(project.workforce)} />}
+        </Field>
+        <Field label="Due date">
+          {canEdit
+            ? <Input type="date" value={project.due} onChange={(e) => update("due", e.target.value)} />
+            : <ReadOnlyValue value={project.due} />}
+        </Field>
+        <Field label="Project manager">
+          {canEdit
+            ? <Input value={project.pm ?? ""} onChange={(e) => update("pm", e.target.value)} />
+            : <ReadOnlyValue value={project.pm} />}
+        </Field>
+        <Field label="Description" wide>
+          {canEdit
+            ? <Textarea value={project.description ?? ""} onChange={(e) => update("description", e.target.value)} />
+            : <ReadOnlyValue value={project.description} multiline />}
+        </Field>
+
+        {/* Site geofence. attendance/service.ts measures every site clock-in
+            against these three columns, but no screen could set them, so they
+            were NULL on every project: no distance was ever calculated and
+            HR's attendance review had nothing to confirm a location against. */}
+        <div className="md:col-span-2">
+          <h2 className="text-sm font-semibold">Site geofence</h2>
+          <p className="mt-0.5 text-xs text-muted-foreground">
+            Site Personnel clock-ins are measured against this position. Leave
+            the coordinates empty to record attendance without a geofence
+            check — HR then confirms those clock-ins by hand.
+          </p>
+        </div>
+        <Field label="Site latitude">
+          {canEdit
+            ? <Input type="number" step="0.0000001" min="-90" max="90" placeholder="14.5995" value={project.siteLatitude ?? ""} onChange={(e) => update("siteLatitude", e.target.value === "" ? null : Number(e.target.value))} />
+            : <ReadOnlyValue value={project.siteLatitude == null ? null : String(project.siteLatitude)} mono />}
+        </Field>
+        <Field label="Site longitude">
+          {canEdit
+            ? <Input type="number" step="0.0000001" min="-180" max="180" placeholder="120.9842" value={project.siteLongitude ?? ""} onChange={(e) => update("siteLongitude", e.target.value === "" ? null : Number(e.target.value))} />
+            : <ReadOnlyValue value={project.siteLongitude == null ? null : String(project.siteLongitude)} mono />}
+        </Field>
+        <Field label="Geofence radius (m)">
+          {canEdit
+            ? <Input type="number" min="10" max="20000" value={project.geofenceRadiusM ?? ""} onChange={(e) => update("geofenceRadiusM", e.target.value === "" ? null : Number(e.target.value))} />
+            : <ReadOnlyValue value={project.geofenceRadiusM == null ? null : `${project.geofenceRadiusM} m`} />}
+        </Field>
+
+        {canEdit && (
           <div className="md:col-span-2"><Button onClick={save} disabled={saving || deleting}>{saving && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}{saving ? "Saving…" : "Save changes"}</Button></div>
         )}
-        {isEngineer && (
+        {!canEdit && isEngineer && (
           <div className="space-y-2 md:col-span-2">
             <p className="text-xs text-muted-foreground">
               You can report progress on this project. Everything else is the
@@ -208,19 +335,24 @@ export default function ProjectDetailPage() {
         )}
       </div>
 
-      {!readOnly && (
-        <div className="grid max-w-4xl grid-cols-1 gap-4 md:grid-cols-2">
-          <TeamMemberPanel
-            projectCode={project.code}
-            role="engineer"
-            label="Engineers"
-            description="Engineers marked available here can be assigned to designs on this project by an Architect."
-          />
-          <TeamMemberPanel projectCode={project.code} role="architect" label="Architects" />
-          <TeamMemberPanel projectCode={project.code} role="site-personnel" label="Site Personnel" />
-          <TeamMemberPanel projectCode={project.code} role="consultant" label="Consultants" />
-        </div>
-      )}
+      {/* The team is part of "the details per project", so viewers see it —
+          as a list, without the add/remove controls their role cannot use. */}
+      <div className="grid max-w-4xl grid-cols-1 gap-4 md:grid-cols-2">
+        <TeamMemberPanel
+          projectCode={project.code}
+          role="engineer"
+          label="Engineers"
+          readOnly={!canEdit}
+          description={
+            canEdit
+              ? "Engineers marked available here can be assigned to designs on this project by an Architect."
+              : undefined
+          }
+        />
+        <TeamMemberPanel projectCode={project.code} role="architect" label="Architects" readOnly={!canEdit} />
+        <TeamMemberPanel projectCode={project.code} role="site-personnel" label="Site Personnel" readOnly={!canEdit} />
+        <TeamMemberPanel projectCode={project.code} role="consultant" label="Consultants" readOnly={!canEdit} />
+      </div>
     </div>
   );
 }
@@ -230,14 +362,16 @@ function TeamMemberPanel({
   role,
   label,
   description,
+  readOnly = false,
 }: {
   projectCode: string;
   role: ProjectMemberRole;
   label: string;
   description?: string;
+  readOnly?: boolean;
 }) {
   const { members, loading, error, saving, addMember, removeMember } = useProjectMembers(projectCode, role);
-  const { users: candidates } = useUsersByRole(role);
+  const { users: candidates } = useUsersByRole(role, { enabled: !readOnly });
   const [selected, setSelected] = useState("");
 
   const availableToAdd = useMemo(
@@ -262,28 +396,30 @@ function TeamMemberPanel({
         {description && <p className="mt-1 text-sm text-muted-foreground">{description}</p>}
       </div>
 
-      <div className="flex flex-wrap items-center gap-2">
-        <Select value={selected} onValueChange={setSelected}>
-          <SelectTrigger className="w-64 rounded-xl">
-            <SelectValue placeholder={`Select a ${label.toLowerCase().replace(/s$/, "")}`} />
-          </SelectTrigger>
-          <SelectContent>
-            {availableToAdd.length === 0 && (
-              <div className="px-2 py-1.5 text-xs text-muted-foreground">
-                No more people to add
-              </div>
-            )}
-            {availableToAdd.map((u) => (
-              <SelectItem key={u.id} value={String(u.id)}>
-                {u.name}
-              </SelectItem>
-            ))}
-          </SelectContent>
-        </Select>
-        <Button size="sm" className="rounded-xl" disabled={!selected || saving} onClick={handleAdd}>
-          <UserPlus className="h-3.5 w-3.5" /> Add
-        </Button>
-      </div>
+      {!readOnly && (
+        <div className="flex flex-wrap items-center gap-2">
+          <Select value={selected} onValueChange={setSelected}>
+            <SelectTrigger className="w-64 rounded-xl">
+              <SelectValue placeholder={`Select a ${label.toLowerCase().replace(/s$/, "")}`} />
+            </SelectTrigger>
+            <SelectContent>
+              {availableToAdd.length === 0 && (
+                <div className="px-2 py-1.5 text-xs text-muted-foreground">
+                  No more people to add
+                </div>
+              )}
+              {availableToAdd.map((u) => (
+                <SelectItem key={u.id} value={String(u.id)}>
+                  {u.name}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+          <Button size="sm" className="rounded-xl" disabled={!selected || saving} onClick={handleAdd}>
+            <UserPlus className="h-3.5 w-3.5" /> Add
+          </Button>
+        </div>
+      )}
 
       {error && <p className="text-sm text-destructive">{error}</p>}
 
@@ -296,15 +432,17 @@ function TeamMemberPanel({
           {members.map((m) => (
             <li key={m.id} className="flex items-center justify-between rounded-xl border border-border px-4 py-2 text-sm">
               <span className="font-medium">{m.userName}</span>
-              <button
-                type="button"
-                onClick={() => removeMember(m.id)}
-                disabled={saving}
-                className="text-muted-foreground hover:text-destructive"
-                title="Remove"
-              >
-                <X className="h-3.5 w-3.5" />
-              </button>
+              {!readOnly && (
+                <button
+                  type="button"
+                  onClick={() => removeMember(m.id)}
+                  disabled={saving}
+                  className="text-muted-foreground hover:text-destructive"
+                  title="Remove"
+                >
+                  <X className="h-3.5 w-3.5" />
+                </button>
+              )}
             </li>
           ))}
         </ul>
@@ -315,4 +453,32 @@ function TeamMemberPanel({
 
 function Field({ label, children, wide = false }: { label: string; children: React.ReactNode; wide?: boolean }) {
   return <div className={wide ? "space-y-1.5 md:col-span-2" : "space-y-1.5"}><Label>{label}</Label>{children}</div>;
+}
+
+/** A field the current role cannot change: the value, not a disabled input. */
+function ReadOnlyValue({
+  value,
+  mono = false,
+  multiline = false,
+}: {
+  value: string | null | undefined;
+  mono?: boolean;
+  multiline?: boolean;
+}) {
+  if (!value) {
+    return <p className="py-1.5 text-sm text-muted-foreground">Not recorded</p>;
+  }
+  return (
+    <p
+      className={[
+        "py-1.5 text-sm",
+        mono ? "font-mono" : "",
+        multiline ? "whitespace-pre-wrap break-words" : "",
+      ]
+        .filter(Boolean)
+        .join(" ")}
+    >
+      {value}
+    </p>
+  );
 }

@@ -5,6 +5,11 @@
 // produced a record that would never match a real project in any
 // project-scoped query. This replaces free text with a picker backed by the
 // same `/api/projects` list every other project-aware feature already uses.
+//
+// Each option carries the client as well as the code and name. A project code
+// on its own ("WMT-204") identifies nothing to a Finance Manager opening a
+// budget against it; the client is how the commercial side of the business
+// refers to the same engagement.
 import {
   Select,
   SelectContent,
@@ -43,6 +48,7 @@ export function ProjectPicker({
         {projects.map((p) => (
           <SelectItem key={p.code} value={p.code}>
             {p.code} · {p.name}
+            {p.client && p.client !== "Unknown" ? ` · ${p.client}` : ""}
           </SelectItem>
         ))}
       </SelectContent>

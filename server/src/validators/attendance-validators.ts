@@ -23,4 +23,11 @@ export const createAttendanceSchema = z.object({
   logDate: z.string().min(1, "Date is required"),
 });
 
-export const updateAttendanceSchema = createAttendanceSchema.partial();
+// `status` is the HR verification outcome (Verified | Flagged | Pending), as
+// opposed to `attendanceStatus` (Present | Absent | …). It is deliberately
+// absent from the create schema — clock-in derives it from the geofence
+// result — but HR has to be able to set it once it has checked the clock-in
+// photo and coordinates, and there was no way to write it at all.
+export const updateAttendanceSchema = createAttendanceSchema.partial().extend({
+  status: z.enum(["Verified", "Flagged", "Pending"]).optional(),
+});

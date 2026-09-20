@@ -31,6 +31,11 @@ export interface Project {
   due: string; // ISO date or human string
   risk: RiskLevel;
   description?: string | null;
+  // Registered site position. Attendance clock-ins are measured against it
+  // (server/src/attendance/service.ts); null means no geofence is enforced.
+  siteLatitude?: number | null;
+  siteLongitude?: number | null;
+  geofenceRadiusM?: number | null;
 }
 
 export interface ProjectsQuery {

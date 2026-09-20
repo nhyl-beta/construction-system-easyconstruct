@@ -33,8 +33,8 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useBudgetAllocationController } from "@/features/finance/budgets/controllers/budget-allocation.controller.js";
 import { useBudgetAdjustments } from "@/features/finance/budgets/hooks/useBudgetAdjustments";
 import { useBudgets } from "@/features/finance/budgets/hooks/useBudgets";
-import { formatCompactCurrency } from "@/lib/format-currency";
-import { useState } from "react";
+import { formatCompactCurrency, formatCurrency } from "@/lib/format-currency";
+import { useMemo, useState } from "react";
 
 import {
   AlertTriangle,
@@ -92,6 +92,7 @@ import { useBudgetApproval } from "@/features/finance/budgets/hooks/useBudgetApp
 import { Check, RotateCcw, X } from "lucide-react";
 import type { CreateBudgetInput } from "@/features/finance/budgets/controllers/budget.controllers";
 import { OwnerDepartmentPicker } from "@/components/shared/owner-department-picker";
+import { useProjects } from "@/features/projects/hooks/useProjects";
 
 const BUDGET_CATEGORIES = ["Materials", "Labor", "Equipment", "Subcontractors", "Permits", "Contingency", "Other"];
 
@@ -107,6 +108,12 @@ function NewBudgetDialog({
   const [open, setOpen] = useState(false);
   const [project, setProject] = useState("");
   const [category, setCategory] = useState("");
+  // The budgets table stores only a project code. Echoing the selected
+  // project's name and client back into the form is what tells the Finance
+  // Manager which engagement they are committing money to — a bare code
+  // ("WMT-204") is not something the commercial side recognises.
+  const { projects } = useProjects();
+  const selectedProject = projects.find((p) => p.code === project);
   const [owner, setOwner] = useState("");
   const [planned, setPlanned] = useState("");
   const [fiscalYear, setFiscalYear] = useState(String(new Date().getFullYear()));
@@ -151,6 +158,17 @@ function NewBudgetDialog({
           <div className="space-y-1.5">
             <Label>Project</Label>
             <ProjectPicker value={project} onChange={setProject} className="w-full" />
+            {selectedProject && (
+              <p className="text-xs text-muted-foreground">
+                {selectedProject.name} · client{" "}
+                <span className="font-medium text-foreground">
+                  {selectedProject.client}
+                </span>
+                {selectedProject.contractValue != null && (
+                  <> · contract {formatCurrency(selectedProject.contractValue)}</>
+                )}
+              </p>
+            )}
           </div>
           <div className="grid grid-cols-2 gap-3">
             <div className="space-y-1.5">
@@ -218,6 +236,15 @@ export default function FinanceBudget() {
   );
 
   const adjustments = useBudgetAdjustments();
+
+  // Budgets store a project code only; the client each code belongs to lives
+  // on the project record. Resolved here so the register reads the way the
+  // commercial side of the business does.
+  const { projects } = useProjects();
+  const clientByCode = useMemo(
+    () => new Map(projects.map((p) => [p.code, p.client])),
+    [projects],
+  );
 
   return (
     <div className="flex-1 space-y-6 p-4 md:p-8">
@@ -327,7 +354,14 @@ export default function FinanceBudget() {
                       <TableCell className="font-mono text-xs">
                         {b.id}
                       </TableCell>
-                      <TableCell className="font-medium">{b.project}</TableCell>
+                      <TableCell className="font-medium">
+                        {b.project}
+                        {clientByCode.get(b.project) && (
+                          <div className="text-xs font-normal text-muted-foreground">
+                            {clientByCode.get(b.project)}
+                          </div>
+                        )}
+                      </TableCell>
                       <TableCell>{b.category}</TableCell>
                       <TableCell>{b.owner}</TableCell>
                       <TableCell className="text-right">

@@ -173,7 +173,12 @@ export const create = async (
   // Geofencing
   // ---------------------------------------------------------
 
-  let geofence = "Outside";
+  // "Unverified", not "Outside", is the starting point: a clock-in with no
+  // project code, or against a project whose site coordinates were never
+  // recorded, has not been measured at all. Defaulting it to "Outside"
+  // reported a boundary violation that was never evaluated, flagged the
+  // record, and gave HR a red badge with nothing behind it to check.
+  let geofence = "Unverified";
 
   let distanceFromSiteM:
     | number
@@ -235,10 +240,15 @@ export const create = async (
     geofence,
     distanceFromSiteM,
     photo: "Verified",
+    // Only a measured breach is a flag. An unmeasured clock-in is Pending:
+    // it needs a human to confirm the photo and coordinates, which is a
+    // different thing from a confirmed geofence violation.
     status:
       geofence === "Inside"
         ? "Verified"
-        : "Flagged",
+        : geofence === "Outside"
+        ? "Flagged"
+        : "Pending",
     attendanceStatus:
       input.attendanceStatus ?? "Present",
     hours,
