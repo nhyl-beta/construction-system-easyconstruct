@@ -1,5 +1,6 @@
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { Pencil, Plus, Search, Trash2, UserCheck, UserX, UsersRound } from "lucide-react";
+import { useSearchParams } from "react-router";
 
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -9,6 +10,8 @@ import { PageContent } from "@/components/refine-ui/views/page-content";
 import { PageHeader } from "@/components/refine-ui/views/page-header";
 import { ConfirmDialog } from "@/components/ui/confirm-dialog";
 import { UserAccountDialog } from "@/components/users/user-account-dialog";
+import { DataTablePagination } from "@/components/refine-ui/data-table/data-table-pagination";
+import { usePagination } from "@/hooks/use-pagination";
 import { useRoles } from "@/features/roles/hooks/useRoles";
 import { useUsers } from "@/features/users/hooks/use-users";
 import type { PublicUser } from "@/features/users/repositories/user.repository";
@@ -28,6 +31,23 @@ export default function ITDesignerUsersPage() {
   const [deleting, setDeleting] = useState<PublicUser | null>(null);
   const [removing, setRemoving] = useState(false);
 
+  // The header's global "New User" button is a plain <Link> (see header.tsx)
+  // — it can only navigate, not call a function on this page. It lands here
+  // with ?new=1, which this effect reads once to open the create dialog, then
+  // strips so the param doesn't linger in the URL or reopen the dialog on a
+  // back/forward navigation.
+  const [searchParams, setSearchParams] = useSearchParams();
+  useEffect(() => {
+    if (searchParams.get("new") !== "1") return;
+    setEditing(null);
+    setDialogOpen(true);
+    setSearchParams((prev) => {
+      const next = new URLSearchParams(prev);
+      next.delete("new");
+      return next;
+    }, { replace: true });
+  }, [searchParams, setSearchParams]);
+
   const roleLabels = useMemo(() => {
     const map = new Map<string, string>();
     for (const role of roles) map.set(role.name, role.label);
@@ -45,6 +65,10 @@ export default function ITDesignerUsersPage() {
       return true;
     });
   }, [users, roleFilter, search]);
+
+  // Was the full, unpaginated list — fine for a handful of demo accounts,
+  // unusable once real org rosters land here.
+  const pagination = usePagination(filtered, 10);
 
   const openCreate = () => {
     setEditing(null);
@@ -159,7 +183,7 @@ export default function ITDesignerUsersPage() {
                 </tr>
               </thead>
               <tbody>
-                {filtered.map((user) => (
+                {pagination.pageItems.map((user) => (
                   <tr key={user.id} className="border-b border-border/60 last:border-0 hover:bg-muted/30">
                     <td className="px-5 py-3.5 font-medium">{user.name}</td>
                     <td className="px-3 py-3.5 text-muted-foreground">{user.email}</td>
@@ -220,6 +244,9 @@ export default function ITDesignerUsersPage() {
                 ))}
               </tbody>
             </table>
+            <div className="border-t border-border/70 px-3 py-2.5">
+              <DataTablePagination {...pagination} />
+            </div>
           </div>
         )}
       </PageContent>

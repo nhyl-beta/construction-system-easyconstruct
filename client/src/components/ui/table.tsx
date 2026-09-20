@@ -67,8 +67,13 @@ function TableHead({ className, ...props }: React.ComponentProps<"th">) {
   return (
     <th
       data-slot="table-head"
+      // Was `whitespace-nowrap` unconditionally, which forced every column
+      // header in every table in the app onto one line — a long header just
+      // overflowed its column instead of wrapping. A page that genuinely
+      // wants a header pinned to one line can still pass `whitespace-nowrap`
+      // via `className`; `cn()` lets that per-cell override win.
       className={cn(
-        "text-foreground h-10 px-2 text-left align-middle font-medium whitespace-nowrap [&:has([role=checkbox])]:pr-0 [&>[role=checkbox]]:translate-y-[2px]",
+        "text-foreground h-10 px-2 text-left align-middle font-medium break-words [&:has([role=checkbox])]:pr-0 [&>[role=checkbox]]:translate-y-[2px]",
         className
       )}
       {...props}
@@ -80,8 +85,13 @@ function TableCell({ className, ...props }: React.ComponentProps<"td">) {
   return (
     <td
       data-slot="table-cell"
+      // Was `whitespace-nowrap` unconditionally — a long title, description,
+      // or path just overflowed its column and got clipped/hidden behind the
+      // next one instead of wrapping onto a second line. Same override
+      // pattern as TableHead: a cell that wants one line can still pass
+      // `whitespace-nowrap` through `className`.
       className={cn(
-        "p-2 align-middle whitespace-nowrap [&:has([role=checkbox])]:pr-0 [&>[role=checkbox]]:translate-y-[2px]",
+        "p-2 align-middle break-words [&:has([role=checkbox])]:pr-0 [&>[role=checkbox]]:translate-y-[2px]",
         className
       )}
       {...props}

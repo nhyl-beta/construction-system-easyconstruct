@@ -5,7 +5,10 @@ export const ProjectsKpiStrip: React.FC<{ kpis: { total: number; onTrack: number
   const items = [
     { label: "Active", value: String(kpis.total), tone: "text-foreground" },
     { label: "On track", value: String(kpis.onTrack), tone: "text-success" },
-    { label: "At risk", value: String(kpis.atRisk), tone: "text-warning-foreground" },
+    // text-warning, not text-warning-foreground — this renders directly on
+    // the card background, not on a filled warning chip, and that token's
+    // dark-mode value is nearly black, i.e. invisible here.
+    { label: "At risk", value: String(kpis.atRisk), tone: "text-warning" },
     { label: "Delayed", value: String(kpis.delayed), tone: "text-destructive" },
   ];
   return (

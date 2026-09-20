@@ -1,28 +1,40 @@
-import { GitBranch, Info } from "lucide-react";
+import { useState } from "react";
+import { GitBranch, Info, Plus } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { PageContainer } from "@/components/refine-ui/views/page-container";
 import { PageHeader } from "@/components/refine-ui/views/page-header";
 import { PageContent } from "@/components/refine-ui/views/page-content";
+import { NewWorkflowTemplateDialog } from "@/components/workflows/new-workflow-template-dialog";
 import { useWorkflowTemplates } from "@/features/workflows/hooks/useWorkflows";
 import { WorkflowFormatService } from "@/features/workflows/services/workflow.service";
 
 export default function AdminWorkflowConfigurationPage() {
-  const { templates, loading, error } = useWorkflowTemplates();
+  const { templates, loading, error, creatingTemplate, createTemplate } =
+    useWorkflowTemplates();
+  const [dialogOpen, setDialogOpen] = useState(false);
 
   return (
     <PageContainer>
       <PageHeader
         title="Workflow configuration"
-        description="The workflow templates available for initiation, and the stage sequence each one runs through."
+        description="Define custom workflow templates — the stage sequence each one runs through — and see every template available for initiation."
+        actions={
+          <Button className="rounded-xl" onClick={() => setDialogOpen(true)}>
+            <Plus className="h-4 w-4" />
+            New template
+          </Button>
+        }
       />
       <PageContent className="space-y-4 p-6 md:p-8">
         <div className="flex items-start gap-2 rounded-xl border border-border/70 bg-muted/40 p-4 text-sm text-muted-foreground">
           <Info className="mt-0.5 h-4 w-4 shrink-0" />
           <p>
             Templates define the stage/role sequence new workflows are
-            created from — configured read-only here. Start a new workflow
-            from the Workflows page.
+            created from. A template built here is usable everywhere a
+            seeded one is — from the Workflows page, and from every role's
+            own "start a workflow" action — the moment it's created.
           </p>
         </div>
 
@@ -69,6 +81,13 @@ export default function AdminWorkflowConfigurationPage() {
           ))}
         </div>
       </PageContent>
+
+      <NewWorkflowTemplateDialog
+        open={dialogOpen}
+        onOpenChange={setDialogOpen}
+        creating={creatingTemplate}
+        onSubmit={createTemplate}
+      />
     </PageContainer>
   );
 }

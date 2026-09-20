@@ -1,9 +1,11 @@
 import { ForbiddenError, NotFoundError, ValidationError } from "../utils/errors.js";
+import * as projectsRepo from "../projects/repository.js";
 import * as repo from "./repository.js";
 import type {
   ApprovalQueueItem,
   ApprovalScope,
   CreateWorkflowInput,
+  CreateWorkflowTemplateInput,
   DecideStageInput,
   TemplateWithActiveCount,
   UpdateWorkflowInput,
@@ -40,6 +42,41 @@ export const getTemplates = async (): Promise<TemplateWithActiveCount[]> => {
     defaultStages: t.defaultStages,
     activeCount: activeCounts.get(t.id) ?? 0,
   }));
+};
+
+/**
+ * Defines a new, reusable workflow template — the steps/roles/order a
+ * workflow can later be started from. This was previously entirely fixed:
+ * the templates a workflow could be raised from were whatever had been
+ * seeded, with no admin-facing way to add another (see
+ * admin-workflow-configuration.tsx, which was read-only for exactly this
+ * reason).
+ *
+ * Deliberately reuses the SAME table (`workflow_templates`) every seeded
+ * template already lives in, rather than a parallel "custom templates"
+ * table — createWorkflow() and every other consumer of a template id
+ * already treat all rows in this table identically, so a hand-defined
+ * template is usable everywhere a seeded one is with no extra plumbing.
+ */
+export const createTemplate = async (
+  input: CreateWorkflowTemplateInput,
+): Promise<TemplateWithActiveCount> => {
+  const created = await repo.insertTemplate({
+    name: input.name,
+    description: input.description,
+    avgDurationHours: input.avgDurationHours.toFixed(1),
+    defaultStages: input.defaultStages,
+  });
+  if (!created) throw new Error("Failed to create workflow template");
+
+  return {
+    id: created.id,
+    name: created.name,
+    description: created.description,
+    avgDurationHours: created.avgDurationHours,
+    defaultStages: created.defaultStages,
+    activeCount: 0,
+  };
 };
 
 // ── Workflows ──────────────────────────────────────────────────────────────
@@ -153,9 +190,58 @@ export const deleteWorkflow = async (
   return existing;
 };
 
+// ── Project progress roll-up ────────────────────────────────────────────────
+
+/**
+ * Rolls a project's `progress` up from how far its workflows have moved.
+ *
+ * Every workflow raised against a project contributes its own completion
+ * fraction — (stages marked "done") / (total stages) — and the project's
+ * progress is the average of those fractions across every workflow tied to
+ * it, not an increment. Recomputing from scratch each time (rather than
+ * nudging the number up or down) means it can only ever reflect the current
+ * state of the workflows themselves, never drift from repeated partial
+ * updates or double-count a stage that flips back and forth.
+ *
+ * Deliberately a no-op for a project with zero workflows: that project's
+ * progress stays exactly what the Project Manager set on the record by hand
+ * (see ProjectDetailPage) — this only takes over once the project actually
+ * has workflow activity to roll up.
+ *
+ * Called after anything that changes a stage's status: creating a workflow
+ * (a fresh 0%-done workflow pulls the average down), and deciding a stage
+ * (approving advances it, rejecting freezes it where it stopped).
+ */
+const recomputeProjectProgress = async (projectCode: string): Promise<void> => {
+  const projectWorkflows = await repo.findWorkflowsByProjectCode(projectCode);
+  if (projectWorkflows.length === 0) return;
+
+  const stages = await repo.findStagesForWorkflows(projectWorkflows.map((w) => w.id));
+  const stagesByWorkflow = new Map<number, typeof stages>();
+  for (const stage of stages) {
+    const list = stagesByWorkflow.get(stage.workflowId) ?? [];
+    list.push(stage);
+    stagesByWorkflow.set(stage.workflowId, list);
+  }
+
+  const completionFractions = projectWorkflows.map((workflow) => {
+    const workflowStages = stagesByWorkflow.get(workflow.id) ?? [];
+    if (workflowStages.length === 0) return 0;
+    const doneCount = workflowStages.filter((stage) => stage.status === "done").length;
+    return doneCount / workflowStages.length;
+  });
+
+  const averageCompletion =
+    completionFractions.reduce((sum, fraction) => sum + fraction, 0) /
+    completionFractions.length;
+
+  await projectsRepo.updateProgressByCode(projectCode, Math.round(averageCompletion * 100));
+};
+
 export const createWorkflow = async (
   input: CreateWorkflowInput,
   createdBy: string,
+  createdByRole?: string,
 ): Promise<WorkflowWithStages> => {
   const template = await repo.findTemplateById(input.templateId);
   if (!template) throw new ValidationError(`Unknown workflow template ${input.templateId}`);
@@ -209,6 +295,37 @@ export const createWorkflow = async (
       })),
     );
   }
+
+  // Auto-approve the initiator's own stage. The role that raises a workflow
+  // has, by definition, already done what that first stage exists to
+  // capture — an Engineer opening a Budget Change Request has already
+  // supplied the "Engineer Justification" the first stage asks for, HR
+  // opening a Subcontractor onboarding has already done the "HR
+  // Verification" that names — so it makes no sense for that same stage to
+  // then sit in their own pending queue waiting on them a second time.
+  //
+  // Only fires when the creator's role actually matches stage 1's role: a
+  // PM or Admin starting a workflow on someone else's behalf (e.g. from the
+  // general "New workflow" dialog) still leaves that first stage for its
+  // real owner to decide, exactly as before.
+  if (firstStage && createdByRole && firstStage.role === createdByRole) {
+    await repo.updateStage(firstStage.id, {
+      status: "done",
+      decidedBy: createdBy,
+      decidedAt: new Date(),
+      comments: "Automatically approved — submitted by the initiating role.",
+    });
+
+    const secondStage = insertedStages.find((stage) => stage.sequence === 2);
+    if (secondStage) {
+      await repo.updateStage(secondStage.id, { status: "current" });
+    } else {
+      // A single-stage workflow: the initiator's own step was the only one.
+      await repo.updateWorkflowStatus(workflow.id, "completed");
+    }
+  }
+
+  await recomputeProjectProgress(input.projectCode);
 
   return getWorkflowById(workflow.id);
 };
@@ -324,6 +441,14 @@ export const decideStage = async (
   // "revise" leaves the workflow status as-is and the stage in
   // "revision-required" — resubmission (setting it back to "current") is a
   // deliberate follow-up action, not automatic.
+
+  // Every decision moves a stage between "current"/"done"/"rejected", which
+  // is exactly what recomputeProjectProgress rolls up — approving advances
+  // the project's progress, rejecting freezes it where the chain stopped.
+  const decidedWorkflow = await repo.findWorkflowById(workflowId);
+  if (decidedWorkflow) {
+    await recomputeProjectProgress(decidedWorkflow.projectCode);
+  }
 
   return getWorkflowById(workflowId);
 };

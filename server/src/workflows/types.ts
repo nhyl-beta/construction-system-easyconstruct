@@ -129,6 +129,14 @@ export interface TemplateWithActiveCount {
   activeCount: number;
 }
 
+/** Admin/IT Designer defining a new, reusable workflow template. */
+export interface CreateWorkflowTemplateInput {
+  name: string;
+  description: string;
+  avgDurationHours: number;
+  defaultStages: WorkflowStageDefinition[];
+}
+
 export type ApprovalScope = "pending" | "mine" | "history";
 
 export interface ApprovalQueueItem {

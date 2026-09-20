@@ -13,6 +13,8 @@ import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { StatusBadge } from "@/components/ui/status-badge";
 import { ConfirmDialog } from "@/components/ui/confirm-dialog";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { ApprovalQueuePanel } from "@/components/workflows/approval-queue-panel";
 import {
   PROPOSAL_DECISIONS,
   findProposalDecision,
@@ -696,10 +698,36 @@ export default function ConsultantProposalsPage() {
 
       <PageHeader
         title="Proposal Review"
-        description="Review design proposals submitted by Architects."
+        description="Review design proposals submitted by Architects, and decide on any workflow stage waiting on Consultant Review — one screen for both."
       />
 
       <PageContent className="p-6 md:p-8">
+
+        {/* Consultant used to have a second, separate "Approvals" screen for
+            deciding on workflow stages (Consultant Review on a Design
+            Proposal Approval chain, etc.) — same decisions, different page
+            from the one that reviews the proposal itself. Folded in here as
+            a tab so there is one "Proposal Review" screen that carries both,
+            per role-tab.ts/role-resources.ts no longer routing Consultant to
+            a standalone /approvals nav item. */}
+        <Tabs defaultValue="proposals" className="mb-6">
+          <TabsList className="h-10 rounded-xl">
+            <TabsTrigger value="proposals" className="rounded-lg">
+              Design proposals
+            </TabsTrigger>
+            <TabsTrigger value="approvals" className="rounded-lg">
+              Workflow approvals
+            </TabsTrigger>
+          </TabsList>
+
+          <TabsContent value="approvals" className="pt-4">
+            <ApprovalQueuePanel
+              emptyPendingMessage="Nothing pending your decision."
+              showInitiationActions={false}
+            />
+          </TabsContent>
+
+          <TabsContent value="proposals" className="space-y-0 pt-4">
 
         {/* ----------------------------------------------------
             PAGE INFORMATION
@@ -912,6 +940,9 @@ export default function ConsultantProposalsPage() {
 
           </div>
         )}
+
+          </TabsContent>
+        </Tabs>
 
       </PageContent>
 

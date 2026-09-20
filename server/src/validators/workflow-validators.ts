@@ -34,6 +34,29 @@ export const createWorkflowSchema = z.object({
 
 export const addAttachmentSchema = workflowAttachmentSchema;
 
+// One step of a custom workflow template: which role decides at this point,
+// the label shown for it, and the icon key the stage-pipeline UI already
+// knows how to render (see client/src/components/workflows/
+// workflow-stage-pipeline.tsx's WORKFLOW_STAGE_ICONS — an unknown key just
+// falls back to a default icon there, so this is left open rather than
+// re-declaring that map on the server).
+export const workflowStageDefinitionSchema = z.object({
+  role: z.string().min(1).max(40),
+  roleLabel: z.string().min(1).max(60),
+  iconKey: z.string().min(1).max(30).default("UserCheck"),
+});
+
+// Admin/IT Designer defining a reusable workflow template — the steps/roles/
+// order a new workflow can later be started from (see workflows/service.ts
+// createTemplate). At least 2 stages: a 1-stage "workflow" is really just an
+// approval by its own initiator and doesn't need a template of its own.
+export const createWorkflowTemplateSchema = z.object({
+  name: z.string().min(2).max(100),
+  description: z.string().min(1).max(500),
+  avgDurationHours: z.number().positive().max(10_000),
+  defaultStages: z.array(workflowStageDefinitionSchema).min(2).max(10),
+});
+
 export const decideStageSchema = z.object({
   decision: z.enum(["approve", "reject", "revise"]),
   comments: z.string().max(1000).optional(),

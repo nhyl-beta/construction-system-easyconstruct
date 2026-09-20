@@ -220,6 +220,40 @@ async function main() {
         UNIQUE (project_code, user_id, role);
     EXCEPTION WHEN duplicate_object OR duplicate_table THEN NULL;
     END $$;
+
+    -- Draft milestones: a Project Manager staking out an estimated
+    -- completion date for a chunk of the project before it's a firm
+    -- commitment. No table for this existed at all.
+    CREATE TABLE IF NOT EXISTS milestones (
+      id serial PRIMARY KEY,
+      project_code varchar(50) NOT NULL,
+      title varchar(255) NOT NULL,
+      description text,
+      status varchar(20) NOT NULL DEFAULT 'draft',
+      estimated_completion_date varchar(20),
+      created_by varchar(100) NOT NULL,
+      created_at timestamp DEFAULT now(),
+      updated_at timestamp DEFAULT now()
+    );
+
+    CREATE INDEX IF NOT EXISTS milestones_project_code_idx
+      ON milestones (project_code);
+
+    -- Generic (link_type, link_id) association so a milestone can later gate
+    -- on requirements/documents/budget items/tasks without a schema change
+    -- per relationship — see db/schema/milestones.ts. Nothing reads these
+    -- yet; the table exists so that gating logic is additive later, not a
+    -- migration on top of a migration.
+    CREATE TABLE IF NOT EXISTS milestone_links (
+      id serial PRIMARY KEY,
+      milestone_id integer NOT NULL REFERENCES milestones(id) ON DELETE CASCADE,
+      link_type varchar(20) NOT NULL,
+      link_id integer NOT NULL,
+      created_at timestamp DEFAULT now()
+    );
+
+    CREATE INDEX IF NOT EXISTS milestone_links_milestone_idx
+      ON milestone_links (milestone_id);
   `);
 
   console.log("Demo schema tables and compatibility columns are ready.");

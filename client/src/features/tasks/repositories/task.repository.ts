@@ -11,9 +11,17 @@ export interface TaskRecord {
   status: string;
   progress: number;
   dueDate: string | null;
+  // The server has always returned these (server/src/tasks/types.ts) — this
+  // type just never declared them, so nothing that reads a task could show
+  // who it was assigned to or when it moved, which is exactly what an
+  // Engineer/PM reviewing tasks they sent to Site Personnel needs to see.
+  assignedToUserId: number | null;
+  assignedToName: string | null;
   completionNote: string | null;
   completionFileUrl: string | null;
   completedAt: string | null;
+  createdAt: string | null;
+  updatedAt: string | null;
 }
 
 /** Evidence captured when a task moves to Completed. */

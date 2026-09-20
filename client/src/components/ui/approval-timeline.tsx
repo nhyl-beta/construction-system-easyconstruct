@@ -15,10 +15,13 @@ const decisionIcon: Record<string, typeof CheckCircle2> = {
   returned: RotateCcw,
 };
 
+// "returned" is text-warning, not text-warning-foreground — see the note in
+// project-status.ts's RISK_CLASS; the other two tones here are already
+// standalone-safe tokens, which is what made this one stand out.
 const decisionTone: Record<string, string> = {
   approved: "text-success",
   rejected: "text-destructive",
-  returned: "text-warning-foreground",
+  returned: "text-warning",
 };
 
 export function ApprovalTimeline({ steps }: { steps: BudgetApprovalStep[] }) {

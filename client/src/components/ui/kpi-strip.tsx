@@ -11,9 +11,14 @@ export interface KpiItem {
   tone?: KpiTone;
 }
 
+// "warn" is text-warning, not text-warning-foreground: this renders directly
+// on the KPI tile's own background, not on a filled warning chip, and that
+// second token's dark-mode value (oklch lightness 0.22) is nearly black —
+// invisible on the app's own dark background. Shared by every page that
+// uses <KpiStrip>, so this one fix covers all of them.
 const toneText: Record<KpiTone, string> = {
   good: "text-success",
-  warn: "text-warning-foreground",
+  warn: "text-warning",
   bad: "text-destructive",
   neutral: "text-foreground",
 };

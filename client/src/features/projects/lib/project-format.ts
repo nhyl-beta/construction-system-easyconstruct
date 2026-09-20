@@ -15,13 +15,22 @@ export function formatDue(due: string | null | undefined): string {
   });
 }
 
-export function formatContractValue(value: number | null | undefined): string {
+export function formatContractValue(
+  value: number | null | undefined,
+  currency: string = "PHP",
+): string {
   if (value == null || Number.isNaN(value)) return "—";
-  // Pinned to en-PH: with an undefined locale this rendered "PHP 1,234" for
-  // anyone whose browser wasn't set to a locale that knows the ₱ symbol.
+  // Was hardcoded to "PHP" regardless of the project's own currency, so a
+  // project created in USD/EUR/etc. (client/src/features/projects/types/
+  // project.types.ts: PROJECT_CURRENCIES) still displayed its contract value
+  // with a ₱ symbol — correct amount, wrong denomination shown.
+  // Pinned to en-PH rather than the browser's own locale: with an undefined
+  // locale this rendered "PHP 1,234" for anyone whose browser wasn't set to
+  // a locale that knows the ₱ symbol; en-PH renders every currency this list
+  // offers with its usual symbol.
   return value.toLocaleString("en-PH", {
     style: "currency",
-    currency: "PHP",
+    currency,
     maximumFractionDigits: 0,
   });
 }

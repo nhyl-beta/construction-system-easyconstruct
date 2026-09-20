@@ -22,7 +22,9 @@ import { useNavigate } from "react-router";
 
 const riskToneClasses: Record<string, string> = {
   high: "text-destructive font-medium",
-  medium: "text-warning-foreground font-medium",
+  // text-warning, not text-warning-foreground — see the note in
+  // project-status.ts's RISK_CLASS.
+  medium: "text-warning font-medium",
   low: "text-muted-foreground",
 };
 

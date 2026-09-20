@@ -38,6 +38,8 @@ import {
 } from "@/features/hr/hr-api";
 import type { Employee } from "@/features/hr/types";
 import { downloadCsv } from "@/lib/export-csv";
+import { DataTablePagination } from "@/components/refine-ui/data-table/data-table-pagination";
+import { usePagination } from "@/hooks/use-pagination";
 
 function EmployeeRow({
   e,
@@ -130,6 +132,9 @@ export default function HREmployeesPage() {
   const [status, setStatus] = useState("all");
   const [filtered, setFiltered] = useState<Employee[]>([]);
   const [total, setTotal] = useState(0);
+  // Was the full filtered list rendered in one unbroken pass — fine with a
+  // handful of demo hires, unusable once a real headcount lands here.
+  const pagination = usePagination(filtered, 10);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
@@ -298,7 +303,7 @@ export default function HREmployeesPage() {
                 </TableRow>
               )}
               {!error &&
-                filtered.map((e) => (
+                pagination.pageItems.map((e) => (
                   <EmployeeRow
                     key={e.dbId}
                     e={e}
@@ -308,6 +313,11 @@ export default function HREmployeesPage() {
                 ))}
             </TableBody>
           </Table>
+          {!error && filtered.length > 0 && (
+            <div className="border-t border-border/70 px-4 py-3">
+              <DataTablePagination {...pagination} />
+            </div>
+          )}
         </CardContent>
       </Card>
     </div>

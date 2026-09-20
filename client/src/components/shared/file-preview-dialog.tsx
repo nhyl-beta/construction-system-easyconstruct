@@ -145,7 +145,19 @@ export function FilePreviewDialog({
           <Button variant="ghost" onClick={() => onOpenChange(false)}>
             Close
           </Button>
-          {resolved && available === true && (
+          {/* Gated on `resolved` only — NOT on `available`. These used to
+              only render once our own HEAD-request availability probe came
+              back `true`, so a probe that failed for any reason other than a
+              genuinely missing file (a HEAD request blocked by an extension,
+              a proxy/CDN that doesn't support HEAD, a slow or dropped
+              response) silently took away the only way to open or download a
+              document that was actually sitting on the server. A top-level
+              navigation (clicking a link) isn't subject to the same
+              restrictions a background `fetch` is, so it can succeed even
+              when the probe didn't — and if the file truly is gone, the
+              resulting browser error is no worse than what "not available"
+              already told the user. */}
+          {resolved && (
             <div className="flex gap-2">
               <Button variant="outline" asChild>
                 <a href={resolved} target="_blank" rel="noreferrer">

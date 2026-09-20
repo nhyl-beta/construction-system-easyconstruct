@@ -30,7 +30,6 @@ export const Header = () => {
 };
 
 function DesktopHeader() {
-  const { open } = useSidebar();
   const { pathname } = useParsed();
   const navigate = useNavigate();
   const { identity, config } = useRoleConfig();
@@ -53,20 +52,6 @@ function DesktopHeader() {
   return (
     <div className="sticky top-0 z-40 border-b bg-background/80 backdrop-blur-md">
       <header className="flex h-16 items-center gap-3 px-4 md:px-6">
-        {/* ✅ Only renders + takes space when sidebar is collapsed */}
-        <div
-          className={cn(
-            "flex items-center shrink-0 transition-all duration-200 overflow-hidden",
-            {
-              "w-auto opacity-100 mr-1": !open, // visible + separator gap when collapsed
-              "w-0 opacity-0 mr-0": open, // zero width, no gap when expanded
-            },
-          )}
-        >
-          <SidebarTrigger className="text-muted-foreground" />
-          <Separator orientation="vertical" className="ml-2 h-6" />
-        </div>
-
         {/* Title block */}
         <div className="flex min-w-0 flex-1 items-center gap-4">
           <div className="flex min-w-0 items-center gap-2.5">
@@ -115,6 +100,15 @@ function DesktopHeader() {
             </Link>
           </Button>
         )}
+
+        {/* Was rendered at the far left, and only when the sidebar was
+            already collapsed (`w-0 opacity-0` while `open`) — so once you
+            expanded the sidebar there was no button left to collapse it
+            again. Now always visible, beside the user profile at the
+            top-right, on both ends of the toggle. */}
+        <Separator orientation="vertical" className="h-6" />
+        <SidebarTrigger className="text-muted-foreground" />
+
         <UserDropdown />
       </header>
 

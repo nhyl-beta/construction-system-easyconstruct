@@ -165,7 +165,7 @@ function NewBudgetDialog({
                   {selectedProject.client}
                 </span>
                 {selectedProject.contractValue != null && (
-                  <> · contract {formatCurrency(selectedProject.contractValue)}</>
+                  <> · contract {formatCurrency(selectedProject.contractValue, selectedProject.currency)}</>
                 )}
               </p>
             )}

@@ -4,6 +4,7 @@ import type {
   ApprovalScope,
   ApprovalStats,
   CreateWorkflowInput,
+  CreateWorkflowTemplateInput,
   DecideStageInput,
   UpdateWorkflowInput,
   Workflow,
@@ -21,6 +22,11 @@ async function unwrap<T>(promise: Promise<any>): Promise<T> {
 export const WorkflowRepository = {
   async listTemplates(): Promise<WorkflowTemplate[]> {
     return unwrap<WorkflowTemplate[]>(apiClient.get("/workflows/templates"));
+  },
+
+  /** Admin/IT Designer defining a new, reusable workflow template. */
+  async createTemplate(input: CreateWorkflowTemplateInput): Promise<WorkflowTemplate> {
+    return unwrap<WorkflowTemplate>(apiClient.post("/workflows/templates", input));
   },
 
   async listActive(): Promise<Workflow[]> {

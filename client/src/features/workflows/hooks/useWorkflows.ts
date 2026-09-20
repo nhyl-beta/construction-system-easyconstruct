@@ -6,6 +6,7 @@ import type {
   ApprovalScope,
   ApprovalStats,
   CreateWorkflowInput,
+  CreateWorkflowTemplateInput,
   DecideStageInput,
   UpdateWorkflowInput,
   Workflow,
@@ -77,6 +78,31 @@ export function useWorkflowTemplates() {
     [reload],
   );
 
+  const [creatingTemplate, setCreatingTemplate] = useState(false);
+
+  const createTemplate = useCallback(
+    async (input: CreateWorkflowTemplateInput) => {
+      setCreatingTemplate(true);
+      setError(null);
+
+      try {
+        const created = await WorkflowRepository.createTemplate(input);
+        await reload();
+        return created;
+      } catch (err) {
+        setError(
+          err instanceof Error
+            ? err
+            : new Error("Failed to create workflow template."),
+        );
+        return null;
+      } finally {
+        setCreatingTemplate(false);
+      }
+    },
+    [reload],
+  );
+
   return {
     templates,
     loading,
@@ -84,6 +110,8 @@ export function useWorkflowTemplates() {
     error,
     reload,
     createWorkflow,
+    creatingTemplate,
+    createTemplate,
   } as const;
 }
 

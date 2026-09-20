@@ -34,7 +34,7 @@ export const ProjectsTable: React.FC<{ projects: Project[] }> = ({ projects }) =
                     <Link to={`/projects/${p.id}`} className="font-medium leading-tight hover:underline">{p.name}</Link>
                     <div className="text-xs text-muted-foreground">{p.code} · {p.client}</div>
                     {p.contractValue != null && (
-                      <div className="text-xs text-muted-foreground">{formatContractValue(p.contractValue)} contract</div>
+                      <div className="text-xs text-muted-foreground">{formatContractValue(p.contractValue, p.currency)} contract</div>
                     )}
                   </td>
                   <td className="px-3 py-3.5">

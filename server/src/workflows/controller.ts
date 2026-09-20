@@ -17,6 +17,23 @@ export const getTemplates = async (_req: AuthedRequest, res: Response, next: Nex
   }
 };
 
+export const createTemplate = async (req: AuthedRequest, res: Response, next: NextFunction) => {
+  try {
+    const actor = req.authUser?.name ?? req.authUser?.email ?? "unknown";
+    const data = await service.createTemplate(req.body);
+    await logAudit({
+      entityType: "workflow_template",
+      entityId: String(data.id),
+      action: "created",
+      actor,
+      summary: `Created workflow template "${data.name}" (${data.defaultStages.length} stages)`,
+    });
+    res.status(HTTP.CREATED).json(formatSuccess(data, MSG.workflows.created));
+  } catch (err) {
+    next(err);
+  }
+};
+
 export const getAll = async (_req: AuthedRequest, res: Response, next: NextFunction) => {
   try {
     const data = await service.getActiveWorkflows();
@@ -81,7 +98,7 @@ export const remove = async (req: AuthedRequest, res: Response, next: NextFuncti
 export const create = async (req: AuthedRequest, res: Response, next: NextFunction) => {
   try {
     const createdBy = req.authUser?.name ?? req.authUser?.email ?? "unknown";
-    const data = await service.createWorkflow(req.body, createdBy);
+    const data = await service.createWorkflow(req.body, createdBy, req.authUser?.role);
     await logAudit({
       entityType: "workflow",
       entityId: String(data.id),

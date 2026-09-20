@@ -28,12 +28,14 @@ import {
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
+import { Input } from "@/components/ui/input";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Textarea } from "@/components/ui/textarea";
 import { useAuth } from "@/auth/auth-context";
 import { WorkflowDetailDialog } from "@/components/workflows/workflow-detail-dialog";
 import { WorkflowInitiationActions } from "@/components/workflows/workflow-initiation-actions";
 import { useApprovals } from "@/features/workflows/hooks/useWorkflows";
+import { WorkflowRepository } from "@/features/workflows/repositories/workflow.repository";
 import { WorkflowFormatService } from "@/features/workflows/services/workflow.service";
 import { formatRelativeTime } from "@/lib/format-relative-time";
 import type { ApprovalScope } from "@/features/workflows/types/workflow.types";
@@ -59,6 +61,33 @@ export function ApprovalQueuePanel({
   const [tab, setTab] = useState<ApprovalScope>("pending");
   const { items, stats, loading, deciding, error, decide, reload } = useApprovals(tab);
   const [comments, setComments] = useState<Record<number, string>>({});
+  // A document Finance (or any approver) attaches to the workflow before
+  // deciding on it — e.g. Finance's own cost-impact worksheet on a budget
+  // change. Uploaded immediately on "Attach", independently of the eventual
+  // decision, so it is filed against the workflow (and visible in "View
+  // details") whether the approver ends up approving, rejecting or asking
+  // for revision.
+  const [pendingFiles, setPendingFiles] = useState<Record<number, File | null>>({});
+  const [uploadingStageId, setUploadingStageId] = useState<number | null>(null);
+  const [uploadError, setUploadError] = useState<string | null>(null);
+
+  const attachDocument = async (workflowId: number, stageId: number) => {
+    const file = pendingFiles[stageId];
+    if (!file) return;
+    setUploadingStageId(stageId);
+    setUploadError(null);
+    try {
+      await WorkflowRepository.uploadAttachment(workflowId, file, file.name);
+      setPendingFiles((prev) => ({ ...prev, [stageId]: null }));
+      await reload();
+    } catch (err) {
+      setUploadError(
+        err instanceof Error ? err.message : "Failed to attach the document.",
+      );
+    } finally {
+      setUploadingStageId(null);
+    }
+  };
   const [detailWorkflowId, setDetailWorkflowId] = useState<number | null>(null);
 
   const statCards = stats
@@ -126,6 +155,15 @@ export function ApprovalQueuePanel({
           className="rounded-xl border border-destructive/30 bg-destructive/5 px-4 py-3 text-sm text-destructive"
         >
           {error.message}
+        </p>
+      )}
+
+      {uploadError && (
+        <p
+          role="alert"
+          className="rounded-xl border border-destructive/30 bg-destructive/5 px-4 py-3 text-sm text-destructive"
+        >
+          {uploadError}
         </p>
       )}
 
@@ -216,6 +254,34 @@ export function ApprovalQueuePanel({
                   </Button>
                   {tab === "pending" ? (
                     <div className="flex w-full flex-col items-end gap-2 md:w-64">
+                      {/* Finance needed a way to attach its own cost-impact
+                          document to a budget change before approving it —
+                          there was no upload affordance anywhere on this
+                          screen, only the comment box. Any approver can use
+                          it; it is not finance-specific in the component. */}
+                      <div className="flex w-full items-center gap-1.5">
+                        <Input
+                          type="file"
+                          accept=".pdf,.doc,.docx,.xls,.xlsx,.ppt,.pptx,.png,.jpg,.jpeg"
+                          className="h-8 flex-1 rounded-lg text-xs file:text-xs"
+                          onChange={(e) =>
+                            setPendingFiles((prev) => ({
+                              ...prev,
+                              [a.stageId]: e.target.files?.[0] ?? null,
+                            }))
+                          }
+                        />
+                        <Button
+                          size="sm"
+                          variant="outline"
+                          className="h-8 shrink-0 rounded-lg text-xs"
+                          disabled={!pendingFiles[a.stageId] || uploadingStageId === a.stageId}
+                          onClick={() => void attachDocument(a.workflowId, a.stageId)}
+                        >
+                          <Paperclip className="h-3.5 w-3.5" />
+                          {uploadingStageId === a.stageId ? "Attaching…" : "Attach"}
+                        </Button>
+                      </div>
                       <Textarea
                         placeholder="Add a comment or justification (optional)"
                         className="min-h-16 rounded-lg text-xs"

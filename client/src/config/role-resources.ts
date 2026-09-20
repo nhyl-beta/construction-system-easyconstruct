@@ -94,11 +94,14 @@ export const ROLE_RESOURCE_ACCESS: Record<string, string[]> = {
   consultant: [
     "dashboard",
     // Consultant's review screen, not the Architect authoring page the
-    // generic "proposals" resource points at.
+    // generic "proposals" resource points at. Now also carries the workflow
+    // decisions that used to need the separate "approvals" resource (see
+    // consultant-proposals.tsx's "Workflow approvals" tab) — deliberately
+    // absent here so a direct hit on /approvals doesn't leave a second,
+    // unmerged path back into the same decisions.
     "consultant-proposals",
     "consultant-designs",
     "advisory-docs",
-    "approvals",
     "consultant-projects",
     "ai-insights",
   ],

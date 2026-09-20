@@ -18,7 +18,10 @@ import { formatDue } from "@/features/projects/lib/project-format";
 
 const riskToneClasses: Record<string, string> = {
   high: "text-destructive font-medium",
-  medium: "text-warning-foreground font-medium",
+  // text-warning, not text-warning-foreground — that token is dark ink meant
+  // for text ON a filled warning chip; standalone on the page background its
+  // dark-mode value is nearly black on the app's own dark background.
+  medium: "text-warning font-medium",
   low: "text-muted-foreground",
 };
 

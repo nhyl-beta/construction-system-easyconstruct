@@ -20,6 +20,8 @@ import { FilePreviewDialog } from "@/components/shared/file-preview-dialog";
 import { useFieldDocuments } from "@/features/documents/hooks/use-field-documents";
 import type { DocumentRecord } from "@/features/documents/repositories/documents.repository";
 import { formatRelativeTime } from "@/lib/format-relative-time";
+import { DataTablePagination } from "@/components/refine-ui/data-table/data-table-pagination";
+import { usePagination } from "@/hooks/use-pagination";
 
 // Icon resolver — mapped from real `type` values (the schema's enum), not
 // a separate iconKey field that doesn't exist on this table.
@@ -56,6 +58,10 @@ export default function DocumentsPage() {
       return true;
     });
   }, [documents, activeType, search]);
+
+  // Was the full filtered list rendered in one pass — a repository that
+  // grows past a page or two of records had no way to page through it.
+  const pagination = usePagination(filtered, 10);
 
   return (
     <div className="flex-1 space-y-6 p-4 md:p-8">
@@ -126,7 +132,7 @@ export default function DocumentsPage() {
                   </tr>
                 </thead>
                 <tbody>
-                  {filtered.map((d) => {
+                  {pagination.pageItems.map((d) => {
                     const Icon = TYPE_ICONS[d.type] ?? FileText;
                     return (
                       <tr key={d.id} className="border-b border-border/60 last:border-0 hover:bg-muted/30">
@@ -168,6 +174,9 @@ export default function DocumentsPage() {
                   })}
                 </tbody>
               </table>
+              <div className="border-t border-border/70 px-4 py-3">
+                <DataTablePagination {...pagination} />
+              </div>
             </div>
           )}
         </CardContent>

@@ -24,7 +24,9 @@ import { useAuth } from "@/auth/auth-context";
 import { useUsersByRole } from "@/features/users/hooks/use-users-by-role";
 import { useMyTasks } from "@/features/tasks/hooks/use-my-tasks";
 import { CompleteTaskDialog } from "@/components/tasks/complete-task-dialog";
+import { ProjectPicker } from "@/components/shared/project-picker";
 import { isRealFileUrl, openFileUrl } from "@/lib/file-url";
+import { formatRelativeTime } from "@/lib/format-relative-time";
 import type { TaskRecord } from "@/features/tasks/repositories/task.repository";
 import { useState } from "react";
 
@@ -93,6 +95,30 @@ export default function TasksPage() {
                         <div className="truncate text-sm font-medium">{t.title}</div>
                         {t.description && (
                           <p className="mt-0.5 max-w-lg text-xs text-muted-foreground">{t.description}</p>
+                        )}
+                        {/* Engineers (and PMs) send tasks TO Site Personnel
+                            but couldn't see who a task actually went to, or
+                            when it moved — the row showed the same thing to
+                            everyone regardless of role. This is the
+                            status/history view: who it's assigned to, when
+                            it was raised, and when it was completed. */}
+                        {canCreate && (
+                          <p className="mt-1 flex flex-wrap items-center gap-x-1.5 text-xs text-muted-foreground">
+                            <span>
+                              Assigned to{" "}
+                              <span className="font-medium text-foreground">
+                                {t.assignedToName ?? "Unassigned"}
+                              </span>
+                            </span>
+                            <span>·</span>
+                            <span>Created {formatRelativeTime(t.createdAt)}</span>
+                            {t.completedAt && (
+                              <>
+                                <span>·</span>
+                                <span>Completed {formatRelativeTime(t.completedAt)}</span>
+                              </>
+                            )}
+                          </p>
                         )}
                         {t.completionNote && (
                           <p className="mt-1 max-w-lg text-xs text-muted-foreground">
@@ -235,13 +261,15 @@ function NewTaskCard({
 
         <div className="grid gap-4 sm:grid-cols-2">
           <div className="space-y-1.5">
-            <Label htmlFor="task-project">Project code</Label>
-            <Input
-              id="task-project"
+            <Label>Project</Label>
+            {/* Was a free-text "project code" box — a typo produced a task
+                that matched no real project, so it never showed up in any
+                project-scoped view. Same picker the rest of the app uses,
+                backed by /api/projects. */}
+            <ProjectPicker
               value={projectCode}
-              onChange={(e) => setProjectCode(e.target.value)}
-              placeholder="e.g. SUN-101852"
-              className="rounded-xl"
+              onChange={setProjectCode}
+              className="w-full"
             />
           </div>
           <div className="space-y-1.5">

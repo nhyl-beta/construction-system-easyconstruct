@@ -88,3 +88,19 @@ export const remove = async (id: number) => {
     .returning();
   return deleted ?? null;
 };
+
+/**
+ * Narrow, single-column update used by workflows/service.ts to roll a
+ * project's progress up from its workflows' completion (by project CODE,
+ * since that's all a workflow record carries — it has no project id FK).
+ * Kept separate from the general `update()` above so that roll-up can never
+ * accidentally overwrite any other project field.
+ */
+export const updateProgressByCode = async (code: string, progress: number) => {
+  const [updated] = await db
+    .update(projects)
+    .set({ progress, updatedAt: new Date() })
+    .where(eq(projects.code, code))
+    .returning();
+  return updated ?? null;
+};

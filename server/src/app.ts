@@ -38,6 +38,7 @@ import projectMemberRoutes from "./project-members/routes.js";
 
 // ── workflows/approvals ──
 import workflowRoutes from "./workflows/routes.js";
+import milestoneRoutes from "./milestones/routes.js";
 
 import uploadRoutes from "./uploads/routes.js";
 
@@ -100,6 +101,7 @@ app.use("/api/roles", roleRoutes);
 app.use("/api/users", userRoutes);
 app.use("/api/project-members", projectMemberRoutes);
 app.use("/api/workflows", workflowRoutes);
+app.use("/api/milestones", milestoneRoutes);
 app.use("/api/uploads", uploadRoutes);
 
 

@@ -6,6 +6,7 @@ import { advisoryDocumentUpload } from "../documents/upload.js";
 import {
   addAttachmentSchema,
   createWorkflowSchema,
+  createWorkflowTemplateSchema,
   decideStageSchema,
   updateWorkflowSchema,
 } from "../validators/workflow-validators.js";
@@ -31,6 +32,17 @@ const canInitiateWorkflow = requireRole(
 );
 
 router.get("/templates", controller.getTemplates);
+// Defining a NEW template (the steps/roles/order future workflows can be
+// started from) is an org-wide configuration change, not a day-to-day
+// workflow action — kept to the same admin/it-designer pair that manages
+// workflow oversight and approval hierarchy elsewhere, not the broader
+// canInitiateWorkflow set that raises individual workflow instances.
+router.post(
+  "/templates",
+  requireRole("admin", "it-designer"),
+  validate(createWorkflowTemplateSchema),
+  controller.createTemplate,
+);
 router.get("/approvals", controller.getApprovals);
 router.get("/approvals/stats", controller.getApprovalStats);
 // Before "/:id", or Express matches this path as a workflow id.

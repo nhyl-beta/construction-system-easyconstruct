@@ -11,9 +11,10 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { ProjectRepository } from "@/features/projects/repositories/project.repository";
-import { RISK_LEVELS, type Project } from "@/features/projects/types/project.types";
+import { PROJECT_CURRENCIES, RISK_LEVELS, type Project } from "@/features/projects/types/project.types";
 import { formatCurrency } from "@/lib/format-currency";
 import { useProjectMembers } from "@/features/project-members/hooks/use-project-members";
+import { MilestonesPanel } from "@/features/milestones/components/MilestonesPanel";
 import type { ProjectMemberRole } from "@/features/project-members/repositories/project-member.repository";
 import { useUsersByRole } from "@/features/users/hooks/use-users-by-role";
 import { ArrowLeft, HardHat, Loader2, Trash2, UserPlus, X } from "lucide-react";
@@ -123,6 +124,7 @@ export default function ProjectDetailPage() {
         name: project.name.trim(),
         code: project.code.trim(),
         client: project.client,
+        currency: project.currency,
         location: project.location,
         status: project.status,
         statusTone: project.statusTone,
@@ -138,8 +140,12 @@ export default function ProjectDetailPage() {
         geofenceRadiusM: project.geofenceRadiusM,
       });
       if (!updated) throw new Error("Project could not be updated.");
-      setProject(updated);
-      setMessage("Project saved.");
+      // Was just setProject(updated) + a "Project saved." message that sat
+      // on this same form — after confirming a save, the app should return
+      // to the project table, not leave the editor open as if nothing
+      // happened. Matches the New Project wizard, which already navigates
+      // back to the list on success.
+      navigate(listRoute);
     } catch (err: unknown) {
       setError(err instanceof Error ? err.message : "Failed to save project.");
     } finally {
@@ -192,7 +198,11 @@ export default function ProjectDetailPage() {
         )}
       </div>
       {error && <div className="rounded-xl border border-destructive/30 bg-destructive/10 px-4 py-3 text-sm text-destructive">{error}</div>}
-      {message && <div className="rounded-xl border border-green-500/30 bg-green-500/10 px-4 py-3 text-sm text-green-700">{message}</div>}
+      {/* Was border-green-500/bg-green-500/text-green-700 — same dark-mode
+          contrast bug as RISK_CLASS (see project-status.ts): a raw Tailwind
+          palette color with no dark-mode variant, unlike the semantic
+          `success` token used here now, which App.css redefines per theme. */}
+      {message && <div className="rounded-xl border border-success/30 bg-success/10 px-4 py-3 text-sm text-success">{message}</div>}
 
       {!canEdit && !isEngineer && (
         <p className="max-w-4xl text-sm text-muted-foreground">
@@ -265,10 +275,27 @@ export default function ProjectDetailPage() {
             ? <Input type="number" min="0" value={project.budget} onChange={(e) => update("budget", Number(e.target.value))} />
             : <ReadOnlyValue value={`${project.budget}%`} />}
         </Field>
+        <Field label="Currency">
+          {canEdit ? (
+            <Select value={project.currency} onValueChange={(v) => update("currency", v)}>
+              <SelectTrigger><SelectValue /></SelectTrigger>
+              <SelectContent>
+                {PROJECT_CURRENCIES.map((c) => (
+                  <SelectItem key={c.code} value={c.code}>{c.label}</SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          ) : (
+            <ReadOnlyValue value={project.currency} />
+          )}
+        </Field>
         <Field label="Total contract value">
           {canEdit
             ? <Input type="number" min="0" value={project.contractValue ?? ""} onChange={(e) => update("contractValue", e.target.value === "" ? null : Number(e.target.value))} />
-            : <ReadOnlyValue value={project.contractValue == null ? null : formatCurrency(project.contractValue)} />}
+            // Was hardcoded to PHP formatting regardless of the project's
+            // actual currency — see project-format.ts's formatContractValue
+            // for the same bug on the table view.
+            : <ReadOnlyValue value={project.contractValue == null ? null : formatCurrency(project.contractValue, project.currency)} />}
         </Field>
         <Field label="Workforce">
           {canEdit
@@ -353,6 +380,10 @@ export default function ProjectDetailPage() {
         <TeamMemberPanel projectCode={project.code} role="architect" label="Architects" readOnly={!canEdit} />
         <TeamMemberPanel projectCode={project.code} role="site-personnel" label="Site Personnel" readOnly={!canEdit} />
         <TeamMemberPanel projectCode={project.code} role="consultant" label="Consultants" readOnly={!canEdit} />
+      </div>
+
+      <div className="max-w-4xl">
+        <MilestonesPanel projectCode={project.code} canManage={canEdit} />
       </div>
     </div>
   );

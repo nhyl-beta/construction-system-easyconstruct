@@ -22,6 +22,11 @@ export const findTemplateById = async (id: number) => {
   return row ?? null;
 };
 
+export const insertTemplate = async (data: typeof workflowTemplates.$inferInsert) => {
+  const [created] = await db.insert(workflowTemplates).values(data).returning();
+  return created ?? null;
+};
+
 export const countActiveByTemplate = async (): Promise<Map<number, number>> => {
   const rows = await db
     .select({
@@ -221,4 +226,11 @@ export const findTemplateByName = async (name: string) => {
     .from(workflowTemplates)
     .where(sql`lower(${workflowTemplates.name}) = lower(${name})`);
   return row ?? null;
+};
+
+// Every workflow raised against a project — used to roll the project's
+// progress up from how far each of its workflows has moved through its
+// stages (see workflows/service.ts recomputeProjectProgress).
+export const findWorkflowsByProjectCode = async (projectCode: string) => {
+  return db.select().from(workflows).where(eq(workflows.projectCode, projectCode));
 };

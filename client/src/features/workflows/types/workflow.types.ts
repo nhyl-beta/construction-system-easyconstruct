@@ -13,6 +13,14 @@ export interface WorkflowTemplate {
   activeCount: number;
 }
 
+/** Admin/IT Designer defining a new, reusable workflow template. */
+export interface CreateWorkflowTemplateInput {
+  name: string;
+  description: string;
+  avgDurationHours: number;
+  defaultStages: WorkflowStageDefinition[];
+}
+
 export type StageStatus = "upcoming" | "current" | "done" | "rejected" | "revision-required";
 
 export interface WorkflowStage {

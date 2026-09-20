@@ -44,4 +44,5 @@ export const MSG = {
   workflows: createCrudMessages("Workflow"),
   workflowSteps: createCrudMessages("Workflow step"),
   workflowStages: createCrudMessages("Workflow stage"),
+  milestones: createCrudMessages("Milestone"),
 } as const;

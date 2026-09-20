@@ -173,7 +173,14 @@ export const ROLE_CONFIGS: Record<string, RoleConfig> = {
     accentBg: "bg-indigo-600",
     searchPlaceholder: "Search users, activity...",
     primaryAi: "System Intelligence",
-    primaryAction: { label: "New User", icon: UserPlus, route: "/it-designer/users" },
+    // The header's "New User" primary action is a plain <Link>, so it can
+    // only navigate — it can't call ITDesignerUsersPage's openCreate(). The
+    // query param round-trips through the URL instead: the page reads it on
+    // mount and opens the create-account dialog itself (see
+    // it-designer-users.tsx). Was just "/it-designer/users", which — from
+    // anywhere other than that page — landed on the account LIST, not the
+    // create form the label promises.
+    primaryAction: { label: "New User", icon: UserPlus, route: "/it-designer/users?new=1" },
 
     tabs: [
       { label: "Users", icon: UsersRound, route: "/it-designer/users" },
@@ -516,11 +523,14 @@ export const ROLE_CONFIGS: Record<string, RoleConfig> = {
       label: "Upload Advisory",
       icon: Plus,
     },
+      // "Approvals" used to be its own tab here, pointing at the shared
+      // /approvals screen — a second place to decide on the exact same
+      // workflow stages "Proposal Review" now also covers as a tab of its
+      // own. Merged rather than duplicated (see consultant-proposals.tsx).
       tabs: [
         { label: "Proposal Review", icon: FileText, route: "/consultant/proposals" },
         { label: "Designs", icon: Ruler, route: "/consultant/designs" },
         { label: "Advisory Docs", icon: ClipboardList, route: "/advisory-docs" },
-        { label: "Approvals", icon: CheckSquare, route: "/approvals" },
         { label: "Projects", icon: FolderKanban, route: "/consultant/projects" },
       ],
 
@@ -542,7 +552,6 @@ export const ROLE_CONFIGS: Record<string, RoleConfig> = {
       {
         label: "Output",
         items: [
-          { label: "Approvals", icon: SquarePen, route: "/approvals" },
           { label: "Advisory Docs", icon: BarChart2, route: "/advisory-docs" },
           { label: "AI Insights", icon: BarChart2, route: "/ai-insights" },
           { label: "Reports", icon: BadgeCheck, route: "/reports" },

@@ -67,9 +67,19 @@ export function WorkflowDetailDialog({
 }: WorkflowDetailDialogProps) {
   const { workflow, loading, error } = useWorkflowDetail(workflowId);
 
+  // Was a single narrow (max-w-2xl) column with every section stacked
+  // vertically — the approval chain, the line items and every submitted
+  // document all in one long list, so a workflow with more than a couple of
+  // stages or attachments needed an inner scroll just to reach "Approve".
+  // Wider on large screens, with the chain laid out horizontally (the
+  // pipeline component already supports this — see workflow-stage-
+  // pipeline.tsx's `direction="row"`) and the two data sections side by
+  // side, so the content that used to need scrolling now mostly fits.
+  const hasLineItems = (workflow?.lineItems.length ?? 0) > 0;
+
   return (
     <Dialog open={workflowId !== null} onOpenChange={onOpenChange}>
-      <DialogContent className="max-h-[85vh] max-w-2xl overflow-y-auto">
+      <DialogContent className="max-h-[85vh] max-w-2xl overflow-y-auto lg:max-w-4xl">
         <DialogHeader>
           <DialogTitle>
             {workflow ? `${workflow.code} · ${workflow.title}` : "Workflow details"}
@@ -96,21 +106,23 @@ export function WorkflowDetailDialog({
         {workflow && (
           <div className="space-y-6 py-1">
             <Section title="Approval chain">
-              <WorkflowStagePipeline stages={workflow.stages} direction="column" />
+              <WorkflowStagePipeline stages={workflow.stages} direction="row" />
             </Section>
 
-            {/* Rendered only for workflows that actually have cost lines —
-                a design-approval chain has none, and an empty table on it
-                would just be noise. */}
-            {workflow.lineItems.length > 0 && (
-              <Section title="Requested changes" count={workflow.lineItems.length}>
-                <WorkflowLineItemsTable lineItems={workflow.lineItems} />
+            <div className={hasLineItems ? "grid gap-6 lg:grid-cols-2" : ""}>
+              {/* Rendered only for workflows that actually have cost lines —
+                  a design-approval chain has none, and an empty table on it
+                  would just be noise. */}
+              {hasLineItems && (
+                <Section title="Requested changes" count={workflow.lineItems.length}>
+                  <WorkflowLineItemsTable lineItems={workflow.lineItems} />
+                </Section>
+              )}
+
+              <Section title="Submitted documents & data" count={workflow.attachments.length}>
+                <WorkflowAttachmentList attachments={workflow.attachments} />
               </Section>
-            )}
-
-            <Section title="Submitted documents & data" count={workflow.attachments.length}>
-              <WorkflowAttachmentList attachments={workflow.attachments} />
-            </Section>
+            </div>
           </div>
         )}
       </DialogContent>
