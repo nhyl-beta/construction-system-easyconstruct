@@ -1,6 +1,7 @@
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { DatePicker } from "@/components/ui/date-picker";
 import { Textarea } from "@/components/ui/textarea";
 import {
   Select,
@@ -276,7 +277,7 @@ export default function ProjectDetailPage() {
         </Field>
         <Field label="Due date">
           {canEdit
-            ? <Input type="date" value={project.due} onChange={(e) => update("due", e.target.value)} />
+            ? <DatePicker value={project.due} onChange={(v) => update("due", v)} placeholder="Select due date" clearable={false} />
             : <ReadOnlyValue value={project.due} />}
         </Field>
         <Field label="Project manager">

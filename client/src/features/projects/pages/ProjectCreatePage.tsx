@@ -1,5 +1,6 @@
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { DatePicker } from "@/components/ui/date-picker";
 import { MultiStepPage, type Step } from "@/components/ui/multi-step-page";
 import {
   Select,
@@ -13,7 +14,7 @@ import { ProjectRepository } from "@/features/projects/repositories/project.repo
 import { ProjectMemberRepository, type ProjectMemberRole } from "@/features/project-members/repositories/project-member.repository";
 import { useAuth } from "@/auth/auth-context";
 import { useUsersByRole } from "@/features/users/hooks/use-users-by-role";
-import { Calendar, Info, MapPin, UserCheck } from "lucide-react";
+import { Info, MapPin, UserCheck } from "lucide-react";
 import { useState } from "react";
 import { useNavigate } from "react-router";
 import { RISK_LEVELS } from "@/features/projects/types/project.types";
@@ -376,29 +377,22 @@ function StepProjectInfo({
       <div className="grid grid-cols-2 gap-5">
         <div className="space-y-1.5">
           <Label>Planned start date</Label>
-          <div className="relative">
-            <Calendar className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
-            <Input
-              type="date"
-              value={data.startDate}
-              onChange={(e) => set("startDate", e.target.value)}
-              className="rounded-xl pl-9"
-            />
-          </div>
+          <DatePicker
+            value={data.startDate}
+            onChange={(v) => set("startDate", v)}
+            placeholder="Select start date"
+          />
         </div>
         <div className="space-y-1.5">
           <Label>
             Due date <span className="text-destructive">*</span>
           </Label>
-          <div className="relative">
-            <Calendar className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
-            <Input
-              type="date"
-              value={data.due}
-              onChange={(e) => set("due", e.target.value)}
-              className="rounded-xl pl-9"
-            />
-          </div>
+          <DatePicker
+            value={data.due}
+            onChange={(v) => set("due", v)}
+            placeholder="Select due date"
+            clearable={false}
+          />
         </div>
       </div>
 

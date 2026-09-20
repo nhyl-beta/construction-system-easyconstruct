@@ -51,13 +51,11 @@ export function AuthBrandPanel() {
             <Sparkles className="size-3.5 text-ai" aria-hidden="true" />
             AI-assisted project intelligence
           </p>
+          {/* The headline carries the message; the paragraph that used to
+              follow it only restated the same claim in different words. */}
           <h2 className="font-display text-3xl font-semibold leading-tight tracking-tight xl:text-4xl">
             Intelligent construction operations, powered by data and AI.
           </h2>
-          <p className="text-sm leading-relaxed text-muted-foreground">
-            Build smarter. Decide with confidence. One operational workspace for
-            project managers, engineers, architects, HR and finance teams.
-          </p>
         </div>
 
         <ul className="grid grid-cols-2 gap-3">

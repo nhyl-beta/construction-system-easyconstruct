@@ -1,9 +1,9 @@
 import { useState } from "react";
+import { Link } from "react-router";
 import { AlertCircle, CheckCircle2, Loader2, Mail } from "lucide-react";
 import {
   Card,
   CardContent,
-  CardDescription,
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
@@ -11,12 +11,8 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
-import { Separator } from "@/components/ui/separator";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { PasswordInput } from "@/components/ui/auth/password-input";
-import { AuthSecurityNotice } from "@/components/ui/auth/auth-security-notice";
-
-// FLAG: same collision as the other two pages — confirm real path.
 
 import { useLoginController } from "@/hooks/use-auth-controllers";
 import { AUTH_MESSAGES } from "@/config/auth-message";
@@ -31,13 +27,14 @@ export function LoginForm() {
 
   return (
     <Card className="border-border/70 shadow-lg">
-      <CardHeader className="space-y-1.5">
+      {/* Heading only. The card previously also carried a subtitle, a
+          security reassurance panel and a "no account yet?" footer — three
+          blocks of prose around two fields nobody reads on the way to
+          signing in. */}
+      <CardHeader>
         <CardTitle className="font-display text-2xl tracking-tight">
           Welcome back
         </CardTitle>
-        <CardDescription>
-          Sign in to continue to your EasyConstruct workspace.
-        </CardDescription>
       </CardHeader>
 
       <CardContent className="space-y-5">
@@ -93,15 +90,7 @@ export function LoginForm() {
           </div>
 
           <div className="space-y-2">
-            <div className="flex items-center justify-between">
-              <Label htmlFor="password">Password</Label>
-              <a
-                href="/forgot-password"
-                className="text-xs font-medium text-primary underline-offset-4 hover:underline focus-visible:underline"
-              >
-                Forgot password?
-              </a>
-            </div>
+            <Label htmlFor="password">Password</Label>
             <PasswordInput
               id="password"
               name="password"
@@ -119,6 +108,17 @@ export function LoginForm() {
                 {errors.password}
               </p>
             )}
+            {/* Under the field it belongs to, not opposite its label. Sat on
+                the label row, it read as part of the heading and was the
+                first thing the eye met on the way into the password box. */}
+            <div className="flex justify-end">
+              <Link
+                to="/forgot-password"
+                className="text-xs font-medium text-primary underline-offset-4 hover:underline focus-visible:underline"
+              >
+                Forgot password?
+              </Link>
+            </div>
           </div>
 
           <div className="flex items-center gap-2">
@@ -144,21 +144,6 @@ export function LoginForm() {
             )}
           </Button>
         </form>
-
-        <Separator />
-
-        <div className="space-y-3">
-          <AuthSecurityNotice />
-          <p className="text-center text-xs text-muted-foreground">
-            No account yet?{" "}
-            <a
-              href="mailto:admin@easyconstruct.app"
-              className="font-medium text-primary underline-offset-4 hover:underline"
-            >
-              Contact administrator
-            </a>
-          </p>
-        </div>
       </CardContent>
     </Card>
   );

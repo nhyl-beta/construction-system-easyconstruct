@@ -12,7 +12,7 @@ export const ProjectCard: React.FC<{ p: Project }> = ({ p }) => {
   return (
     <Link to={`/projects/${p.id}`} className="group">
       <Card className="h-full rounded-2xl border-border/70 shadow-sm transition hover:border-primary/40 hover:shadow-md">
-        <CardContent className="space-y-3 p-5">
+        <CardContent className="space-y-3 px-5">
           <div className="flex items-start justify-between gap-2">
             <div>
               <div className="text-xs font-mono text-muted-foreground">{p.code}</div>

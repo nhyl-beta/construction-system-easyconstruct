@@ -1,5 +1,6 @@
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { DatePicker } from "@/components/ui/date-picker";
 import { MultiStepPage, type Step } from "@/components/ui/multi-step-page";
 import {
   Select,
@@ -233,11 +234,11 @@ function StepPersonalInfo({
           <Label>
             Hire date <span className="text-destructive">*</span>
           </Label>
-          <Input
-            type="date"
+          <DatePicker
             value={data.hiredOn}
-            onChange={(e) => set("hiredOn", e.target.value)}
-            className="rounded-xl"
+            onChange={(v) => set("hiredOn", v)}
+            placeholder="Select hire date"
+            clearable={false}
           />
         </div>
       </div>

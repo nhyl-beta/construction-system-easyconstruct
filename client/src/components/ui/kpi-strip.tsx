@@ -30,7 +30,10 @@ export function KpiStrip({ items }: KpiStripProps) {
           key={item.label}
           className="rounded-2xl border-border/70 shadow-sm"
         >
-          <CardContent className="space-y-3 p-5">
+          {/* px only: the vertical padding is the Card's (py-4). `p-5` here
+              stacked on top of it and made the tile 44px tall above and
+              below three short lines of text. */}
+          <CardContent className="space-y-2 px-5">
             <div className="flex items-center justify-between">
               <span className="text-xs font-medium uppercase tracking-wider text-muted-foreground">
                 {item.label}

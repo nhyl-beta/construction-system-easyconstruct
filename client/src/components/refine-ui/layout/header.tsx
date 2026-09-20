@@ -12,12 +12,14 @@ import { Input } from "@/components/ui/input";
 import { Separator } from "@/components/ui/separator";
 import { SidebarTrigger, useSidebar } from "@/components/ui/sidebar";
 import { useRoleConfig } from "@/hooks/use-role-config";
+import { ConfirmDialog } from "@/components/ui/confirm-dialog";
 import { useAuth } from "@/auth/auth-context";
 import { cn } from "@/lib/utils";
 import {
   useParsed,
   useRefineOptions,
 } from "@refinedev/core";
+import { useState } from "react";
 import { LogOutIcon, Search } from "lucide-react";
 import { NotificationBell } from "@/components/notifications/notification-bell";
 import { Link, useNavigate } from "react-router";
@@ -207,23 +209,44 @@ function MobileHeader() {
   );
 }
 
+// The second way out of the app, alongside the sidebar's SignOutButton. It
+// ended the session on the first click and did not even leave the page, so
+// the user was left looking at a signed-out shell. Both paths now confirm
+// first and then land on /login.
 const UserDropdown = () => {
   const { logout } = useAuth();
+  const navigate = useNavigate();
+  const [confirming, setConfirming] = useState(false);
 
   return (
-    <DropdownMenu>
-      <DropdownMenuTrigger>
-        <UserAvatar />
-      </DropdownMenuTrigger>
-      <DropdownMenuContent align="end">
-        <DropdownMenuItem onClick={logout}>
-          <LogOutIcon className={cn("text-destructive")} />
-          <span className={cn("text-destructive")}>
-            Logout
-          </span>
-        </DropdownMenuItem>
-      </DropdownMenuContent>
-    </DropdownMenu>
+    <>
+      <DropdownMenu>
+        <DropdownMenuTrigger>
+          <UserAvatar />
+        </DropdownMenuTrigger>
+        <DropdownMenuContent align="end">
+          <DropdownMenuItem onClick={() => setConfirming(true)}>
+            <LogOutIcon className={cn("text-destructive")} />
+            <span className={cn("text-destructive")}>
+              Logout
+            </span>
+          </DropdownMenuItem>
+        </DropdownMenuContent>
+      </DropdownMenu>
+
+      <ConfirmDialog
+        open={confirming}
+        onOpenChange={setConfirming}
+        title="Sign out of EasyConstruct?"
+        description="Your session will end and any unsaved changes on this page will be lost. You'll need to sign in again to continue."
+        confirmLabel="Sign out"
+        onConfirm={() => {
+          setConfirming(false);
+          logout();
+          navigate("/login");
+        }}
+      />
+    </>
   );
 };
 

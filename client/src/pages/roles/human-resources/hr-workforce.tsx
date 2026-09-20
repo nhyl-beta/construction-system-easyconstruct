@@ -8,6 +8,7 @@ import {
 } from "@/components/ui/card";
 
 import { PageHeader } from "@/pages/roles/shared/shared-hr";
+import { DatePicker } from "@/components/ui/date-picker";
 
 import {
   useEmployees,
@@ -182,27 +183,25 @@ export default function HRWorkforcePage() {
 
       {/* Date filters */}
       <div className="flex flex-wrap items-end gap-3">
-        <label className="text-xs text-muted-foreground">
+        <div className="text-xs text-muted-foreground">
           <span className="mb-1 block">From</span>
-
-          <input
-            type="date"
+          <DatePicker
             value={from}
-            onChange={(event) => setFrom(event.target.value)}
-            className="h-9 rounded-lg border bg-background px-2 text-sm"
+            onChange={setFrom}
+            placeholder="Any start"
+            className="w-44"
           />
-        </label>
+        </div>
 
-        <label className="text-xs text-muted-foreground">
+        <div className="text-xs text-muted-foreground">
           <span className="mb-1 block">To</span>
-
-          <input
-            type="date"
+          <DatePicker
             value={to}
-            onChange={(event) => setTo(event.target.value)}
-            className="h-9 rounded-lg border bg-background px-2 text-sm"
+            onChange={setTo}
+            placeholder="Any end"
+            className="w-44"
           />
-        </label>
+        </div>
       </div>
 
       {/* Loading */}

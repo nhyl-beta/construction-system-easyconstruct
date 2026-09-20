@@ -3,6 +3,7 @@ import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { DatePicker } from "@/components/ui/date-picker";
 import { Textarea } from "@/components/ui/textarea";
 import { Badge } from "@/components/ui/badge";
 import {
@@ -229,11 +230,11 @@ export function NewReportDialog({
 
           <div className="space-y-1.5">
             <Label htmlFor="report-date">Report date</Label>
-            <Input
+            <DatePicker
               id="report-date"
-              type="date"
               value={form.date}
-              onChange={(e) => set("date", e.target.value)}
+              onChange={(v) => set("date", v)}
+              placeholder="Select report date"
             />
           </div>
 

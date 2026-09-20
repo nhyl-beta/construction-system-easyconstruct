@@ -11,6 +11,7 @@ import { Button } from "@/components/ui/button";
 
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { DatePicker } from "@/components/ui/date-picker";
 import {
   Select,
   SelectContent,
@@ -290,12 +291,11 @@ function NewTaskCard({
           </div>
           <div className="space-y-1.5">
             <Label htmlFor="task-due">Due date</Label>
-            <Input
+            <DatePicker
               id="task-due"
-              type="date"
               value={dueDate}
-              onChange={(e) => setDueDate(e.target.value)}
-              className="rounded-xl"
+              onChange={setDueDate}
+              placeholder="Select due date"
             />
           </div>
         </div>
