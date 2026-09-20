@@ -45,6 +45,19 @@ export const update = async (id: number, data: UpdateUserInput) => {
   return updated ?? null;
 };
 
+/**
+ * Writes a bcrypt hash that the caller has already produced — this layer
+ * never hashes, and PUBLIC_COLUMNS means the hash is still never read back.
+ */
+export const setPassword = async (id: number, passwordHash: string) => {
+  const [updated] = await db
+    .update(users)
+    .set({ password: passwordHash, updatedAt: new Date() })
+    .where(eq(users.id, id))
+    .returning(PUBLIC_COLUMNS);
+  return updated ?? null;
+};
+
 export const setActive = async (id: number, isActive: boolean) => {
   const [updated] = await db
     .update(users)

@@ -67,6 +67,25 @@ export const update = async (id: number, input: UpdateUserInput) => {
   return updated;
 };
 
+/**
+ * Administrative password reset: IT Designer sets a new password on any
+ * account without needing the current one. The account-recovery flow
+ * (POST /api/auth/forgot-password) stays the self-service path; this is the
+ * one for people who can no longer reach the mailbox on the account.
+ *
+ * The plaintext never leaves this call — it is hashed here and the repository
+ * only ever returns the public columns, so no hash is echoed back either.
+ */
+export const setPassword = async (id: number, password: string) => {
+  await getById(id);
+  const updated = await repo.setPassword(
+    id,
+    await bcrypt.hash(password, PASSWORD_SALT_ROUNDS),
+  );
+  if (!updated) throw new NotFoundError("User", String(id));
+  return updated;
+};
+
 export const setActive = async (
   id: number,
   isActive: boolean,

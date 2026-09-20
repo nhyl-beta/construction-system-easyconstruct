@@ -4,6 +4,7 @@ import { authenticate, requireRole } from "../middleware/auth.js";
 import { validate } from "../middleware/validate.js";
 import {
   createUserSchema,
+  setUserPasswordSchema,
   setUserStatusSchema,
   updateUserSchema,
 } from "../validators/user-validators.js";
@@ -30,6 +31,15 @@ router.patch(
   canManageAccounts,
   validate(setUserStatusSchema),
   controller.setStatus,
+);
+
+// Administrative password reset. Same gate as the rest of account management:
+// the account holder's own route is POST /api/auth/forgot-password.
+router.patch(
+  "/:id/password",
+  canManageAccounts,
+  validate(setUserPasswordSchema),
+  controller.setPassword,
 );
 
 // Permanent removal. Guarded in users/service.ts: the account must already

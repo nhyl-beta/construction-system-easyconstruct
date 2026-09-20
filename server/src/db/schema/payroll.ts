@@ -16,6 +16,15 @@ export const payroll = pgTable("payroll", {
   hours: integer("hours").notNull().default(0),
   overtime: integer("overtime").notNull().default(0),
   gross: numeric("gross", { precision: 10, scale: 2 }).notNull(),
+  // Philippine statutory deductions, each computed on its own base — see
+  // payroll/ph-statutory.ts. `deductions` stays as the total of the four so
+  // existing readers (Finance payroll review, batch rollups) keep working.
+  sss: numeric("sss", { precision: 10, scale: 2 }).notNull().default("0"),
+  philhealth: numeric("philhealth", { precision: 10, scale: 2 }).notNull().default("0"),
+  pagibig: numeric("pagibig", { precision: 10, scale: 2 }).notNull().default("0"),
+  withholdingTax: numeric("withholding_tax", { precision: 10, scale: 2 })
+    .notNull()
+    .default("0"),
   deductions: numeric("deductions", { precision: 10, scale: 2 }).notNull(),
   net: numeric("net", { precision: 10, scale: 2 }).notNull(),
   status: varchar("status", { length: 20 }).notNull().default("Pending"),

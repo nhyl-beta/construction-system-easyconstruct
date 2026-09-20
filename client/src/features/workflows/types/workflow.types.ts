@@ -29,6 +29,63 @@ export interface WorkflowStage {
   createdAt: string | null;
 }
 
+export type WorkflowAttachmentKind = "document" | "note";
+
+/**
+ * Something submitted through the workflow — a file or a written submission,
+ * tagged with the stage that filed it. This is what makes a later approver
+ * (Consultant, PM, Admin) able to see what the earlier stages actually sent.
+ */
+export interface WorkflowAttachment {
+  id: number;
+  workflowId: number;
+  stageId: number | null;
+  kind: WorkflowAttachmentKind | string;
+  label: string;
+  content: string | null;
+  fileUrl: string | null;
+  fileName: string | null;
+  fileSize: string | null;
+  uploadedBy: string;
+  createdAt: string | null;
+  stageLabel: string | null;
+}
+
+export type WorkflowLineItemCategory =
+  | "materials"
+  | "labor"
+  | "equipment"
+  | "subcontractor"
+  | "other";
+
+/** One cost change behind a budget-change request's headline amount. */
+export interface WorkflowLineItem {
+  id: number;
+  workflowId: number;
+  category: WorkflowLineItemCategory | string;
+  description: string;
+  currentAmount: string;
+  requestedAmount: string;
+  createdAt: string | null;
+}
+
+export interface WorkflowAttachmentInput {
+  kind?: WorkflowAttachmentKind;
+  label: string;
+  content?: string;
+  fileUrl?: string;
+  fileName?: string;
+  fileSize?: string;
+  stageId?: number;
+}
+
+export interface WorkflowLineItemInput {
+  category: WorkflowLineItemCategory;
+  description: string;
+  currentAmount?: number;
+  requestedAmount: number;
+}
+
 export type WorkflowStatus = "active" | "completed" | "rejected" | "cancelled";
 
 export interface Workflow {
@@ -47,6 +104,8 @@ export interface Workflow {
   createdAt: string | null;
   updatedAt: string | null;
   stages: WorkflowStage[];
+  attachments: WorkflowAttachment[];
+  lineItems: WorkflowLineItem[];
 }
 
 export interface CreateWorkflowInput {
@@ -56,6 +115,9 @@ export interface CreateWorkflowInput {
   amount?: number;
   type?: string;
   stageAssignments?: Record<string, string>;
+  /** Filed against the first stage — the initiator's own step. */
+  attachments?: WorkflowAttachmentInput[];
+  lineItems?: WorkflowLineItemInput[];
 }
 
 export interface UpdateWorkflowInput {
@@ -90,6 +152,8 @@ export interface ApprovalQueueItem {
   decidedBy: string | null;
   decidedAt: string | null;
   createdAt: string | null;
+  attachmentCount: number;
+  lineItemCount: number;
 }
 
 export interface ApprovalStats {

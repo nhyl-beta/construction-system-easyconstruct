@@ -3,7 +3,7 @@ import { Response, NextFunction } from "express";
 import type { AuthedRequest } from "../middleware/auth.js";
 import { HTTP } from "../constants/http-status.js";
 import { MSG } from "../constants/messages.js";
-import { formatSuccess } from "../utils/response.js";
+import { formatError, formatSuccess } from "../utils/response.js";
 import { logAudit } from "../utils/audit.js";
 import * as service from "./service.js";
 import type { ApprovalScope } from "./types.js";
@@ -135,6 +135,82 @@ export const getApprovalStats = async (req: AuthedRequest, res: Response, next: 
     const role = req.authUser?.role ?? "";
     const name = req.authUser?.name ?? req.authUser?.email ?? "";
     const data = await service.getApprovalStats(role, name);
+    res.json(formatSuccess(data, MSG.workflows.retrieved));
+  } catch (err) {
+    next(err);
+  }
+};
+export const addAttachment = async (req: AuthedRequest, res: Response, next: NextFunction) => {
+  try {
+    const actor = req.authUser?.name ?? req.authUser?.email ?? "unknown";
+    const data = await service.addAttachment(Number(req.params.id), req.body, actor);
+    await logAudit({
+      entityType: "workflow",
+      entityId: String(req.params.id),
+      action: "updated",
+      actor,
+      summary: `Filed "${req.body.label}" against workflow "${data.title}" (${data.code})`,
+    });
+    res.status(HTTP.CREATED).json(formatSuccess(data, MSG.workflows.updated));
+  } catch (err) {
+    next(err);
+  }
+};
+
+// Upload path for the same thing: multipart instead of a JSON fileUrl, so
+// roles without a documents page (HR, Engineer, Architect) can attach a file
+// to a workflow without going through the documents module's own role gate.
+export const uploadAttachment = async (req: AuthedRequest, res: Response, next: NextFunction) => {
+  try {
+    if (!req.file) {
+      return res
+        .status(HTTP.BAD_REQUEST)
+        .json(formatError("Please select a file to upload.", "FILE_REQUIRED"));
+    }
+
+    const actor = req.authUser?.name ?? req.authUser?.email ?? "unknown";
+    const sizeInMb = req.file.size / (1024 * 1024);
+    const fileSize =
+      sizeInMb >= 1
+        ? `${sizeInMb.toFixed(2)} MB`
+        : `${Math.max(1, Math.round(req.file.size / 1024))} KB`;
+
+    const data = await service.addAttachment(
+      Number(req.params.id),
+      {
+        kind: "document",
+        label: String(req.body.label ?? "").trim() || req.file.originalname,
+        content: req.body.content ? String(req.body.content) : undefined,
+        fileUrl: `/uploads/documents/${req.file.filename}`,
+        fileName: req.file.originalname,
+        fileSize,
+      },
+      actor,
+    );
+
+    await logAudit({
+      entityType: "workflow",
+      entityId: String(req.params.id),
+      action: "updated",
+      actor,
+      summary: `Attached file "${req.file.originalname}" to workflow "${data.title}" (${data.code})`,
+    });
+
+    return res.status(HTTP.CREATED).json(formatSuccess(data, MSG.workflows.updated));
+  } catch (err) {
+    return next(err);
+  }
+};
+
+// Finance's budget-change review: every request raised from the Budget Change
+// Request template, each carrying the line items behind its headline amount.
+export const getBudgetChangeRequests = async (
+  _req: AuthedRequest,
+  res: Response,
+  next: NextFunction,
+) => {
+  try {
+    const data = await service.getWorkflowsByTemplateName("Budget Change Request");
     res.json(formatSuccess(data, MSG.workflows.retrieved));
   } catch (err) {
     next(err);

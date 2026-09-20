@@ -9,6 +9,13 @@ export interface PayrollLine {
   hours: number;
   overtime: number;
   gross: number;
+  // Philippine statutory withholdings, each computed on its own base by the
+  // server (server/src/payroll/ph-statutory.ts). `deductions` is their sum,
+  // so a payslip line can be broken down instead of showing one opaque figure.
+  sss: number;
+  philhealth: number;
+  pagibig: number;
+  withholdingTax: number;
   deductions: number;
   net: number;
   status: string;
@@ -54,6 +61,10 @@ interface BackendPayrollLine {
   hours: number;
   overtime: number;
   gross: string | number;
+  sss?: string | number | null;
+  philhealth?: string | number | null;
+  pagibig?: string | number | null;
+  withholdingTax?: string | number | null;
   deductions: string | number;
   net: string | number;
   status: string;
@@ -77,6 +88,12 @@ function normalize(raw: BackendPayrollLine): PayrollLine {
     hours: raw.hours,
     overtime: raw.overtime,
     gross: Number(raw.gross),
+    // Rows generated before the statutory columns existed carry one blended
+    // figure in `deductions` and nothing in the four breakdown columns.
+    sss: Number(raw.sss ?? 0),
+    philhealth: Number(raw.philhealth ?? 0),
+    pagibig: Number(raw.pagibig ?? 0),
+    withholdingTax: Number(raw.withholdingTax ?? 0),
     deductions: Number(raw.deductions),
     net: Number(raw.net),
     status: raw.status,

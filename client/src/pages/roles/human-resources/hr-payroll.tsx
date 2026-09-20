@@ -39,7 +39,7 @@ import {
 } from "lucide-react";
 import { ProjectPicker } from "@/components/shared/project-picker";
 import { downloadCsv } from "@/lib/export-csv";
-import { formatCompactCurrency } from "@/lib/format-currency";
+import { formatCompactCurrency, formatCurrency } from "@/lib/format-currency";
 import { PayrollPeriodPicker } from "@/components/shared/payroll-period-picker";
 
 // Delegates to the shared peso formatter — this used to hardcode "$".
@@ -79,7 +79,22 @@ export default function HRPayrollPage() {
   const handleExportCsv = () => {
     downloadCsv(
       "payroll-tracksheet",
-      ["Employee ID", "Name", "Role", "Period", "Hours", "Overtime", "Gross", "Deductions", "Net", "Status"],
+      [
+        "Employee ID",
+        "Name",
+        "Role",
+        "Period",
+        "Hours",
+        "Overtime",
+        "Gross",
+        "SSS",
+        "PhilHealth",
+        "Pag-IBIG",
+        "Withholding Tax",
+        "Deductions",
+        "Net",
+        "Status",
+      ],
       rows.map((r) => [
         r.empId,
         r.name,
@@ -88,6 +103,10 @@ export default function HRPayrollPage() {
         r.hours,
         r.overtime,
         r.gross,
+        r.sss,
+        r.philhealth,
+        r.pagibig,
+        r.withholdingTax,
         r.deductions,
         r.net,
         r.status,
@@ -399,6 +418,14 @@ export default function HRPayrollPage() {
                   <TableHead className="text-right">Hours</TableHead>
                   <TableHead className="text-right">OT</TableHead>
                   <TableHead className="text-right">Gross</TableHead>
+                  {/* Philippine statutory withholdings, each on its own base
+                      — the single "Deductions" figure was a flat 12% of gross
+                      standing in for all four, which could not be explained to
+                      an employee looking at their payslip. */}
+                  <TableHead className="text-right">SSS</TableHead>
+                  <TableHead className="text-right">PhilHealth</TableHead>
+                  <TableHead className="text-right">Pag-IBIG</TableHead>
+                  <TableHead className="text-right">W/Tax</TableHead>
                   <TableHead className="text-right">Deductions</TableHead>
                   <TableHead className="text-right">Net</TableHead>
                   <TableHead>Status</TableHead>
@@ -407,14 +434,14 @@ export default function HRPayrollPage() {
               <TableBody>
                 {loading && (
                   <TableRow>
-                    <TableCell colSpan={8} className="py-8 text-center text-sm text-muted-foreground">
+                    <TableCell colSpan={12} className="py-8 text-center text-sm text-muted-foreground">
                       Loading payroll…
                     </TableCell>
                   </TableRow>
                 )}
                 {!loading && rows.length === 0 && (
                   <TableRow>
-                    <TableCell colSpan={8} className="py-8 text-center text-sm text-muted-foreground">
+                    <TableCell colSpan={12} className="py-8 text-center text-sm text-muted-foreground">
                       No payroll generated yet for this period.
                     </TableCell>
                   </TableRow>
@@ -445,14 +472,26 @@ export default function HRPayrollPage() {
                     <TableCell className="text-right text-sm">
                       {p.overtime}
                     </TableCell>
-                    <TableCell className="text-right text-sm">
-                      ${p.gross.toLocaleString()}
+                    <TableCell className="text-right text-sm tabular-nums">
+                      {formatCurrency(p.gross)}
                     </TableCell>
-                    <TableCell className="text-right text-sm text-muted-foreground">
-                      −${p.deductions.toLocaleString()}
+                    <TableCell className="text-right text-sm tabular-nums text-muted-foreground">
+                      {formatCurrency(p.sss)}
                     </TableCell>
-                    <TableCell className="text-right text-sm font-semibold">
-                      ${p.net.toLocaleString()}
+                    <TableCell className="text-right text-sm tabular-nums text-muted-foreground">
+                      {formatCurrency(p.philhealth)}
+                    </TableCell>
+                    <TableCell className="text-right text-sm tabular-nums text-muted-foreground">
+                      {formatCurrency(p.pagibig)}
+                    </TableCell>
+                    <TableCell className="text-right text-sm tabular-nums text-muted-foreground">
+                      {formatCurrency(p.withholdingTax)}
+                    </TableCell>
+                    <TableCell className="text-right text-sm tabular-nums text-muted-foreground">
+                      −{formatCurrency(p.deductions)}
+                    </TableCell>
+                    <TableCell className="text-right text-sm font-semibold tabular-nums">
+                      {formatCurrency(p.net)}
                     </TableCell>
                     <TableCell>
                       <StatusBadge status={p.status} />

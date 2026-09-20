@@ -20,6 +20,10 @@ export const projects = pgTable('projects', {
   risk:        varchar('risk',        { length: 20  }).notNull().default('Low'),
   location:    varchar('location',    { length: 255 }),
   client:      varchar('client',      { length: 255 }),
+  // ISO 4217 code the project's amounts (contractValue, budgets, expenses)
+  // are denominated in. Defaults to PHP because that is what every existing
+  // row was implicitly stored in before this column existed.
+  currency:    varchar('currency',    { length: 3   }).notNull().default('PHP'),
   workforce:   integer('workforce').default(0),
   description: text('description'),
   

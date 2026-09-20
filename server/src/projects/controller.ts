@@ -37,7 +37,14 @@ export const getById = async (
   next: NextFunction,
 ) => {
   try {
-    const data = await service.getById(Number(req.params.id));
+    // Same membership scope as the list — otherwise a staff member who
+    // cannot see a project in the table can still open it by guessing its id.
+    const data = await service.getById(
+      Number(req.params.id),
+      req.authUser
+        ? { role: req.authUser.role, userId: req.authUser.id }
+        : undefined,
+    );
     res.json(formatSuccess(data, MSG.projects.single));
   } catch (err) {
     next(err);
@@ -72,8 +79,10 @@ export const update = async (
 ) => {
   try {
     const id = Number(req.params.id);
-    // Engineer may only move `progress`, and only on its own projects —
-    // see projects/service.ts assertCanUpdateProject.
+    // Deliberately unscoped: assertCanUpdateProject below produces the
+    // field-level message ("Engineers can only update project progress"),
+    // which is more useful than the generic "not assigned" this would throw
+    // first, and it enforces the same membership rule anyway.
     const existing = await service.getById(id);
     await service.assertCanUpdateProject(existing.code, req.body, {
       role: req.authUser?.role ?? "",

@@ -45,6 +45,13 @@ export const UserRepository = {
     return unwrap<PublicUser>(apiClient.patch(`/users/${id}`, input));
   },
 
+  // Administrative reset — IT Designer sets a new password without needing
+  // the current one. The account holder's own path stays the sign-in page's
+  // "Forgot password" link (POST /auth/forgot-password).
+  async setPassword(id: number, password: string): Promise<PublicUser> {
+    return unwrap<PublicUser>(apiClient.patch(`/users/${id}/password`, { password }));
+  },
+
   async setActive(id: number, isActive: boolean): Promise<PublicUser> {
     return unwrap<PublicUser>(apiClient.patch(`/users/${id}/status`, { isActive }));
   },

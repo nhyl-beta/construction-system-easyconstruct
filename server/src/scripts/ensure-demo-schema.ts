@@ -152,6 +152,64 @@ async function main() {
      WHERE file_url LIKE '/uploads/%'
        AND file_url NOT LIKE '/uploads/%/%';
 
+    -- The New Project form has always collected a currency, but there was no
+    -- column to put it in, so the control was frozen at PHP. Amounts are
+    -- stored as plain numerics with no currency of their own, so the project's
+    -- currency is what every amount on that project is denominated in.
+    ALTER TABLE projects
+      ADD COLUMN IF NOT EXISTS currency varchar(3) NOT NULL DEFAULT 'PHP';
+
+    -- A workflow moved through its stages carrying nothing but a title and an
+    -- amount: whatever was submitted at each stage (the architect's design,
+    -- the engineer's justification, HR's subcontracting document) lived
+    -- outside the workflow entirely, so every later approver — Consultant, PM,
+    -- Admin — decided blind. One table holds both files and written
+    -- submissions, tagged with the stage they were filed against, so the full
+    -- trail is readable at any later stage.
+    CREATE TABLE IF NOT EXISTS workflow_attachments (
+      id serial PRIMARY KEY,
+      workflow_id integer NOT NULL REFERENCES workflows(id) ON DELETE CASCADE,
+      stage_id integer REFERENCES workflow_stages(id) ON DELETE SET NULL,
+      kind varchar(20) NOT NULL DEFAULT 'document',
+      label varchar(255) NOT NULL,
+      content text,
+      file_url varchar(500),
+      file_name varchar(255),
+      file_size varchar(20),
+      uploaded_by varchar(100) NOT NULL,
+      created_at timestamp DEFAULT now()
+    );
+
+    CREATE INDEX IF NOT EXISTS workflow_attachments_workflow_idx
+      ON workflow_attachments (workflow_id);
+
+    -- Budget-change requests are argued line by line (materials, labour, other
+    -- costs); a single workflows.amount told Finance the total and nothing
+    -- about what moved. These are the line items behind that total.
+    CREATE TABLE IF NOT EXISTS workflow_line_items (
+      id serial PRIMARY KEY,
+      workflow_id integer NOT NULL REFERENCES workflows(id) ON DELETE CASCADE,
+      category varchar(30) NOT NULL,
+      description varchar(255) NOT NULL,
+      current_amount numeric(14, 2) NOT NULL DEFAULT 0,
+      requested_amount numeric(14, 2) NOT NULL DEFAULT 0,
+      created_at timestamp DEFAULT now()
+    );
+
+    CREATE INDEX IF NOT EXISTS workflow_line_items_workflow_idx
+      ON workflow_line_items (workflow_id);
+
+    -- Payroll deductions were one flat 12% figure standing in for every
+    -- statutory contribution at once. Philippine payroll is four separate
+    -- computations (SSS, PhilHealth, Pag-IBIG, BIR withholding tax) on
+    -- different bases, and a payslip has to show each one — so each gets its
+    -- own column and the deductions column becomes their sum.
+    ALTER TABLE payroll
+      ADD COLUMN IF NOT EXISTS sss numeric(10, 2) NOT NULL DEFAULT 0,
+      ADD COLUMN IF NOT EXISTS philhealth numeric(10, 2) NOT NULL DEFAULT 0,
+      ADD COLUMN IF NOT EXISTS pagibig numeric(10, 2) NOT NULL DEFAULT 0,
+      ADD COLUMN IF NOT EXISTS withholding_tax numeric(10, 2) NOT NULL DEFAULT 0;
+
     -- duplicate_table, not just duplicate_object: on a re-run Postgres fails
     -- on the *index* backing the constraint (42P07), which duplicate_object
     -- doesn't catch — that aborted the whole script on every run after the

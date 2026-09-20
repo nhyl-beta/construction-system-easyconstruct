@@ -398,6 +398,7 @@ export const ROLE_CONFIGS: Record<string, RoleConfig> = {
       {
         label: "Collaboration",
         items: [
+          { label: "Approvals", icon: CheckSquare, route: "/approvals" },
           { label: "Reviews", icon: BadgeCheck, route: "/reviews" },
           { label: "Revisions", icon: SquarePen, route: "/revisions" },
           { label: "Documentation", icon: BarChart2, route: "/architect/documents" },

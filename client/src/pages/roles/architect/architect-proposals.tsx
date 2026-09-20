@@ -29,6 +29,9 @@ import {
 } from "@/components/ui/table";
 
 import { useProposals } from "@/features/proposals/hooks/useProposals";
+import { useDesignProposalSubmission } from "@/features/proposals/hooks/useDesignProposalSubmission";
+import { WorkflowInitiationActions } from "@/components/workflows/workflow-initiation-actions";
+import { useAuth } from "@/auth/auth-context";
 import { ProjectPicker } from "@/components/shared/project-picker";
 import { AlertTriangle, Archive, CheckCircle2, Pencil } from "lucide-react";
 import {
@@ -160,9 +163,18 @@ function EditProposalDialog({
 
 export default function ArchitectProposals() {
   const c = useProposals();
+  const { user } = useAuth();
+
+  // Submitting a proposal also opens its Design Proposal Approval workflow
+  // (Architect Submission → Consultant Review → PM Approval). Composed in the
+  // feature layer rather than here — see useDesignProposalSubmission.
+  const designSubmission = useDesignProposalSubmission(c.createProposal);
 
   const [showCreateForm, setShowCreateForm] =
     useState(false);
+
+  const [submitNotice, setSubmitNotice] =
+    useState<string | null>(null);
 
   const [title, setTitle] = useState("");
 
@@ -180,6 +192,7 @@ export default function ArchitectProposals() {
 
   async function handleSubmit() {
     setFormError(null);
+    setSubmitNotice(null);
 
     if (!title.trim()) {
       setFormError(
@@ -191,20 +204,22 @@ export default function ArchitectProposals() {
 
     if (!projectCode.trim()) {
       setFormError(
-        "Please enter a project code.",
+        "Please select the project this proposal is for.",
       );
 
       return;
     }
 
-    const result = await c.createProposal({
+    const result = await designSubmission.submit({
       proposalId: `PROP-${Date.now()}`,
 
       title: title.trim(),
 
       projectCode: projectCode.trim(),
 
-      submittedBy: "Architect",
+      // The architect who submitted it, not the literal role name — the
+      // register and the consultant's review screen both show this.
+      submittedBy: user?.name ?? "Architect",
 
       amount: amount.trim() || undefined,
 
@@ -216,6 +231,14 @@ export default function ArchitectProposals() {
     if (!result) {
       return;
     }
+
+    setSubmitNotice(
+      result.workflow
+        ? `${result.proposal.proposalId} submitted — approval workflow ${result.workflow.code} started (${result.workflow.stages
+            .map((stage) => stage.roleLabel)
+            .join(" → ")}).`
+        : `${result.proposal.proposalId} submitted.`,
+    );
 
     setTitle("");
     setProjectCode("");
@@ -248,8 +271,30 @@ export default function ArchitectProposals() {
         ]}
       />
 
+      {submitNotice && (
+        <p className="rounded-lg border border-success/30 bg-success/5 px-3 py-2 text-sm text-success">
+          {submitNotice}
+        </p>
+      )}
+
+      {/* The proposal saved but its workflow did not start — reported rather
+          than rolled back, since discarding a saved proposal would be worse. */}
+      {designSubmission.warning && (
+        <p
+          role="alert"
+          className="rounded-lg border border-warning/30 bg-warning/5 px-3 py-2 text-sm text-warning-foreground"
+        >
+          {designSubmission.warning}
+        </p>
+      )}
+
       <div className="flex items-center justify-between">
-        <div />
+        {/* Public-works compliance is the architect's other initiation point —
+            same shared workflow abstraction, different template. */}
+        <WorkflowInitiationActions
+          role={user?.role ?? ""}
+          only={["Public works compliance"]}
+        />
 
         <Button
           onClick={() =>
@@ -272,8 +317,12 @@ export default function ArchitectProposals() {
             </h2>
 
             <p className="text-sm text-muted-foreground">
-              Submit a design proposal for consultant
-              review.
+              Submitting the proposal also opens its design-approval workflow
+              {designSubmission.template
+                ? `: ${designSubmission.template.defaultStages
+                    .map((stage) => stage.roleLabel)
+                    .join(" → ")}.`
+                : "."}
             </p>
           </div>
 
@@ -344,19 +393,19 @@ export default function ArchitectProposals() {
 
           <div className="mt-6 flex gap-2">
             <Button
-              disabled={c.saving}
+              disabled={designSubmission.submitting}
               onClick={handleSubmit}
             >
               <Send className="mr-2 h-4 w-4" />
 
-              {c.saving
+              {designSubmission.submitting
                 ? "Submitting..."
-                : "Submit for Consultant Review"}
+                : "Submit & start design approval"}
             </Button>
 
             <Button
               variant="ghost"
-              disabled={c.saving}
+              disabled={designSubmission.submitting}
               onClick={() =>
                 setShowCreateForm(false)
               }

@@ -10,11 +10,15 @@ import {
 } from "@/features/workflows/hooks/useWorkflows";
 import { WorkflowFormatService } from "@/features/workflows/services/workflow.service";
 import { WorkflowStagePipeline } from "@/components/workflows/workflow-stage-pipeline";
+import { WorkflowDetailDialog } from "@/components/workflows/workflow-detail-dialog";
 import { EditWorkflowDialog } from "@/components/workflows/edit-workflow-dialog";
 import { useAuth } from "@/auth/auth-context";
 import type { Workflow } from "@/features/workflows/types/workflow.types";
 import {
+  Eye,
   GitBranch,
+  ListTree,
+  Paperclip,
   Pencil,
   Plus,
   Sparkles,
@@ -28,6 +32,10 @@ export default function WorkflowsPage() {
   const { workflows, loading: workflowsLoading, reload, update, remove } = useActiveWorkflows();
   const [dialogOpen, setDialogOpen] = useState(false);
   const [editingWorkflow, setEditingWorkflow] = useState<Workflow | null>(null);
+  // Same dialog the Approvals page opens, so what a PM can see here before
+  // signing off is exactly what they see there — these two views drifting
+  // apart is what left the PM approving without the workflow's documents.
+  const [detailWorkflowId, setDetailWorkflowId] = useState<number | null>(null);
 
   return (
     <div className="flex-1 space-y-6 p-4 md:p-8">
@@ -107,7 +115,34 @@ export default function WorkflowsPage() {
                     <p className="text-xs text-muted-foreground">
                       {workflow.projectCode} · {WorkflowFormatService.amount(workflow.amount)} · {workflow.templateName ?? "—"}
                     </p>
+                    {(workflow.attachments.length > 0 || workflow.lineItems.length > 0) && (
+                      <div className="mt-1.5 flex flex-wrap items-center gap-2">
+                        {workflow.attachments.length > 0 && (
+                          <Badge variant="outline" className="rounded-full text-[10px]">
+                            <Paperclip className="mr-1 h-3 w-3" />
+                            {workflow.attachments.length} submitted{" "}
+                            {workflow.attachments.length === 1 ? "item" : "items"}
+                          </Badge>
+                        )}
+                        {workflow.lineItems.length > 0 && (
+                          <Badge variant="outline" className="rounded-full text-[10px]">
+                            <ListTree className="mr-1 h-3 w-3" />
+                            {workflow.lineItems.length} cost{" "}
+                            {workflow.lineItems.length === 1 ? "change" : "changes"}
+                          </Badge>
+                        )}
+                      </div>
+                    )}
                   </div>
+                  <div className="flex shrink-0 items-center gap-1">
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      className="h-8 rounded-lg text-xs"
+                      onClick={() => setDetailWorkflowId(workflow.id)}
+                    >
+                      <Eye className="h-3.5 w-3.5" /> Documents & data
+                    </Button>
                   {canManage && (
                     <div className="flex shrink-0 gap-1">
                       <Button
@@ -133,6 +168,7 @@ export default function WorkflowsPage() {
                       </Button>
                     </div>
                   )}
+                  </div>
                 </CardHeader>
                 <CardContent>
                   <WorkflowStagePipeline stages={workflow.stages} />
@@ -182,7 +218,14 @@ export default function WorkflowsPage() {
         onOpenChange={(next) => {
           if (!next) setEditingWorkflow(null);
         }}
-        onSave={(id, title) => update(id, { title })}
+        onSave={(id, input) => update(id, input)}
+      />
+
+      <WorkflowDetailDialog
+        workflowId={detailWorkflowId}
+        onOpenChange={(next) => {
+          if (!next) setDetailWorkflowId(null);
+        }}
       />
     </div>
   );

@@ -7,6 +7,12 @@ export interface PayrollLine {
   hours: number;
   overtime: number;
   gross: string;
+  // Philippine statutory withholdings, each on its own base — see
+  // payroll/ph-statutory.ts. `deductions` is their sum.
+  sss: string;
+  philhealth: string;
+  pagibig: string;
+  withholdingTax: string;
   deductions: string;
   net: string;
   status: string;

@@ -7,6 +7,7 @@ import type {
   DecideStageInput,
   UpdateWorkflowInput,
   Workflow,
+  WorkflowAttachmentInput,
   WorkflowTemplate,
 } from "../types/workflow.types";
 
@@ -58,5 +59,41 @@ export const WorkflowRepository = {
 
   async getApprovalStats(): Promise<ApprovalStats> {
     return unwrap<ApprovalStats>(apiClient.get("/workflows/approvals/stats"));
+  },
+
+  /** Files a note or a link against a running workflow. Returns the workflow. */
+  async addAttachment(
+    workflowId: number,
+    input: WorkflowAttachmentInput,
+  ): Promise<Workflow> {
+    return unwrap<Workflow>(
+      apiClient.post(`/workflows/${workflowId}/attachments`, input),
+    );
+  },
+
+  /**
+   * Multipart variant of addAttachment. Goes through the workflows module
+   * rather than /documents/upload so roles without a documents page (HR,
+   * Engineer, Architect) can still attach a file to a workflow.
+   */
+  async uploadAttachment(
+    workflowId: number,
+    file: File,
+    label?: string,
+  ): Promise<Workflow> {
+    const formData = new FormData();
+    formData.append("file", file);
+    if (label?.trim()) formData.append("label", label.trim());
+    return unwrap<Workflow>(
+      apiClient.postFormData(`/workflows/${workflowId}/attachments/upload`, formData),
+    );
+  },
+
+  /**
+   * Every workflow raised from the "Budget Change Request" template, each
+   * with its line items attached — Finance's review of what actually changed.
+   */
+  async listBudgetChangeRequests(): Promise<Workflow[]> {
+    return unwrap<Workflow[]>(apiClient.get("/workflows/budget-change-requests"));
   },
 };

@@ -14,7 +14,8 @@ import { useUsers } from "@/features/users/hooks/use-users";
 import type { PublicUser } from "@/features/users/repositories/user.repository";
 
 export default function ITDesignerUsersPage() {
-  const { users, loading, error, create, update, setActive, remove } = useUsers();
+  const { users, loading, error, create, update, setPassword, setActive, remove } =
+    useUsers();
   const { roles } = useRoles();
 
   const [search, setSearch] = useState("");
@@ -241,6 +242,7 @@ export default function ITDesignerUsersPage() {
         onOpenChange={setDialogOpen}
         onCreate={create}
         onUpdate={update}
+        onSetPassword={setPassword}
       />
     </PageContainer>
   );

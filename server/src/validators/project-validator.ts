@@ -14,6 +14,9 @@ export const createProjectSchema = z.object({
   risk:        z.enum(['Low', 'Medium', 'High']).optional(),
   location:    z.string().optional(),
   client:      z.string().optional(),
+  // ISO 4217. Kept to a closed list rather than free text so the
+  // stored code always matches one the formatters can render.
+  currency:    z.enum(['PHP', 'USD', 'EUR', 'AUD', 'SGD', 'JPY', 'AED']).optional(),
   workforce:   z.number().optional(),
   description: z.string().optional(),
   // Geofencing has always been evaluated against these three columns

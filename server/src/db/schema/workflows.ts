@@ -4,6 +4,7 @@ import {
   numeric,
   pgTable,
   serial,
+  text,
   timestamp,
   varchar,
 } from "drizzle-orm/pg-core";
@@ -63,3 +64,71 @@ export type WorkflowRow = typeof workflows.$inferSelect;
 export type NewWorkflowRow = typeof workflows.$inferInsert;
 export type WorkflowStageRow = typeof workflowStages.$inferSelect;
 export type NewWorkflowStageRow = typeof workflowStages.$inferInsert;
+
+// ── Attachments ────────────────────────────────────────────────────────────
+// What was actually submitted at each stage of a workflow. Before this, a
+// workflow carried only a title and an amount, so a Consultant, PM or Admin
+// deciding at stage 2/3/4 could not see the design, justification or document
+// the earlier stage was arguing from.
+//
+//   kind = "document" → an uploaded file (fileUrl/fileName/fileSize)
+//   kind = "note"     → a written submission (content), e.g. an engineer's
+//                       budget-change justification
+//
+// stageId is the stage it was filed against, and is nullable: attachments
+// supplied at creation time are recorded before the submitter's own stage is
+// known, and ON DELETE SET NULL keeps the attachment if a stage row goes.
+export const WORKFLOW_ATTACHMENT_KINDS = ["document", "note"] as const;
+export type WorkflowAttachmentKind = (typeof WORKFLOW_ATTACHMENT_KINDS)[number];
+
+export const workflowAttachments = pgTable("workflow_attachments", {
+  id: serial("id").primaryKey(),
+  workflowId: integer("workflow_id")
+    .notNull()
+    .references(() => workflows.id, { onDelete: "cascade" }),
+  stageId: integer("stage_id").references(() => workflowStages.id, {
+    onDelete: "set null",
+  }),
+  kind: varchar("kind", { length: 20 }).notNull().default("document"),
+  label: varchar("label", { length: 255 }).notNull(),
+  content: text("content"),
+  fileUrl: varchar("file_url", { length: 500 }),
+  fileName: varchar("file_name", { length: 255 }),
+  fileSize: varchar("file_size", { length: 20 }),
+  uploadedBy: varchar("uploaded_by", { length: 100 }).notNull(),
+  createdAt: timestamp("created_at").defaultNow(),
+});
+
+// ── Line items ─────────────────────────────────────────────────────────────
+// The materials / labour / other-cost changes behind a budget-change
+// request's headline amount. Finance reviews the lines, not the total.
+export const WORKFLOW_LINE_ITEM_CATEGORIES = [
+  "materials",
+  "labor",
+  "equipment",
+  "subcontractor",
+  "other",
+] as const;
+export type WorkflowLineItemCategory =
+  (typeof WORKFLOW_LINE_ITEM_CATEGORIES)[number];
+
+export const workflowLineItems = pgTable("workflow_line_items", {
+  id: serial("id").primaryKey(),
+  workflowId: integer("workflow_id")
+    .notNull()
+    .references(() => workflows.id, { onDelete: "cascade" }),
+  category: varchar("category", { length: 30 }).notNull(),
+  description: varchar("description", { length: 255 }).notNull(),
+  currentAmount: numeric("current_amount", { precision: 14, scale: 2 })
+    .notNull()
+    .default("0"),
+  requestedAmount: numeric("requested_amount", { precision: 14, scale: 2 })
+    .notNull()
+    .default("0"),
+  createdAt: timestamp("created_at").defaultNow(),
+});
+
+export type WorkflowAttachmentRow = typeof workflowAttachments.$inferSelect;
+export type NewWorkflowAttachmentRow = typeof workflowAttachments.$inferInsert;
+export type WorkflowLineItemRow = typeof workflowLineItems.$inferSelect;
+export type NewWorkflowLineItemRow = typeof workflowLineItems.$inferInsert;

@@ -2,9 +2,7 @@ import { useEffect, useState } from "react";
 
 import {
   ArrowLeft,
-  Check,
   FileText,
-  X,
 } from "lucide-react";
 
 import { PageContainer } from "@/components/refine-ui/views/page-container";
@@ -14,50 +12,15 @@ import { PageContent } from "@/components/refine-ui/views/page-content";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { StatusBadge } from "@/components/ui/status-badge";
-import { apiClient } from "@/services/api.client";
 import { ConfirmDialog } from "@/components/ui/confirm-dialog";
 import {
   PROPOSAL_DECISIONS,
   findProposalDecision,
 } from "@/features/proposals/lib/proposal-decisions";
-
-/*
- * ============================================================
- * PROPOSAL TYPE
- * ============================================================
- */
-
-type Proposal = {
-  id: number;
-
-  proposalId: string;
-
-  title: string;
-
-  projectCode: string;
-
-  submittedBy: string;
-
-  assignedReviewer?: string | null;
-
-  status: string;
-
-  amount?: string | null;
-
-  content?: string | null;
-
-  aiValidation?: string | null;
-
-  reviewerName?: string | null;
-
-  reviewComment?: string | null;
-
-  reviewedAt?: string | null;
-
-  createdAt?: string | null;
-
-  updatedAt?: string | null;
-};
+import { useProposals } from "@/features/proposals/hooks/useProposals";
+import { useAuth } from "@/auth/auth-context";
+import { ProposalAttachments } from "@/pages/roles/consultant/proposal-attachments";
+import type { Proposal } from "@/features/proposals/types/proposal.types";
 
 /*
  * ============================================================
@@ -79,15 +42,26 @@ type ReviewStatus =
 export default function ConsultantProposalsPage() {
   /*
    * ----------------------------------------------------------
-   * STATE
+   * DATA
    * ----------------------------------------------------------
+   *
+   * Goes through the proposals feature hook rather than calling apiClient
+   * from the page. The page previously read `result?.data` itself, which
+   * duplicated the { success, message, data } unwrapping the feature layer
+   * already does and meant this screen and the rest of the app could
+   * disagree about the shape of a proposal.
    */
 
-  const [proposals, setProposals] =
-    useState<Proposal[]>([]);
+  const { user } = useAuth();
 
-  const [loading, setLoading] =
-    useState(true);
+  const {
+    proposals,
+    loading,
+    saving: reviewing,
+    error: loadError,
+    refresh: loadProposals,
+    reviewProposal: submitReview,
+  } = useProposals();
 
   const [selectedProposal, setSelectedProposal] =
     useState<Proposal | null>(null);
@@ -95,8 +69,11 @@ export default function ConsultantProposalsPage() {
   const [comment, setComment] =
     useState("");
 
-  const [reviewing, setReviewing] =
-    useState(false);
+  const [actionError, setActionError] =
+    useState<string | null>(null);
+
+  const [actionNotice, setActionNotice] =
+    useState<string | null>(null);
 
   // Approve / Request Revision / Reject are irreversible once submitted —
   // the proposal's status and reviewer are overwritten with no undo — so the
@@ -105,42 +82,15 @@ export default function ConsultantProposalsPage() {
     useState<ReviewStatus | null>(null);
 
   /*
-   * ----------------------------------------------------------
-   * LOAD PROPOSALS
-   * ----------------------------------------------------------
+   * Keep the open review screen in step with a refreshed list, so the
+   * decision that was just submitted is reflected without closing and
+   * reopening the proposal.
    */
-
-  const loadProposals = async () => {
-    try {
-      setLoading(true);
-
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      const result: any = await apiClient.get("/proposals");
-
-      setProposals(
-        Array.isArray(result?.data)
-          ? result.data
-          : [],
-      );
-    } catch (error) {
-      console.error(
-        "Failed to load proposals:",
-        error,
-      );
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  /*
-   * ----------------------------------------------------------
-   * INITIAL LOAD
-   * ----------------------------------------------------------
-   */
-
   useEffect(() => {
-    loadProposals();
-  }, []);
+    if (!selectedProposal) return;
+    const fresh = proposals.find((p) => p.id === selectedProposal.id);
+    if (fresh && fresh !== selectedProposal) setSelectedProposal(fresh);
+  }, [proposals, selectedProposal]);
 
   /*
    * ----------------------------------------------------------
@@ -236,6 +186,9 @@ export default function ConsultantProposalsPage() {
 
     setSelectedProposal(proposal);
 
+    setActionError(null);
+    setActionNotice(null);
+
     /*
      * Load an existing comment if there is one.
      */
@@ -255,6 +208,8 @@ export default function ConsultantProposalsPage() {
     setSelectedProposal(null);
 
     setComment("");
+
+    setActionError(null);
   };
 
   /*
@@ -267,77 +222,105 @@ export default function ConsultantProposalsPage() {
     proposal: Proposal,
     status: ReviewStatus,
   ) => {
+    setActionError(null);
+    setActionNotice(null);
+
     /*
-     * Require a comment.
+     * Require a comment. Surfaced inline rather than through alert(), which
+     * is suppressed by some browsers and invisible in automated runs.
      */
 
     if (!comment.trim()) {
-      alert(
+      setActionError(
         "Please enter a review comment before submitting your decision.",
       );
 
       return;
     }
 
-    try {
-      setReviewing(true);
+    const updated = await submitReview(proposal.id, {
+      status,
 
-      await apiClient.patch(
-        `/proposals/${proposal.id}/review`,
-        {
-          status,
+      // The person who actually decided, not the literal string
+      // "Consultant" — the review is attributed in the proposals register
+      // and every decision used to be signed with the role name.
+      reviewerName:
+        user?.name ?? "Consultant",
 
-          reviewerName:
-            "Consultant",
+      reviewComment:
+        comment.trim(),
+    });
 
-          reviewComment:
-            comment.trim(),
-        },
+    if (!updated) {
+      // useProposals already captured the server's message in `error`;
+      // repeat it here so it appears next to the buttons that were clicked.
+      setActionError(
+        loadError ?? "Failed to submit the proposal review.",
       );
-
-      /*
-       * Clear the review.
-       */
-
-      setComment("");
-
-      /*
-       * Return to proposal list.
-       */
-
-      setSelectedProposal(null);
-
-      /*
-       * Reload the database data.
-       */
-
-      await loadProposals();
-
-      alert(
-        `Proposal ${status.toLowerCase()} successfully.`,
-      );
-    } catch (error) {
-      console.error(
-        "FAILED TO SUBMIT REVIEW:",
-        error,
-      );
-
-      alert(
-        error instanceof Error
-          ? error.message
-          : "Failed to submit the proposal review.",
-      );
-    } finally {
-      setReviewing(false);
+      return;
     }
+
+    setComment("");
+    setSelectedProposal(null);
+    setActionNotice(
+      `${updated.proposalId} — ${status.toLowerCase()}.`,
+    );
   };
+
+  /*
+   * ==========================================================
+   * DECISION CONFIRMATION
+   * ==========================================================
+   *
+   * THE BUG THIS FIXES: this dialog used to be rendered only inside the
+   * proposal-LIST return. The review screen returns early, above that JSX,
+   * so once a proposal was open the dialog was not mounted at all — clicking
+   * Approve / Request Revision / Reject set `pendingDecision` and then
+   * nothing happened, because the only thing that reads `pendingDecision`
+   * and calls reviewProposal() was not on the page.
+   *
+   * It is now built once and rendered in BOTH returns, so the decision
+   * buttons work from whichever screen the consultant is on.
+   */
+
+  const decisionConfirmDialog = (
+    <ConfirmDialog
+      open={pendingDecision !== null}
+      onOpenChange={(open) => !open && setPendingDecision(null)}
+      title={
+        pendingDecision
+          ? findProposalDecision(pendingDecision)?.confirmTitle ?? "Submit review?"
+          : ""
+      }
+      description={
+        pendingDecision
+          ? findProposalDecision(pendingDecision)?.confirmDescription
+          : undefined
+      }
+      confirmLabel={
+        pendingDecision
+          ? findProposalDecision(pendingDecision)?.label ?? "Confirm"
+          : "Confirm"
+      }
+      destructive={
+        pendingDecision
+          ? findProposalDecision(pendingDecision)?.destructive ?? false
+          : false
+      }
+      loading={reviewing}
+      onConfirm={() => {
+        if (!selectedProposal || !pendingDecision) return;
+        const decision = pendingDecision;
+        setPendingDecision(null);
+        void reviewProposal(selectedProposal, decision);
+      }}
+    />
+  );
 
   /*
    * ==========================================================
    * REVIEW SCREEN
    * ==========================================================
-   *
-   * THIS IS THE MOST IMPORTANT PART.
    *
    * If selectedProposal exists, the proposal list disappears
    * and the Consultant Review interface appears.
@@ -513,6 +496,17 @@ export default function ConsultantProposalsPage() {
             </div>
 
             {/* ------------------------------------------------
+                ATTACHED FILES
+                ------------------------------------------------
+                The submission's files were not shown anywhere on this
+                screen, so "review the proposal" meant reviewing its title
+                and a paragraph of text. Proposals have no file column of
+                their own, so the files are the documents filed against the
+                proposal's project — see ProposalAttachments. */}
+
+            <ProposalAttachments proposal={selectedProposal} />
+
+            {/* ------------------------------------------------
                 RULE-BASED VALIDATION
                 ------------------------------------------------ */}
 
@@ -638,6 +632,18 @@ export default function ConsultantProposalsPage() {
 
                 {/* Decision Buttons */}
 
+                {/* A decision that failed used to surface only through an
+                    alert(), or not at all — which read as "the buttons are
+                    broken". */}
+                {actionError && (
+                  <p
+                    role="alert"
+                    className="rounded-lg border border-destructive/30 bg-destructive/5 px-3 py-2 text-sm text-destructive"
+                  >
+                    {actionError}
+                  </p>
+                )}
+
                 <div className="flex flex-wrap gap-3">
                   {PROPOSAL_DECISIONS.map((decision) => {
                     const Icon = decision.icon;
@@ -672,6 +678,8 @@ export default function ConsultantProposalsPage() {
           </div>
 
         </PageContent>
+
+        {decisionConfirmDialog}
 
       </PageContainer>
     );
@@ -709,6 +717,21 @@ export default function ConsultantProposalsPage() {
           </p>
 
         </div>
+
+        {actionNotice && (
+          <p className="mb-4 rounded-lg border border-success/30 bg-success/5 px-3 py-2 text-sm text-success">
+            Review submitted — {actionNotice}
+          </p>
+        )}
+
+        {loadError && (
+          <p
+            role="alert"
+            className="mb-4 rounded-lg border border-destructive/30 bg-destructive/5 px-3 py-2 text-sm text-destructive"
+          >
+            {loadError}
+          </p>
+        )}
 
         {/* ----------------------------------------------------
             LOADING
@@ -892,37 +915,7 @@ export default function ConsultantProposalsPage() {
 
       </PageContent>
 
-      <ConfirmDialog
-        open={pendingDecision !== null}
-        onOpenChange={(open) => !open && setPendingDecision(null)}
-        title={
-          pendingDecision
-            ? findProposalDecision(pendingDecision)?.confirmTitle ?? "Submit review?"
-            : ""
-        }
-        description={
-          pendingDecision
-            ? findProposalDecision(pendingDecision)?.confirmDescription
-            : undefined
-        }
-        confirmLabel={
-          pendingDecision
-            ? findProposalDecision(pendingDecision)?.label ?? "Confirm"
-            : "Confirm"
-        }
-        destructive={
-          pendingDecision
-            ? findProposalDecision(pendingDecision)?.destructive ?? false
-            : false
-        }
-        loading={reviewing}
-        onConfirm={() => {
-          if (!selectedProposal || !pendingDecision) return;
-          const decision = pendingDecision;
-          setPendingDecision(null);
-          void reviewProposal(selectedProposal, decision);
-        }}
-      />
+      {decisionConfirmDialog}
 
     </PageContainer>
   );

@@ -13,6 +13,7 @@ export interface ProjectRecord {
   risk: string;
   location: string | null;
   client: string | null;
+  currency: string;
   workforce: number | null;
   description: string | null;
   siteLatitude: string | null;
@@ -36,6 +37,7 @@ export interface CreateProjectInput {
   risk?: string;
   location?: string;
   client?: string;
+  currency?: string;
   workforce?: number;
   description?: string;
   siteLatitude?: number | string | null;

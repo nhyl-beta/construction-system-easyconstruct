@@ -26,3 +26,7 @@ export interface UpdateUserInput {
 export interface SetUserStatusInput {
   isActive: boolean;
 }
+
+export interface SetUserPasswordInput {
+  password: string;
+}

@@ -83,6 +83,28 @@ export const setStatus = async (
   }
 };
 
+export const setPassword = async (
+  req: AuthedRequest,
+  res: Response,
+  next: NextFunction,
+) => {
+  try {
+    const { password } = req.body as { password: string };
+    const data = await service.setPassword(Number(req.params.id), password);
+    await logAudit({
+      entityType: "user",
+      entityId: String(req.params.id),
+      action: "updated",
+      // The password itself is never logged — only that it was reset, by whom.
+      actor: req.authUser?.name ?? "unknown",
+      summary: `Reset the password on account ${data.email}`,
+    });
+    res.json(formatSuccess(data, "Password updated"));
+  } catch (err) {
+    next(err);
+  }
+};
+
 export const remove = async (
   req: AuthedRequest,
   res: Response,

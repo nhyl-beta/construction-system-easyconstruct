@@ -9,6 +9,8 @@ import type {
   DecideStageInput,
   UpdateWorkflowInput,
   Workflow,
+  WorkflowAttachmentInput,
+  WorkflowLineItemInput,
   WorkflowTemplate,
 } from "../types/workflow.types";
 
@@ -249,4 +251,217 @@ export function useApprovals(scope: ApprovalScope) {
     reload,
     decide,
   } as const;
+}
+
+/**
+ * =========================================================
+ * Single workflow (detail)
+ * =========================================================
+ *
+ * Every approval screen needs the same thing before a decision: the full
+ * record, including what each earlier stage submitted. Fetching it here
+ * rather than inline in a dialog keeps that one request in the feature layer
+ * where the rest of the module's data access lives.
+ */
+
+export function useWorkflowDetail(workflowId: number | null) {
+  const [workflow, setWorkflow] = useState<Workflow | null>(null);
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState<Error | null>(null);
+
+  const reload = useCallback(async () => {
+    if (workflowId === null) return;
+
+    setLoading(true);
+    setError(null);
+
+    try {
+      setWorkflow(await WorkflowRepository.getById(workflowId));
+    } catch (err) {
+      setError(
+        err instanceof Error ? err : new Error("Failed to load the workflow."),
+      );
+    } finally {
+      setLoading(false);
+    }
+  }, [workflowId]);
+
+  useEffect(() => {
+    if (workflowId === null) {
+      setWorkflow(null);
+      return;
+    }
+    void reload();
+  }, [workflowId, reload]);
+
+  return { workflow, loading, error, reload } as const;
+}
+
+/**
+ * =========================================================
+ * Budget change requests (Finance)
+ * =========================================================
+ */
+
+export function useBudgetChangeRequests() {
+  const [requests, setRequests] = useState<Workflow[]>([]);
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState<Error | null>(null);
+
+  const reload = useCallback(async () => {
+    setLoading(true);
+    setError(null);
+
+    try {
+      setRequests(await WorkflowRepository.listBudgetChangeRequests());
+    } catch (err) {
+      setError(
+        err instanceof Error
+          ? err
+          : new Error("Failed to load budget change requests."),
+      );
+    } finally {
+      setLoading(false);
+    }
+  }, []);
+
+  useEffect(() => {
+    void reload();
+  }, [reload]);
+
+  return { requests, loading, error, reload } as const;
+}
+
+/**
+ * =========================================================
+ * Workflow initiation from a named template
+ * =========================================================
+ *
+ * The role-specific "start this workflow" actions (Architect → Design
+ * Proposal Approval / Public works compliance, Engineer → Budget Change
+ * Request, HR → Subcontractor onboarding) all do the same three things:
+ * resolve a template by name, create a workflow from it, and file whatever
+ * the initiator submitted against the first stage.
+ *
+ * Template is resolved by NAME rather than a hardcoded id because template
+ * ids differ between environments (the seeded set starts at different ids
+ * depending on what was already in workflow_templates).
+ */
+
+export interface InitiateWorkflowInput {
+  title: string;
+  projectCode: string;
+  amount?: number;
+  type?: string;
+  attachments?: WorkflowAttachmentInput[];
+  lineItems?: WorkflowLineItemInput[];
+  /** Uploaded after creation — a file needs the workflow id to attach to. */
+  file?: File | null;
+}
+
+export function useWorkflowInitiation(templateName: string) {
+  const [template, setTemplate] = useState<WorkflowTemplate | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [submitting, setSubmitting] = useState(false);
+  const [error, setError] = useState<Error | null>(null);
+
+  useEffect(() => {
+    let cancelled = false;
+
+    setLoading(true);
+
+    WorkflowRepository.listTemplates()
+      .then((templates) => {
+        if (cancelled) return;
+        const match = templates.find(
+          (t) => t.name.toLowerCase() === templateName.toLowerCase(),
+        );
+        setTemplate(match ?? null);
+        if (!match) {
+          setError(
+            new Error(
+              `No "${templateName}" workflow template is configured. Ask an administrator to add it.`,
+            ),
+          );
+        }
+      })
+      .catch((err) => {
+        if (!cancelled) {
+          setError(
+            err instanceof Error
+              ? err
+              : new Error("Failed to load workflow templates."),
+          );
+        }
+      })
+      .finally(() => {
+        if (!cancelled) setLoading(false);
+      });
+
+    return () => {
+      cancelled = true;
+    };
+  }, [templateName]);
+
+  const initiate = useCallback(
+    async (input: InitiateWorkflowInput): Promise<Workflow | null> => {
+      if (!template) {
+        setError(
+          new Error(
+            `No "${templateName}" workflow template is configured. Ask an administrator to add it.`,
+          ),
+        );
+        return null;
+      }
+
+      setSubmitting(true);
+      setError(null);
+
+      try {
+        const created = await WorkflowRepository.create({
+          title: input.title,
+          projectCode: input.projectCode,
+          templateId: template.id,
+          amount: input.amount,
+          type: input.type,
+          attachments: input.attachments,
+          lineItems: input.lineItems,
+        });
+
+        // The upload needs an existing workflow id, so it is a second call.
+        // A failed upload is surfaced but does not discard the workflow — it
+        // already exists, and the file can be re-attached from the detail view.
+        if (input.file) {
+          try {
+            return await WorkflowRepository.uploadAttachment(
+              created.id,
+              input.file,
+              input.file.name,
+            );
+          } catch (uploadErr) {
+            setError(
+              new Error(
+                `${created.code} was created, but the document could not be attached: ${
+                  uploadErr instanceof Error ? uploadErr.message : "upload failed"
+                }`,
+              ),
+            );
+            return created;
+          }
+        }
+
+        return created;
+      } catch (err) {
+        setError(
+          err instanceof Error ? err : new Error("Failed to start the workflow."),
+        );
+        return null;
+      } finally {
+        setSubmitting(false);
+      }
+    },
+    [template, templateName],
+  );
+
+  return { template, loading, submitting, error, initiate } as const;
 }

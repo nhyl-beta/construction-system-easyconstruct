@@ -71,6 +71,10 @@ export const ROLE_RESOURCE_ACCESS: Record<string, string[]> = {
     "architect-projects",
     "designs",
     "proposals",
+    // Architect owns a stage in both the Design Proposal Approval and Public
+    // works compliance templates, so it needs the shared approvals screen to
+    // act on them — and to start them.
+    "approvals",
     "revisions",
     "reviews",
     "blueprints",

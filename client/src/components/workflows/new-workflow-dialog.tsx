@@ -18,6 +18,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import { ProjectPicker } from "@/components/shared/project-picker";
 import { UserRepository, type PublicUser } from "@/features/users/repositories/user.repository";
 import type { CreateWorkflowInput, WorkflowTemplate } from "@/features/workflows/types/workflow.types";
 
@@ -119,12 +120,16 @@ export function NewWorkflowDialog({
           </div>
 
           <div className="grid gap-1.5">
-            <Label htmlFor="wf-project">Project code</Label>
-            <Input
-              id="wf-project"
+            <Label>Project</Label>
+            {/* Was a free-text "project code" box: a typo produced a workflow
+                whose projectCode matched no real project, so it never showed
+                up in any project-scoped view and could not be traced back to
+                the job it belonged to. Same picker the rest of the app uses,
+                backed by /api/projects. */}
+            <ProjectPicker
               value={projectCode}
-              onChange={(e) => setProjectCode(e.target.value)}
-              placeholder="e.g. WGT-04"
+              onChange={setProjectCode}
+              className="w-full"
             />
           </div>
 

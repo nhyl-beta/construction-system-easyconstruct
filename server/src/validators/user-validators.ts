@@ -27,3 +27,10 @@ export const updateUserSchema = z
 export const setUserStatusSchema = z.object({
   isActive: z.boolean(),
 });
+
+// IT Designer resetting someone else's password. Same strength rule as
+// creation and self-service recovery — an administratively set password must
+// not be allowed to be weaker than one the person would pick themselves.
+export const setUserPasswordSchema = z.object({
+  password: passwordSchema,
+});

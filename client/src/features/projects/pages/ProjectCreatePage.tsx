@@ -17,7 +17,7 @@ import { useUsersByRole } from "@/features/users/hooks/use-users-by-role";
 import { Info, MapPin, UserCheck } from "lucide-react";
 import { useState } from "react";
 import { useNavigate } from "react-router";
-import { RISK_LEVELS } from "@/features/projects/types/project.types";
+import { PROJECT_CURRENCIES, RISK_LEVELS } from "@/features/projects/types/project.types";
 
 const ASSIGNABLE_TEAM_ROLES: { role: ProjectMemberRole; label: string }[] = [
   { role: "architect", label: "Architect" },
@@ -66,11 +66,11 @@ interface ProjectFormData {
   due: string;
   pm: string;
   contractValue: string;
+  currency: string;
   // Collected for UX but not yet persisted — schema doesn't have these columns:
   contingencyPct: string;
   type: string;
   contractType: string;
-  currency: string;
   startDate: string;
 }
 
@@ -95,11 +95,14 @@ export default function ProjectCreatePage() {
   const navigate = useNavigate();
   const { user } = useAuth();
   const [step, setStep] = useState(1);
-  // Project Manager is always the authenticated creator, not a pickable
-  // field — see StepTeam. Server-side also overrides this on submit.
+  // A Project Manager creating their own project is always its PM, so their
+  // name is seeded. An Admin/IT Designer must PICK one — seeding their own
+  // name there put a value in the Select that is not one of its options, so
+  // Radix rendered an empty trigger AND suppressed the placeholder, which is
+  // why that field looked like it had no placeholder at all.
   const [data, setData] = useState<ProjectFormData>(() => ({
     ...initialForm,
-    pm: user?.name ?? "",
+    pm: user?.role === "project-manager" ? user.name : "",
   }));
   // EC-013/018: optional team assignment at creation time, one person per
   // role — applied via project-members right after the project is created.
@@ -141,6 +144,7 @@ export default function ProjectCreatePage() {
         name: data.name.trim(),
         code: data.code.trim(),
         client: data.client,
+        currency: data.currency,
         location: data.location.trim(),
         risk: data.risk,
         due: data.due,
@@ -349,14 +353,26 @@ function StepProjectInfo({
 
         <div className="space-y-1.5">
           <Label>Currency</Label>
-          {/* Not a select: `currency` was never sent to the API and `projects`
-              has no currency column, so USD/EUR were choices the system could
-              not honour — every amount renders through the PHP formatters in
-              lib/format-currency.ts. Shown as a fixed value rather than a
-              control that silently does nothing. */}
-          <div className="flex h-9 items-center rounded-xl border border-input bg-muted/40 px-3 text-sm text-muted-foreground">
-            Philippine Peso (₱ PHP)
-          </div>
+          {/* Now a real selector: projects.currency exists, the API accepts
+              it (project-validator.ts) and every amount on the project is
+              rendered through it, so a non-PHP choice is one the system can
+              actually honour. It was previously frozen at PHP because there
+              was nowhere to store the value. */}
+          <Select
+            value={data.currency}
+            onValueChange={(v) => set("currency", v)}
+          >
+            <SelectTrigger className="rounded-xl">
+              <SelectValue placeholder="Select currency" />
+            </SelectTrigger>
+            <SelectContent>
+              {PROJECT_CURRENCIES.map((c) => (
+                <SelectItem key={c.code} value={c.code}>
+                  {c.label}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
         </div>
       </div>
 
@@ -531,9 +547,19 @@ function StepTeam({
               <span className="font-medium">{data.pm || "You"}</span>
             </div>
           ) : (
-            <Select value={data.pm} onValueChange={(v) => set("pm", v)}>
+            <Select
+              value={data.pm || undefined}
+              onValueChange={(v) => set("pm", v)}
+            >
               <SelectTrigger className="rounded-xl">
-                <SelectValue placeholder={pmOptionsLoading ? "Loading…" : "Select PM"} />
+                {/* `value` is passed as undefined rather than "" when nothing
+                    is picked — Radix treats "" as a real selected value and
+                    renders an empty trigger instead of the placeholder. */}
+                <SelectValue
+                  placeholder={
+                    pmOptionsLoading ? "Loading…" : "Select project manager"
+                  }
+                />
               </SelectTrigger>
               <SelectContent>
                 {pmOptions.length === 0 && !pmOptionsLoading && (
@@ -639,10 +665,11 @@ function StepReview({ data }: { data: ProjectFormData }) {
           { label: "Project Manager", value: data.pm || "—" },
           { label: "Risk", value: data.risk },
           { label: "Due date", value: data.due || "—" },
+          { label: "Currency", value: data.currency },
           {
             label: "Total contract value",
             value: data.contractValue
-              ? Number(data.contractValue).toLocaleString()
+              ? `${data.currency} ${Number(data.contractValue).toLocaleString()}`
               : "—",
           },
         ].map((row) => (

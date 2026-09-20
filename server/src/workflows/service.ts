@@ -7,6 +7,9 @@ import type {
   DecideStageInput,
   TemplateWithActiveCount,
   UpdateWorkflowInput,
+  WorkflowAttachmentInput,
+  WorkflowAttachmentRecord,
+  WorkflowLineItemRecord,
   WorkflowWithStages,
 } from "./types.js";
 
@@ -42,8 +45,17 @@ export const getTemplates = async (): Promise<TemplateWithActiveCount[]> => {
 // ── Workflows ──────────────────────────────────────────────────────────────
 
 const attachStages = async (rows: (typeof import("../db/schema/workflows.js").workflows.$inferSelect)[]) => {
-  const stages = await repo.findStagesForWorkflows(rows.map((r) => r.id));
-  const templates = await repo.findAllTemplates();
+  const ids = rows.map((r) => r.id);
+  // Attachments and line items are fetched with the stages, not on a separate
+  // round trip per screen: every approval view needs the full submission
+  // trail, so a workflow that arrives without it is what left approvers
+  // deciding blind in the first place.
+  const [stages, templates, attachmentRows, lineItemRows] = await Promise.all([
+    repo.findStagesForWorkflows(ids),
+    repo.findAllTemplates(),
+    repo.findAttachmentsForWorkflows(ids),
+    repo.findLineItemsForWorkflows(ids),
+  ]);
   const templateNameById = new Map(templates.map((t) => [t.id, t.name]));
 
   const stagesByWorkflow = new Map<number, typeof stages>();
@@ -51,6 +63,20 @@ const attachStages = async (rows: (typeof import("../db/schema/workflows.js").wo
     const list = stagesByWorkflow.get(s.workflowId) ?? [];
     list.push(s);
     stagesByWorkflow.set(s.workflowId, list);
+  }
+
+  const attachmentsByWorkflow = new Map<number, WorkflowAttachmentRecord[]>();
+  for (const { attachment, stageLabel } of attachmentRows) {
+    const list = attachmentsByWorkflow.get(attachment.workflowId) ?? [];
+    list.push({ ...attachment, stageLabel: stageLabel ?? null });
+    attachmentsByWorkflow.set(attachment.workflowId, list);
+  }
+
+  const lineItemsByWorkflow = new Map<number, WorkflowLineItemRecord[]>();
+  for (const item of lineItemRows) {
+    const list = lineItemsByWorkflow.get(item.workflowId) ?? [];
+    list.push(item);
+    lineItemsByWorkflow.set(item.workflowId, list);
   }
 
   return rows.map((w): WorkflowWithStages => ({
@@ -81,6 +107,8 @@ const attachStages = async (rows: (typeof import("../db/schema/workflows.js").wo
       comments: s.comments,
       createdAt: s.createdAt,
     })),
+    attachments: attachmentsByWorkflow.get(w.id) ?? [],
+    lineItems: lineItemsByWorkflow.get(w.id) ?? [],
   }));
 };
 
@@ -158,9 +186,89 @@ export const createWorkflow = async (
     status: index === 0 ? "current" : "upcoming",
     assignedTo: input.stageAssignments?.[String(index + 1)] ?? null,
   }));
-  await repo.insertStages(stageRows);
+  const insertedStages = await repo.insertStages(stageRows);
+
+  // Whatever the initiator submitted is filed against stage 1 — their own
+  // step — so later approvers can see which point in the chain it came from.
+  const firstStage = insertedStages.find((stage) => stage.sequence === 1) ?? null;
+
+  if (input.attachments?.length) {
+    await repo.insertAttachments(
+      input.attachments.map((a) => toAttachmentRow(a, workflow.id, firstStage?.id ?? null, createdBy)),
+    );
+  }
+
+  if (input.lineItems?.length) {
+    await repo.insertLineItems(
+      input.lineItems.map((item) => ({
+        workflowId: workflow.id,
+        category: item.category,
+        description: item.description,
+        currentAmount: (item.currentAmount ?? 0).toFixed(2),
+        requestedAmount: item.requestedAmount.toFixed(2),
+      })),
+    );
+  }
 
   return getWorkflowById(workflow.id);
+};
+
+// ── Attachments ────────────────────────────────────────────────────────────
+
+const toAttachmentRow = (
+  input: WorkflowAttachmentInput,
+  workflowId: number,
+  stageId: number | null,
+  uploadedBy: string,
+) => ({
+  workflowId,
+  stageId: input.stageId ?? stageId,
+  kind: input.kind ?? (input.fileUrl ? "document" : "note"),
+  label: input.label,
+  content: input.content ?? null,
+  fileUrl: input.fileUrl ?? null,
+  fileName: input.fileName ?? null,
+  fileSize: input.fileSize ?? null,
+  uploadedBy,
+});
+
+/**
+ * File something against a workflow that is already running — e.g. a
+ * consultant attaching an advisory note, or a stage owner adding the document
+ * their decision rests on. Defaults to the workflow's current stage so the
+ * caller does not have to know the stage id.
+ */
+export const addAttachment = async (
+  workflowId: number,
+  input: WorkflowAttachmentInput,
+  uploadedBy: string,
+): Promise<WorkflowWithStages> => {
+  const workflow = await repo.findWorkflowById(workflowId);
+  if (!workflow) throw new NotFoundError("Workflow", String(workflowId));
+
+  const stages = await repo.findStagesByWorkflow(workflowId);
+  const currentStage = stages.find((stage) => stage.status === "current") ?? null;
+
+  await repo.insertAttachments([
+    toAttachmentRow(input, workflowId, currentStage?.id ?? null, uploadedBy),
+  ]);
+
+  return getWorkflowById(workflowId);
+};
+
+/**
+ * Every workflow raised from a named template, with its stages, attachments
+ * and line items already attached. Finance's budget-change review is the
+ * first caller (template "Budget Change Request"); the lookup is by name
+ * rather than a hardcoded id because template ids differ per environment.
+ */
+export const getWorkflowsByTemplateName = async (
+  templateName: string,
+): Promise<WorkflowWithStages[]> => {
+  const template = await repo.findTemplateByName(templateName);
+  if (!template) return [];
+  const rows = await repo.findWorkflowsByTemplate(template.id);
+  return attachStages(rows);
 };
 
 // ── Decisions ──────────────────────────────────────────────────────────────
@@ -244,6 +352,25 @@ export const getApprovalQueue = async (
         ? await repo.findDecidedStagesBy(requesterName)
         : await repo.findAllDecidedStages();
 
+  // A queue row that does not say whether anything was submitted gives the
+  // approver no reason to open the detail view at all.
+  const workflowIds = [...new Set(rows.map((r) => r.workflow.id))];
+  const [attachmentRows, lineItemRows] = await Promise.all([
+    repo.findAttachmentsForWorkflows(workflowIds),
+    repo.findLineItemsForWorkflows(workflowIds),
+  ]);
+  const attachmentCounts = new Map<number, number>();
+  for (const { attachment } of attachmentRows) {
+    attachmentCounts.set(
+      attachment.workflowId,
+      (attachmentCounts.get(attachment.workflowId) ?? 0) + 1,
+    );
+  }
+  const lineItemCounts = new Map<number, number>();
+  for (const item of lineItemRows) {
+    lineItemCounts.set(item.workflowId, (lineItemCounts.get(item.workflowId) ?? 0) + 1);
+  }
+
   return rows.map(({ stage, workflow }) => ({
     stageId: stage.id,
     workflowId: workflow.id,
@@ -260,6 +387,8 @@ export const getApprovalQueue = async (
     decidedBy: stage.decidedBy,
     decidedAt: stage.decidedAt,
     createdAt: stage.createdAt,
+    attachmentCount: attachmentCounts.get(workflow.id) ?? 0,
+    lineItemCount: lineItemCounts.get(workflow.id) ?? 0,
   }));
 };
 

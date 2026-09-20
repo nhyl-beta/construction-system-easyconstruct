@@ -2,6 +2,7 @@ import { NotFoundError, ValidationError } from "../utils/errors.js";
 import * as employeesRepo from "../employees/repository.js";
 import * as repo from "./repository.js";
 import * as batchRepo from "./batch-repository.js";
+import { computeStatutoryDeductions } from "./ph-statutory.js";
 import type {
   GeneratePayrollInput,
   PayrollFilters,
@@ -19,16 +20,25 @@ import type {
 //   - Daily:  payRate ÷ 8   (assumes an 8-hour standard shift)
 //   - Monthly: payRate ÷ (22 × 8)  (assumes ~22 working days/month)
 //
-// Deductions are a flat 12% placeholder (stand-in for SSS/PhilHealth/Pag-IBIG/
-// withholding tax) — NOT a real statutory computation. Net = Gross − Deductions.
-// This keeps the demo deterministic and documented rather than pretending to
-// be a compliant payroll engine (out of scope per brief §38).
+// Deductions are the four Philippine statutory withholdings — SSS, PhilHealth,
+// Pag-IBIG and BIR withholding tax — each computed on its own base from the
+// published schedules in ./ph-statutory.ts, stored in its own column, and
+// summed into `deductions`. Net = Gross − Deductions.
+//
+// This replaced a flat 12% of gross that stood in for all four at once: it
+// under-withheld low earners (who owe no income tax but do owe contributions)
+// and over-withheld high earners (whose SSS/PhilHealth/Pag-IBIG are all
+// capped), so no line on a payslip could be explained to the employee.
+//
+// A payroll period here is one calendar month (the period picker derives
+// periods as "YYYY-MM" from the attendance table), which is also the basis
+// every one of these schedules is published on — hence periodsPerMonth = 1.
 // ─────────────────────────────────────────────────────────────────────────────
 
 const STANDARD_HOURS_PER_DAY = 8;
 const WORKING_DAYS_PER_MONTH = 22;
 const OVERTIME_MULTIPLIER = 1.5;
-const DEDUCTION_RATE = 0.12;
+const PAYROLL_PERIODS_PER_MONTH = 1;
 
 function toHourlyRate(payRate: number, rateType: string): number {
   switch (rateType) {
@@ -73,7 +83,8 @@ export const generate = async (input: GeneratePayrollInput) => {
     const grossLabor =
       regularHours * hourlyRate + overtimeHours * hourlyRate * OVERTIME_MULTIPLIER;
     const gross = grossLabor + adjustments;
-    const deductions = Number((gross * DEDUCTION_RATE).toFixed(2));
+    const statutory = computeStatutoryDeductions(gross, PAYROLL_PERIODS_PER_MONTH);
+    const deductions = statutory.total;
     const net = Number((gross - deductions).toFixed(2));
 
     const line = await repo.create({
@@ -84,6 +95,10 @@ export const generate = async (input: GeneratePayrollInput) => {
       hours: Math.round(regularHours),
       overtime: Math.round(overtimeHours),
       gross: gross.toFixed(2),
+      sss: statutory.sss.toFixed(2),
+      philhealth: statutory.philhealth.toFixed(2),
+      pagibig: statutory.pagibig.toFixed(2),
+      withholdingTax: statutory.withholdingTax.toFixed(2),
       deductions: deductions.toFixed(2),
       net: net.toFixed(2),
       status: "Pending",

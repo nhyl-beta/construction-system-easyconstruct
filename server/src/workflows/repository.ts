@@ -1,6 +1,8 @@
 import { and, desc, eq, inArray, sql } from "drizzle-orm";
 import { db } from "../db/connection.js";
 import {
+  workflowAttachments,
+  workflowLineItems,
   workflowStages,
   workflowTemplates,
   workflows,
@@ -158,4 +160,65 @@ export const findAllDecidedStages = async () => {
     .innerJoin(workflows, eq(workflowStages.workflowId, workflows.id))
     .where(inArray(workflowStages.status, ["done", "rejected"]))
     .orderBy(desc(workflowStages.decidedAt));
+};
+// ── Attachments ────────────────────────────────────────────────────────────
+
+export const findAttachmentsForWorkflows = async (workflowIds: number[]) => {
+  if (workflowIds.length === 0) return [];
+  // Left join so an attachment filed before its stage was known (or whose
+  // stage row has since gone) still comes back, just without a stage label.
+  return db
+    .select({
+      attachment: workflowAttachments,
+      stageLabel: workflowStages.roleLabel,
+    })
+    .from(workflowAttachments)
+    .leftJoin(workflowStages, eq(workflowAttachments.stageId, workflowStages.id))
+    .where(inArray(workflowAttachments.workflowId, workflowIds))
+    .orderBy(workflowAttachments.createdAt);
+};
+
+export const insertAttachments = async (
+  rows: (typeof workflowAttachments.$inferInsert)[],
+) => {
+  if (rows.length === 0) return [];
+  return db.insert(workflowAttachments).values(rows).returning();
+};
+
+// ── Line items ─────────────────────────────────────────────────────────────
+
+export const findLineItemsForWorkflows = async (workflowIds: number[]) => {
+  if (workflowIds.length === 0) return [];
+  return db
+    .select()
+    .from(workflowLineItems)
+    .where(inArray(workflowLineItems.workflowId, workflowIds))
+    .orderBy(workflowLineItems.id);
+};
+
+export const insertLineItems = async (
+  rows: (typeof workflowLineItems.$inferInsert)[],
+) => {
+  if (rows.length === 0) return [];
+  return db.insert(workflowLineItems).values(rows).returning();
+};
+
+// ── Workflows by template ──────────────────────────────────────────────────
+
+// Finance's budget-change review lists every request raised from the
+// Budget Change Request template, regardless of which stage it is sitting on.
+export const findWorkflowsByTemplate = async (templateId: number) => {
+  return db
+    .select()
+    .from(workflows)
+    .where(eq(workflows.templateId, templateId))
+    .orderBy(desc(workflows.createdAt));
+};
+
+export const findTemplateByName = async (name: string) => {
+  const [row] = await db
+    .select()
+    .from(workflowTemplates)
+    .where(sql`lower(${workflowTemplates.name}) = lower(${name})`);
+  return row ?? null;
 };

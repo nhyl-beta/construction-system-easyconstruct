@@ -12,6 +12,24 @@ export const RISK_LEVELS: ReadonlyArray<{ value: RiskLevel; label: string }> = [
   { value: "medium", label: "🟡 Medium" },
   { value: "low", label: "🟢 Low" },
 ];
+/**
+ * ISO 4217 codes a project may be denominated in. Must stay in step with the
+ * zod enum on the server (server/src/validators/project-validator.ts), which
+ * is what stops a stored code the formatters can't render.
+ *
+ * PHP is first and the default: EasyConstruct is a Philippine construction
+ * system, and every project that predates the `currency` column is PHP.
+ */
+export const PROJECT_CURRENCIES: ReadonlyArray<{ code: string; label: string }> = [
+  { code: "PHP", label: "Philippine Peso (₱ PHP)" },
+  { code: "USD", label: "US Dollar ($ USD)" },
+  { code: "EUR", label: "Euro (€ EUR)" },
+  { code: "AUD", label: "Australian Dollar (A$ AUD)" },
+  { code: "SGD", label: "Singapore Dollar (S$ SGD)" },
+  { code: "JPY", label: "Japanese Yen (¥ JPY)" },
+  { code: "AED", label: "UAE Dirham (AED)" },
+];
+
 export type StatusTone = "success" | "warning" | "destructive" | "neutral";
 
 export interface Project {
@@ -21,6 +39,8 @@ export interface Project {
   pm?: string;
   assignedEngineer?: string;
   client: string;
+  /** ISO 4217 code every amount on this project is denominated in. */
+  currency: string;
   location: string;
   status: string;
   statusTone: StatusTone;

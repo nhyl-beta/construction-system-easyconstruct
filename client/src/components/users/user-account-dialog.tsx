@@ -1,7 +1,12 @@
 // src/components/users/user-account-dialog.tsx
-// One dialog for both create and edit — the only difference is the password
-// field, which is set at creation and afterwards only changes through the
-// account-recovery flow (POST /api/auth/forgot-password).
+// One dialog for both create and edit.
+//
+// On create the password field sets the initial password. On edit it sets a
+// NEW password on that account and is optional — leaving it blank saves the
+// other changes and touches nothing else. Previously the field was hidden
+// entirely when editing, which left IT Designer with no way to reset the
+// password of an account whose owner could no longer reach the mailbox the
+// self-service recovery link is sent to.
 import { useEffect, useState } from "react";
 import { Button } from "@/components/ui/button";
 import {
@@ -40,6 +45,8 @@ export interface UserAccountDialogProps {
     id: number,
     input: { name: string; email: string; role: string },
   ) => Promise<unknown>;
+  /** Administrative password reset — only called when the field is filled in. */
+  onSetPassword: (id: number, password: string) => Promise<unknown>;
 }
 
 export function UserAccountDialog({
@@ -49,6 +56,7 @@ export function UserAccountDialog({
   onOpenChange,
   onCreate,
   onUpdate,
+  onSetPassword,
 }: UserAccountDialogProps) {
   const [name, setName] = useState("");
   const [email, setEmail] = useState("");
@@ -69,11 +77,14 @@ export function UserAccountDialog({
   }, [open, user]);
 
   const isEdit = user !== null;
+  // On edit the password is optional, but a partially typed one is refused
+  // here rather than sent and bounced by the server's 10-character rule.
+  const passwordValidForEdit = password === "" || password.length >= 10;
   const canSubmit =
     name.trim() !== "" &&
     email.trim() !== "" &&
     role !== "" &&
-    (isEdit || password.length >= 10);
+    (isEdit ? passwordValidForEdit : password.length >= 10);
 
   const submit = async () => {
     setSaving(true);
@@ -85,6 +96,11 @@ export function UserAccountDialog({
           email: email.trim(),
           role,
         });
+        // Separate endpoint (PATCH /users/:id/password) because the password
+        // column is never read back or returned — see users/repository.ts.
+        if (password) {
+          await onSetPassword(user.id, password);
+        }
       } else {
         await onCreate({
           name: name.trim(),
@@ -143,23 +159,30 @@ export function UserAccountDialog({
             />
           </div>
 
-          {!isEdit && (
-            <div className="grid gap-1.5">
-              <Label htmlFor="user-password">Initial password</Label>
-              <Input
-                id="user-password"
-                type="password"
-                autoComplete="new-password"
-                value={password}
-                disabled={saving}
-                onChange={(e) => setPassword(e.target.value)}
-              />
-              <p className="text-xs text-muted-foreground">
-                At least 10 characters. The person can change it later from
-                the sign-in page's "Forgot password" link.
+          <div className="grid gap-1.5">
+            <Label htmlFor="user-password">
+              {isEdit ? "Change password" : "Initial password"}
+            </Label>
+            <Input
+              id="user-password"
+              type="password"
+              autoComplete="new-password"
+              placeholder={isEdit ? "Leave blank to keep the current password" : undefined}
+              value={password}
+              disabled={saving}
+              onChange={(e) => setPassword(e.target.value)}
+            />
+            <p className="text-xs text-muted-foreground">
+              {isEdit
+                ? "At least 10 characters. Setting one here replaces the account's password immediately — use it when the person can't reach the mailbox the recovery link goes to."
+                : "At least 10 characters. The person can change it later from the sign-in page's \"Forgot password\" link."}
+            </p>
+            {isEdit && password !== "" && password.length < 10 && (
+              <p className="text-xs text-destructive">
+                Password must be at least 10 characters.
               </p>
-            </div>
-          )}
+            )}
+          </div>
 
           <div className="grid gap-1.5">
             <Label htmlFor="user-role">Role</Label>

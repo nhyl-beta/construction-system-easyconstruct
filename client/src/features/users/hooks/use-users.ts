@@ -49,6 +49,13 @@ export function useUsers() {
     [reload],
   );
 
+  // No reload afterwards: a password change alters nothing the list renders,
+  // and re-fetching would only cost a round trip.
+  const setPassword = useCallback(
+    async (id: number, password: string) => UserRepository.setPassword(id, password),
+    [],
+  );
+
   const setActive = useCallback(
     async (id: number, isActive: boolean) => {
       const updated = await UserRepository.setActive(id, isActive);
@@ -67,5 +74,15 @@ export function useUsers() {
     [reload],
   );
 
-  return { users, loading, error, reload, create, update, setActive, remove } as const;
+  return {
+    users,
+    loading,
+    error,
+    reload,
+    create,
+    update,
+    setPassword,
+    setActive,
+    remove,
+  } as const;
 }
