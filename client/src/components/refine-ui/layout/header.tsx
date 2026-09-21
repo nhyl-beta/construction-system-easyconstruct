@@ -52,6 +52,13 @@ function DesktopHeader() {
   return (
     <div className="sticky top-0 z-40 border-b bg-background/80 backdrop-blur-md">
       <header className="flex h-16 items-center gap-3 px-4 md:px-6">
+        {/* Sits at the far left, ahead of the title, so it stays next to the
+            workspace name regardless of sidebar state — was previously only
+            rendered while the sidebar sat collapsed, so expanding it removed
+            the only way to collapse it again. */}
+        <SidebarTrigger className="text-muted-foreground" />
+        <Separator orientation="vertical" className="h-6" />
+
         {/* Title block */}
         <div className="flex min-w-0 flex-1 items-center gap-4">
           <div className="flex min-w-0 items-center gap-2.5">
@@ -100,14 +107,6 @@ function DesktopHeader() {
             </Link>
           </Button>
         )}
-
-        {/* Was rendered at the far left, and only when the sidebar was
-            already collapsed (`w-0 opacity-0` while `open`) — so once you
-            expanded the sidebar there was no button left to collapse it
-            again. Now always visible, beside the user profile at the
-            top-right, on both ends of the toggle. */}
-        <Separator orientation="vertical" className="h-6" />
-        <SidebarTrigger className="text-muted-foreground" />
 
         <UserDropdown />
       </header>
