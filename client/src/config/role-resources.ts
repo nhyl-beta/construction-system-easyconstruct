@@ -18,6 +18,7 @@ export const ROLE_RESOURCE_ACCESS: Record<string, string[]> = {
     "owner-proposals",
     "owner-audit-trail",
     "owner-oversight",
+    "owner-account-recovery",
     "reports",
     "ai-insights",
   ],

@@ -197,6 +197,11 @@ export const resources: ResourceProps[] = [
     list: "/owner/oversight",
     meta: { label: "System Oversight", group: "Oversight" },
   },
+  {
+    name: "owner-account-recovery",
+    list: "/owner/account-recovery",
+    meta: { label: "Account Recovery", group: "Oversight" },
+  },
 
   // IT Designer
   {

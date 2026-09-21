@@ -15,3 +15,7 @@ export const resetPasswordSchema = z.object({
   token: z.string().min(1, "Reset token is required"),
   password: z.string().min(10, "Password must be at least 10 characters"),
 });
+
+export const ownerRecoveryInitiateSchema = z.object({
+  targetUserId: z.coerce.number().int().positive(),
+});

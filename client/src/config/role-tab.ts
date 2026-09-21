@@ -19,6 +19,7 @@ import {
   FileText,
   FolderKanban,
   GitBranch,
+  KeyRound,
   LayoutDashboard,
   LifeBuoy,
   MapPin,
@@ -150,6 +151,8 @@ export const ROLE_CONFIGS: Record<string, RoleConfig> = {
         items: [
           { label: "Audit Trail", icon: ShieldCheck, route: "/owner/audit-trail" },
           { label: "System Oversight", icon: ShieldAlert, route: "/owner/oversight" },
+          // The one write action Owner has — see owner-account-recovery.tsx.
+          { label: "Account Recovery", icon: KeyRound, route: "/owner/account-recovery" },
         ],
       },
       {

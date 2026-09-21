@@ -89,6 +89,7 @@ import AdminSupport from "./pages/roles/admin/admin-support";
 // ── Owner Pages ──
 import OwnerPortfolio from "./pages/roles/owner/owner-portfolio";
 import OwnerProposals from "./pages/roles/owner/owner-proposals";
+import OwnerAccountRecovery from "./pages/roles/owner/owner-account-recovery";
 
 // ── IT Designer Pages ──
 import ITDesignerUsers from "./pages/roles/it-designer/it-designer-users";
@@ -134,8 +135,15 @@ function App() {
                   <Route element={<PublicAuthRoute />}>
                     <Route path="/login" element={<LoginPage />} />
                     <Route path="/forgot-password" element={<ForgotPasswordPage />} />
-                    <Route path="/reset-password" element={<ResetPasswordPage />} />
                   </Route>
+
+                  {/* Deliberately outside PublicAuthRoute: Owner's fail-safe
+                      recovery (owner-account-recovery.tsx) sends this link to
+                      an Owner who is already signed in, to reset a DIFFERENT
+                      account's (IT Designer's) password. PublicAuthRoute would
+                      otherwise bounce a logged-in visitor straight back to
+                      their dashboard before they could use the link. */}
+                  <Route path="/reset-password" element={<ResetPasswordPage />} />
 
                   <Route element={<ProtectedRoutes />}>
                     <Route
@@ -385,6 +393,14 @@ function App() {
                     element={
                       <RequireRole allow={["owner"]}>
                         <AdminSecurity />
+                      </RequireRole>
+                    }
+                  />
+                  <Route
+                    path="/owner/account-recovery"
+                    element={
+                      <RequireRole allow={["owner"]}>
+                        <OwnerAccountRecovery />
                       </RequireRole>
                     }
                   />
