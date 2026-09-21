@@ -77,7 +77,7 @@ export default function SPAttendancePage() {
       <PageHeader title="Attendance" description="Geofenced, photo-verified attendance for your assigned site" />
       <PageContent className="p-6 md:p-8 space-y-6">
         {!employeeLoading && (!employeeId || employeeError) && (
-          <div className="rounded-lg border border-warning/40 bg-warning/10 p-4 text-sm text-warning-foreground">
+          <div className="rounded-lg border border-warning/40 bg-warning/10 p-4 text-sm text-warning">
             {employeeError ?? "No employee profile is linked to your account yet."}
           </div>
         )}

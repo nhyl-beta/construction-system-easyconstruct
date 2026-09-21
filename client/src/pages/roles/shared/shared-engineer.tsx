@@ -35,17 +35,17 @@ const TODAY = () => new Date().toISOString().slice(0, 10);
 export const PRIORITY_TONE: Record<ReportPriority, string> = {
   Low: "bg-muted text-muted-foreground border-border",
   Medium: "bg-primary-soft/60 text-primary border-primary/20",
-  High: "bg-warning/15 text-warning-foreground border-warning/30",
+  High: "bg-warning/15 text-warning border-warning/30",
   Critical: "bg-destructive/10 text-destructive border-destructive/20",
 };
 
 export const STATUS_TONE: Record<ReportStatus, string> = {
   Draft: "bg-muted text-muted-foreground border-border",
   Submitted: "bg-primary-soft/60 text-primary border-primary/20",
-  "Under Review": "bg-warning/15 text-warning-foreground border-warning/30",
+  "Under Review": "bg-warning/15 text-warning border-warning/30",
   Approved: "bg-success/10 text-success border-success/20",
   Rejected: "bg-destructive/10 text-destructive border-destructive/20",
-  "Revision Required": "bg-warning/15 text-warning-foreground border-warning/30",
+  "Revision Required": "bg-warning/15 text-warning border-warning/30",
 };
 
 export function PriorityBadge({ priority }: { priority: ReportPriority }) {

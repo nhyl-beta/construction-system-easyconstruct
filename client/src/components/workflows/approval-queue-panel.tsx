@@ -40,9 +40,12 @@ import { WorkflowFormatService } from "@/features/workflows/services/workflow.se
 import { formatRelativeTime } from "@/lib/format-relative-time";
 import type { ApprovalScope } from "@/features/workflows/types/workflow.types";
 
+// "medium" is text-warning, not text-warning-foreground — that token is dark
+// ink meant for text ON a filled bg-warning chip, not standalone text on a
+// translucent bg-warning/15 tint; its dark-mode value is nearly black.
 const SEVERITY_TONE: Record<string, string> = {
   high: "bg-destructive/10 text-destructive border-destructive/20",
-  medium: "bg-warning/15 text-warning-foreground border-warning/30",
+  medium: "bg-warning/15 text-warning border-warning/30",
   low: "bg-muted text-muted-foreground border-border",
 };
 

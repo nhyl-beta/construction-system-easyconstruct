@@ -236,7 +236,7 @@ export default function FinanceExpensesPage() {
                                 e.anomalyScore > 0.6
                                   ? "border-destructive/30 text-destructive bg-destructive/10"
                                   : e.anomalyScore > 0.3
-                                    ? "border-warning/30 text-warning-foreground bg-warning/10"
+                                    ? "border-warning/30 text-warning bg-warning/10"
                                     : "border-success/30 text-success bg-success/10"
                               }`}
                             >
@@ -275,7 +275,7 @@ export default function FinanceExpensesPage() {
                     .map((e) => (
                       <li key={e.id} className="rounded-xl border bg-warning/5 p-3">
                         <div className="flex items-center gap-2 text-xs">
-                          <Sparkles className="h-3 w-3 text-warning-foreground" />
+                          <Sparkles className="h-3 w-3 text-warning" />
                           <span className="font-mono">{e.id}</span>
                           <span>·</span>
                           <span className="font-medium">{e.vendor}</span>

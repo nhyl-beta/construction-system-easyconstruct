@@ -39,7 +39,7 @@ import { formatDue } from "@/features/projects/lib/project-format";
 const STATUS_TONE: Record<MilestoneStatus, string> = {
   draft: "bg-muted text-muted-foreground border-border",
   active: "bg-info/10 text-info border-info/20",
-  "at-risk": "bg-warning/15 text-warning-foreground border-warning/30",
+  "at-risk": "bg-warning/15 text-warning border-warning/30",
   completed: "bg-success/10 text-success border-success/20",
   cancelled: "bg-destructive/10 text-destructive border-destructive/20",
 };

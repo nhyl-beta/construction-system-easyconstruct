@@ -354,7 +354,7 @@ export default function FinanceDashboardPage() {
                           p.margin >= 0.15
                             ? "text-success"
                             : p.margin >= 0.1
-                            ? "text-warning-foreground"
+                            ? "text-warning"
                             : "text-destructive"
                         }`}
                       >
@@ -413,9 +413,9 @@ export default function FinanceDashboardPage() {
                     r.level === "critical"
                       ? "text-destructive"
                       : r.level === "high"
-                      ? "text-warning-foreground"
+                      ? "text-warning"
                       : r.level === "medium"
-                      ? "text-warning-foreground"
+                      ? "text-warning"
                       : "text-success";
                   return (
                     <li
@@ -485,7 +485,7 @@ export default function FinanceDashboardPage() {
 
         <Card className="rounded-2xl border-warning/30 bg-warning/5">
           <CardContent className="flex items-start gap-3 p-4">
-            <AlertTriangle className="mt-0.5 h-4 w-4 text-warning-foreground" />
+            <AlertTriangle className="mt-0.5 h-4 w-4 text-warning" />
             <div className="text-xs text-muted-foreground">
               <span className="font-medium text-foreground">
                 AI advisor disclosure.

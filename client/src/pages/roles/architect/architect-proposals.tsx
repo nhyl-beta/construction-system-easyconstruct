@@ -282,7 +282,7 @@ export default function ArchitectProposals() {
       {designSubmission.warning && (
         <p
           role="alert"
-          className="rounded-lg border border-warning/30 bg-warning/5 px-3 py-2 text-sm text-warning-foreground"
+          className="rounded-lg border border-warning/30 bg-warning/5 px-3 py-2 text-sm text-warning"
         >
           {designSubmission.warning}
         </p>

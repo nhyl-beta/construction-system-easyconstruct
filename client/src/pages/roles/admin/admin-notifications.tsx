@@ -11,7 +11,7 @@ import { formatRelativeTime } from "@/lib/format-relative-time";
 
 const TYPE_TONE: Record<string, string> = {
   info: "bg-primary/10 text-primary border-primary/20",
-  warning: "bg-warning/15 text-warning-foreground border-warning/30",
+  warning: "bg-warning/15 text-warning border-warning/30",
   alert: "bg-destructive/10 text-destructive border-destructive/20",
   success: "bg-success/10 text-success border-success/20",
 };

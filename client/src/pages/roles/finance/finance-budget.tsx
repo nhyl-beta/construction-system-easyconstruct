@@ -82,7 +82,7 @@ const kindTone: Record<AdjustmentKind, string> = {
   increase: "text-destructive bg-destructive/10",
   decrease: "text-success bg-success/10",
   transfer: "text-primary bg-primary/10",
-  emergency: "text-warning-foreground bg-warning/15",
+  emergency: "text-warning bg-warning/15",
 };
 
 import { ApprovalStepper } from "@/components/ui/approval-stepper";

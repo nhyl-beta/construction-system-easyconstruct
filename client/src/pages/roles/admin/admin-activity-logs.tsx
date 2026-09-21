@@ -13,7 +13,7 @@ const ACTION_TONE: Record<string, string> = {
   approved: "bg-success/10 text-success border-success/20",
   rejected: "bg-destructive/10 text-destructive border-destructive/20",
   deleted: "bg-destructive/10 text-destructive border-destructive/20",
-  updated: "bg-warning/15 text-warning-foreground border-warning/30",
+  updated: "bg-warning/15 text-warning border-warning/30",
 };
 
 export default function AdminActivityLogsPage() {

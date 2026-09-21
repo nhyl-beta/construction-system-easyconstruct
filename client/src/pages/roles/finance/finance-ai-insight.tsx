@@ -112,7 +112,7 @@ export default function FinanceAiReviewPage() {
                     r.level === "critical"
                       ? "text-destructive"
                       : r.level === "high"
-                      ? "text-warning-foreground"
+                      ? "text-warning"
                       : "text-success"
                   }`}
                 />
