@@ -8,12 +8,13 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { cn } from "@/lib/utils";
-import { Check, ChevronDown, Monitor, Moon, Sun } from "lucide-react";
+import { Check, ChevronDown, Moon, Sun } from "lucide-react";
 import React from "react";
 import { useTheme } from "./theme-provider";
 
+// Light/Dark only — no "System" option. See theme-provider.tsx.
 type ThemeOption = {
-  value: "light" | "dark" | "system";
+  value: "light" | "dark";
   label: string;
   icon: React.ReactNode;
 };
@@ -28,11 +29,6 @@ const themeOptions: ThemeOption[] = [
     value: "dark",
     label: "Dark",
     icon: <Moon className="h-4 w-4" />,
-  },
-  {
-    value: "system",
-    label: "System",
-    icon: <Monitor className="h-4 w-4" />,
   },
 ];
 

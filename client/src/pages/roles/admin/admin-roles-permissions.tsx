@@ -19,7 +19,7 @@ export default function AdminRolesPermissionsPage() {
           <Info className="mt-0.5 h-4 w-4 shrink-0" />
           <p>
             This is a read-only view. Role assignment and permission changes
-            are a Super Admin responsibility and aren't performed from this
+            are an IT Designer responsibility and aren't performed from this
             screen.
           </p>
         </div>

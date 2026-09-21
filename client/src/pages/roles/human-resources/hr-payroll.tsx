@@ -12,6 +12,8 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
+import { DataTablePagination } from "@/components/refine-ui/data-table/data-table-pagination";
+import { usePagination } from "@/hooks/use-pagination";
 import {
   Checkpoint,
   KpiMini,
@@ -217,6 +219,7 @@ export default function HRPayrollPage() {
     return { gross, net, overtimeCost };
   }, [rows]);
 
+  const pagination = usePagination(rows, 10);
   const period = rows[0]?.period ?? "Current period";
   const totalHours = rows.reduce((s, r) => s + r.hours, 0);
   const awaitingApproval =
@@ -446,7 +449,7 @@ export default function HRPayrollPage() {
                     </TableCell>
                   </TableRow>
                 )}
-                {rows.map((p) => (
+                {pagination.pageItems.map((p) => (
                   <TableRow key={p.id} className="hover:bg-muted/40">
                     <TableCell>
                       <div className="flex items-center gap-2">
@@ -500,6 +503,11 @@ export default function HRPayrollPage() {
                 ))}
               </TableBody>
             </Table>
+            {rows.length > 0 && (
+              <div className="px-4 pt-3">
+                <DataTablePagination {...pagination} />
+              </div>
+            )}
           </CardContent>
         </Card>
 

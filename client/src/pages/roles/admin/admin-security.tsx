@@ -4,6 +4,8 @@ import { Badge } from "@/components/ui/badge";
 import { PageContainer } from "@/components/refine-ui/views/page-container";
 import { PageHeader } from "@/components/refine-ui/views/page-header";
 import { PageContent } from "@/components/refine-ui/views/page-content";
+import { DataTablePagination } from "@/components/refine-ui/data-table/data-table-pagination";
+import { usePagination } from "@/hooks/use-pagination";
 import { useAuditLogs } from "@/features/audit-logs/hooks/useAuditLogs";
 import { useSecurityOverview } from "@/features/audit-logs/hooks/useSecurityOverview";
 import { formatRelativeTime } from "@/lib/format-relative-time";
@@ -17,10 +19,13 @@ export default function AdminSecurityPage() {
   const { logs, loading, error } = useAuditLogs();
   const security = useSecurityOverview();
 
+  // Previously hard-capped at the first 20 (silently hiding the rest);
+  // real pagination replaces that cap instead of stacking on top of it.
   const sensitiveEvents = useMemo(
-    () => logs.filter((log) => SENSITIVE_ACTIONS.has(log.action)).slice(0, 20),
+    () => logs.filter((log) => SENSITIVE_ACTIONS.has(log.action)),
     [logs],
   );
+  const pagination = usePagination(sensitiveEvents, 10);
 
   return (
     <PageContainer>
@@ -45,7 +50,7 @@ export default function AdminSecurityPage() {
           )}
           {!loading && sensitiveEvents.length > 0 && (
             <div className="space-y-2">
-              {sensitiveEvents.map((log) => (
+              {pagination.pageItems.map((log) => (
                 <div
                   key={log.id}
                   className="flex items-center justify-between gap-3 rounded-xl border border-border/70 bg-card px-4 py-3"
@@ -73,6 +78,7 @@ export default function AdminSecurityPage() {
                   </div>
                 </div>
               ))}
+              <DataTablePagination {...pagination} />
             </div>
           )}
         </div>

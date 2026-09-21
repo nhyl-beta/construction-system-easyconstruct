@@ -1,6 +1,7 @@
-// NOTE: "super-admin" is intentionally absent — the role was merged into
-// "it-designer". Any token still carrying it falls through toFrontendRole()
-// unchanged and lands on the default role config.
+// NOTE: the legacy platform-admin role (since renamed "IT-Designer") has no
+// separate entry here — it is stored as "it-designer" below. Any token still
+// carrying its old identifier falls through toFrontendRole() unchanged and
+// lands on the default role config.
 export const BACKEND_TO_FRONTEND_ROLE: Record<string, string> = {
   admin: "admin",
   owner: "owner",

@@ -114,11 +114,11 @@ async function main() {
      WHERE d.assigned_engineer_id IS NOT NULL
     ON CONFLICT (design_id, user_id) DO NOTHING;
 
-    -- Super Admin was merged into IT Designer: every grant the role held is
-    -- now an it-designer grant (see the requireRole calls across server/src).
-    -- Existing rows have to move with it, or those accounts would hold a role
-    -- string no requireRole() check matches any more and would be locked out
-    -- of every guarded route.
+    -- The legacy platform-admin role ('super-admin') was renamed/merged into
+    -- IT Designer: every grant it held is now an it-designer grant (see the
+    -- requireRole calls across server/src). Existing rows have to move with
+    -- it, or those accounts would hold a role string no requireRole() check
+    -- matches any more and would be locked out of every guarded route.
     UPDATE users SET role = 'it-designer' WHERE role = 'super-admin';
     UPDATE project_members SET role = 'it-designer' WHERE role = 'super-admin';
     DELETE FROM roles WHERE name = 'super-admin';

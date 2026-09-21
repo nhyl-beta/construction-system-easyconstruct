@@ -9,8 +9,13 @@ import { PageContent } from "@/components/refine-ui/views/page-content";
 import { NewWorkflowTemplateDialog } from "@/components/workflows/new-workflow-template-dialog";
 import { useWorkflowTemplates } from "@/features/workflows/hooks/useWorkflows";
 import { WorkflowFormatService } from "@/features/workflows/services/workflow.service";
+import { useAuth } from "@/auth/auth-context";
 
 export default function AdminWorkflowConfigurationPage() {
+  const { user } = useAuth();
+  // IT Designer's workflow scope is read-only — the server already rejects
+  // POST /workflows/templates for this role (server/src/workflows/routes.ts).
+  const canManage = user?.role !== "it-designer";
   const { templates, loading, error, creatingTemplate, createTemplate } =
     useWorkflowTemplates();
   const [dialogOpen, setDialogOpen] = useState(false);
@@ -19,12 +24,18 @@ export default function AdminWorkflowConfigurationPage() {
     <PageContainer>
       <PageHeader
         title="Workflow configuration"
-        description="Define custom workflow templates — the stage sequence each one runs through — and see every template available for initiation."
+        description={
+          canManage
+            ? "Define custom workflow templates — the stage sequence each one runs through — and see every template available for initiation."
+            : "The stage sequence each workflow template runs through. Read-only for this role."
+        }
         actions={
-          <Button className="rounded-xl" onClick={() => setDialogOpen(true)}>
-            <Plus className="h-4 w-4" />
-            New template
-          </Button>
+          canManage ? (
+            <Button className="rounded-xl" onClick={() => setDialogOpen(true)}>
+              <Plus className="h-4 w-4" />
+              New template
+            </Button>
+          ) : undefined
         }
       />
       <PageContent className="space-y-4 p-6 md:p-8">

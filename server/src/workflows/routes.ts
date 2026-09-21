@@ -20,10 +20,15 @@ router.use(authenticate);
 // review, Engineer raises a budget-change request, HR raises subcontractor
 // planning. Restricting creation to PM/admin was what left those roles with
 // a stage to decide but no way to initiate the chain that reaches it.
+//
+// IT Designer is deliberately absent from every write gate in this file
+// (create/update/delete/decide/attach/template) — its workflow scope is
+// read-only, unlike its full read+write scope over users/documents/activity
+// logs elsewhere. This is enforced here, not just by hiding the client's
+// buttons, so a direct API call from that role is rejected too.
 const canInitiateWorkflow = requireRole(
   "project-manager",
   "admin",
-  "it-designer",
   "architect",
   "engineer",
   "human-resources",
@@ -34,12 +39,10 @@ const canInitiateWorkflow = requireRole(
 router.get("/templates", controller.getTemplates);
 // Defining a NEW template (the steps/roles/order future workflows can be
 // started from) is an org-wide configuration change, not a day-to-day
-// workflow action — kept to the same admin/it-designer pair that manages
-// workflow oversight and approval hierarchy elsewhere, not the broader
-// canInitiateWorkflow set that raises individual workflow instances.
+// workflow action — kept to admin only (see the IT Designer note above).
 router.post(
   "/templates",
-  requireRole("admin", "it-designer"),
+  requireRole("admin"),
   validate(createWorkflowTemplateSchema),
   controller.createTemplate,
 );
@@ -75,19 +78,19 @@ router.post(
   controller.uploadAttachment,
 );
 
-// Route-level gate is "who may ever call this" (PM/admin/it-designer);
+// Route-level gate is "who may ever call this" (PM/admin);
 // "who may call it on THIS workflow" (creator, or admin bypass) is
 // enforced in service.assertCanManageWorkflow.
 router.patch(
   "/:id",
-  requireRole("project-manager", "admin", "it-designer"),
+  requireRole("project-manager", "admin"),
   validate(updateWorkflowSchema),
   controller.update,
 );
 
 router.delete(
   "/:id",
-  requireRole("project-manager", "admin", "it-designer"),
+  requireRole("project-manager", "admin"),
   controller.remove,
 );
 
@@ -101,7 +104,6 @@ router.patch(
     "engineer",
     "consultant",
     "admin",
-    "it-designer",
   ),
   validate(decideStageSchema),
   controller.decideStage,

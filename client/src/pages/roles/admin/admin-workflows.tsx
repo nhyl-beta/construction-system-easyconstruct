@@ -24,8 +24,14 @@ import {
   Plus,
   Trash2,
 } from "lucide-react";
+import { useAuth } from "@/auth/auth-context";
 
 export default function AdminWorkflowsPage() {
+  const { user } = useAuth();
+  // IT Designer's workflow scope is read-only — the server already rejects
+  // create/update/delete for this role (server/src/workflows/routes.ts); the
+  // actions are hidden here too instead of leaving buttons that always 403.
+  const canManage = user?.role !== "it-designer";
   const { templates, loading: templatesLoading, creating, createWorkflow } = useWorkflowTemplates();
   const { workflows, loading: workflowsLoading, reload, update, remove } = useActiveWorkflows();
   const [dialogOpen, setDialogOpen] = useState(false);
@@ -44,10 +50,12 @@ export default function AdminWorkflowsPage() {
             then monitor them through to completion across every role.
           </p>
         </div>
-        <Button className="rounded-xl" onClick={() => setDialogOpen(true)}>
-          <Plus className="h-4 w-4" />
-          New workflow
-        </Button>
+        {canManage && (
+          <Button className="rounded-xl" onClick={() => setDialogOpen(true)}>
+            <Plus className="h-4 w-4" />
+            New workflow
+          </Button>
+        )}
       </div>
 
       <Tabs defaultValue="approvals" className="space-y-5">
@@ -113,27 +121,31 @@ export default function AdminWorkflowsPage() {
                   >
                     <Eye className="h-3.5 w-3.5" /> Documents & data
                   </Button>
-                  <Button
-                    variant="ghost"
-                    size="icon"
-                    className="h-8 w-8 rounded-lg"
-                    title="Edit"
-                    onClick={() => setEditingWorkflow(workflow)}
-                  >
-                    <Pencil className="h-3.5 w-3.5" />
-                  </Button>
-                  <Button
-                    variant="ghost"
-                    size="icon"
-                    className="h-8 w-8 rounded-lg text-destructive hover:text-destructive"
-                    title="Delete"
-                    onClick={async () => {
-                      if (!window.confirm(`Delete workflow "${workflow.title}"?`)) return;
-                      await remove(workflow.id);
-                    }}
-                  >
-                    <Trash2 className="h-3.5 w-3.5" />
-                  </Button>
+                  {canManage && (
+                    <>
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        className="h-8 w-8 rounded-lg"
+                        title="Edit"
+                        onClick={() => setEditingWorkflow(workflow)}
+                      >
+                        <Pencil className="h-3.5 w-3.5" />
+                      </Button>
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        className="h-8 w-8 rounded-lg text-destructive hover:text-destructive"
+                        title="Delete"
+                        onClick={async () => {
+                          if (!window.confirm(`Delete workflow "${workflow.title}"?`)) return;
+                          await remove(workflow.id);
+                        }}
+                      >
+                        <Trash2 className="h-3.5 w-3.5" />
+                      </Button>
+                    </>
+                  )}
                 </div>
               </CardHeader>
               <CardContent>

@@ -62,9 +62,9 @@ export type RoleConfig = {
   sections: SidebarSection[];
 };
 
-// NOTE: there is no `super_admin` entry — that role was merged into
-// `it_designer`, which now carries its platform-administration scope on
-// top of its own user/system administration.
+// NOTE: there is no legacy platform-admin entry — that role was merged into
+// `it_designer` (renamed IT-Designer), which now carries its
+// platform-administration scope on top of its own user/system administration.
 export const ROLE_CONFIGS: Record<string, RoleConfig> = {
   admin: {
     label: "Admin",
@@ -118,7 +118,7 @@ export const ROLE_CONFIGS: Record<string, RoleConfig> = {
   },
   // Owner is admin-adjacent but read-only: the executive sees everything the
   // organization is doing and nothing that changes it, so the Configuration
-  // and Support sections Super Admin carries are deliberately absent.
+  // and Support sections IT-Designer carries are deliberately absent.
   owner: {
     label: "Owner",
     initials: "OW",
@@ -201,8 +201,9 @@ export const ROLE_CONFIGS: Record<string, RoleConfig> = {
           { label: "Roles & Permissions", icon: UserCheck, route: "/it-designer/roles-permissions" },
         ],
       },
-      // Absorbed from the former Super Admin role: platform administration
-      // over projects, workflows and documents, plus system configuration.
+      // Absorbed from the legacy platform-admin role, since renamed
+      // IT-Designer: administration over projects, workflows and documents,
+      // plus system configuration.
       {
         label: "Operations",
         items: [

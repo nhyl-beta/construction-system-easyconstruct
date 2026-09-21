@@ -26,7 +26,7 @@ export const ROLE_RESOURCE_ACCESS: Record<string, string[]> = {
     "dashboard",
     "it-designer-users",
     "it-designer-proposals",
-    // Absorbed from the former Super Admin role.
+    // Absorbed from the legacy platform-admin role, since renamed IT-Designer.
     "admin-projects",
     "admin-workflows",
     "admin-documents",

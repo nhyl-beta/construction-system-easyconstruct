@@ -22,13 +22,13 @@ import {
   Paperclip,
   PenLine,
   Sparkles,
+  Upload,
   XCircle,
 } from "lucide-react";
 
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
-import { Input } from "@/components/ui/input";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Textarea } from "@/components/ui/textarea";
 import { useAuth } from "@/auth/auth-context";
@@ -92,6 +92,12 @@ export function ApprovalQueuePanel({
     }
   };
   const [detailWorkflowId, setDetailWorkflowId] = useState<number | null>(null);
+
+  // IT Designer's workflow scope is read-only, enforced first on the server
+  // (server/src/workflows/routes.ts) — decide/attach would 403 there even if
+  // shown here. Hidden client-side too, so IT Designer doesn't hit a wall of
+  // silent failures on buttons that were never going to work for this role.
+  const canDecide = user?.role !== "it-designer";
 
   const statCards = stats
     ? [
@@ -255,7 +261,11 @@ export function ApprovalQueuePanel({
                   >
                     <Eye className="h-3.5 w-3.5" /> View details
                   </Button>
-                  {tab === "pending" ? (
+                  {tab === "pending" && !canDecide ? (
+                    <Badge variant="outline" className="rounded-full text-[10px]">
+                      Read-only
+                    </Badge>
+                  ) : tab === "pending" ? (
                     <div className="flex w-full flex-col items-end gap-2 md:w-64">
                       {/* Finance needed a way to attach its own cost-impact
                           document to a budget change before approving it —
@@ -263,17 +273,29 @@ export function ApprovalQueuePanel({
                           screen, only the comment box. Any approver can use
                           it; it is not finance-specific in the component. */}
                       <div className="flex w-full items-center gap-1.5">
-                        <Input
-                          type="file"
-                          accept=".pdf,.doc,.docx,.xls,.xlsx,.ppt,.pptx,.png,.jpg,.jpeg"
-                          className="h-8 flex-1 rounded-lg text-xs file:text-xs"
-                          onChange={(e) =>
-                            setPendingFiles((prev) => ({
-                              ...prev,
-                              [a.stageId]: e.target.files?.[0] ?? null,
-                            }))
-                          }
-                        />
+                        {/* The native <input type="file"> renders its own
+                            "Choose File" / "No file chosen" text, which
+                            can't be shortened via `placeholder` and wrapped
+                            badly once squeezed next to the Attach button.
+                            Hidden input + our own truncated label, same
+                            pattern as architect-design-create.tsx. */}
+                        <label className="flex h-8 flex-1 min-w-0 cursor-pointer items-center gap-1.5 rounded-lg border border-input bg-transparent px-2.5 text-xs hover:border-primary/40">
+                          <Paperclip className="h-3.5 w-3.5 shrink-0 text-muted-foreground" />
+                          <span className="truncate">
+                            {pendingFiles[a.stageId]?.name ?? "Choose file"}
+                          </span>
+                          <input
+                            type="file"
+                            accept=".pdf,.doc,.docx,.xls,.xlsx,.ppt,.pptx,.png,.jpg,.jpeg"
+                            className="hidden"
+                            onChange={(e) =>
+                              setPendingFiles((prev) => ({
+                                ...prev,
+                                [a.stageId]: e.target.files?.[0] ?? null,
+                              }))
+                            }
+                          />
+                        </label>
                         <Button
                           size="sm"
                           variant="outline"
@@ -281,7 +303,7 @@ export function ApprovalQueuePanel({
                           disabled={!pendingFiles[a.stageId] || uploadingStageId === a.stageId}
                           onClick={() => void attachDocument(a.workflowId, a.stageId)}
                         >
-                          <Paperclip className="h-3.5 w-3.5" />
+                          <Upload className="h-3.5 w-3.5" />
                           {uploadingStageId === a.stageId ? "Attaching…" : "Attach"}
                         </Button>
                       </div>

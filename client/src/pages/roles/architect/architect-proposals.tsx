@@ -416,31 +416,37 @@ export default function ArchitectProposals() {
         </div>
       )}
 
-      <div className="rounded-2xl border">
+      {/* Fixed rem-based widths (w-24, w-48, w-56 x2, ...) summed to ~1300px
+          regardless of viewport, which is what forced the horizontal
+          scrollbar — table-fixed respects those literally instead of
+          shrinking. Percentage widths keep the same relative proportions but
+          always sum to 100% of the container, so text wraps (TableCell
+          already breaks words by default) instead of overflowing. */}
+      <div className="overflow-hidden rounded-2xl border">
         <Table className="table-fixed">
           <TableHeader>
             <TableRow>
-              <TableHead className="w-24">ID</TableHead>
+              <TableHead className="w-[8%]">ID</TableHead>
 
-              <TableHead className="w-48">Title</TableHead>
+              <TableHead className="w-[16%]">Title</TableHead>
 
-              <TableHead className="w-28">Project</TableHead>
+              <TableHead className="w-[9%]">Project</TableHead>
 
-              <TableHead className="w-36">
+              <TableHead className="w-[11%]">
                 Submitted by
               </TableHead>
 
-              <TableHead className="w-28 text-right">
+              <TableHead className="w-[8%] text-right">
                 Amount
               </TableHead>
 
-              <TableHead className="w-32">Status</TableHead>
+              <TableHead className="w-[10%]">Status</TableHead>
 
-              <TableHead className="w-56">Validation</TableHead>
+              <TableHead className="w-[16%]">Validation</TableHead>
 
-              <TableHead className="w-56">Review</TableHead>
+              <TableHead className="w-[16%]">Review</TableHead>
 
-              <TableHead className="w-16" />
+              <TableHead className="w-[6%]" />
             </TableRow>
           </TableHeader>
 
@@ -494,11 +500,11 @@ export default function ArchitectProposals() {
                     />
                   </TableCell>
 
-                  <TableCell className="max-w-xs">
+                  <TableCell>
                     <ValidationSummary raw={proposal.aiValidation} />
                   </TableCell>
 
-                  <TableCell className="max-w-xs text-sm">
+                  <TableCell className="text-sm">
                     {proposal.reviewComment ? (
                       <div>
                         <p className="line-clamp-2">

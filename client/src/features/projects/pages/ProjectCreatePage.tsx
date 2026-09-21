@@ -518,7 +518,7 @@ function StepTeam({
   setTeam: (updater: (prev: TeamSelections) => TeamSelections) => void;
 }) {
   // A Project Manager creating their own project can't assign a different
-  // PM — it's always them. Admin/Super Admin still assign a real PM, picked
+  // PM — it's always them. Admin/IT Designer still assign a real PM, picked
   // from actual project-manager accounts (not the old hardcoded name list).
   const isSelfAssigned = currentUserRole === "project-manager";
   const { users: pmOptions, loading: pmOptionsLoading } = useUsersByRole(

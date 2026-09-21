@@ -10,9 +10,9 @@ import { workflowTemplates } from "../db/schema/workflows.js";
 const PASSWORD = "Demo@12345";
 
 const ACCOUNTS = [
-  // NOTE: the Super Admin role was merged into IT Designer — its demo
-  // account (superadmin@easyconstruct.demo) is intentionally gone. Every
-  // grant it held now belongs to it-designer below.
+  // NOTE: the legacy platform-admin role was renamed/merged into IT Designer
+  // — its old demo account (superadmin@easyconstruct.demo) is intentionally
+  // gone. Every grant it held now belongs to it-designer below.
   { name: "Dana Reyes", email: "admin@easyconstruct.demo", role: "admin", employeeRole: "Admin", department: "Administration" },
   { name: "Miguel Santos", email: "pm@easyconstruct.demo", role: "project-manager", employeeRole: "Project Manager", department: "Project Management" },
   { name: "Liza Torres", email: "hr@easyconstruct.demo", role: "human-resources", employeeRole: "HR Officer", department: "Human Resources" },
@@ -38,7 +38,7 @@ const ROLES = [
   { name: "site-personnel", label: "Site Personnel", description: "Geofenced attendance, field task updates, documents, and issue reporting." },
   { name: "consultant", label: "Consultant", description: "Advisory review of design proposals and advisory documentation." },
   { name: "owner", label: "Owner", description: "Executive read-only oversight: org-wide performance, audit trail, and system activity." },
-  { name: "it-designer", label: "IT Designer", description: "Platform administration: user accounts, roles, system configuration, monitoring, and maintenance. Absorbed the former Super Admin role." },
+  { name: "it-designer", label: "IT Designer", description: "Platform administration: user accounts, roles, system configuration, monitoring, and maintenance." },
 ] as const;
 
 const TEMPLATES = [

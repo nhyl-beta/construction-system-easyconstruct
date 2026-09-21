@@ -15,10 +15,12 @@ import type {
   WorkflowWithStages,
 } from "./types.js";
 
-// Same ownership rule used for project-engineers (EC-017): admin/it-designer
-// may manage any workflow; anyone else only the one they created.
+// Same ownership rule used for project-engineers (EC-017): admin may manage
+// any workflow; anyone else only the one they created. IT Designer used to
+// be included here — it no longer is, since its workflow scope is read-only
+// (see the note on canInitiateWorkflow in routes.ts).
 const assertCanManageWorkflow = async (id: number, requesterRole: string, requesterName: string) => {
-  if (PRIVILEGED_ROLES.includes(requesterRole)) return;
+  if (requesterRole === "admin") return;
   const workflow = await repo.findWorkflowById(id);
   if (!workflow) throw new NotFoundError("Workflow", String(id));
   if (workflow.createdBy !== requesterName) {
@@ -405,11 +407,14 @@ export const decideStage = async (
       `Stage ${stageId} is '${stage.status}' and is not awaiting a decision`,
     );
   }
-  // Intentional (EC-003, decided): admin/it-designer can decide ANY stage
-  // regardless of its assigned role. This is a deliberate escalation/
-  // override path (e.g. a role-holder is unavailable) — do not remove or
-  // restrict this without a product decision to do so.
-  const isPrivileged = requesterRole === "admin" || requesterRole === "it-designer";
+  // Intentional (EC-003, decided): admin can decide ANY stage regardless of
+  // its assigned role. This is a deliberate escalation/override path (e.g. a
+  // role-holder is unavailable) — do not remove or restrict this without a
+  // product decision to do so. IT Designer is deliberately NOT included:
+  // its workflow scope is read-only (routes.ts already blocks it from ever
+  // reaching this function; this check would otherwise re-open the same
+  // door if the route gate were ever changed independently of this one).
+  const isPrivileged = requesterRole === "admin";
   if (!isPrivileged && stage.role !== requesterRole) {
     throw new ForbiddenError(
       `This stage requires a '${stage.role}' decision; you are '${requesterRole}'`,
@@ -463,7 +468,11 @@ const ageLabel = (from: Date | null): string => {
   return `${Math.round(hours / 24)}d`;
 };
 
-const PRIVILEGED_ROLES = ["admin", "it-designer"];
+// Read-scope only: admin/it-designer see every role's pending stages instead
+// of just their own. IT Designer can still SEE the full queue here — it just
+// can't act on any of it (decide/attach are gated to admin and the owning
+// role in routes.ts), which is what "read-only" means for this role.
+const PRIVILEGED_READ_ROLES = ["admin", "it-designer"];
 
 export const getApprovalQueue = async (
   scope: ApprovalScope,
@@ -472,7 +481,7 @@ export const getApprovalQueue = async (
 ): Promise<ApprovalQueueItem[]> => {
   const rows =
     scope === "pending"
-      ? await repo.findPendingStagesForRole(requesterRole, PRIVILEGED_ROLES.includes(requesterRole))
+      ? await repo.findPendingStagesForRole(requesterRole, PRIVILEGED_READ_ROLES.includes(requesterRole))
       : scope === "mine"
         ? await repo.findDecidedStagesBy(requesterName)
         : await repo.findAllDecidedStages();

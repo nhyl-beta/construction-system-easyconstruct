@@ -5,6 +5,8 @@ import { Input } from "@/components/ui/input";
 import { PageContainer } from "@/components/refine-ui/views/page-container";
 import { PageHeader } from "@/components/refine-ui/views/page-header";
 import { PageContent } from "@/components/refine-ui/views/page-content";
+import { DataTablePagination } from "@/components/refine-ui/data-table/data-table-pagination";
+import { usePagination } from "@/hooks/use-pagination";
 import { useAuditLogs } from "@/features/audit-logs/hooks/useAuditLogs";
 import { formatRelativeTime } from "@/lib/format-relative-time";
 
@@ -38,6 +40,8 @@ export default function AdminActivityLogsPage() {
       return true;
     });
   }, [logs, entityType, search]);
+
+  const pagination = usePagination(filtered, 10);
 
   return (
     <PageContainer>
@@ -107,7 +111,7 @@ export default function AdminActivityLogsPage() {
                 </tr>
               </thead>
               <tbody>
-                {filtered.map((log) => (
+                {pagination.pageItems.map((log) => (
                   <tr key={log.id} className="border-b border-border/60 last:border-0 hover:bg-muted/30">
                     <td className="px-5 py-3.5 font-medium">{log.actor}</td>
                     <td className="px-3 py-3.5">
@@ -126,6 +130,9 @@ export default function AdminActivityLogsPage() {
                 ))}
               </tbody>
             </table>
+            <div className="border-t border-border/70 px-2 py-3">
+              <DataTablePagination {...pagination} />
+            </div>
           </div>
         )}
       </PageContent>

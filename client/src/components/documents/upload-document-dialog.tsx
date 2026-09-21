@@ -12,6 +12,7 @@ import {
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { ProjectPicker } from "@/components/shared/project-picker";
 
 import {
   Select,
@@ -112,14 +113,16 @@ export function UploadDocumentDialog({
           </div>
 
           <div className="grid gap-1.5">
-            <Label htmlFor="doc-project">Project code</Label>
+            <Label>Project</Label>
 
-            <Input
-              id="doc-project"
-              value={project}
-              onChange={(e) => setProject(e.target.value)}
-              placeholder="e.g. WGT-04"
-            />
+            {/* Was a free-text field: a typo or case mismatch here produced a
+                `project` value that matched no real project code, which then
+                silently failed the PM-scoped project filter in
+                GET /documents (server/src/documents/controller.ts) — the
+                document existed but could never appear in this PM's own
+                repository view. A picker over real project codes makes that
+                mismatch impossible. */}
+            <ProjectPicker value={project} onChange={setProject} className="w-full" />
           </div>
 
           <div className="grid gap-1.5">
