@@ -112,6 +112,55 @@ const TEMPLATES = [
       { role: "admin", roleLabel: "Admin Sign-off", iconKey: "ShieldCheck" },
     ],
   },
+  // Name must be exactly "Public works compliance" — it's matched by string
+  // (see client/src/components/workflows/workflow-initiation-actions.tsx's
+  // PUBLIC_WORKS_COMPLIANCE_ACTION and the "only" filters on
+  // architect-proposals.tsx / architect-reviews.tsx). A prior manually-
+  // created row here was named "Public work compliance" (no "s"), which
+  // matched none of those lookups and produced "No 'Public works compliance'
+  // workflow template is configured."
+  {
+    name: "Public works compliance",
+    description: "Architect review for a public-sector project; PM, Finance and Admin sign off.",
+    avgDurationHours: "34.0",
+    defaultStages: [
+      { role: "architect", roleLabel: "Architect Review", iconKey: "FileSignature" },
+      { role: "project-manager", roleLabel: "Project Manager", iconKey: "UserCheck" },
+      { role: "finance-manager", roleLabel: "Finance Manager", iconKey: "Wallet" },
+      { role: "admin", roleLabel: "Admin", iconKey: "ShieldCheck" },
+    ],
+  },
+  // New: gives Consultant an initiation action of its own — it could already
+  // decide on a stage (Design Proposal Approval's Consultant Review) and the
+  // route already permits it to initiate (canInitiateWorkflow in
+  // workflows/routes.ts), but no template ever put a Consultant-owned stage
+  // first, so WORKFLOW_ACTIONS_BY_ROLE had no entry for it and the role had
+  // no "start a workflow" button anywhere in the app.
+  {
+    name: "Document Compliance Review",
+    description: "Consultant flags an advisory document for compliance review; Architect and Admin sign off.",
+    avgDurationHours: "40.0",
+    defaultStages: [
+      { role: "consultant", roleLabel: "Consultant Review", iconKey: "UserCheck" },
+      { role: "architect", roleLabel: "Architect Sign-off", iconKey: "FileSignature" },
+      { role: "admin", roleLabel: "Admin Sign-off", iconKey: "ShieldCheck" },
+    ],
+  },
+  // New: a PM-initiated chain distinct from Budget Change Request (which is
+  // Engineer-initiated and framed as a cost justification) — this is a
+  // scope/schedule change the PM raises directly, with Engineer weighing the
+  // technical impact before Finance and Admin sign off on the cost.
+  {
+    name: "Change Order Request",
+    description: "PM raises a scope or schedule change; Engineer assesses impact; Finance and Admin sign off.",
+    avgDurationHours: "60.0",
+    defaultStages: [
+      { role: "project-manager", roleLabel: "PM Request", iconKey: "FileSignature" },
+      { role: "engineer", roleLabel: "Engineer Impact Review", iconKey: "UserCheck" },
+      { role: "finance-manager", roleLabel: "Finance Review", iconKey: "Wallet" },
+      { role: "admin", roleLabel: "Admin Sign-off", iconKey: "ShieldCheck" },
+    ],
+  },
 ] as const;
 
 function initials(name: string) {

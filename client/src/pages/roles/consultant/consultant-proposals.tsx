@@ -752,9 +752,16 @@ export default function ConsultantProposalsPage() {
           </TabsList>
 
           <TabsContent value="approvals" className="pt-4">
+            {/* Was false: at the time, WORKFLOW_ACTIONS_BY_ROLE had no
+                Consultant entry, so this rendered nothing either way. Now
+                that Document Compliance Review gives Consultant an action,
+                and consultant-proposals.tsx is this role's only reachable
+                workflow-approvals screen (role-resources.ts deliberately
+                keeps Consultant off the generic /approvals route), this is
+                the only place that action could ever be shown. */}
             <ApprovalQueuePanel
               emptyPendingMessage="Nothing pending your decision."
-              showInitiationActions={false}
+              showInitiationActions
             />
           </TabsContent>
 

@@ -12,7 +12,7 @@
 // workflows → workflow_stages); nothing here defines a new workflow engine.
 // The template is named, not id'd, because template ids differ per database.
 import { useState } from "react";
-import { FileSignature, LandPlot, Users, Wallet, type LucideIcon } from "lucide-react";
+import { ClipboardCheck, FileSignature, LandPlot, Users, Wallet, type LucideIcon } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
 import {
@@ -123,6 +123,28 @@ export const SUBCONTRACTING_PLAN_ACTION: ActionConfig = {
   submitLabel: "Start plan",
 };
 
+/** Document compliance review (Consultant). */
+export const DOCUMENT_COMPLIANCE_ACTION: ActionConfig = {
+  action: "Flag document for compliance review",
+  icon: ClipboardCheck,
+  variant: "outline",
+  templateName: "Document Compliance Review",
+  title: "Flag a document for compliance review",
+  description:
+    "Starts a compliance review on an advisory document: Architect sign-off, then Admin sign-off.",
+  workflowType: "Document Compliance",
+  titleLabel: "Review title",
+  titlePlaceholder: "Fire code compliance — Tower A egress plan",
+  noteLabel: "Compliance concern",
+  notePlaceholder:
+    "What in the document needs checking, and against which requirement.",
+  noteRequired: true,
+  noteAttachmentLabel: "Compliance review",
+  showDocumentUpload: true,
+  documentLabel: "Document under review (optional)",
+  submitLabel: "Start review",
+};
+
 /**
  * Role → the workflows that role initiates. Roles absent from this map get no
  * launcher; PM/Admin keep the full template picker on their own Workflows and
@@ -132,6 +154,7 @@ export const WORKFLOW_ACTIONS_BY_ROLE: Record<string, ActionConfig[]> = {
   architect: [DESIGN_PROPOSAL_ACTION, PUBLIC_WORKS_COMPLIANCE_ACTION],
   engineer: [BUDGET_CHANGE_ACTION],
   "human-resources": [SUBCONTRACTING_PLAN_ACTION],
+  consultant: [DOCUMENT_COMPLIANCE_ACTION],
 };
 
 interface WorkflowInitiationActionsProps {
