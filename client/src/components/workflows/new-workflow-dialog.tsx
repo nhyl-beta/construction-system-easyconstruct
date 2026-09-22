@@ -100,7 +100,7 @@ export function NewWorkflowDialog({
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-lg">
+      <DialogContent className="max-h-[85vh] max-w-2xl overflow-y-auto">
         <DialogHeader>
           <DialogTitle>New workflow</DialogTitle>
           <DialogDescription>
@@ -108,7 +108,7 @@ export function NewWorkflowDialog({
           </DialogDescription>
         </DialogHeader>
 
-        <div className="grid gap-4 py-2">
+        <div className="grid gap-5 py-2">
           <div className="grid gap-1.5">
             <Label htmlFor="wf-title">Title</Label>
             <Input

@@ -8,23 +8,36 @@ import { ProjectsKpiStrip } from "@/features/projects/components/ProjectsKpiStri
 import { ProjectsTable } from "@/features/projects/components/ProjectsTable";
 import { ProjectsToolbar } from "@/features/projects/components/ProjectsToolbar";
 import { useProjects } from "@/features/projects/hooks/useProjects";
+import { useAuth } from "@/auth/auth-context";
 
 import { Plus } from "lucide-react";
 import { useNavigate } from "react-router";
 
+// Mirrors the route guard on POST /api/projects
+// (server/src/projects/routes.ts: requireRole("project-manager", "admin",
+// "it-designer")). "/projects" is shared by every role whose nav tab points
+// here — Architect and Engineer included — and the button used to render
+// unconditionally, so those roles could open the creation form only to have
+// the backend reject it.
+const CAN_CREATE_PROJECT = ["project-manager", "admin", "it-designer"];
+
 export default function PMProjects() {
   const ctrl = useProjects();
   const navigate = useNavigate();
+  const { user } = useAuth();
+  const canCreate = CAN_CREATE_PROJECT.includes(user?.role ?? "");
 
   return (
     <div className="flex-1 space-y-6 p-4 md:p-8">
       <ProjectsHeader
         subtitle={`Portfolio of ${ctrl.kpis.total} active engagements`}
         actions={
-          <Button onClick={() => navigate("/projects/new")} className="rounded-xl">
-            <Plus className="h-4 w-4 mr-2" />
-            New Project
-          </Button>
+          canCreate ? (
+            <Button onClick={() => navigate("/projects/new")} className="rounded-xl">
+              <Plus className="h-4 w-4 mr-2" />
+              New Project
+            </Button>
+          ) : undefined
         }
       />
 
@@ -35,6 +48,7 @@ export default function PMProjects() {
         setQuery={ctrl.setQuery}
         view={ctrl.view}
         setView={ctrl.setView}
+        showCreate={canCreate}
       />
 
       {ctrl.error ? (

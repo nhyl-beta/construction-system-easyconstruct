@@ -10,11 +10,14 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
+import { Button } from "@/components/ui/button";
 import { ProjectRepository } from "@/features/projects/repositories/project.repository";
 import { ProjectMemberRepository, type ProjectMemberRole } from "@/features/project-members/repositories/project-member.repository";
+import { MilestoneRepository } from "@/features/milestones/repositories/milestone.repository";
+import { LocationMapPicker } from "@/components/maps/location-map-picker";
 import { useAuth } from "@/auth/auth-context";
 import { useUsersByRole } from "@/features/users/hooks/use-users-by-role";
-import { Info, MapPin, UserCheck } from "lucide-react";
+import { Flag, Info, MapPin, Trash2, UserCheck } from "lucide-react";
 import { useState } from "react";
 import { useNavigate } from "react-router";
 import { PROJECT_CURRENCIES, RISK_LEVELS } from "@/features/projects/types/project.types";
@@ -27,6 +30,11 @@ const ASSIGNABLE_TEAM_ROLES: { role: ProjectMemberRole; label: string }[] = [
 ];
 
 type TeamSelections = Partial<Record<ProjectMemberRole, { id: number; name: string }>>;
+
+interface MilestoneDraft {
+  title: string;
+  estimatedCompletionDate: string;
+}
 
 const STEPS: Step[] = [
   {
@@ -72,6 +80,9 @@ interface ProjectFormData {
   type: string;
   contractType: string;
   startDate: string;
+  siteLatitude: number | null;
+  siteLongitude: number | null;
+  geofenceRadiusM: number | null;
 }
 
 const initialForm: ProjectFormData = {
@@ -89,6 +100,9 @@ const initialForm: ProjectFormData = {
   contractType: "",
   currency: "PHP",
   startDate: "",
+  siteLatitude: null,
+  siteLongitude: null,
+  geofenceRadiusM: null,
 };
 
 export default function ProjectCreatePage() {
@@ -107,6 +121,9 @@ export default function ProjectCreatePage() {
   // EC-013/018: optional team assignment at creation time, one person per
   // role — applied via project-members right after the project is created.
   const [team, setTeam] = useState<TeamSelections>({});
+  // Draft milestones set during creation — applied via the milestones API
+  // right after the project is created, same best-effort pattern as `team`.
+  const [milestones, setMilestones] = useState<MilestoneDraft[]>([]);
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -160,6 +177,9 @@ export default function ProjectCreatePage() {
           ? Number(data.contractValue)
           : undefined,
         workforce: 0,
+        siteLatitude: data.siteLatitude,
+        siteLongitude: data.siteLongitude,
+        geofenceRadiusM: data.geofenceRadiusM,
       });
 
       const projectCode = created?.code ?? data.code.trim();
@@ -176,6 +196,21 @@ export default function ProjectCreatePage() {
             role,
           }),
         ),
+      );
+
+      // Same best-effort approach: the project exists either way, and any
+      // milestone that fails to create can still be added from the detail
+      // page's Milestones panel.
+      await Promise.allSettled(
+        milestones
+          .filter((m) => m.title.trim())
+          .map((m) =>
+            MilestoneRepository.create({
+              projectCode,
+              title: m.title.trim(),
+              estimatedCompletionDate: m.estimatedCompletionDate || undefined,
+            }),
+          ),
       );
 
       navigate(projectsListRoute);
@@ -205,7 +240,7 @@ export default function ProjectCreatePage() {
       aiHint="Use AI to generate project timeline from a proposal or document."
     >
       {step === 1 && <StepProjectInfo data={data} set={set} />}
-      {step === 2 && <StepScopeSchedule />}
+      {step === 2 && <StepScopeSchedule milestones={milestones} setMilestones={setMilestones} />}
       {step === 3 && <StepBudget data={data} set={set} />}
       {step === 4 && (
         <StepTeam data={data} set={set} currentUserRole={user?.role ?? ""} team={team} setTeam={setTeam} />
@@ -302,7 +337,7 @@ function StepProjectInfo({
           </Select>
         </div>
 
-        <div className="space-y-1.5">
+        <div className="col-span-2 space-y-1.5">
           <Label>
             Location <span className="text-destructive">*</span>
           </Label>
@@ -315,6 +350,22 @@ function StepProjectInfo({
               className="rounded-xl pl-9"
             />
           </div>
+        </div>
+
+        {/* Map pin sets siteLatitude/siteLongitude, and the geofence radius
+            (geofenceRadiusM) is derived automatically the moment a point is
+            pinned — see LocationMapPicker. */}
+        <div className="col-span-2">
+          <LocationMapPicker
+            latitude={data.siteLatitude}
+            longitude={data.siteLongitude}
+            radiusM={data.geofenceRadiusM}
+            onChange={({ latitude, longitude, radiusM }) => {
+              set("siteLatitude", latitude);
+              set("siteLongitude", longitude);
+              set("geofenceRadiusM", radiusM);
+            }}
+          />
         </div>
 
         <div className="space-y-1.5">
@@ -425,14 +476,35 @@ function StepProjectInfo({
 
 // ── Step 2 — Scope & Schedule ─────────────────────────────────────────────────
 
-function StepScopeSchedule() {
+function StepScopeSchedule({
+  milestones,
+  setMilestones,
+}: {
+  milestones: MilestoneDraft[];
+  setMilestones: (updater: (prev: MilestoneDraft[]) => MilestoneDraft[]) => void;
+}) {
+  const [title, setTitle] = useState("");
+  const [estimatedCompletionDate, setEstimatedCompletionDate] = useState("");
+
+  const addMilestone = () => {
+    if (!title.trim()) return;
+    setMilestones((prev) => [...prev, { title: title.trim(), estimatedCompletionDate }]);
+    setTitle("");
+    setEstimatedCompletionDate("");
+  };
+
+  const removeMilestone = (index: number) => {
+    setMilestones((prev) => prev.filter((_, i) => i !== index));
+  };
+
   return (
     <div className="space-y-6">
       <div>
         <h3 className="text-base font-semibold">Scope & schedule</h3>
         <p className="mt-1 text-sm text-muted-foreground">
-          Define the project scope and timeline milestones. (Not yet persisted —
-          informational only.)
+          Define the project scope, and optionally draft the timeline
+          milestones to create alongside it. Milestones start as drafts and
+          can be edited from the project's detail page afterward.
         </p>
       </div>
       <div className="space-y-4">
@@ -442,6 +514,64 @@ function StepScopeSchedule() {
             placeholder="Describe the full scope of work..."
             className="h-32 resize-none rounded-xl"
           />
+        </div>
+      </div>
+
+      <div className="space-y-3 rounded-xl border border-border bg-muted/20 p-4">
+        <div className="flex items-center gap-2">
+          <Flag className="h-4 w-4 text-muted-foreground" />
+          <h4 className="text-sm font-semibold">Milestones (optional)</h4>
+        </div>
+
+        {milestones.length > 0 && (
+          <ul className="space-y-2">
+            {milestones.map((m, i) => (
+              <li
+                key={i}
+                className="flex items-center justify-between gap-3 rounded-lg border border-border bg-card px-3 py-2 text-sm"
+              >
+                <div className="min-w-0">
+                  <span className="font-medium">{m.title}</span>
+                  {m.estimatedCompletionDate && (
+                    <span className="ml-2 text-xs text-muted-foreground">
+                      Est. {m.estimatedCompletionDate}
+                    </span>
+                  )}
+                </div>
+                <button
+                  type="button"
+                  onClick={() => removeMilestone(i)}
+                  className="shrink-0 text-muted-foreground hover:text-destructive"
+                  title="Remove"
+                >
+                  <Trash2 className="h-3.5 w-3.5" />
+                </button>
+              </li>
+            ))}
+          </ul>
+        )}
+
+        <div className="grid grid-cols-[1fr_auto_auto] items-end gap-2">
+          <div className="space-y-1.5">
+            <Label>Milestone title</Label>
+            <Input
+              placeholder="Foundation pour complete"
+              value={title}
+              onChange={(e) => setTitle(e.target.value)}
+              className="rounded-xl"
+            />
+          </div>
+          <div className="w-44 space-y-1.5">
+            <Label>Estimated date</Label>
+            <DatePicker
+              value={estimatedCompletionDate}
+              onChange={setEstimatedCompletionDate}
+              placeholder="Select date"
+            />
+          </div>
+          <Button type="button" variant="outline" className="rounded-xl" onClick={addMilestone} disabled={!title.trim()}>
+            Add
+          </Button>
         </div>
       </div>
     </div>

@@ -16,9 +16,12 @@ import { PROJECT_CURRENCIES, RISK_LEVELS, type Project } from "@/features/projec
 import { formatCurrency } from "@/lib/format-currency";
 import { useProjectMembers } from "@/features/project-members/hooks/use-project-members";
 import { MilestonesPanel } from "@/features/milestones/components/MilestonesPanel";
+import { LocationMapPicker } from "@/components/maps/location-map-picker";
+import { useProjectDesigns } from "@/features/designs/hooks/useProjectDesigns";
+import { StatusBadge } from "@/components/ui/status-badge";
 import type { ProjectMemberRole } from "@/features/project-members/repositories/project-member.repository";
 import { useUsersByRole } from "@/features/users/hooks/use-users-by-role";
-import { ArrowLeft, HardHat, Loader2, Trash2, UserPlus, X } from "lucide-react";
+import { ArrowLeft, HardHat, Loader2, PencilRuler, Trash2, UserPlus, X } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
 import { Link, useNavigate, useParams } from "react-router";
 import { useAuth } from "@/auth/auth-context";
@@ -335,36 +338,40 @@ export default function ProjectDetailPage() {
         </Field>
 
         {/* Site geofence. attendance/service.ts measures every site clock-in
-            against these three columns, but no screen could set them, so they
-            were NULL on every project: no distance was ever calculated and
-            HR's attendance review had nothing to confirm a location against. */}
+            against these three columns. Was three plain number inputs for
+            lat/lng/radius — accurate coordinates are hard to type by hand, so
+            this is now a map pin instead, with the geofence derived from it
+            automatically (see LocationMapPicker). */}
         <div className="md:col-span-2">
           <h2 className="text-sm font-semibold">Site geofence</h2>
           <p className="mt-0.5 text-xs text-muted-foreground">
             Site Personnel clock-ins are measured against this position. Leave
-            the coordinates empty to record attendance without a geofence
-            check — HR then confirms those clock-ins by hand.
+            it unpinned to record attendance without a geofence check — HR
+            then confirms those clock-ins by hand.
           </p>
         </div>
-        <Field label="Site latitude">
-          {canEdit
-            ? <Input type="number" step="0.0000001" min="-90" max="90" placeholder="14.5995" value={project.siteLatitude ?? ""} onChange={(e) => update("siteLatitude", e.target.value === "" ? null : Number(e.target.value))} />
-            : <ReadOnlyValue value={project.siteLatitude == null ? null : String(project.siteLatitude)} mono />}
-        </Field>
-        <Field label="Site longitude">
-          {canEdit
-            ? <Input type="number" step="0.0000001" min="-180" max="180" placeholder="120.9842" value={project.siteLongitude ?? ""} onChange={(e) => update("siteLongitude", e.target.value === "" ? null : Number(e.target.value))} />
-            : <ReadOnlyValue value={project.siteLongitude == null ? null : String(project.siteLongitude)} mono />}
-        </Field>
-        <Field label="Geofence radius (m)">
-          {canEdit
-            ? <Input type="number" min="10" max="20000" value={project.geofenceRadiusM ?? ""} onChange={(e) => update("geofenceRadiusM", e.target.value === "" ? null : Number(e.target.value))} />
-            : <ReadOnlyValue value={project.geofenceRadiusM == null ? null : `${project.geofenceRadiusM} m`} />}
-        </Field>
+        <div className="md:col-span-2">
+          {canEdit ? (
+            <LocationMapPicker
+              latitude={project.siteLatitude ?? null}
+              longitude={project.siteLongitude ?? null}
+              radiusM={project.geofenceRadiusM ?? null}
+              onChange={({ latitude, longitude, radiusM }) => {
+                update("siteLatitude", latitude);
+                update("siteLongitude", longitude);
+                update("geofenceRadiusM", radiusM);
+              }}
+            />
+          ) : project.siteLatitude != null && project.siteLongitude != null ? (
+            <ReadOnlyValue
+              value={`${project.siteLatitude}, ${project.siteLongitude} · ${project.geofenceRadiusM ?? 300} m radius`}
+              mono
+            />
+          ) : (
+            <ReadOnlyValue value={null} />
+          )}
+        </div>
 
-        {canEdit && (
-          <div className="md:col-span-2"><Button onClick={save} disabled={saving || deleting}>{saving && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}{saving ? "Saving…" : "Save changes"}</Button></div>
-        )}
         {!canEdit && isEngineer && (
           <div className="space-y-2 md:col-span-2">
             <p className="text-xs text-muted-foreground">
@@ -399,8 +406,24 @@ export default function ProjectDetailPage() {
       </div>
 
       <div className="max-w-4xl">
+        <LinkedDesignsPanel projectCode={project.code} />
+      </div>
+
+      <div className="max-w-4xl">
         <MilestonesPanel projectCode={project.code} canManage={canEdit} />
       </div>
+
+      {/* Was inside the top info grid, above the Team and Milestones
+          sections — on a real project it saved somewhere in the middle of
+          the page instead of after everything there is to change. */}
+      {canEdit && (
+        <div className="max-w-4xl">
+          <Button onClick={save} disabled={saving || deleting}>
+            {saving && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+            {saving ? "Saving…" : "Save changes"}
+          </Button>
+        </div>
+      )}
     </div>
   );
 }
@@ -491,6 +514,51 @@ function TeamMemberPanel({
                   <X className="h-3.5 w-3.5" />
                 </button>
               )}
+            </li>
+          ))}
+        </ul>
+      )}
+    </div>
+  );
+}
+
+function LinkedDesignsPanel({ projectCode }: { projectCode: string }) {
+  const { designs, loading, error } = useProjectDesigns(projectCode);
+
+  return (
+    <div className="space-y-4 rounded-2xl border border-border bg-card p-6">
+      <div>
+        <h2 className="flex items-center gap-2 text-base font-semibold">
+          <PencilRuler className="h-4 w-4 text-muted-foreground" />
+          Linked designs
+        </h2>
+        <p className="mt-1 text-sm text-muted-foreground">
+          Designs registered against this project's code.
+        </p>
+      </div>
+
+      {error && <p className="text-sm text-destructive">{error}</p>}
+
+      {loading ? (
+        <p className="text-sm text-muted-foreground">Loading…</p>
+      ) : designs.length === 0 ? (
+        <p className="text-sm text-muted-foreground">No designs linked to this project yet.</p>
+      ) : (
+        <ul className="space-y-2">
+          {designs.map((d) => (
+            <li key={d.id}>
+              <Link
+                to={`/designs/${d.id}`}
+                className="flex items-center justify-between gap-3 rounded-xl border border-border px-4 py-2 text-sm transition-colors hover:bg-muted/40"
+              >
+                <div className="min-w-0">
+                  <div className="font-medium">{d.name}</div>
+                  <div className="font-mono text-[11px] text-muted-foreground">
+                    {d.code} · {d.discipline}
+                  </div>
+                </div>
+                <StatusBadge status={d.status} />
+              </Link>
             </li>
           ))}
         </ul>
