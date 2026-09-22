@@ -14,7 +14,7 @@ import {
   useWorkflowTemplates,
 } from "@/features/workflows/hooks/useWorkflows";
 import { WorkflowFormatService } from "@/features/workflows/services/workflow.service";
-import type { Workflow } from "@/features/workflows/types/workflow.types";
+import type { Workflow, WorkflowTemplate } from "@/features/workflows/types/workflow.types";
 import {
   CheckSquare,
   Eye,
@@ -33,7 +33,15 @@ export default function AdminWorkflowsPage() {
   // create/update/delete for this role (server/src/workflows/routes.ts); the
   // actions are hidden here too instead of leaving buttons that always 403.
   const canManage = user?.role !== "it-designer";
-  const { templates, loading: templatesLoading, creating, createWorkflow } = useWorkflowTemplates();
+  const {
+    templates,
+    loading: templatesLoading,
+    error: templatesError,
+    creating,
+    createWorkflow,
+    deletingTemplateId,
+    deleteTemplate,
+  } = useWorkflowTemplates();
   const { workflows, loading: workflowsLoading, reload, update, remove } = useActiveWorkflows();
   const [dialogOpen, setDialogOpen] = useState(false);
   const [editingWorkflow, setEditingWorkflow] = useState<Workflow | null>(null);
@@ -42,6 +50,7 @@ export default function AdminWorkflowsPage() {
   const [detailWorkflowId, setDetailWorkflowId] = useState<number | null>(null);
   const [deletingWorkflow, setDeletingWorkflow] = useState<Workflow | null>(null);
   const [deletingBusy, setDeletingBusy] = useState(false);
+  const [deletingTemplate, setDeletingTemplate] = useState<WorkflowTemplate | null>(null);
 
   return (
     <div className="flex-1 space-y-6 p-4 md:p-8">
@@ -159,6 +168,9 @@ export default function AdminWorkflowsPage() {
           {templatesLoading && (
             <p className="text-sm text-muted-foreground">Loading templates…</p>
           )}
+          {!templatesLoading && templatesError && (
+            <p className="text-sm text-destructive">{templatesError.message}</p>
+          )}
           {!templatesLoading && templates.length === 0 && (
             <p className="text-sm text-muted-foreground">No workflow templates configured yet.</p>
           )}
@@ -172,9 +184,22 @@ export default function AdminWorkflowsPage() {
                     </div>
                     <h3 className="font-medium leading-tight">{t.name}</h3>
                   </div>
-                  <Badge variant="outline" className="rounded-full text-[10px]">
-                    {t.activeCount} active
-                  </Badge>
+                  <div className="flex shrink-0 items-center gap-2">
+                    <Badge variant="outline" className="rounded-full text-[10px]">
+                      {t.activeCount} active
+                    </Badge>
+                    {canManage && (
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        className="h-8 w-8 rounded-lg text-destructive hover:text-destructive"
+                        title="Delete template"
+                        onClick={() => setDeletingTemplate(t)}
+                      >
+                        <Trash2 className="h-3.5 w-3.5" />
+                      </Button>
+                    )}
+                  </div>
                 </div>
                 <p className="text-sm text-muted-foreground">{t.description}</p>
                 <div className="flex items-center justify-between border-t border-border/60 pt-3 text-xs">
@@ -233,6 +258,22 @@ export default function AdminWorkflowsPage() {
           } finally {
             setDeletingBusy(false);
           }
+        }}
+      />
+
+      <ConfirmDialog
+        open={deletingTemplate !== null}
+        onOpenChange={(next) => {
+          if (!next) setDeletingTemplate(null);
+        }}
+        title={`Delete "${deletingTemplate?.name ?? ""}"?`}
+        description="This cannot be undone. Blocked if any workflow — active or completed — was ever raised from this template."
+        confirmLabel="Delete"
+        loading={deletingTemplateId === deletingTemplate?.id}
+        onConfirm={async () => {
+          if (!deletingTemplate) return;
+          await deleteTemplate(deletingTemplate.id);
+          setDeletingTemplate(null);
         }}
       />
     </div>

@@ -29,6 +29,11 @@ export const WorkflowRepository = {
     return unwrap<WorkflowTemplate>(apiClient.post("/workflows/templates", input));
   },
 
+  /** Admin only — rejected server-side if any workflow was ever raised from it. */
+  async deleteTemplate(id: number): Promise<WorkflowTemplate> {
+    return unwrap<WorkflowTemplate>(apiClient.del(`/workflows/templates/${id}`));
+  },
+
   async listActive(): Promise<Workflow[]> {
     return unwrap<Workflow[]>(apiClient.get("/workflows"));
   },

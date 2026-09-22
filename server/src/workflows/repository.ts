@@ -27,6 +27,17 @@ export const insertTemplate = async (data: typeof workflowTemplates.$inferInsert
   return created ?? null;
 };
 
+// workflows.template_id has no onDelete rule, so a template with any workflow
+// (active or historical) still pointing at it would fail this at the FK —
+// service.deleteTemplate checks for that first and raises a clearer error.
+export const deleteTemplate = async (id: number) => {
+  const [deleted] = await db
+    .delete(workflowTemplates)
+    .where(eq(workflowTemplates.id, id))
+    .returning();
+  return deleted ?? null;
+};
+
 export const countActiveByTemplate = async (): Promise<Map<number, number>> => {
   const rows = await db
     .select({

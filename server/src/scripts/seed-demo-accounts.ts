@@ -97,10 +97,21 @@ const TEMPLATES = [
       { role: "admin", roleLabel: "Admin Final Approval", iconKey: "ShieldCheck" },
     ],
   },
-  // NOTE (EC-010): a "Subcontractor onboarding" template with a
-  // human-resources stage already exists in workflow_templates (seeded
-  // outside this script, predating it) — verified live rather than
-  // duplicated here. See docs/issues-list.md EC-010 for details.
+  // EC-010: previously lived outside this script (seeded manually, id 3),
+  // so a full db:reset silently lost it — every fresh database had only the
+  // two templates above. Seeded here now so it's a real default like them.
+  // Stage sequence per docs/issues-list.md EC-010: HR Verification → Project
+  // Manager → Admin Sign-off.
+  {
+    name: "Subcontractor onboarding",
+    description: "HR verifies a subcontractor's documentation; PM and Admin sign off on engagement.",
+    avgDurationHours: "36.0",
+    defaultStages: [
+      { role: "human-resources", roleLabel: "HR Verification", iconKey: "UserCheck" },
+      { role: "project-manager", roleLabel: "Project Manager", iconKey: "FileSignature" },
+      { role: "admin", roleLabel: "Admin Sign-off", iconKey: "ShieldCheck" },
+    ],
+  },
 ] as const;
 
 function initials(name: string) {

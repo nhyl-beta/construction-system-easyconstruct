@@ -46,6 +46,11 @@ router.post(
   validate(createWorkflowTemplateSchema),
   controller.createTemplate,
 );
+router.delete(
+  "/templates/:id",
+  requireRole("admin"),
+  controller.deleteTemplate,
+);
 router.get("/approvals", controller.getApprovals);
 router.get("/approvals/stats", controller.getApprovalStats);
 // Before "/:id", or Express matches this path as a workflow id.

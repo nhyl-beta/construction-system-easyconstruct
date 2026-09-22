@@ -1,4 +1,4 @@
-import { ForbiddenError, NotFoundError, ValidationError } from "../utils/errors.js";
+import { ConflictError, ForbiddenError, NotFoundError, ValidationError } from "../utils/errors.js";
 import * as projectsRepo from "../projects/repository.js";
 import * as repo from "./repository.js";
 import type {
@@ -79,6 +79,30 @@ export const createTemplate = async (
     defaultStages: created.defaultStages,
     activeCount: 0,
   };
+};
+
+/**
+ * Removing a template is blocked while any workflow — active or completed —
+ * was ever raised from it: workflows.template_id has no onDelete rule, so the
+ * delete would otherwise fail with a raw foreign-key error, and even if it
+ * didn't, every workflow raised from that template would lose the template
+ * name shown throughout its history (WorkflowStagePipeline, the approval
+ * queue, etc.).
+ */
+export const deleteTemplate = async (id: number) => {
+  const template = await repo.findTemplateById(id);
+  if (!template) throw new NotFoundError("Workflow template", String(id));
+
+  const existing = await repo.findWorkflowsByTemplate(id);
+  if (existing.length > 0) {
+    throw new ConflictError(
+      `"${template.name}" has ${existing.length} workflow(s) raised from it and cannot be deleted. Those workflows must be deleted first.`,
+    );
+  }
+
+  const deleted = await repo.deleteTemplate(id);
+  if (!deleted) throw new NotFoundError("Workflow template", String(id));
+  return deleted;
 };
 
 // ── Workflows ──────────────────────────────────────────────────────────────

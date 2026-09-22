@@ -34,6 +34,23 @@ export const createTemplate = async (req: AuthedRequest, res: Response, next: Ne
   }
 };
 
+export const deleteTemplate = async (req: AuthedRequest, res: Response, next: NextFunction) => {
+  try {
+    const actor = req.authUser?.name ?? req.authUser?.email ?? "unknown";
+    const data = await service.deleteTemplate(Number(req.params.id));
+    await logAudit({
+      entityType: "workflow_template",
+      entityId: String(data.id),
+      action: "deleted",
+      actor,
+      summary: `Deleted workflow template "${data.name}"`,
+    });
+    res.json(formatSuccess(data, MSG.workflows.deleted));
+  } catch (err) {
+    next(err);
+  }
+};
+
 export const getAll = async (_req: AuthedRequest, res: Response, next: NextFunction) => {
   try {
     const data = await service.getActiveWorkflows();

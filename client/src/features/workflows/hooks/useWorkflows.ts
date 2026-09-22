@@ -103,6 +103,31 @@ export function useWorkflowTemplates() {
     [reload],
   );
 
+  const [deletingTemplateId, setDeletingTemplateId] = useState<number | null>(null);
+
+  const deleteTemplate = useCallback(
+    async (id: number) => {
+      setDeletingTemplateId(id);
+      setError(null);
+
+      try {
+        await WorkflowRepository.deleteTemplate(id);
+        await reload();
+        return true;
+      } catch (err) {
+        setError(
+          err instanceof Error
+            ? err
+            : new Error("Failed to delete workflow template."),
+        );
+        return false;
+      } finally {
+        setDeletingTemplateId(null);
+      }
+    },
+    [reload],
+  );
+
   return {
     templates,
     loading,
@@ -112,6 +137,8 @@ export function useWorkflowTemplates() {
     createWorkflow,
     creatingTemplate,
     createTemplate,
+    deletingTemplateId,
+    deleteTemplate,
   } as const;
 }
 
