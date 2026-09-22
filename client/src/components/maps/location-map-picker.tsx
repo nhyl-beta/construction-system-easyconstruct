@@ -153,8 +153,8 @@ export function LocationMapPicker({
     if (!circleRef.current) {
       circleRef.current = L.circle(pos, {
         radius,
-        color: "#2563eb",
-        fillColor: "#3b82f6",
+        color: "rgb(110, 235, 37)",
+        fillColor: "rgb(110, 235, 37)",
         fillOpacity: 0.15,
       }).addTo(map);
     } else {

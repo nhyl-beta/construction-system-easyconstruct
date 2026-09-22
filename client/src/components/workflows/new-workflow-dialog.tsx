@@ -94,6 +94,7 @@ export function NewWorkflowDialog({
       type: type || undefined,
       stageAssignments: Object.keys(cleanedAssignments).length ? cleanedAssignments : undefined,
     });
+    
     reset();
     onOpenChange(false);
   };
