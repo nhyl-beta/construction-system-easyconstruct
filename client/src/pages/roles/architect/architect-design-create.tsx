@@ -12,6 +12,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
+import { ProjectPicker } from "@/components/shared/project-picker";
 import { Paperclip, X } from "lucide-react";
 import {
   useDesignCreate,
@@ -248,11 +249,10 @@ function StepProject({
           <Label>
             Project code <span className="text-destructive">*</span>
           </Label>
-          <Input
+          <ProjectPicker
             value={data.projectCode}
-            onChange={(e) => set("projectCode", e.target.value)}
-            placeholder="e.g. WGT-2025-001"
-            className="rounded-xl"
+            onChange={(v) => set("projectCode", v)}
+            className="w-full"
           />
         </div>
         <div className="space-y-1.5">

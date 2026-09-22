@@ -28,6 +28,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
+import { WORKFLOW_STAGE_ICONS } from "@/components/workflows/workflow-stage-pipeline";
 import type { CreateWorkflowTemplateInput } from "@/features/workflows/types/workflow.types";
 
 // The roles a workflow stage can actually be decided by — matches the
@@ -261,11 +262,17 @@ export function NewWorkflowTemplateDialog({
                     <SelectValue />
                   </SelectTrigger>
                   <SelectContent>
-                    {ICON_KEYS.map((key) => (
-                      <SelectItem key={key} value={key}>
-                        {key}
-                      </SelectItem>
-                    ))}
+                    {ICON_KEYS.map((key) => {
+                      const Icon = WORKFLOW_STAGE_ICONS[key];
+                      return (
+                        <SelectItem key={key} value={key}>
+                          <span className="flex items-center gap-2">
+                            <Icon className="h-3.5 w-3.5" />
+                            {key}
+                          </span>
+                        </SelectItem>
+                      );
+                    })}
                   </SelectContent>
                 </Select>
                 <div className="flex flex-col">

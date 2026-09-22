@@ -2,6 +2,7 @@ import { useState } from "react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { ConfirmDialog } from "@/components/ui/confirm-dialog";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { NewWorkflowDialog } from "@/components/workflows/new-workflow-dialog";
 import { WorkflowStagePipeline } from "@/components/workflows/workflow-stage-pipeline";
@@ -39,6 +40,8 @@ export default function AdminWorkflowsPage() {
   // Admin decides LAST on most chains, so it is the role with the most prior
   // stages to read — the same detail dialog every other approver now opens.
   const [detailWorkflowId, setDetailWorkflowId] = useState<number | null>(null);
+  const [deletingWorkflow, setDeletingWorkflow] = useState<Workflow | null>(null);
+  const [deletingBusy, setDeletingBusy] = useState(false);
 
   return (
     <div className="flex-1 space-y-6 p-4 md:p-8">
@@ -137,10 +140,7 @@ export default function AdminWorkflowsPage() {
                         size="icon"
                         className="h-8 w-8 rounded-lg text-destructive hover:text-destructive"
                         title="Delete"
-                        onClick={async () => {
-                          if (!window.confirm(`Delete workflow "${workflow.title}"?`)) return;
-                          await remove(workflow.id);
-                        }}
+                        onClick={() => setDeletingWorkflow(workflow)}
                       >
                         <Trash2 className="h-3.5 w-3.5" />
                       </Button>
@@ -212,6 +212,27 @@ export default function AdminWorkflowsPage() {
         workflowId={detailWorkflowId}
         onOpenChange={(next) => {
           if (!next) setDetailWorkflowId(null);
+        }}
+      />
+
+      <ConfirmDialog
+        open={deletingWorkflow !== null}
+        onOpenChange={(next) => {
+          if (!next) setDeletingWorkflow(null);
+        }}
+        title={`Delete workflow "${deletingWorkflow?.title ?? ""}"?`}
+        description="This permanently deletes the workflow and its history. This cannot be undone."
+        confirmLabel="Delete"
+        loading={deletingBusy}
+        onConfirm={async () => {
+          if (!deletingWorkflow) return;
+          setDeletingBusy(true);
+          try {
+            await remove(deletingWorkflow.id);
+            setDeletingWorkflow(null);
+          } finally {
+            setDeletingBusy(false);
+          }
         }}
       />
     </div>

@@ -1,7 +1,7 @@
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Filter, Plus, Search } from "lucide-react";
+import { Plus, Search } from "lucide-react";
 import React from "react";
 import { Link } from "react-router";
 
@@ -36,9 +36,6 @@ export const ProjectsToolbar: React.FC<{
           />
         </div>
 
-        <Button variant="outline" size="sm" className="rounded-xl">
-          <Filter className="h-4 w-4" /> Filters
-        </Button>
         {showCreate && (
           <Button asChild className="rounded-xl">
             <Link to="/projects/new">

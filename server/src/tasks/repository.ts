@@ -1,5 +1,5 @@
 // server/src/tasks/repository.ts — NEW
-import { and, eq, SQL } from "drizzle-orm";
+import { and, desc, eq, SQL } from "drizzle-orm";
 import { db } from "../db/connection.js";
 import { tasks } from "../db/schema/task.js";
 import type { CreateTaskInput, TaskFilters, UpdateTaskInput } from "./types.js";
@@ -10,9 +10,10 @@ export const findAll = async (filters: TaskFilters = {}) => {
   if (filters.status && filters.status !== "all") conditions.push(eq(tasks.status, filters.status));
   if (filters.assignedToUserId) conditions.push(eq(tasks.assignedToUserId, filters.assignedToUserId));
 
+  // Newest first, and applied here (not client-side) so it survives refetch.
   return conditions.length
-    ? await db.select().from(tasks).where(and(...conditions))
-    : await db.select().from(tasks);
+    ? await db.select().from(tasks).where(and(...conditions)).orderBy(desc(tasks.id))
+    : await db.select().from(tasks).orderBy(desc(tasks.id));
 };
 
 export const findById = async (id: number) => {

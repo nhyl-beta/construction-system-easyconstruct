@@ -25,6 +25,40 @@ const ACCOUNTS = [
   { name: "Noel Garcia", email: "itdesigner@easyconstruct.demo", role: "it-designer", employeeRole: "IT Designer", department: "Information Technology" },
 ] as const;
 
+// One row per role — the label/employeeRole/department a generated
+// "<role-slug><n>@easyconstruct.demo" account below is built from. Must match
+// the role strings requireRole() checks compare against (server/src/**/routes.ts),
+// not a display label.
+const ROLE_DEFS = [
+  { role: "admin", label: "Admin", employeeRole: "Admin", department: "Administration" },
+  { role: "it-designer", label: "IT Designer", employeeRole: "IT Designer", department: "Information Technology" },
+  { role: "owner", label: "Owner", employeeRole: "Owner", department: "Executive" },
+  { role: "project-manager", label: "Project Manager", employeeRole: "Project Manager", department: "Project Management" },
+  { role: "architect", label: "Architect", employeeRole: "Architect", department: "Design" },
+  { role: "engineer", label: "Engineer", employeeRole: "Site Engineer", department: "Engineering" },
+  { role: "consultant", label: "Consultant", employeeRole: "Consultant", department: "Advisory" },
+  { role: "finance-manager", label: "Finance Manager", employeeRole: "Finance Manager", department: "Finance" },
+  { role: "human-resources", label: "Human Resources", employeeRole: "HR Officer", department: "Human Resources" },
+  { role: "site-personnel", label: "Site Personnel", employeeRole: "Construction Worker", department: "Field Operations" },
+] as const;
+
+const ORDINAL_NAME = ["One", "Two", "Three", "Four"] as const;
+
+// 4 accounts per role, email "<role-slug-without-hyphens><n>@easyconstruct.demo"
+// (e.g. sitepersonnel1@easyconstruct.demo) — required by the demo seeding spec
+// so every role can be exercised from a predictable, discoverable login set,
+// independent of the hand-named ACCOUNTS above.
+const GENERATED_ACCOUNTS = ROLE_DEFS.flatMap((def) => {
+  const emailSlug = def.role.replace(/-/g, "");
+  return ORDINAL_NAME.map((ordinal, i) => ({
+    name: `${def.label} ${ordinal}`,
+    email: `${emailSlug}${i + 1}@easyconstruct.demo`,
+    role: def.role,
+    employeeRole: def.employeeRole,
+    department: def.department,
+  }));
+});
+
 // Backs Admin's read-only Roles & Permissions screen. `name` must match the
 // role string stored on users.role, since that's what every requireRole()
 // check on the backend compares against.
@@ -78,13 +112,15 @@ function initials(name: string) {
     .toUpperCase();
 }
 
+const ALL_ACCOUNTS = [...ACCOUNTS, ...GENERATED_ACCOUNTS];
+
 async function main() {
   const password = await bcrypt.hash(PASSWORD, 10);
   let createdUsers = 0;
   let createdEmployees = 0;
 
   await db.transaction(async (tx) => {
-    for (const [index, account] of ACCOUNTS.entries()) {
+    for (const [index, account] of ALL_ACCOUNTS.entries()) {
       let [user] = await tx
         .select()
         .from(users)
@@ -178,13 +214,13 @@ async function main() {
     }
   });
 
-  console.log(`\nDone. Created ${createdUsers} users and ${createdEmployees} employees.`);
+  console.log(`\nDone. Created ${createdUsers} users and ${createdEmployees} employees (${ALL_ACCOUNTS.length} accounts total).`);
   console.log(`Password for demo accounts: ${PASSWORD}`);
 
   // Every demo login, printed together so the two newest roles (owner,
   // it-designer) are as easy to find as the nine that predate them.
   console.log("\nDemo logins:");
-  for (const account of ACCOUNTS) {
+  for (const account of ALL_ACCOUNTS) {
     console.log(`  ${account.role.padEnd(16)} ${account.email}`);
   }
 }

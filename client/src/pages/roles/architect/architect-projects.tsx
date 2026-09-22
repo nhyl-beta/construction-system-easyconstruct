@@ -38,35 +38,41 @@ export default function ArchitectProjects() {
           No projects have linked designs yet.
         </div>
       ) : (
-        <Table>
-          <TableHeader>
-            <TableRow>
-              <TableHead>Project</TableHead>
-              <TableHead>Status</TableHead>
-              <TableHead>Risk</TableHead>
-              <TableHead className="w-40">Progress</TableHead>
-              <TableHead>Due</TableHead>
-              <TableHead className="text-right">Designs</TableHead>
-            </TableRow>
-          </TableHeader>
-          <TableBody>
-            {c.projects.map((p) => (
-              <TableRow key={p.id} className="cursor-pointer" onClick={() => navigate(`/designs?projectCode=${p.code}`)}>
-                <TableCell>
-                  <div className="text-sm font-medium">{p.name}</div>
-                  <div className="font-mono text-[11px] text-muted-foreground">{p.code}</div>
-                </TableCell>
-                <TableCell><StatusBadge status={p.status} /></TableCell>
-                <TableCell><StatusBadge status={p.risk} /></TableCell>
-                <TableCell>
-                  <Progress value={p.progress} className="h-1.5" />
-                </TableCell>
-                <TableCell className="text-xs text-muted-foreground">{formatDue(p.due)}</TableCell>
-                <TableCell className="text-right text-sm">{p.designCount}</TableCell>
+        // table-fixed with percentage widths summing to 100% lets long project
+        // names/codes wrap instead of forcing the table wider than its
+        // container (which the default auto-layout table did, producing a
+        // horizontal scrollbar).
+        <div className="overflow-hidden rounded-2xl border">
+          <Table className="table-fixed">
+            <TableHeader>
+              <TableRow>
+                <TableHead className="w-[30%]">Project</TableHead>
+                <TableHead className="w-[14%]">Status</TableHead>
+                <TableHead className="w-[14%]">Risk</TableHead>
+                <TableHead className="w-[16%]">Progress</TableHead>
+                <TableHead className="w-[14%]">Due</TableHead>
+                <TableHead className="w-[12%] text-right">Designs</TableHead>
               </TableRow>
-            ))}
-          </TableBody>
-        </Table>
+            </TableHeader>
+            <TableBody>
+              {c.projects.map((p) => (
+                <TableRow key={p.id} className="cursor-pointer" onClick={() => navigate(`/designs?projectCode=${p.code}`)}>
+                  <TableCell>
+                    <div className="text-sm font-medium break-words">{p.name}</div>
+                    <div className="font-mono text-[11px] text-muted-foreground">{p.code}</div>
+                  </TableCell>
+                  <TableCell><StatusBadge status={p.status} /></TableCell>
+                  <TableCell><StatusBadge status={p.risk} /></TableCell>
+                  <TableCell>
+                    <Progress value={p.progress} className="h-1.5" />
+                  </TableCell>
+                  <TableCell className="text-xs text-muted-foreground">{formatDue(p.due)}</TableCell>
+                  <TableCell className="text-right text-sm">{p.designCount}</TableCell>
+                </TableRow>
+              ))}
+            </TableBody>
+          </Table>
+        </div>
       )}
     </div>
   );

@@ -124,19 +124,22 @@ export default function HRAttendancePage() {
               </Button>
             </div>
           </CardHeader>
-          <CardContent className="px-0">
-            <Table>
+          <CardContent className="overflow-hidden px-0">
+            {/* table-fixed + percentage widths (sum 100%) so long names/badges
+                wrap instead of forcing the table wider than the card, which
+                was producing a horizontal scrollbar. */}
+            <Table className="table-fixed">
               <TableHeader>
                 <TableRow>
-                  <TableHead>Employee</TableHead>
-                  <TableHead>Site</TableHead>
-                  <TableHead>Clock in</TableHead>
-                  <TableHead>Clock out</TableHead>
-                  <TableHead className="text-right">Hours</TableHead>
-                  <TableHead>Geofence</TableHead>
-                  <TableHead>Photo</TableHead>
-                  <TableHead>Attendance</TableHead>
-                  <TableHead className="text-right">Check</TableHead>
+                  <TableHead className="w-[18%]">Employee</TableHead>
+                  <TableHead className="w-[12%]">Site</TableHead>
+                  <TableHead className="w-[10%]">Clock in</TableHead>
+                  <TableHead className="w-[10%]">Clock out</TableHead>
+                  <TableHead className="w-[8%] text-right">Hours</TableHead>
+                  <TableHead className="w-[14%]">Geofence</TableHead>
+                  <TableHead className="w-[12%]">Photo</TableHead>
+                  <TableHead className="w-[10%]">Attendance</TableHead>
+                  <TableHead className="w-[6%] text-right">Check</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>

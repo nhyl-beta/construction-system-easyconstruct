@@ -9,6 +9,7 @@
     "start": "node dist/index.js",
     "test": "echo \"Error: no test specified\" && exit 1",
     "db:seed": "tsx src/scripts/ensure-demo-schema.ts && tsx src/scripts/seed-demo-accounts.ts",
+    "db:reset": "drizzle-kit migrate && tsx src/scripts/db-reset.ts && npm run db:seed",
     "db:generate": "drizzle-kit generate",
     "db:migrate": "drizzle-kit migrate",
     "db:crud": "tsx src/crud-example.ts",

@@ -40,6 +40,7 @@ export function useDesignProposalSubmission(
   const submit = useCallback(
     async (
       input: CreateProposalInput,
+      file?: File | null,
     ): Promise<DesignProposalSubmissionResult | null> => {
       setSubmitting(true);
       setWarning(null);
@@ -62,6 +63,10 @@ export function useDesignProposalSubmission(
                 "No design description was provided with this proposal.",
             },
           ],
+          // Filed against the workflow's first stage (the architect's own
+          // step), same as any other stage submission — see
+          // workflow_attachments and WorkflowRepository.uploadAttachment.
+          file,
         });
 
         // The proposal already exists at this point, so a failed workflow is

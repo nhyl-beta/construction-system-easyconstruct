@@ -1,11 +1,11 @@
 // server/src/milestones/repository.ts — NEW
-import { desc, eq } from "drizzle-orm";
+import { asc, eq } from "drizzle-orm";
 import { db } from "../db/connection.js";
 import { milestones } from "../db/schema/milestones.js";
 import type { CreateMilestoneInput, UpdateMilestoneInput } from "./types.js";
 
 export const findAll = async (projectCode?: string) => {
-  const query = db.select().from(milestones).orderBy(desc(milestones.createdAt));
+  const query = db.select().from(milestones).orderBy(asc(milestones.createdAt));
   return projectCode ? query.where(eq(milestones.projectCode, projectCode)) : query;
 };
 

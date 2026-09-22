@@ -2,6 +2,7 @@ import { useState } from "react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { ConfirmDialog } from "@/components/ui/confirm-dialog";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { NewWorkflowDialog } from "@/components/workflows/new-workflow-dialog";
 import {
@@ -36,6 +37,8 @@ export default function WorkflowsPage() {
   // signing off is exactly what they see there — these two views drifting
   // apart is what left the PM approving without the workflow's documents.
   const [detailWorkflowId, setDetailWorkflowId] = useState<number | null>(null);
+  const [deletingWorkflow, setDeletingWorkflow] = useState<Workflow | null>(null);
+  const [deletingBusy, setDeletingBusy] = useState(false);
 
   return (
     <div className="flex-1 space-y-6 p-4 md:p-8">
@@ -55,44 +58,12 @@ export default function WorkflowsPage() {
         </Button>
       </div>
 
-      <Tabs defaultValue="templates" className="space-y-5">
+      <Tabs defaultValue="active" className="space-y-5">
         <TabsList className="h-10 rounded-xl">
-          <TabsTrigger value="templates" className="rounded-lg">Templates</TabsTrigger>
           <TabsTrigger value="active" className="rounded-lg">Active pipeline</TabsTrigger>
+          <TabsTrigger value="templates" className="rounded-lg">Templates</TabsTrigger>
           <TabsTrigger value="ai" className="rounded-lg">AI suggestions</TabsTrigger>
         </TabsList>
-
-        <TabsContent value="templates" className="grid grid-cols-1 gap-4 md:grid-cols-2">
-          {templatesLoading && (
-            <p className="text-sm text-muted-foreground">Loading templates…</p>
-          )}
-          {!templatesLoading && templates.length === 0 && (
-            <p className="text-sm text-muted-foreground">No workflow templates configured yet.</p>
-          )}
-          {templates.map((t) => (
-            <Card key={t.id} className="rounded-2xl border-border/70 shadow-sm">
-              <CardContent className="space-y-3 p-5">
-                <div className="flex items-start justify-between gap-2">
-                  <div className="flex items-center gap-2">
-                    <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-accent text-accent-foreground">
-                      <GitBranch className="h-4 w-4" />
-                    </div>
-                    <h3 className="font-medium leading-tight">{t.name}</h3>
-                  </div>
-                  <Badge variant="outline" className="rounded-full text-[10px]">
-                    {t.activeCount} active
-                  </Badge>
-                </div>
-                <p className="text-sm text-muted-foreground">{t.description}</p>
-                <div className="flex items-center justify-between border-t border-border/60 pt-3 text-xs">
-                  <span className="text-muted-foreground">
-                    {t.defaultStages.length} stages · avg {WorkflowFormatService.avgDuration(t.avgDurationHours)}
-                  </span>
-                </div>
-              </CardContent>
-            </Card>
-          ))}
-        </TabsContent>
 
         <TabsContent value="active" className="space-y-4">
           {workflowsLoading && (
@@ -159,10 +130,7 @@ export default function WorkflowsPage() {
                         size="icon"
                         className="h-8 w-8 rounded-lg text-destructive hover:text-destructive"
                         title="Delete"
-                        onClick={async () => {
-                          if (!window.confirm(`Delete workflow "${workflow.title}"?`)) return;
-                          await remove(workflow.id);
-                        }}
+                        onClick={() => setDeletingWorkflow(workflow)}
                       >
                         <Trash2 className="h-3.5 w-3.5" />
                       </Button>
@@ -176,6 +144,38 @@ export default function WorkflowsPage() {
               </Card>
             );
           })}
+        </TabsContent>
+
+        <TabsContent value="templates" className="grid grid-cols-1 gap-4 md:grid-cols-2">
+          {templatesLoading && (
+            <p className="text-sm text-muted-foreground">Loading templates…</p>
+          )}
+          {!templatesLoading && templates.length === 0 && (
+            <p className="text-sm text-muted-foreground">No workflow templates configured yet.</p>
+          )}
+          {templates.map((t) => (
+            <Card key={t.id} className="rounded-2xl border-border/70 shadow-sm">
+              <CardContent className="space-y-3 p-5">
+                <div className="flex items-start justify-between gap-2">
+                  <div className="flex items-center gap-2">
+                    <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-accent text-accent-foreground">
+                      <GitBranch className="h-4 w-4" />
+                    </div>
+                    <h3 className="font-medium leading-tight">{t.name}</h3>
+                  </div>
+                  <Badge variant="outline" className="rounded-full text-[10px]">
+                    {t.activeCount} active
+                  </Badge>
+                </div>
+                <p className="text-sm text-muted-foreground">{t.description}</p>
+                <div className="flex items-center justify-between border-t border-border/60 pt-3 text-xs">
+                  <span className="text-muted-foreground">
+                    {t.defaultStages.length} stages · avg {WorkflowFormatService.avgDuration(t.avgDurationHours)}
+                  </span>
+                </div>
+              </CardContent>
+            </Card>
+          ))}
         </TabsContent>
 
         <TabsContent value="ai">
@@ -225,6 +225,27 @@ export default function WorkflowsPage() {
         workflowId={detailWorkflowId}
         onOpenChange={(next) => {
           if (!next) setDetailWorkflowId(null);
+        }}
+      />
+
+      <ConfirmDialog
+        open={deletingWorkflow !== null}
+        onOpenChange={(next) => {
+          if (!next) setDeletingWorkflow(null);
+        }}
+        title={`Delete workflow "${deletingWorkflow?.title ?? ""}"?`}
+        description="This permanently deletes the workflow and its history. This cannot be undone."
+        confirmLabel="Delete"
+        loading={deletingBusy}
+        onConfirm={async () => {
+          if (!deletingWorkflow) return;
+          setDeletingBusy(true);
+          try {
+            await remove(deletingWorkflow.id);
+            setDeletingWorkflow(null);
+          } finally {
+            setDeletingBusy(false);
+          }
         }}
       />
     </div>

@@ -10,6 +10,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import { ConfirmDialog } from "@/components/ui/confirm-dialog";
 import { ProjectRepository } from "@/features/projects/repositories/project.repository";
 import { PROJECT_CURRENCIES, RISK_LEVELS, type Project } from "@/features/projects/types/project.types";
 import { formatCurrency } from "@/lib/format-currency";
@@ -64,6 +65,7 @@ export default function ProjectDetailPage() {
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [deleting, setDeleting] = useState(false);
+  const [confirmDeleteOpen, setConfirmDeleteOpen] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [message, setMessage] = useState<string | null>(null);
 
@@ -154,7 +156,8 @@ export default function ProjectDetailPage() {
   };
 
   const remove = async () => {
-    if (!project || !window.confirm(`Delete ${project.name}?`)) return;
+    if (!project) return;
+    setConfirmDeleteOpen(false);
     setDeleting(true);
     setError(null);
     try {
@@ -191,12 +194,25 @@ export default function ProjectDetailPage() {
           <p className="text-sm text-muted-foreground">{project.code}</p>
         </div>
         {canEdit && (
-          <Button variant="destructive" onClick={remove} disabled={saving || deleting}>
+          <Button
+            variant="destructive"
+            onClick={() => setConfirmDeleteOpen(true)}
+            disabled={saving || deleting}
+          >
             {deleting ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Trash2 className="mr-2 h-4 w-4" />}
             Delete
           </Button>
         )}
       </div>
+      <ConfirmDialog
+        open={confirmDeleteOpen}
+        onOpenChange={setConfirmDeleteOpen}
+        title={`Delete ${project.name}?`}
+        description="This permanently deletes the project and cannot be undone."
+        confirmLabel="Delete"
+        loading={deleting}
+        onConfirm={remove}
+      />
       {error && <div className="rounded-xl border border-destructive/30 bg-destructive/10 px-4 py-3 text-sm text-destructive">{error}</div>}
       {/* Was border-green-500/bg-green-500/text-green-700 — same dark-mode
           contrast bug as RISK_CLASS (see project-status.ts): a raw Tailwind

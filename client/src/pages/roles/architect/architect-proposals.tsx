@@ -33,7 +33,7 @@ import { useDesignProposalSubmission } from "@/features/proposals/hooks/useDesig
 import { WorkflowInitiationActions } from "@/components/workflows/workflow-initiation-actions";
 import { useAuth } from "@/auth/auth-context";
 import { ProjectPicker } from "@/components/shared/project-picker";
-import { AlertTriangle, Archive, CheckCircle2, Pencil } from "lucide-react";
+import { AlertTriangle, Archive, CheckCircle2, Paperclip, Pencil } from "lucide-react";
 import {
   Dialog,
   DialogContent,
@@ -187,6 +187,8 @@ export default function ArchitectProposals() {
   const [content, setContent] =
     useState("");
 
+  const [file, setFile] = useState<File | null>(null);
+
   const [formError, setFormError] =
     useState<string | null>(null);
 
@@ -226,7 +228,7 @@ export default function ArchitectProposals() {
       content: content.trim() || undefined,
 
       assignedReviewer: "consultant",
-    });
+    }, file);
 
     if (!result) {
       return;
@@ -244,6 +246,7 @@ export default function ArchitectProposals() {
     setProjectCode("");
     setAmount("");
     setContent("");
+    setFile(null);
 
     setShowCreateForm(false);
   }
@@ -389,6 +392,25 @@ export default function ArchitectProposals() {
               placeholder="Describe the proposal, design considerations, materials, scope, and other relevant information."
               className="mt-2 min-h-32"
             />
+          </div>
+
+          <div className="mt-4">
+            <label className="text-sm font-medium">
+              Supporting file
+            </label>
+
+            <label className="mt-2 flex h-9 w-full max-w-sm cursor-pointer items-center gap-2 rounded-lg border border-input bg-transparent px-3 text-sm hover:border-primary/40">
+              <Paperclip className="h-3.5 w-3.5 shrink-0 text-muted-foreground" />
+              <span className="truncate text-muted-foreground">
+                {file ? file.name : "Attach a design file (optional)"}
+              </span>
+              <input
+                type="file"
+                accept=".pdf,.doc,.docx,.xls,.xlsx,.ppt,.pptx,.png,.jpg,.jpeg,.dwg,.dxf"
+                className="hidden"
+                onChange={(e) => setFile(e.target.files?.[0] ?? null)}
+              />
+            </label>
           </div>
 
           <div className="mt-6 flex gap-2">

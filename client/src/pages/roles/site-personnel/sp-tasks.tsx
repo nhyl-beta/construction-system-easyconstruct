@@ -21,7 +21,7 @@ import {
 } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
 import { useAuth } from "@/auth/auth-context";
-import { useUsersByRole } from "@/features/users/hooks/use-users-by-role";
+import { useProjectMembers } from "@/features/project-members/hooks/use-project-members";
 import { useMyTasks } from "@/features/tasks/hooks/use-my-tasks";
 import { CompleteTaskDialog } from "@/components/tasks/complete-task-dialog";
 import { ProjectPicker } from "@/components/shared/project-picker";
@@ -201,10 +201,13 @@ function NewTaskCard({
   }) => Promise<boolean>;
   creating: boolean;
 }) {
-  const { users: sitePersonnel, loading: loadingAssignees } =
-    useUsersByRole("site-personnel");
   const [assignee, setAssignee] = useState("");
   const [projectCode, setProjectCode] = useState("");
+  // Only the Site Personnel actually staffed on the selected project — an
+  // unfiltered org-wide list let a PM assign a field task to someone with no
+  // reason to ever see this project.
+  const { members: sitePersonnel, loading: loadingAssignees } =
+    useProjectMembers(projectCode || null, "site-personnel");
   const [title, setTitle] = useState("");
   const [description, setDescription] = useState("");
   const [priority, setPriority] = useState("Medium");
@@ -225,7 +228,7 @@ function NewTaskCard({
       setLocalError("Assign the task to a Site Personnel account.");
       return;
     }
-    const assigned = sitePersonnel.find((u) => String(u.id) === assignee);
+    const assigned = sitePersonnel.find((m) => String(m.userId) === assignee);
     // taskCode is required and unique on the backend; generating it here keeps
     // the form to the fields a PM/Engineer actually cares about.
     const taskCode = `TSK-${Date.now().toString().slice(-6)}`;
@@ -238,7 +241,7 @@ function NewTaskCard({
       status: "Pending",
       dueDate: dueDate || undefined,
       assignedToUserId: Number(assignee),
-      assignedToName: assigned?.name,
+      assignedToName: assigned?.userName,
     });
     if (ok) {
       setCreated(taskCode);
@@ -268,7 +271,12 @@ function NewTaskCard({
                 backed by /api/projects. */}
             <ProjectPicker
               value={projectCode}
-              onChange={setProjectCode}
+              onChange={(v) => {
+                setProjectCode(v);
+                // Assignee list is scoped to the project; a change here
+                // invalidates whatever was picked for the previous one.
+                setAssignee("");
+              }}
               className="w-full"
             />
           </div>
@@ -284,21 +292,27 @@ function NewTaskCard({
           </div>
           <div className="space-y-1.5">
             <Label>Assign to</Label>
-            <Select value={assignee} onValueChange={setAssignee}>
+            <Select value={assignee} onValueChange={setAssignee} disabled={!projectCode}>
               <SelectTrigger className="rounded-xl">
                 <SelectValue
-                  placeholder={loadingAssignees ? "Loading…" : "Select Site Personnel"}
+                  placeholder={
+                    !projectCode
+                      ? "Select a project first"
+                      : loadingAssignees
+                      ? "Loading…"
+                      : "Select Site Personnel"
+                  }
                 />
               </SelectTrigger>
               <SelectContent>
                 {sitePersonnel.length === 0 && !loadingAssignees && (
                   <div className="px-2 py-1.5 text-xs text-muted-foreground">
-                    No Site Personnel accounts on file
+                    No Site Personnel staffed on this project
                   </div>
                 )}
-                {sitePersonnel.map((u) => (
-                  <SelectItem key={u.id} value={String(u.id)}>
-                    {u.name}
+                {sitePersonnel.map((m) => (
+                  <SelectItem key={m.userId} value={String(m.userId)}>
+                    {m.userName}
                   </SelectItem>
                 ))}
               </SelectContent>

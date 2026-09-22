@@ -22,6 +22,7 @@ import {
 import { useProposals } from "@/features/proposals/hooks/useProposals";
 import { useAuth } from "@/auth/auth-context";
 import { ProposalAttachments } from "@/pages/roles/consultant/proposal-attachments";
+import { WorkflowRepository } from "@/features/workflows/repositories/workflow.repository";
 import type { Proposal } from "@/features/proposals/types/proposal.types";
 
 /*
@@ -82,6 +83,29 @@ export default function ConsultantProposalsPage() {
   // decision is confirmed first. Same guard as IT Designer's review screen.
   const [pendingDecision, setPendingDecision] =
     useState<ReviewStatus | null>(null);
+
+  // Whichever of the two tabs actually has something waiting on the
+  // Consultant is shown first, instead of always defaulting to Design
+  // Proposals — a full workflow-approvals queue was easy to miss behind an
+  // empty proposals tab. Only decided once, from the first load of both
+  // sources, so it doesn't yank the tab out from under someone mid-review.
+  const [activeTab, setActiveTab] = useState<"proposals" | "approvals">("proposals");
+  const [autoTabPicked, setAutoTabPicked] = useState(false);
+  const [approvalsPending, setApprovalsPending] = useState<number | null>(null);
+
+  useEffect(() => {
+    let cancelled = false;
+    WorkflowRepository.getApprovalStats()
+      .then((stats) => {
+        if (!cancelled) setApprovalsPending(stats.pending);
+      })
+      .catch(() => {
+        if (!cancelled) setApprovalsPending(0);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, []);
 
   /*
    * Keep the open review screen in step with a refreshed list, so the
@@ -149,26 +173,33 @@ export default function ConsultantProposalsPage() {
       }
 
       /*
-       * Legacy proposal:
+       * Legacy proposal: no assignedReviewer was recorded at all.
        *
-       * submittedBy = Architect
-       * assignedReviewer = empty
+       * THE BUG THIS FIXES: this used to also require
+       * submittedBy?.toLowerCase() === "architect" — but submittedBy holds
+       * the architect's actual display name (e.g. "Ana Villanueva",
+       * "Architect Test"), never the literal role name, so that check never
+       * matched a real proposal and this branch was dead code. Proposal
+       * creation is architect/admin-gated server-side (proposals/routes.ts)
+       * and review is consultant/admin-gated, so an unassigned Pending
+       * proposal always belongs in this queue regardless of who submitted
+       * it.
        */
 
-      const submittedBy =
-        proposal.submittedBy
-          ?.trim()
-          .toLowerCase();
-
-      if (
-        !assignedReviewer &&
-        submittedBy === "architect"
-      ) {
+      if (!assignedReviewer) {
         return true;
       }
 
       return false;
     });
+
+  useEffect(() => {
+    if (autoTabPicked || loading || approvalsPending === null) return;
+    if (pendingProposals.length === 0 && approvalsPending > 0) {
+      setActiveTab("approvals");
+    }
+    setAutoTabPicked(true);
+  }, [autoTabPicked, loading, approvalsPending, pendingProposals.length]);
 
   /*
    * ----------------------------------------------------------
@@ -710,7 +741,7 @@ export default function ConsultantProposalsPage() {
             a tab so there is one "Proposal Review" screen that carries both,
             per role-tab.ts/role-resources.ts no longer routing Consultant to
             a standalone /approvals nav item. */}
-        <Tabs defaultValue="proposals" className="mb-6">
+        <Tabs value={activeTab} onValueChange={(v) => setActiveTab(v as "proposals" | "approvals")} className="mb-6">
           <TabsList className="h-10 rounded-xl">
             <TabsTrigger value="proposals" className="rounded-lg">
               Design proposals

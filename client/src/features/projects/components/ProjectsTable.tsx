@@ -4,12 +4,14 @@ import { Badge } from "@/components/ui/badge";
 import { Progress } from "@/components/ui/progress";
 import { Button } from "@/components/ui/button";
 import { ChevronRight } from "lucide-react";
-import { Link } from "react-router";
+import { Link, useNavigate } from "react-router";
 import { Project } from "../types/project.types";
 import { STATUS_TONE_CLASS, RISK_CLASS } from "../constants/project-status";
 import { formatContractValue, formatDue } from "../lib/project-format";
 
 export const ProjectsTable: React.FC<{ projects: Project[] }> = ({ projects }) => {
+  const navigate = useNavigate();
+
   return (
     <Card className="rounded-2xl border-border/70 shadow-sm">
       <CardContent className="p-0">
@@ -29,9 +31,19 @@ export const ProjectsTable: React.FC<{ projects: Project[] }> = ({ projects }) =
             </thead>
             <tbody>
               {projects.map((p) => (
-                <tr key={p.code} className="border-b border-border/60 last:border-0 hover:bg-muted/30">
+                <tr
+                  key={p.code}
+                  className="cursor-pointer border-b border-border/60 last:border-0 hover:bg-muted/30"
+                  onClick={() => navigate(`/projects/${p.id}`)}
+                >
                   <td className="px-5 py-3.5">
-                    <Link to={`/projects/${p.id}`} className="font-medium leading-tight hover:underline">{p.name}</Link>
+                    <Link
+                      to={`/projects/${p.id}`}
+                      onClick={(e) => e.stopPropagation()}
+                      className="font-medium leading-tight hover:underline"
+                    >
+                      {p.name}
+                    </Link>
                     <div className="text-xs text-muted-foreground">{p.code} · {p.client}</div>
                     {p.contractValue != null && (
                       <div className="text-xs text-muted-foreground">{formatContractValue(p.contractValue, p.currency)} contract</div>
@@ -54,7 +66,7 @@ export const ProjectsTable: React.FC<{ projects: Project[] }> = ({ projects }) =
                   <td className="px-3 py-3.5">
                     <span className={`text-xs font-medium ${RISK_CLASS[p.risk]}`}>{p.risk}</span>
                   </td>
-                  <td className="px-5 py-3.5 text-right">
+                  <td className="px-5 py-3.5 text-right" onClick={(e) => e.stopPropagation()}>
                     <Button asChild variant="ghost" size="sm" className="rounded-lg">
                       <Link to={`/projects/${p.id}`}>Open <ChevronRight className="h-3.5 w-3.5" /></Link>
                     </Button>

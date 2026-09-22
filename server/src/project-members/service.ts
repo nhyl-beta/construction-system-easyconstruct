@@ -1,5 +1,6 @@
 import { ConflictError, ForbiddenError, NotFoundError } from "../utils/errors.js";
 import * as projectsService from "../projects/service.js";
+import * as notificationsService from "../notifications/service.js";
 import * as repo from "./repository.js";
 import type { CreateProjectMemberInput, ProjectMemberFilters } from "./types.js";
 
@@ -30,6 +31,19 @@ export const create = async (
   }
   const created = await repo.create(input);
   if (!created) throw new Error("Failed to add project member");
+
+  // Architect had no way to learn they'd been staffed on a project short of
+  // stumbling onto it in the project list — notify the same way every other
+  // role-scoped event does (see notifications/service.ts).
+  if (created.role === "architect") {
+    await notificationsService.create({
+      recipientRole: "architect",
+      title: "Assigned to a project",
+      body: `${created.userName} was assigned to project ${created.projectCode}.`,
+      link: `/architect/projects`,
+    });
+  }
+
   return created;
 };
 
@@ -39,5 +53,15 @@ export const remove = async (id: number, requesterRole: string, requesterName: s
   await assertCanManageProject(target.projectCode, requesterRole, requesterName);
   const deleted = await repo.remove(id);
   if (!deleted) throw new NotFoundError("Project member", String(id));
+
+  if (deleted.role === "architect") {
+    await notificationsService.create({
+      recipientRole: "architect",
+      title: "Removed from a project",
+      body: `${deleted.userName} was removed from project ${deleted.projectCode}.`,
+      link: `/architect/projects`,
+    });
+  }
+
   return deleted;
 };
