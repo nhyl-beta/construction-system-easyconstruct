@@ -45,4 +45,12 @@ export const MSG = {
   workflowSteps: createCrudMessages("Workflow step"),
   workflowStages: createCrudMessages("Workflow stage"),
   milestones: createCrudMessages("Milestone"),
+  lifecycle: {
+    retrieved: "Lifecycle status retrieved",
+    advanced: "Project advanced",
+    held: "Project held",
+    resumed: "Project resumed",
+    cancelled: "Project cancelled",
+    archived: "Project archived",
+  },
 } as const;

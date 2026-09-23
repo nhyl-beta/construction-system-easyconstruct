@@ -1,5 +1,6 @@
 import * as repo from "./repository.js";
 import { ForbiddenError, NotFoundError } from "../utils/errors.js";
+import { refreshProjectProgress } from "../lifecycle/service.js";
 import type {
   CreateEngineeringReportInput,
   UpdateEngineeringReportInput,
@@ -34,7 +35,9 @@ export const create = async (input: CreateEngineeringReportInput) => {
   const reportId =
     input.reportId ??
     `SR-${Date.now().toString(36)}${Math.random().toString(36).slice(2, 6)}`.toUpperCase();
-  return await repo.create({ status: "Submitted", ...input, reportId });
+  const created = await repo.create({ status: "Submitted", ...input, reportId });
+  if (created) await refreshProjectProgress(created.project);
+  return created;
 };
 
 export const update = async (
@@ -46,12 +49,15 @@ export const update = async (
   assertCanSetStatus(input.status, actorRole);
   const updated = await repo.update(id, input);
   if (!updated) throw new NotFoundError("Engineering report", String(id));
+  // Gate X1 reads type='Final Inspection' + status='Approved'.
+  await refreshProjectProgress(updated.project);
   return updated;
 };
 
 export const remove = async (id: number) => {
-  await getById(id);
+  const existing = await getById(id);
   const deleted = await repo.remove(id);
   if (!deleted) throw new NotFoundError("Engineering report", String(id));
+  await refreshProjectProgress(existing.project);
   return deleted;
 };

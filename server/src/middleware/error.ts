@@ -58,7 +58,9 @@ export function errorMiddleware(
   }
 
   if (err instanceof AppError) {
-    res.status(err.statusCode).json(formatError(err.message, err.code));
+    res
+      .status(err.statusCode)
+      .json({ ...formatError(err.message, err.code), ...err.extra });
     return;
   }
 

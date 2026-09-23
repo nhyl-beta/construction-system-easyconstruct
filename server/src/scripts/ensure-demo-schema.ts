@@ -266,6 +266,81 @@ async function main() {
       ADD COLUMN IF NOT EXISTS recipient_user_id integer REFERENCES users(id),
       ADD COLUMN IF NOT EXISTS project_code varchar(50),
       ADD COLUMN IF NOT EXISTS link varchar(500);
+
+    -- ── Project lifecycle (see lifecycle/phases.ts) ──
+    ALTER TABLE projects
+      ADD COLUMN IF NOT EXISTS previous_status varchar(50),
+      ADD COLUMN IF NOT EXISTS hold_reason text,
+      ADD COLUMN IF NOT EXISTS completed_at timestamp,
+      ADD COLUMN IF NOT EXISTS archived_at timestamp,
+      ADD COLUMN IF NOT EXISTS pm_user_id integer REFERENCES users(id);
+
+    -- Backfill pm_user_id by exact name match against a project-manager
+    -- account. Only a starting point — projects.pm (the free-text name) stays
+    -- authoritative wherever pm_user_id is still null (see
+    -- lifecycle/service.ts assertCanAdvance).
+    UPDATE projects p
+       SET pm_user_id = u.id
+      FROM users u
+     WHERE p.pm_user_id IS NULL
+       AND u.role = 'project-manager'
+       AND u.name = p.pm;
+
+    CREATE TABLE IF NOT EXISTS project_phase_history (
+      id serial PRIMARY KEY,
+      project_code varchar(50) NOT NULL,
+      from_status varchar(50) NOT NULL,
+      to_status varchar(50) NOT NULL,
+      changed_by varchar(100) NOT NULL,
+      changed_by_user_id integer REFERENCES users(id),
+      reason text,
+      override boolean NOT NULL DEFAULT false,
+      gate_snapshot jsonb,
+      created_at timestamp DEFAULT now()
+    );
+
+    CREATE INDEX IF NOT EXISTS project_phase_history_project_code_idx
+      ON project_phase_history (project_code);
+
+    -- D-7: migrate free-text statuses to the phase list, case-insensitively.
+    -- Idempotent: only rewrites a row whose status ISN'T already one of the
+    -- eight phase names, so re-running this after the app has started
+    -- advancing real projects through the lifecycle never stomps on them.
+    UPDATE projects
+       SET previous_status = 'Construction',
+           status = 'On Hold'
+     WHERE status NOT IN ('Proposal','Design','Pre-Construction','Construction','Closeout','Completed','Archived','On Hold','Cancelled')
+       AND status ILIKE '%hold%';
+
+    UPDATE projects
+       SET status = 'Cancelled'
+     WHERE status NOT IN ('Proposal','Design','Pre-Construction','Construction','Closeout','Completed','Archived','On Hold','Cancelled')
+       AND status ILIKE '%cancel%';
+
+    UPDATE projects
+       SET status = 'Completed'
+     WHERE status NOT IN ('Proposal','Design','Pre-Construction','Construction','Closeout','Completed','Archived','On Hold','Cancelled')
+       AND (status ILIKE '%complete%' OR status ILIKE '%done%');
+
+    UPDATE projects
+       SET status = 'Construction'
+     WHERE status NOT IN ('Proposal','Design','Pre-Construction','Construction','Closeout','Completed','Archived','On Hold','Cancelled')
+       AND (status ILIKE '%progress%' OR status ILIKE '%active%' OR status ILIKE '%ongoing%');
+
+    -- Everything else, including 'Planning' and empty string, becomes Proposal.
+    UPDATE projects
+       SET status = 'Proposal'
+     WHERE status NOT IN ('Proposal','Design','Pre-Construction','Construction','Closeout','Completed','Archived','On Hold','Cancelled')
+        OR status = '' OR status IS NULL;
+
+    -- ── E3 / gate D3 ──
+    ALTER TABLE blueprints
+      ADD COLUMN IF NOT EXISTS project_code varchar(50),
+      ADD COLUMN IF NOT EXISTS design_id integer REFERENCES designs(id);
+
+    -- ── D2 ──
+    ALTER TABLE proposals
+      ADD COLUMN IF NOT EXISTS workflow_id integer REFERENCES workflows(id);
   `);
 
   console.log("Demo schema tables and compatibility columns are ready.");

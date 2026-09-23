@@ -7,6 +7,7 @@ import type { CreateBlueprintInput, UpdateBlueprintInput, BlueprintFilters } fro
 export const findAll = async (filters: BlueprintFilters = {}) => {
   const conditions: SQL[] = [];
   if (filters.folder && filters.folder !== 'all') conditions.push(eq(blueprints.folder, filters.folder));
+  if (filters.projectCode) conditions.push(eq(blueprints.projectCode, filters.projectCode));
   if (filters.search) {
     const s = `%${filters.search}%`;
     conditions.push(or(ilike(blueprints.title, s), ilike(blueprints.drawingNumber, s))!);

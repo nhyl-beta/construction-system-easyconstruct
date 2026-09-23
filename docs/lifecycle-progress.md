@@ -25,20 +25,20 @@ Group A commit: `379923e`. Group B commit: `71036b0`.
 **→ CHECKPOINT 1**
 
 ### C. Lifecycle core
-- [ ] C1 🔴 server/src/lifecycle/phases.ts
-- [ ] C2 🔴 Schema: projects columns + project_phase_history table + status migration
-- [ ] C3 🔴 project-validator.ts: status/progress rejected on update, forced on create; remove progress from ENGINEER_UPDATABLE_FIELDS
-- [ ] C4 🔴 lifecycle/gates.ts + lifecycle/repository.ts loadSnapshot
-- [ ] C5 🔴 lifecycle/service.ts computeProgress/refreshProjectProgress; delete recomputeProjectProgress from workflows/service.ts
-- [ ] C6 🔴 GET .../lifecycle and POST .../lifecycle/advance
-- [ ] C7 🔴 refreshProjectProgress call sites (tasks, milestones, links, requirements, budgets, documents, designs, reviews, blueprints, members, workflows, payroll, eng reports)
-- [ ] C8 🔴 assertProjectWritable guard on writes
-- [ ] C9 🔴 Client features/lifecycle/ (types, repo, hook, ProjectLifecyclePanel)
-- [ ] C10 🔴 ProjectDetailPage: status read-only badge, remove progress input/engineer save
-- [ ] C11 🟡 Hold/Resume/Cancel endpoints + menu
-- [ ] C12 🟡 Project list phase column/filter, Archived hidden by default
+- [x] C1 🔴 server/src/lifecycle/phases.ts
+- [x] C2 🔴 Schema: projects columns + project_phase_history table + status migration. Pulled forward (needed by C4's gates): blueprints.project_code/design_id (E3), proposals.workflow_id (D2).
+- [x] C3 🔴 project-validator.ts: status/progress omitted from updateProjectSchema; rejectLifecycleFields middleware rejects (not silently strips) status/progress/statusTone on PATCH; create forces Proposal/neutral/0 in service. ENGINEER_UPDATABLE_FIELDS and assertCanUpdateProject removed entirely (engineer dropped from PATCH route guard — nothing left for it to update).
+- [x] C4 🔴 lifecycle/gates.ts (all 21 checks: P1-P5, D1-D3, C1-C5, K1-K4, X1-X4) + lifecycle/repository.ts loadSnapshot
+- [x] C5 🔴 lifecycle/service.ts computeProgress/refreshProjectProgress; recomputeProjectProgress deleted from workflows/service.ts, replaced with refreshProjectProgress calls in createWorkflow + decideStage
+- [x] C6 🔴 GET/advance/hold/resume/cancel/archive all built together (mounted as one lifecycle/routes.ts under projects/:id/lifecycle) — see C11 note
+- [x] C7 🔴 refreshProjectProgress added to: tasks (create/updateStatus/update/remove), milestones (create/update/remove), requirements (create/update/remove), budgets (create/update/remove), documents (create/upload), designs (create/update/remove), design-reviews (create/decide/remove), blueprints (create/update/remove, guarded — projectCode nullable until E3), project-members (create/remove), workflows (createWorkflow/decideStage), payroll-batch (create/decide), engineering-reports (create/update/remove). Also added to **issues** (create/updateStatus) — not named in the spec's C7 list but gate K3 reads issue status, so left out it would never update. Milestone links (F4) and workflow resubmit (D4) don't exist yet; refresh will be added when those are built.
+- [x] C8 🔴 assertProjectWritable added to the same call sites as C7 (create/update only, not delete, per spec), plus attendance clock-in (create, when projectCode is present), issues create/updateStatus, finance/expenses create/approve/reject, and projects/service.ts update().
+- [x] C9 🔴 client/src/features/lifecycle/ — types (mirrors phases.ts), repository, useProjectLifecycle hook, ProjectLifecyclePanel (phase badge, progress bar, stepper, per-check list with owner-role badges and fix links, Advance button with tooltip listing failing keys, Admin override dialog, Hold/Cancel reason dialogs via an Actions dropdown, Resume button, history timeline). Mounted at the top of ProjectDetailPage.tsx.
+- [x] C10 🔴 ProjectDetailPage.tsx: Status is now always a `StatusBadge` (was editable Input for canEdit); Progress field, `saveProgress`, `canEditProgress`, `isEngineer`, and the Engineer "Save progress" block all removed; `save()` no longer sends status/progress/statusTone.
+- [x] C11 🟡 Hold/Resume/Cancel/Archive endpoints + Actions dropdown menu in the panel, reasons required via a dialog — built as part of C6/C9 above rather than separately.
+- [x] C12 🟡 pm-projects.tsx (the main project list): Archived hidden by default via `showArchived` state in useProjectsController + a "Show archived" toggle in ProjectsToolbar. Status column already existed and now shows the phase directly (status IS the phase). Not wired into every other role's project list page (owner-portfolio etc. — K2) to keep this pass scoped; noted as a follow-up.
 
-**→ CHECKPOINT 2** (curl transcript of blocked advance 409)
+**→ CHECKPOINT 2** — curl transcript below
 
 ### D. Phase 1 — Proposal
 - [ ] D1 🔴 ProjectCreatePage: drop status:"Planning"; require Architect+Consultant in Team step
@@ -109,6 +109,42 @@ Group A commit: `379923e`. Group B commit: `71036b0`.
 
 **→ CHECKPOINT 5 (final)**
 
+## Verification (checkpoint 2)
+
+Ran against the real dev DB (TEST_v22, id 2), PM/engineer/admin demo accounts:
+
+```
+$ curl -X POST /api/projects/2/lifecycle/advance  (as PM, no overrides — blocked)
+409 GATE_BLOCKED
+{"success":false,"message":"Cannot advance — 3 check(s) failing: P3, P4, P5",
+ "code":"GATE_BLOCKED",
+ "failing":[
+   {"key":"P3","label":"Proposal submitted","passed":false,...},
+   {"key":"P4","label":"Proposal approved","passed":false,...},
+   {"key":"P5","label":"Award & contract on file","passed":false,...}
+ ]}
+
+$ curl -X POST /api/projects/2/lifecycle/advance  (as engineer)
+403 FORBIDDEN — "Only the project's own Project Manager, or Admin, may advance it"
+
+$ curl -X POST .../advance {"override":true,"reason":"short"}  (as admin)
+409 CONFLICT — "An override requires a reason of at least 10 characters"
+
+$ curl -X POST .../advance {"override":true,"reason":"Overriding for lifecycle checkpoint verification purposes."}  (as admin)
+200 — phase Proposal→Design, progress 0→15 (D1 passing, D2/D3 not: 10+15*1/3≈15),
+      history row override=true with the full P1-P5 gate snapshot attached
+
+$ curl -X POST .../hold {}  (as PM, no reason)          → 409 "A reason is required to hold a project"
+$ curl -X POST .../hold {"reason":"Waiting on client decision"}  → 200, phase On Hold, previous_status=Design
+$ curl -X POST /api/requirements {...project:"TEST_v22"...}  (as engineer, project On Hold)
+                                                          → 409 "Project is On Hold — changes are locked"
+$ curl -X POST .../resume {}  (as PM)                    → 200, phase restored to Design exactly
+```
+
+Also confirmed via `GET /api/notifications` (architect, staffed on TEST_v22): received "Project advanced to Design", "Project entering Design" (role-broadcast to architect, since D1/D3's ownerRoles include architect), "Project put on hold", and "Project resumed" — each with the correct `link`/`projectCode`.
+
+Test project's status/progress/history were reset to their pre-verification state afterward. Client (`tsc && refine build`) and server (`tsc --noEmit`) both clean after every C-subgroup edit.
+
 ## Verification (checkpoint 1)
 
 Ran `npm run dev` (server) against the real dev DB after applying the ensure-demo-schema migration, and exercised each item with curl:
@@ -128,6 +164,11 @@ Ran `npm run dev` (server) against the real dev DB after applying the ensure-dem
 - No `.env.example` file exists anywhere in the repo (checked both `server/` and `client/`), so A4's "add both variables to any .env.example" had nothing to add to. `FEATURE_AI` (server) / `VITE_FEATURE_AI` (client) both default falsy via `!== "true"`, so no env file is required for the flag to be off.
 - B7 (🟡): left several minor/cosmetic "AI" strings ungated rather than touching every occurrence — see the B7 checklist note above for the specific list and why each was left (unrouted dead pages, plain descriptive copy, an already-`disabled` placeholder button, internal mock-data labels, Refine's internal resource registry).
 - A2/F1 split: the spec puts "PM approve/reject requirements UI" in F1, so A2 only added the backend guard (`assertCanSetStatus`) — there is currently no client UI that can even attempt an Approved/Rejected requirement PATCH yet (engineer-requirements.tsx only creates drafts). Verified the guard directly.
+- C2 pulled two schema changes forward from later groups because C4's gates need the columns to exist to compile/query at all: `blueprints.project_code`/`design_id` (spec assigns this to E3) and `proposals.workflow_id` (spec assigns this to D2). The *behavior* those columns enable (blueprint project filtering UI, the `/proposals/submit` endpoint) is still built in E3/D2 as scheduled — only the columns exist early, both nullable and unused by anything yet.
+- D-7's "recompute progress for every project" (end of the status migration) is deferred to L1, which already lists "run refreshProjectProgress for all projects at the end of the seed" — recomputing requires the lifecycle service (gates, bands), which doesn't exist until C5, so it can't run inside ensure-demo-schema.ts itself. Ran it manually against the one project used for checkpoint verification instead.
+- GateBlockedError (`server/src/utils/errors.ts`) is a new AppError subclass, and AppError gained an optional `extra` field merged into the JSON error response — needed to carry `{failing: GateCheck[]}` on the 409 spec requires; every other error class/call site is unaffected (extra defaults to undefined).
+- C7's refresh-call-site list was extended to include `issues` (create/updateStatus), which the spec's own C7 list omits but gate K3 directly reads (no open issues) — leaving it out would mean K3 never updates when an issue is filed or resolved.
+- C12 was wired into pm-projects.tsx only (the canonical "All projects" list), not every role's project list page (owner-portfolio, admin-projects, etc.) — scoped down to keep checkpoint 2 on schedule; flagged as a possible K2 follow-up.
 
 ## Questions
 

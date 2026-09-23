@@ -1,0 +1,320 @@
+import { useState } from "react";
+import { CheckCircle2, Clock, History, XCircle } from "lucide-react";
+
+import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
+import { Progress } from "@/components/ui/progress";
+import { Textarea } from "@/components/ui/textarea";
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipTrigger,
+} from "@/components/ui/tooltip";
+import {
+  Dialog,
+  DialogContent,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
+import { useAuth } from "@/auth/auth-context";
+import { useProjectLifecycle } from "../hooks/useProjectLifecycle";
+import { SEQUENCED_PHASES } from "../types/lifecycle.types";
+import { formatRelativeTime } from "@/lib/format-relative-time";
+
+const TONE_CLASS: Record<string, string> = {
+  Proposal: "border-border text-foreground",
+  Design: "border-border text-foreground",
+  "Pre-Construction": "border-border text-foreground",
+  Construction: "border-border text-foreground",
+  Closeout: "border-border text-foreground",
+  Completed: "border-success/30 bg-success/10 text-success",
+  Archived: "border-success/30 bg-success/10 text-success",
+  "On Hold": "border-warning/30 bg-warning/10 text-warning",
+  Cancelled: "border-destructive/30 bg-destructive/10 text-destructive",
+};
+
+type ReasonAction = "hold" | "cancel" | "override";
+
+export function ProjectLifecyclePanel({ projectId }: { projectId: string | number }) {
+  const { user } = useAuth();
+  const isAdmin = user?.role === "admin";
+  const isPm = user?.role === "project-manager";
+  const canManage = isAdmin || isPm;
+
+  const {
+    view,
+    loading,
+    error,
+    acting,
+    actionError,
+    advance,
+    hold,
+    resume,
+    cancel,
+    archive,
+  } = useProjectLifecycle(projectId);
+
+  const [reasonDialog, setReasonDialog] = useState<ReasonAction | null>(null);
+  const [reason, setReason] = useState("");
+
+  const closeReasonDialog = () => {
+    setReasonDialog(null);
+    setReason("");
+  };
+
+  const submitReason = async () => {
+    if (reasonDialog === "hold") {
+      if (await hold(reason)) closeReasonDialog();
+    } else if (reasonDialog === "cancel") {
+      if (await cancel(reason)) closeReasonDialog();
+    } else if (reasonDialog === "override") {
+      if (await advance({ override: true, reason })) closeReasonDialog();
+    }
+  };
+
+  if (loading) {
+    return (
+      <div className="rounded-2xl border border-border bg-card p-6 text-sm text-muted-foreground">
+        Loading lifecycle status…
+      </div>
+    );
+  }
+  if (error || !view) {
+    return (
+      <div className="rounded-2xl border border-destructive/30 bg-destructive/10 p-6 text-sm text-destructive">
+        {error ?? "Lifecycle status is unavailable."}
+      </div>
+    );
+  }
+
+  const stepIndex = SEQUENCED_PHASES.indexOf(view.phase as (typeof SEQUENCED_PHASES)[number]);
+  const isFrozen = view.phase === "On Hold" || view.phase === "Cancelled";
+
+  return (
+    <div className="space-y-4 rounded-2xl border border-border bg-card p-6">
+      <div className="flex flex-wrap items-center justify-between gap-3">
+        <div className="flex items-center gap-3">
+          <Badge variant="outline" className={`rounded-full px-3 py-1 text-sm ${TONE_CLASS[view.phase] ?? ""}`}>
+            {view.phase}
+          </Badge>
+          {view.constructionTasks && (
+            <span className="text-xs text-muted-foreground">
+              {view.constructionTasks.done} of {view.constructionTasks.total} tasks done
+            </span>
+          )}
+        </div>
+
+        {canManage && !isFrozen && (
+          <div className="flex items-center gap-2">
+            {view.nextPhase && (
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <span>
+                    <Button
+                      size="sm"
+                      className="rounded-xl"
+                      disabled={acting || !view.canAdvance}
+                      onClick={() => void advance()}
+                    >
+                      Advance to {view.nextPhase}
+                    </Button>
+                  </span>
+                </TooltipTrigger>
+                {!view.canAdvance && (
+                  <TooltipContent>
+                    {view.checks.filter((c) => !c.passed).length > 0
+                      ? `Blocked: ${view.checks
+                          .filter((c) => !c.passed)
+                          .map((c) => c.key)
+                          .join(", ")}`
+                      : view.blockedReason ?? "Advance is not available"}
+                  </TooltipContent>
+                )}
+              </Tooltip>
+            )}
+
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <Button size="sm" variant="outline" className="rounded-xl">
+                  Actions
+                </Button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="end">
+                {isAdmin && view.nextPhase && !view.canAdvance && (
+                  <DropdownMenuItem onClick={() => setReasonDialog("override")}>
+                    Override & advance
+                  </DropdownMenuItem>
+                )}
+                <DropdownMenuItem
+                  disabled={!["Design", "Pre-Construction", "Construction"].includes(view.phase)}
+                  onClick={() => setReasonDialog("hold")}
+                >
+                  Put on hold
+                </DropdownMenuItem>
+                <DropdownMenuItem
+                  disabled={!["Proposal"].includes(view.phase) && !isAdmin}
+                  onClick={() => setReasonDialog("cancel")}
+                >
+                  Cancel project
+                </DropdownMenuItem>
+                {isAdmin && view.phase === "Completed" && (
+                  <DropdownMenuItem onClick={() => void archive()}>Archive</DropdownMenuItem>
+                )}
+              </DropdownMenuContent>
+            </DropdownMenu>
+          </div>
+        )}
+
+        {canManage && view.phase === "On Hold" && (
+          <Button size="sm" className="rounded-xl" disabled={acting} onClick={() => void resume()}>
+            Resume
+          </Button>
+        )}
+      </div>
+
+      {actionError && (
+        <p className="rounded-lg border border-destructive/30 bg-destructive/5 px-3 py-2 text-sm text-destructive">
+          {actionError.message}
+        </p>
+      )}
+
+      {isFrozen ? (
+        <p className="text-sm text-muted-foreground">
+          {view.phase === "On Hold" ? "This project is on hold." : "This project is cancelled."}
+        </p>
+      ) : (
+        <>
+          <div className="space-y-1.5">
+            <div className="flex items-center justify-between text-xs text-muted-foreground">
+              <span>Progress</span>
+              <span>{view.progress}%</span>
+            </div>
+            <Progress value={view.progress} className="h-2" />
+          </div>
+
+          {/* Phase stepper */}
+          <div className="flex flex-wrap items-center gap-1.5 text-xs">
+            {SEQUENCED_PHASES.map((phase, i) => (
+              <span
+                key={phase}
+                className={`rounded-full border px-2.5 py-1 ${
+                  i < stepIndex
+                    ? "border-success/30 bg-success/10 text-success"
+                    : i === stepIndex
+                      ? "border-primary/40 bg-primary/10 text-primary"
+                      : "border-border text-muted-foreground"
+                }`}
+              >
+                {phase}
+              </span>
+            ))}
+          </div>
+
+          {view.checks.length > 0 && (
+            <div className="space-y-2">
+              <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
+                Checks for {view.phase}
+              </p>
+              <ul className="space-y-1.5">
+                {view.checks.map((check) => (
+                  <li
+                    key={check.key}
+                    className="flex items-start gap-2 rounded-xl border border-border/70 px-3 py-2 text-sm"
+                  >
+                    {check.passed ? (
+                      <CheckCircle2 className="mt-0.5 h-4 w-4 shrink-0 text-success" />
+                    ) : (
+                      <XCircle className="mt-0.5 h-4 w-4 shrink-0 text-destructive" />
+                    )}
+                    <div className="min-w-0 flex-1">
+                      <div className="flex flex-wrap items-center gap-1.5">
+                        <span className="font-medium">{check.label}</span>
+                        <span className="font-mono text-[10px] text-muted-foreground">{check.key}</span>
+                        {check.ownerRoles.map((role) => (
+                          <Badge key={role} variant="outline" className="rounded-full text-[10px] capitalize">
+                            {role.replace(/-/g, " ")}
+                          </Badge>
+                        ))}
+                      </div>
+                      {check.detail && (
+                        <p className="mt-0.5 text-xs text-muted-foreground">{check.detail}</p>
+                      )}
+                    </div>
+                  </li>
+                ))}
+              </ul>
+            </div>
+          )}
+        </>
+      )}
+
+      {view.history.length > 0 && (
+        <div className="space-y-2 border-t border-border/60 pt-3">
+          <p className="flex items-center gap-1.5 text-xs font-medium uppercase tracking-wide text-muted-foreground">
+            <History className="h-3.5 w-3.5" /> History
+          </p>
+          <ul className="space-y-1.5">
+            {[...view.history].reverse().map((h) => (
+              <li key={h.id} className="flex items-center gap-2 text-xs text-muted-foreground">
+                <Clock className="h-3 w-3 shrink-0" />
+                <span>
+                  {h.fromStatus} → {h.toStatus} by {h.changedBy}
+                  {h.reason ? ` — ${h.reason}` : ""}
+                  {h.override ? " (override)" : ""} · {formatRelativeTime(h.createdAt)}
+                </span>
+              </li>
+            ))}
+          </ul>
+        </div>
+      )}
+
+      <Dialog open={reasonDialog !== null} onOpenChange={(open) => !open && closeReasonDialog()}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle>
+              {reasonDialog === "hold"
+                ? "Put project on hold"
+                : reasonDialog === "cancel"
+                  ? "Cancel project"
+                  : "Override blocked advance"}
+            </DialogTitle>
+          </DialogHeader>
+          <Textarea
+            value={reason}
+            onChange={(e) => setReason(e.target.value)}
+            placeholder={
+              reasonDialog === "override"
+                ? "Reason for overriding the blocked checks (min. 10 characters)…"
+                : "Reason…"
+            }
+            className="min-h-24"
+          />
+          {actionError && (
+            <p className="text-sm text-destructive">{actionError.message}</p>
+          )}
+          <DialogFooter>
+            <Button
+              disabled={
+                acting ||
+                !reason.trim() ||
+                (reasonDialog === "override" && reason.trim().length < 10)
+              }
+              onClick={() => void submitReason()}
+            >
+              {acting ? "Saving…" : "Confirm"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+    </div>
+  );
+}
+
+ProjectLifecyclePanel.displayName = "ProjectLifecyclePanel";

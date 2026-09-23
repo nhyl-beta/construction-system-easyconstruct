@@ -3,6 +3,7 @@ import { requirements } from "../db/schema/requirements.js";
 import { projects } from "../db/schema/projects.js";
 import { and, desc, eq, ilike, SQL } from "drizzle-orm";
 import { ForbiddenError, ValidationError } from "../utils/errors.js";
+import { assertProjectWritable, refreshProjectProgress } from "../lifecycle/service.js";
 import type {
   CreateRequirementInput,
   UpdateRequirementInput,
@@ -51,6 +52,7 @@ export const create = async (data: CreateRequirementInput) => {
   if (!project) {
     throw new ValidationError(`No project found with code "${data.project}"`);
   }
+  await assertProjectWritable(data.project);
   const requirementId =
     data.requirementId ??
     `REQ-${Date.now().toString(36)}${Math.random().toString(36).slice(2, 6)}`.toUpperCase();
@@ -59,6 +61,7 @@ export const create = async (data: CreateRequirementInput) => {
     .values({ ...data, requirementId })
     .returning();
   if (!created) throw new Error("Failed to create requirement");
+  await refreshProjectProgress(created.project);
   return created;
 };
 
@@ -68,15 +71,19 @@ export const update = async (
   actorRole: string,
 ) => {
   assertCanSetStatus(data.status, actorRole);
+  const existing = await findById(id);
+  if (existing) await assertProjectWritable(existing.project);
   const [updated] = await db
     .update(requirements)
     .set({ ...data, updatedAt: new Date() })
     .where(eq(requirements.id, id))
     .returning();
+  if (updated) await refreshProjectProgress(updated.project);
   return updated ?? null;
 };
 
 export const remove = async (id: number) => {
   const [deleted] = await db.delete(requirements).where(eq(requirements.id, id)).returning();
+  if (deleted) await refreshProjectProgress(deleted.project);
   return deleted ?? null;
 };

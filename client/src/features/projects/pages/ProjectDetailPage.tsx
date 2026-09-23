@@ -19,6 +19,7 @@ import { MilestonesPanel } from "@/features/milestones/components/MilestonesPane
 import { LocationMapPicker } from "@/components/maps/location-map-picker";
 import { useProjectDesigns } from "@/features/designs/hooks/useProjectDesigns";
 import { StatusBadge } from "@/components/ui/status-badge";
+import { ProjectLifecyclePanel } from "@/features/lifecycle/components/ProjectLifecyclePanel";
 import type { ProjectMemberRole } from "@/features/project-members/repositories/project-member.repository";
 import { useUsersByRole } from "@/features/users/hooks/use-users-by-role";
 import { ArrowLeft, HardHat, Loader2, PencilRuler, Trash2, UserPlus, X } from "lucide-react";
@@ -54,14 +55,12 @@ export default function ProjectDetailPage() {
   const { user } = useAuth();
 
   const role = user?.role ?? "";
-  const isEngineer = role === "engineer";
   // Editability is derived from the actual API grant rather than from a
   // single "is this the engineer" check. Owner reached this page from the
   // executive portfolio and was handed the Project Manager's full edit form —
   // Save and Delete included — every button on which returns 403. Read-only
   // roles now get a read-only record.
   const canEdit = PROJECT_EDITORS.includes(role);
-  const canEditProgress = canEdit || isEngineer;
   const listRoute = LIST_ROUTE_BY_ROLE[role] ?? "/projects";
 
   const [project, setProject] = useState<Project | null>(null);
@@ -98,23 +97,6 @@ export default function ProjectDetailPage() {
     setProject((current) => (current ? { ...current, [key]: value } : current));
   };
 
-  // Sends only `progress` — an Engineer PATCH carrying any other field is
-  // rejected by the API, so the payload has to match the grant exactly.
-  const saveProgress = async () => {
-    if (!project) return;
-    setSaving(true);
-    setError(null);
-    setMessage(null);
-    try {
-      await ProjectRepository.patch(project.code, { progress: project.progress });
-      setMessage("Progress updated.");
-    } catch (err) {
-      setError(err instanceof Error ? err.message : "Failed to update progress.");
-    } finally {
-      setSaving(false);
-    }
-  };
-
   const save = async () => {
     if (!project) return;
     if (!project.name.trim() || !project.code.trim() || !project.due.trim()) {
@@ -131,9 +113,8 @@ export default function ProjectDetailPage() {
         client: project.client,
         currency: project.currency,
         location: project.location,
-        status: project.status,
-        statusTone: project.statusTone,
-        progress: project.progress,
+        // status/progress are lifecycle-owned now (server/src/lifecycle) —
+        // sending them here is rejected by the API; see ProjectLifecyclePanel.
         budget: project.budget,
         contractValue: project.contractValue,
         workforce: project.workforce,
@@ -223,7 +204,11 @@ export default function ProjectDetailPage() {
           `success` token used here now, which App.css redefines per theme. */}
       {message && <div className="rounded-xl border border-success/30 bg-success/10 px-4 py-3 text-sm text-success">{message}</div>}
 
-      {!canEdit && !isEngineer && (
+      <div className="max-w-4xl">
+        <ProjectLifecyclePanel projectId={project.id} />
+      </div>
+
+      {!canEdit && (
         <p className="max-w-4xl text-sm text-muted-foreground">
           This is a read-only view of the project record. Changes are the
           Project Manager's to make.
@@ -256,10 +241,12 @@ export default function ProjectDetailPage() {
             ? <Input value={project.location} onChange={(e) => update("location", e.target.value)} />
             : <ReadOnlyValue value={project.location} />}
         </Field>
+        {/* Status is lifecycle-owned — see ProjectLifecyclePanel above, which
+            is where it's actually changed (Advance/Hold/Resume/Cancel/
+            Archive). Shown here as a plain badge, not an editable field, for
+            any role including the PM/Admin who otherwise can edit this form. */}
         <Field label="Status">
-          {canEdit
-            ? <Input value={project.status} onChange={(e) => update("status", e.target.value)} />
-            : <ReadOnlyValue value={project.status} />}
+          <StatusBadge status={project.status} />
         </Field>
         {/* Risk was a free-text Input, so any spelling ("hi", "Severe") could
             be typed here; the value drives risk sorting on the Admin/PM/Owner
@@ -283,11 +270,6 @@ export default function ProjectDetailPage() {
           ) : (
             <ReadOnlyValue value={riskLabel} />
           )}
-        </Field>
-        <Field label="Progress (%)">
-          {canEditProgress
-            ? <Input type="number" min="0" max="100" value={project.progress} onChange={(e) => update("progress", Number(e.target.value))} />
-            : <ReadOnlyValue value={`${project.progress}%`} />}
         </Field>
         <Field label="Budget used (%)">
           {canEdit
@@ -372,18 +354,6 @@ export default function ProjectDetailPage() {
           )}
         </div>
 
-        {!canEdit && isEngineer && (
-          <div className="space-y-2 md:col-span-2">
-            <p className="text-xs text-muted-foreground">
-              You can report progress on this project. Everything else is the
-              Project Manager's to change.
-            </p>
-            <Button onClick={saveProgress} disabled={saving}>
-              {saving && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-              {saving ? "Saving…" : "Save progress"}
-            </Button>
-          </div>
-        )}
       </div>
 
       {/* The team is part of "the details per project", so viewers see it —

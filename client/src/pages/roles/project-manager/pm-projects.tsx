@@ -49,6 +49,8 @@ export default function PMProjects() {
         view={ctrl.view}
         setView={ctrl.setView}
         showCreate={canCreate}
+        showArchived={ctrl.showArchived}
+        onToggleArchived={ctrl.setShowArchived}
       />
 
       {ctrl.error ? (

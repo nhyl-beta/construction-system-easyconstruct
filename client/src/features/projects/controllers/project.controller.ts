@@ -10,14 +10,19 @@ export function useProjectsController(initialQuery = "") {
   const [query, setQuery] = useState(initialQuery);
   const [view, setView] = useState<"table" | "grid">("table");
   const [kpis, setKpis] = useState({ total: 0, onTrack: 0, atRisk: 0, delayed: 0 });
+  // Archived is the lifecycle's terminal, no-further-action phase (C12) — an
+  // archived project cluttering every list by default is exactly what
+  // "archive" was supposed to get it out of.
+  const [showArchived, setShowArchived] = useState(false);
 
   const load = useCallback(async () => {
     setLoading(true);
     setError(null);
     try {
       const { data } = await ProjectService.queryProjects({ q: query });
-      setProjects(data);
-      setKpis(ProjectService.calcKpis(data));
+      const visible = showArchived ? data : data.filter((p) => p.status !== "Archived");
+      setProjects(visible);
+      setKpis(ProjectService.calcKpis(visible));
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     } catch (err: any) {
       setError(err);
@@ -39,6 +44,8 @@ export function useProjectsController(initialQuery = "") {
     view,
     setView,
     kpis,
+    showArchived,
+    setShowArchived,
     reload: load,
   } as const;
 }

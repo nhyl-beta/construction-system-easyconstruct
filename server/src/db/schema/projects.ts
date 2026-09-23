@@ -3,6 +3,7 @@ import {
   pgTable, serial, varchar,
   integer, text, timestamp, numeric,
 } from 'drizzle-orm/pg-core';
+import { users } from './users.js';
 
 export const projects = pgTable('projects', {
   id:          serial('id').primaryKey(),
@@ -31,6 +32,20 @@ export const projects = pgTable('projects', {
   siteLatitude:     numeric('site_latitude', { precision: 10, scale: 7 }),
   siteLongitude:    numeric('site_longitude', { precision: 10, scale: 7 }),
   geofenceRadiusM:  integer('geofence_radius_m').default(300),
+
+  // ── Added for the project lifecycle (see lifecycle/phases.ts) ──
+  // The phase Hold restores on Resume — only ever set by Hold, only ever
+  // read by Resume.
+  previousStatus:  varchar('previous_status', { length: 50 }),
+  holdReason:      text('hold_reason'),
+  completedAt:     timestamp('completed_at'),
+  archivedAt:      timestamp('archived_at'),
+  // Nullable: `pm` (the display name column above) is authoritative until
+  // backfilled/set. Advance's "is this caller the project's own PM" check
+  // falls back to name-matching while this is null — see
+  // lifecycle/service.ts assertCanAdvance.
+  pmUserId:        integer('pm_user_id').references(() => users.id),
+
   createdAt:   timestamp('created_at').defaultNow(),
   updatedAt:   timestamp('updated_at').defaultNow(),
 });

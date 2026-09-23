@@ -1,4 +1,5 @@
 import { NotFoundError } from "../utils/errors.js";
+import { assertProjectWritable, refreshProjectProgress } from "../lifecycle/service.js";
 import * as repo from "./repository.js";
 import type {
   AssignedEngineer,
@@ -59,6 +60,7 @@ export const getById = async (id: number) => {
 
 export const create = async (input: CreateDesignInput) => {
   const { assignedEngineers, ...designInput } = input;
+  await assertProjectWritable(designInput.projectCode);
 
   const created = await repo.create({
     ...designInput,
@@ -70,11 +72,13 @@ export const create = async (input: CreateDesignInput) => {
     await repo.replaceEngineers(created.id, assignedEngineers);
   }
 
+  await refreshProjectProgress(created.projectCode);
   return getById(created.id);
 };
 
 export const update = async (id: number, input: UpdateDesignInput) => {
-  await getById(id);
+  const existing = await getById(id);
+  await assertProjectWritable(existing.projectCode);
   const { assignedEngineers, ...designInput } = input;
 
   const updated = await repo.update(id, {
@@ -89,13 +93,15 @@ export const update = async (id: number, input: UpdateDesignInput) => {
     await repo.replaceEngineers(id, assignedEngineers);
   }
 
+  await refreshProjectProgress(updated.projectCode);
   return getById(id);
 };
 
 export const remove = async (id: number) => {
-  await getById(id);
+  const existing = await getById(id);
   // design_engineers rows go with it via ON DELETE CASCADE.
   const deleted = await repo.remove(id);
   if (!deleted) throw new NotFoundError("Design", String(id));
+  await refreshProjectProgress(existing.projectCode);
   return deleted;
 };

@@ -1,5 +1,6 @@
 // server/src/tasks/service.ts — NEW
 import { ForbiddenError, NotFoundError, ValidationError } from "../utils/errors.js";
+import { assertProjectWritable, refreshProjectProgress } from "../lifecycle/service.js";
 import * as repo from "./repository.js";
 import type { CreateTaskInput, TaskFilters, UpdateTaskInput } from "./types.js";
 
@@ -18,8 +19,10 @@ export const getById = async (id: number) => {
 };
 
 export const create = async (input: CreateTaskInput) => {
+  await assertProjectWritable(input.projectCode);
   const task = await repo.create(input);
   if (!task) throw new Error("Failed to create task");
+  await refreshProjectProgress(task.projectCode);
   return task;
 };
 
@@ -31,6 +34,7 @@ export const updateStatus = async (
   evidence: { completionNote?: string; completionFileUrl?: string } = {},
 ) => {
   const existing = await getById(id);
+  await assertProjectWritable(existing.projectCode);
   if (existing.assignedToUserId !== actingUserId) {
     throw new ForbiddenError("You can only update tasks assigned to you");
   }
@@ -64,19 +68,25 @@ export const updateStatus = async (
       : {}),
   });
   if (!updated) throw new NotFoundError("Task", String(id));
+  // Construction's progress is completed/total tasks (D-2) — the only gate
+  // band whose number this call site can move on its own.
+  await refreshProjectProgress(updated.projectCode);
   return updated;
 };
 
 export const update = async (id: number, input: UpdateTaskInput) => {
-  await getById(id);
+  const existing = await getById(id);
+  await assertProjectWritable(existing.projectCode);
   const updated = await repo.update(id, input);
   if (!updated) throw new NotFoundError("Task", String(id));
+  await refreshProjectProgress(updated.projectCode);
   return updated;
 };
 
 export const remove = async (id: number) => {
-  await getById(id);
+  const existing = await getById(id);
   const deleted = await repo.remove(id);
   if (!deleted) throw new NotFoundError("Task", String(id));
+  await refreshProjectProgress(existing.projectCode);
   return deleted;
 };

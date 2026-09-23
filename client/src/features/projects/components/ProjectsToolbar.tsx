@@ -16,7 +16,10 @@ export const ProjectsToolbar: React.FC<{
    * so the link would only ever lead to a form that 403s on submit.
    */
   showCreate?: boolean;
-}> = ({ query, setQuery, view, setView, showCreate = true }) => {
+  /** Archived is hidden by default (C12) — omitted callers just don't get the toggle. */
+  showArchived?: boolean;
+  onToggleArchived?: (next: boolean) => void;
+}> = ({ query, setQuery, view, setView, showCreate = true, showArchived, onToggleArchived }) => {
   return (
     <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
       <div>
@@ -41,6 +44,17 @@ export const ProjectsToolbar: React.FC<{
             <Link to="/projects/new">
               <Plus className="h-4 w-4" /> New project
             </Link>
+          </Button>
+        )}
+
+        {onToggleArchived && (
+          <Button
+            size="sm"
+            variant={showArchived ? "secondary" : "outline"}
+            className="h-9 rounded-xl text-xs"
+            onClick={() => onToggleArchived(!showArchived)}
+          >
+            {showArchived ? "Hide archived" : "Show archived"}
           </Button>
         )}
 

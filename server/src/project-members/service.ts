@@ -1,6 +1,7 @@
 import { ConflictError, ForbiddenError, NotFoundError } from "../utils/errors.js";
 import * as projectsService from "../projects/service.js";
 import * as notificationsService from "../notifications/service.js";
+import { assertProjectWritable, refreshProjectProgress } from "../lifecycle/service.js";
 import * as repo from "./repository.js";
 import type { CreateProjectMemberInput, ProjectMemberFilters } from "./types.js";
 
@@ -25,6 +26,7 @@ export const create = async (
   requesterName: string,
 ) => {
   await assertCanManageProject(input.projectCode, requesterRole, requesterName);
+  await assertProjectWritable(input.projectCode);
   const existing = await repo.findAll({ projectCode: input.projectCode });
   if (existing.some((e) => e.userId === input.userId && e.role === input.role)) {
     throw new ConflictError("This person is already staffed on this project in that role");
@@ -44,6 +46,7 @@ export const create = async (
     });
   }
 
+  await refreshProjectProgress(created.projectCode);
   return created;
 };
 
@@ -63,5 +66,6 @@ export const remove = async (id: number, requesterRole: string, requesterName: s
     });
   }
 
+  await refreshProjectProgress(deleted.projectCode);
   return deleted;
 };

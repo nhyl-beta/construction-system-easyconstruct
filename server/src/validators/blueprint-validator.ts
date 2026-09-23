@@ -15,5 +15,7 @@ export const createBlueprintSchema = z.object({
   sizeKb: z.number().int().nonnegative().optional(),
   favorite: z.boolean().optional(),
   tags: z.string().optional(),
+  projectCode: z.string().max(50).nullable().optional(),
+  designId: z.number().int().nullable().optional(),
 });
 export const updateBlueprintSchema = createBlueprintSchema.partial();

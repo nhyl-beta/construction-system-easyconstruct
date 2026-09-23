@@ -2,6 +2,7 @@ import { db } from "../../db/connection.js";
 import { projects } from "../../db/schema/projects.js";
 import { eq } from "drizzle-orm";
 import { NotFoundError, ValidationError } from "../../utils/errors.js";
+import { assertProjectWritable, refreshProjectProgress } from "../../lifecycle/service.js";
 import * as repo from "./repository.js";
 import type {
   BudgetFilters,
@@ -22,21 +23,26 @@ export const create = async (input: CreateBudgetInput) => {
   if (!project) {
     throw new ValidationError(`No project found with code "${input.project}"`);
   }
+  await assertProjectWritable(input.project);
   const created = await repo.create(input);
   if (!created) throw new Error("Failed to create budget");
+  await refreshProjectProgress(created.project);
   return created;
 };
 
 export const update = async (id: number, input: UpdateBudgetInput) => {
-  await getById(id);
+  const existing = await getById(id);
+  await assertProjectWritable(existing.project);
   const updated = await repo.update(id, input);
   if (!updated) throw new NotFoundError("Budget", String(id));
+  await refreshProjectProgress(updated.project);
   return updated;
 };
 
 export const remove = async (id: number) => {
-  await getById(id);
+  const existing = await getById(id);
   const deleted = await repo.remove(id);
   if (!deleted) throw new NotFoundError("Budget", String(id));
+  await refreshProjectProgress(existing.project);
   return deleted;
 };

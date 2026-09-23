@@ -17,17 +17,25 @@ async function parseResponse(res: Response) {
 
   if (!res.ok) {
     let message = `API error ${res.status}`;
+    let body: unknown;
 
     try {
       const json = JSON.parse(text);
       message = json.message ?? message;
+      body = json;
     } catch {
       if (text) {
         message = `${message}: ${text}`;
       }
     }
 
-    throw new Error(message);
+    const error = new Error(message) as Error & { status?: number; body?: unknown };
+    error.status = res.status;
+    // Extra fields an AppError attached (e.g. GateBlockedError's `failing`
+    // array) — callers that need more than the message read this instead of
+    // re-parsing the string.
+    error.body = body;
+    throw error;
   }
 
   try {

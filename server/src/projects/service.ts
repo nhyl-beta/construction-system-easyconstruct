@@ -1,6 +1,7 @@
 import * as repo           from "./repository.js";
 import * as projectMemberRepo from "../project-members/repository.js";
-import { ForbiddenError, NotFoundError } from "../utils/errors.js";
+import { ForbiddenError, NotFoundError, ValidationError } from "../utils/errors.js";
+import { assertProjectWritable } from "../lifecycle/service.js";
 import type {
   CreateProjectInput,
   UpdateProjectInput,
@@ -107,11 +108,29 @@ export const getByCode = async (code: string) => {
 };
 
 export const create = async (input: CreateProjectInput) => {
-  return await repo.create(input);
+  // Every project starts at Proposal/0% regardless of what the client sent —
+  // see lifecycle/phases.ts. statusTone follows PHASE_TONE rather than the
+  // schema's stale 'muted' default.
+  return await repo.create({
+    ...input,
+    status: "Proposal",
+    statusTone: "neutral",
+    progress: 0,
+  });
 };
 
 export const update = async (id: number, input: UpdateProjectInput) => {
-  await getById(id);
+  // Defense in depth: project-validator.ts's updateProjectSchema already
+  // omits these, so a well-formed request never reaches here carrying them —
+  // this only fires if something bypasses that schema.
+  const attempted = input as Record<string, unknown>;
+  if ("status" in attempted || "progress" in attempted || "statusTone" in attempted) {
+    throw new ValidationError(
+      "status/progress are lifecycle-owned — use the /lifecycle endpoints instead of PATCH /projects/:id",
+    );
+  }
+  const existing = await getById(id);
+  await assertProjectWritable(existing.code);
   const updated = await repo.update(id, input);
   if (!updated) throw new NotFoundError('Project', String(id));
   return updated;
@@ -122,44 +141,4 @@ export const remove = async (id: number) => {
   const deleted = await repo.remove(id);
   if (!deleted) throw new NotFoundError('Project', String(id));
   return deleted;
-};
-/**
- * Field-level scoping for Engineer on project updates.
- *
- * Engineers report progress against the projects they are staffed on; they
- * are not project owners. Anything else on the record — schedule, budget,
- * client, PM, risk — stays with the Project Manager. Creating and deleting
- * projects is refused at the route level (projects/routes.ts).
- */
-const ENGINEER_UPDATABLE_FIELDS = new Set(["progress"]);
-
-export const assertCanUpdateProject = async (
-  projectCode: string,
-  input: UpdateProjectInput,
-  actor: { role: string; userId: number },
-) => {
-  if (actor.role !== "engineer") return;
-
-  const attempted = Object.keys(input).filter(
-    (key) => input[key as keyof UpdateProjectInput] !== undefined,
-  );
-  const disallowed = attempted.filter(
-    (field) => !ENGINEER_UPDATABLE_FIELDS.has(field),
-  );
-
-  if (disallowed.length > 0) {
-    throw new ForbiddenError(
-      `Engineers can only update project progress; ${disallowed.join(", ")} is the Project Manager's to change`,
-    );
-  }
-
-  const memberships = await projectMemberRepo.findAll({
-    userId: actor.userId,
-    role: "engineer",
-  });
-  if (!memberships.some((m) => m.projectCode === projectCode)) {
-    throw new ForbiddenError(
-      "You can only update progress on projects you are assigned to",
-    );
-  }
 };

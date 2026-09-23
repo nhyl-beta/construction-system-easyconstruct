@@ -1,6 +1,7 @@
 // server/src/milestones/service.ts — NEW
 import { NotFoundError } from "../utils/errors.js";
 import * as notificationsService from "../notifications/service.js";
+import { assertProjectWritable, refreshProjectProgress } from "../lifecycle/service.js";
 import * as repo from "./repository.js";
 import type { CreateMilestoneInput, MilestoneStatus, UpdateMilestoneInput } from "./types.js";
 
@@ -32,13 +33,16 @@ export const getById = async (id: number) => {
  * through `update()`, a deliberate second step.
  */
 export const create = async (input: CreateMilestoneInput, createdBy: string) => {
+  await assertProjectWritable(input.projectCode);
   const created = await repo.create({ ...input, createdBy, status: "draft" });
   if (!created) throw new Error("Failed to create milestone");
+  await refreshProjectProgress(created.projectCode);
   return created;
 };
 
 export const update = async (id: number, input: UpdateMilestoneInput) => {
   const existing = await getById(id);
+  await assertProjectWritable(existing.projectCode);
   const updated = await repo.update(id, input);
   if (!updated) throw new NotFoundError("Milestone", String(id));
 
@@ -56,6 +60,7 @@ export const update = async (id: number, input: UpdateMilestoneInput) => {
     );
   }
 
+  await refreshProjectProgress(updated.projectCode);
   return updated;
 };
 
@@ -63,5 +68,6 @@ export const remove = async (id: number) => {
   const existing = await getById(id);
   const deleted = await repo.remove(id);
   if (!deleted) throw new NotFoundError("Milestone", String(id));
+  await refreshProjectProgress(existing.projectCode);
   return existing;
 };

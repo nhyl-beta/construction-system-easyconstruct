@@ -1,4 +1,5 @@
 import * as repo from "./repository.js";
+import { assertProjectWritable, refreshProjectProgress } from "../lifecycle/service.js";
 
 import type {
   CreateDocumentInput,
@@ -18,7 +19,12 @@ export const findProjectCodesForPm = async (pmName: string) => {
 export const create = async (
   input: CreateDocumentInput,
 ) => {
-  return repo.create(input);
+  await assertProjectWritable(input.project);
+  const created = await repo.create(input);
+  // Several gate checks read document type (P5's Notice of Award/Contract,
+  // C5's Notice to Proceed, X2's Certificate of Completion).
+  if (created) await refreshProjectProgress(created.project);
+  return created;
 };
 
 export const upload = async ({
@@ -36,6 +42,8 @@ export const upload = async ({
   version?: string;
   uploadedBy: string;
 }) => {
+  await assertProjectWritable(project);
+
   const documentId =
     `ADV-${Date.now().toString(36)}${Math.random().toString(36).slice(2, 6)}`.toUpperCase();
 
@@ -53,7 +61,7 @@ export const upload = async ({
           Math.round(file.size / 1024),
         )} KB`;
 
-  return repo.create({
+  const created = await repo.create({
     documentId,
     title,
     project,
@@ -63,4 +71,6 @@ export const upload = async ({
     uploadedBy,
     fileUrl,
   });
+  await refreshProjectProgress(project);
+  return created;
 };

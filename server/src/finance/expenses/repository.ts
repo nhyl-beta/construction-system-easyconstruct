@@ -39,6 +39,11 @@ export const expensesRepository = {
     return rows;
   },
 
+  async findById(id: string) {
+    const [row] = await db.select().from(expenses).where(eq(expenses.id, id));
+    return row ?? null;
+  },
+
   async create(input: CreateExpenseInput) {
     const id = `EXP-${Math.floor(1000 + Math.random() * 9000)}`;
     const [row] = await db

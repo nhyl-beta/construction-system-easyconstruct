@@ -7,7 +7,11 @@ import * as service from "./service.js";
 
 export const getAll = async (req: Request, res: Response, next: NextFunction) => {
   try {
-    const data = await service.getAll({ folder: req.query.folder as string, search: req.query.search as string });
+    const data = await service.getAll({
+      folder: req.query.folder as string,
+      search: req.query.search as string,
+      projectCode: req.query.projectCode as string,
+    });
     res.json(formatSuccess(data, MSG.blueprints.retrieved));
   } catch (err) { next(err); }
 };

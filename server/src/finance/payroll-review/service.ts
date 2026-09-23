@@ -1,5 +1,6 @@
 import * as repository from "./repository.js";
 import { NotFoundError } from "../../utils/errors.js";
+import { refreshProjectProgress } from "../../lifecycle/service.js";
 
 import type {
   PayrollBatchFilters,
@@ -16,13 +17,20 @@ export const getPayrollBatch = async (id: string) => {
   return batch;
 };
 
-export const createPayrollBatch = (input: CreatePayrollBatchInput) =>
-  repository.create({ status: "pending", ...input });
+export const createPayrollBatch = async (input: CreatePayrollBatchInput) => {
+  const created = await repository.create({ status: "pending", ...input });
+  if (created.projectCode) await refreshProjectProgress(created.projectCode);
+  return created;
+};
 
 export const decidePayrollBatch = async (
   id: string,
   input: DecidePayrollBatchInput,
 ) => {
   await getPayrollBatch(id); // throws NotFoundError if missing
-  return repository.decide(id, input.decision, input.reviewedBy);
+  const decided = await repository.decide(id, input.decision, input.reviewedBy);
+  // Gate X3 reads whether an approved-since-Closeout batch exists and
+  // whether any batch is still pending.
+  if (decided?.projectCode) await refreshProjectProgress(decided.projectCode);
+  return decided;
 };

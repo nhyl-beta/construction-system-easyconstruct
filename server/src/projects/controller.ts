@@ -79,16 +79,6 @@ export const update = async (
 ) => {
   try {
     const id = Number(req.params.id);
-    // Deliberately unscoped: assertCanUpdateProject below produces the
-    // field-level message ("Engineers can only update project progress"),
-    // which is more useful than the generic "not assigned" this would throw
-    // first, and it enforces the same membership rule anyway.
-    const existing = await service.getById(id);
-    await service.assertCanUpdateProject(existing.code, req.body, {
-      role: req.authUser?.role ?? "",
-      userId: req.authUser?.id ?? 0,
-    });
-
     const data = await service.update(id, req.body);
     res.json(formatSuccess(data, MSG.projects.updated));
   } catch (err) {

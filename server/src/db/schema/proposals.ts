@@ -1,10 +1,12 @@
 import {
+  integer,
   pgTable,
   serial,
   text,
   timestamp,
   varchar,
 } from "drizzle-orm/pg-core";
+import { workflows } from "./workflows.js";
 
 export const proposals = pgTable("proposals", {
   id: serial("id").primaryKey(),
@@ -44,6 +46,12 @@ export const proposals = pgTable("proposals", {
   content: text("content"),
 
   aiValidation: text("ai_validation"),
+
+  // Set by POST /api/proposals/submit (D2) — links the proposal to the
+  // Design Proposal Approval workflow it opened, so decideStage (D3) has a
+  // single source of truth to sync proposal.status from instead of the old
+  // PATCH /:id/review writing it directly.
+  workflowId: integer("workflow_id").references(() => workflows.id),
 
   reviewComment: text("review_comment"),
 

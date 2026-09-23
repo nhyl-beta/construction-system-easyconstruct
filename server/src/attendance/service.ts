@@ -11,6 +11,7 @@ import {
   NotFoundError,
   ValidationError,
 } from "../utils/errors.js";
+import { assertProjectWritable } from "../lifecycle/service.js";
 
 import * as repo from "./repository.js";
 
@@ -167,6 +168,10 @@ export const create = async (
     throw new ValidationError(
       "A verification photo is required to record attendance",
     );
+  }
+
+  if (input.projectCode) {
+    await assertProjectWritable(input.projectCode);
   }
 
   // ---------------------------------------------------------

@@ -14,6 +14,8 @@ export interface BlueprintRecord {
   sizeKb: number;
   favorite: boolean;
   tags: string | null;
+  projectCode: string | null;
+  designId: number | null;
   issueDate: Date | null;
   latestRevisionDate: Date | null;
 }
@@ -32,6 +34,8 @@ export interface CreateBlueprintInput {
   sizeKb?: number;
   favorite?: boolean;
   tags?: string;
+  projectCode?: string | null;
+  designId?: number | null;
 }
 
 export interface UpdateBlueprintInput extends Partial<CreateBlueprintInput> {}
@@ -39,4 +43,5 @@ export interface UpdateBlueprintInput extends Partial<CreateBlueprintInput> {}
 export interface BlueprintFilters {
   folder?: string;
   search?: string;
+  projectCode?: string;
 }

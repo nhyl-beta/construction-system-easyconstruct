@@ -7,12 +7,18 @@ import {
   timestamp,
   varchar,
 } from "drizzle-orm/pg-core";
+import { designs } from "./designs.js";
 
 export const blueprints = pgTable("blueprints", {
   id: serial("id").primaryKey(),
   drawingNumber: varchar("drawing_number", { length: 50 }).notNull().unique(),
   title: varchar("title", { length: 255 }).notNull(),
   folder: varchar("folder", { length: 100 }).notNull(),
+  // Added for lifecycle gate D3 ("an Approved+Current blueprint exists for
+  // the project") and E3 — blueprints had no project association at all
+  // before this, so every blueprint sat in a flat, unfiltered list.
+  projectCode: varchar("project_code", { length: 50 }),
+  designId: integer("design_id").references(() => designs.id),
   discipline: varchar("discipline", { length: 50 }),
   scale: varchar("scale", { length: 20 }),
   revision: varchar("revision", { length: 20 }).notNull().default("A"),

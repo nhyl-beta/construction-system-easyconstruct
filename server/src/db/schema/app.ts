@@ -4,6 +4,7 @@ export * from "./employees.js";
 export * from "./notifications.js";
 export * from "./payroll.js";
 export * from "./projects.js";
+export * from "./project-phase-history.js";
 export * from "./proposals.js";
 export * from "./relations.js";
 export * from "./design-engineers.js";

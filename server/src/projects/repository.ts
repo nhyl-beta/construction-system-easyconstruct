@@ -90,16 +90,44 @@ export const remove = async (id: number) => {
 };
 
 /**
- * Narrow, single-column update used by workflows/service.ts to roll a
- * project's progress up from its workflows' completion (by project CODE,
- * since that's all a workflow record carries — it has no project id FK).
- * Kept separate from the general `update()` above so that roll-up can never
- * accidentally overwrite any other project field.
+ * Narrow, single-column update used by lifecycle/service.ts to roll a
+ * project's progress up after any write that can change a gate check or
+ * task count (by project CODE — most of those writers only carry the code,
+ * not the numeric id). Kept separate from the general `update()` above so
+ * that roll-up can never accidentally overwrite any other project field.
  */
 export const updateProgressByCode = async (code: string, progress: number) => {
   const [updated] = await db
     .update(projects)
     .set({ progress, updatedAt: new Date() })
+    .where(eq(projects.code, code))
+    .returning();
+  return updated ?? null;
+};
+
+/**
+ * The lifecycle-owned columns (status/progress/previousStatus/holdReason/
+ * completedAt/archivedAt) — written ONLY by lifecycle/service.ts's phase
+ * transitions and refreshProjectProgress. Kept out of the general
+ * `update()`/`UpdateProjectInput` path entirely (see project-validator.ts,
+ * projects/routes.ts rejectLifecycleFields) so an ordinary project PATCH can
+ * never reach these columns, by construction rather than by convention.
+ */
+export const updateLifecycleFields = async (
+  code: string,
+  fields: Partial<{
+    status: string;
+    statusTone: string;
+    progress: number;
+    previousStatus: string | null;
+    holdReason: string | null;
+    completedAt: Date | null;
+    archivedAt: Date | null;
+  }>,
+) => {
+  const [updated] = await db
+    .update(projects)
+    .set({ ...fields, updatedAt: new Date() })
     .where(eq(projects.code, code))
     .returning();
   return updated ?? null;

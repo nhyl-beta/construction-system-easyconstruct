@@ -1,5 +1,5 @@
 import { ConflictError, ForbiddenError, NotFoundError, ValidationError } from "../utils/errors.js";
-import * as projectsRepo from "../projects/repository.js";
+import { assertProjectWritable, refreshProjectProgress } from "../lifecycle/service.js";
 import * as repo from "./repository.js";
 import type {
   ApprovalQueueItem,
@@ -216,54 +216,6 @@ export const deleteWorkflow = async (
   return existing;
 };
 
-// ── Project progress roll-up ────────────────────────────────────────────────
-
-/**
- * Rolls a project's `progress` up from how far its workflows have moved.
- *
- * Every workflow raised against a project contributes its own completion
- * fraction — (stages marked "done") / (total stages) — and the project's
- * progress is the average of those fractions across every workflow tied to
- * it, not an increment. Recomputing from scratch each time (rather than
- * nudging the number up or down) means it can only ever reflect the current
- * state of the workflows themselves, never drift from repeated partial
- * updates or double-count a stage that flips back and forth.
- *
- * Deliberately a no-op for a project with zero workflows: that project's
- * progress stays exactly what the Project Manager set on the record by hand
- * (see ProjectDetailPage) — this only takes over once the project actually
- * has workflow activity to roll up.
- *
- * Called after anything that changes a stage's status: creating a workflow
- * (a fresh 0%-done workflow pulls the average down), and deciding a stage
- * (approving advances it, rejecting freezes it where it stopped).
- */
-const recomputeProjectProgress = async (projectCode: string): Promise<void> => {
-  const projectWorkflows = await repo.findWorkflowsByProjectCode(projectCode);
-  if (projectWorkflows.length === 0) return;
-
-  const stages = await repo.findStagesForWorkflows(projectWorkflows.map((w) => w.id));
-  const stagesByWorkflow = new Map<number, typeof stages>();
-  for (const stage of stages) {
-    const list = stagesByWorkflow.get(stage.workflowId) ?? [];
-    list.push(stage);
-    stagesByWorkflow.set(stage.workflowId, list);
-  }
-
-  const completionFractions = projectWorkflows.map((workflow) => {
-    const workflowStages = stagesByWorkflow.get(workflow.id) ?? [];
-    if (workflowStages.length === 0) return 0;
-    const doneCount = workflowStages.filter((stage) => stage.status === "done").length;
-    return doneCount / workflowStages.length;
-  });
-
-  const averageCompletion =
-    completionFractions.reduce((sum, fraction) => sum + fraction, 0) /
-    completionFractions.length;
-
-  await projectsRepo.updateProgressByCode(projectCode, Math.round(averageCompletion * 100));
-};
-
 export const createWorkflow = async (
   input: CreateWorkflowInput,
   createdBy: string,
@@ -271,6 +223,7 @@ export const createWorkflow = async (
 ): Promise<WorkflowWithStages> => {
   const template = await repo.findTemplateById(input.templateId);
   if (!template) throw new ValidationError(`Unknown workflow template ${input.templateId}`);
+  await assertProjectWritable(input.projectCode);
 
   const seq = await repo.nextWorkflowSeq();
   const code = `WF-${1000 + seq}`;
@@ -351,7 +304,10 @@ export const createWorkflow = async (
     }
   }
 
-  await recomputeProjectProgress(input.projectCode);
+  // A new active workflow can flip gate K4 (Construction exit: "no active
+  // workflows") off, and a single-stage workflow that auto-completed above
+  // can flip it back on — either way, progress may have changed.
+  await refreshProjectProgress(input.projectCode);
 
   return getWorkflowById(workflow.id);
 };
@@ -431,6 +387,8 @@ export const decideStage = async (
       `Stage ${stageId} is '${stage.status}' and is not awaiting a decision`,
     );
   }
+  const owningWorkflow = await repo.findWorkflowById(workflowId);
+  if (owningWorkflow) await assertProjectWritable(owningWorkflow.projectCode);
   // Intentional (EC-003, decided): admin can decide ANY stage regardless of
   // its assigned role. This is a deliberate escalation/override path (e.g. a
   // role-holder is unavailable) — do not remove or restrict this without a
@@ -471,12 +429,12 @@ export const decideStage = async (
   // "revision-required" — resubmission (setting it back to "current") is a
   // deliberate follow-up action, not automatic.
 
-  // Every decision moves a stage between "current"/"done"/"rejected", which
-  // is exactly what recomputeProjectProgress rolls up — approving advances
-  // the project's progress, rejecting freezes it where the chain stopped.
+  // A workflow completing or being rejected can flip gate checks that read
+  // workflow status (P4, K4, X4) — refresh whatever phase the project is
+  // actually in now, not just roll up workflow completion on its own.
   const decidedWorkflow = await repo.findWorkflowById(workflowId);
   if (decidedWorkflow) {
-    await recomputeProjectProgress(decidedWorkflow.projectCode);
+    await refreshProjectProgress(decidedWorkflow.projectCode);
   }
 
   return getWorkflowById(workflowId);
