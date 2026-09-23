@@ -42,11 +42,6 @@ const STEPS: Step[] = [
   { number: 5, title: "Files", subtitle: "Expected drawing count" },
   {
     number: 6,
-    title: "AI analysis",
-    subtitle: "Advisory scores (manual for now)",
-  },
-  {
-    number: 7,
     title: "Review & submit",
     subtitle: "Confirm and create design",
   },
@@ -109,8 +104,7 @@ export default function ArchitectDesignCreate() {
           onRemove={c.removeFile}
         />
       )}
-      {c.step === 6 && <StepAi data={c.data} set={c.set} />}
-      {c.step === 7 && <StepReview data={c.data} />}
+      {c.step === 6 && <StepReview data={c.data} />}
     </MultiStepPage>
   );
 }
@@ -535,44 +529,6 @@ function StepFiles({
         )}
 
         <p className="text-xs text-muted-foreground">{data.fileCount} file(s) attached</p>
-      </div>
-    </div>
-  );
-}
-
-function StepAi({ data, set }: { data: DesignFormData; set: SetFn }) {
-  return (
-    <div className="space-y-6">
-      <div>
-        <h3 className="text-base font-semibold">AI analysis</h3>
-        <p className="mt-1 text-sm text-muted-foreground">
-          No live AI pipeline is connected yet — these are manually entered
-          placeholder scores.
-        </p>
-      </div>
-      <div className="grid grid-cols-2 gap-5">
-        <div className="space-y-1.5">
-          <Label>Completeness (%)</Label>
-          <Input
-            type="number"
-            min={0}
-            max={100}
-            value={data.aiCompleteness}
-            onChange={(e) => set("aiCompleteness", Number(e.target.value) || 0)}
-            className="rounded-xl"
-          />
-        </div>
-        <div className="space-y-1.5">
-          <Label>Confidence (%)</Label>
-          <Input
-            type="number"
-            min={0}
-            max={100}
-            value={data.aiConfidence}
-            onChange={(e) => set("aiConfidence", Number(e.target.value) || 0)}
-            className="rounded-xl"
-          />
-        </div>
       </div>
     </div>
   );

@@ -28,6 +28,7 @@ import {
 import { ProjectPicker } from "@/components/shared/project-picker";
 import { Receipt, Search, Plus, Truck, Wallet, ListChecks, Sparkles, Paperclip } from "lucide-react";
 import { formatCurrency } from "@/lib/format-currency";
+import { FEATURES } from "@/config/features";
 import { useExpensesController, type CreateExpenseInput } from "@/features/finance/hooks/use-expenses";
 import {
   Bar, BarChart, CartesianGrid, ResponsiveContainer, Tooltip, XAxis, YAxis,
@@ -212,7 +213,7 @@ export default function FinanceExpensesPage() {
                       <TableHead className="text-right">Amount</TableHead>
                       <TableHead>Submitted</TableHead>
                       <TableHead>Receipt</TableHead>
-                      <TableHead>AI</TableHead>
+                      {FEATURES.ai && <TableHead>AI</TableHead>}
                       <TableHead>Status</TableHead>
                     </TableRow>
                   </TableHeader>
@@ -228,22 +229,24 @@ export default function FinanceExpensesPage() {
                         <TableCell>
                           <Paperclip className="h-3.5 w-3.5 text-muted-foreground" />
                         </TableCell>
-                        <TableCell>
-                          {e.anomalyScore !== null && (
-                            <Badge
-                              variant="outline"
-                              className={`rounded-full text-[10px] ${
-                                e.anomalyScore > 0.6
-                                  ? "border-destructive/30 text-destructive bg-destructive/10"
-                                  : e.anomalyScore > 0.3
-                                    ? "border-warning/30 text-warning bg-warning/10"
-                                    : "border-success/30 text-success bg-success/10"
-                              }`}
-                            >
-                              {(e.anomalyScore * 100).toFixed(0)}%
-                            </Badge>
-                          )}
-                        </TableCell>
+                        {FEATURES.ai && (
+                          <TableCell>
+                            {e.anomalyScore !== null && (
+                              <Badge
+                                variant="outline"
+                                className={`rounded-full text-[10px] ${
+                                  e.anomalyScore > 0.6
+                                    ? "border-destructive/30 text-destructive bg-destructive/10"
+                                    : e.anomalyScore > 0.3
+                                      ? "border-warning/30 text-warning bg-warning/10"
+                                      : "border-success/30 text-success bg-success/10"
+                                }`}
+                              >
+                                {(e.anomalyScore * 100).toFixed(0)}%
+                              </Badge>
+                            )}
+                          </TableCell>
+                        )}
                         <TableCell><StatusBadge status={e.status} /></TableCell>
                       </TableRow>
                     ))}
@@ -268,26 +271,28 @@ export default function FinanceExpensesPage() {
                   </ResponsiveContainer>
                 </div>
               </SectionCard>
-              <SectionCard title="AI anomaly detection" subtitle="Outliers worth investigating">
-                <ul className="space-y-2">
-                  {c.expenses
-                    .filter((e) => (e.anomalyScore ?? 0) >= 0.4)
-                    .map((e) => (
-                      <li key={e.id} className="rounded-xl border bg-warning/5 p-3">
-                        <div className="flex items-center gap-2 text-xs">
-                          <Sparkles className="h-3 w-3 text-warning" />
-                          <span className="font-mono">{e.id}</span>
-                          <span>·</span>
-                          <span className="font-medium">{e.vendor}</span>
-                          <span className="ml-auto font-semibold">{((e.anomalyScore ?? 0) * 100).toFixed(0)}%</span>
-                        </div>
-                        <p className="mt-1 text-[11px] text-muted-foreground">
-                          {formatCurrency(e.amount)} · {e.category} · {e.project}
-                        </p>
-                      </li>
-                    ))}
-                </ul>
-              </SectionCard>
+              {FEATURES.ai && (
+                <SectionCard title="AI anomaly detection" subtitle="Outliers worth investigating">
+                  <ul className="space-y-2">
+                    {c.expenses
+                      .filter((e) => (e.anomalyScore ?? 0) >= 0.4)
+                      .map((e) => (
+                        <li key={e.id} className="rounded-xl border bg-warning/5 p-3">
+                          <div className="flex items-center gap-2 text-xs">
+                            <Sparkles className="h-3 w-3 text-warning" />
+                            <span className="font-mono">{e.id}</span>
+                            <span>·</span>
+                            <span className="font-medium">{e.vendor}</span>
+                            <span className="ml-auto font-semibold">{((e.anomalyScore ?? 0) * 100).toFixed(0)}%</span>
+                          </div>
+                          <p className="mt-1 text-[11px] text-muted-foreground">
+                            {formatCurrency(e.amount)} · {e.category} · {e.project}
+                          </p>
+                        </li>
+                      ))}
+                  </ul>
+                </SectionCard>
+              )}
             </div>
           </TabsContent>
 

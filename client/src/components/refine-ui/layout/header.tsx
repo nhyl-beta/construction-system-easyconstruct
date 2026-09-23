@@ -1,3 +1,4 @@
+import { FEATURES } from "@/config/features";
 import { UserAvatar } from "@/components/refine-ui/layout/user-avatar";
 import { ThemeToggle } from "@/components/refine-ui/theme/theme-toggle";
 import { Badge } from "@/components/ui/badge";
@@ -132,9 +133,11 @@ function DesktopHeader() {
             </button>
           );
         })}
-        <span className="ml-auto hidden text-[11px] text-muted-foreground md:inline">
-          AI · {config.primaryAi}
-        </span>
+        {FEATURES.ai && (
+          <span className="ml-auto hidden text-[11px] text-muted-foreground md:inline">
+            AI · {config.primaryAi}
+          </span>
+        )}
       </nav>
     </div>
   );

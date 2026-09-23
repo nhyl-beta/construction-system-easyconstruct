@@ -6,7 +6,7 @@ import routerProvider, {
   UnsavedChangesNotifier,
 } from "@refinedev/react-router";
 
-import { BrowserRouter, Outlet, Route, Routes } from "react-router";
+import { BrowserRouter, Navigate, Outlet, Route, Routes } from "react-router";
 import { AuthProvider } from "@/auth/auth-context";
 import { ProtectedRoutes, PublicAuthRoute } from "@/components/auth/auth-routes";
 import { RequireRole } from "@/components/auth/role-guard";
@@ -99,7 +99,6 @@ import ITDesignerProposals from "./pages/roles/it-designer/it-designer-proposals
 import EmployeeCreatePage from "@/features/employees/pages/EmployeeCreatePage";
 import ProjectCreatePage from "@/features/projects/pages/ProjectCreatePage";
 import ProjectDetailPage from "@/features/projects/pages/ProjectDetailPage";
-import SharedAiInsights from "./pages/roles/shared/shared-ai-insights";
 import SharedReports from "./pages/roles/shared/shared-reports";
 import SharedResources from "./pages/roles/shared/shared-resources";
 
@@ -156,7 +155,10 @@ function App() {
                   {/* ── Shared Routes ── */}
                   <Route path="/" element={<DashboardRouter />} />
                   <Route path="/dashboard" element={<DashboardRouter />} />
-                  <Route path="/ai-insights" element={<SharedAiInsights />} />
+                  {/* AI Insights is hidden behind FEATURES.ai (off by
+                      default) — see config/features.ts. A stale link/bookmark
+                      lands on the dashboard instead of a dead AI surface. */}
+                  <Route path="/ai-insights" element={<Navigate to="/dashboard" replace />} />
                   <Route path="/reports" element={<SharedReports />} />
                   <Route path="/resources" element={<SharedResources />} />
 

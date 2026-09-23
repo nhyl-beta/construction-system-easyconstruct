@@ -1,4 +1,5 @@
 import { Button } from "@/components/ui/button";
+import { FEATURES } from "@/config/features";
 import { cn } from "@/lib/utils";
 import { Sparkles } from "lucide-react";
 
@@ -108,7 +109,7 @@ export function MultiStepPage({
               })}
             </div>
 
-            {aiHint && (
+            {FEATURES.ai && aiHint && (
               <div className="mt-6 rounded-xl border border-ai/20 bg-ai-soft/30 p-4">
                 <div className="mb-2 flex items-center gap-2">
                   <Sparkles className="h-4 w-4 text-ai" />

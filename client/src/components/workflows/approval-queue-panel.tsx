@@ -21,7 +21,6 @@ import {
   ListTree,
   Paperclip,
   PenLine,
-  Sparkles,
   Upload,
   XCircle,
 } from "lucide-react";
@@ -238,14 +237,6 @@ export function ApprovalQueuePanel({
                       </div>
                     )}
 
-                    {a.aiNote && (
-                      <div className="mt-2 flex items-start gap-1.5 rounded-lg bg-ai-soft/40 p-2 text-xs text-muted-foreground">
-                        <Sparkles className="mt-0.5 h-3 w-3 shrink-0 text-ai" />
-                        <span>
-                          <span className="font-medium text-ai">AI:</span> {a.aiNote}
-                        </span>
-                      </div>
-                    )}
                   </div>
                 </div>
 

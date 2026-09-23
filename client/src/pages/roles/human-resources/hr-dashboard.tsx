@@ -1,3 +1,4 @@
+import { FEATURES } from "@/config/features";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -420,7 +421,7 @@ function OverviewSection() {
             </div>
           </CardContent>
         </Card>
-        <AIInsightsCard />
+        {FEATURES.ai && <AIInsightsCard />}
       </div>
 
       {/* Department + Payroll + Activity */}

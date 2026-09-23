@@ -30,8 +30,6 @@ import {
   PieChart as PieIcon,
   Plus,
   Receipt,
-  ShieldAlert,
-  Sparkles,
   TrendingUp,
   Wallet,
 } from "lucide-react";
@@ -397,61 +395,6 @@ export default function FinanceDashboardPage() {
                         SLA · {a.slaHours}h
                       </span>
                     </div>
-                  </li>
-                ))}
-              </ul>
-            </SectionCard>
-
-            <SectionCard
-              title="Financial risks"
-              subtitle="AI-detected"
-              badge="Live"
-            >
-              <ul className="space-y-2">
-                {c.risks.map((r) => {
-                  const tone =
-                    r.level === "critical"
-                      ? "text-destructive"
-                      : r.level === "high"
-                      ? "text-warning"
-                      : r.level === "medium"
-                      ? "text-warning"
-                      : "text-success";
-                  return (
-                    <li
-                      key={r.id}
-                      className="flex items-start gap-2 rounded-xl border p-3 text-sm"
-                    >
-                      <ShieldAlert className={`mt-0.5 h-4 w-4 ${tone}`} />
-                      <div className="min-w-0">
-                        <div className="text-xs font-semibold">{r.title}</div>
-                        <p className="text-[11px] text-muted-foreground">
-                          {r.impact} · {r.project}
-                        </p>
-                      </div>
-                    </li>
-                  );
-                })}
-              </ul>
-            </SectionCard>
-
-            <SectionCard
-              title="AI financial insights"
-              subtitle="Top recommendations"
-              badge="Advisor"
-            >
-              <ul className="space-y-3">
-                {c.insights.slice(0, 3).map((i) => (
-                  <li key={i.id} className="rounded-xl border bg-primary/5 p-3">
-                    <div className="flex items-center gap-1.5 text-[10px] uppercase tracking-wide text-primary">
-                      <Sparkles className="h-3 w-3" />
-                      {i.category} · {(i.confidence * 100).toFixed(0)}%
-                      confidence
-                    </div>
-                    <div className="mt-1 text-xs font-semibold">{i.title}</div>
-                    <p className="mt-1 text-[11px] text-muted-foreground">
-                      {i.body}
-                    </p>
                   </li>
                 ))}
               </ul>

@@ -20,7 +20,6 @@ export const ROLE_RESOURCE_ACCESS: Record<string, string[]> = {
     "owner-oversight",
     "owner-account-recovery",
     "reports",
-    "ai-insights",
   ],
   it_designer: [
     "dashboard",
@@ -44,7 +43,6 @@ export const ROLE_RESOURCE_ACCESS: Record<string, string[]> = {
     "approvals",
     "tasks",
     "documents",
-    "ai-insights",
     "resources",
     "reports",
   ],
@@ -64,7 +62,6 @@ export const ROLE_RESOURCE_ACCESS: Record<string, string[]> = {
     "expenses",
     "approvals",
     "impact-review",
-    "ai-insights",
     "reports",
   ],
   architect: [
@@ -80,7 +77,6 @@ export const ROLE_RESOURCE_ACCESS: Record<string, string[]> = {
     "reviews",
     "blueprints",
     "architect-documents",
-    "ai-insights",
   ],
   engineer: [
     "dashboard",
@@ -89,7 +85,6 @@ export const ROLE_RESOURCE_ACCESS: Record<string, string[]> = {
     "approvals",
     "issues",
     "projects",
-    "ai-insights",
   ],
   site_personnel: ["dashboard", "attendance", "tasks", "requirements", "documents", "issues"],
   consultant: [
@@ -104,6 +99,5 @@ export const ROLE_RESOURCE_ACCESS: Record<string, string[]> = {
     "consultant-designs",
     "advisory-docs",
     "consultant-projects",
-    "ai-insights",
   ],
 };

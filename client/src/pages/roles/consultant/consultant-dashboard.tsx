@@ -18,6 +18,7 @@ import {
   CardTitle,
 } from "@/components/ui/card";
 import { ComingSoonCard } from "@/components/refine-ui/views/coming-soon-card";
+import { FEATURES } from "@/config/features";
 import { KpiStrip } from "@/components/ui/kpi-strip";
 import { StatusBadge } from "@/components/ui/status-badge";
 import { useRoleConfig } from "@/hooks/use-role-config";
@@ -219,11 +220,13 @@ export default function ConsultantDashboardPage() {
           </CardContent>
         </Card>
 
-        {/* ── AI Insights ── */}
-        <ComingSoonCard
-          title="AI validation insights"
-          description="Proposal-level AI validation summaries aren't wired to a backend yet. Once connected, this panel will surface findings, confidence, and recommendations — always labeled as advisory analysis requiring human review."
-        />
+        {/* ── AI Insights — hidden behind FEATURES.ai, see config/features.ts ── */}
+        {FEATURES.ai && (
+          <ComingSoonCard
+            title="AI validation insights"
+            description="Proposal-level AI validation summaries aren't wired to a backend yet. Once connected, this panel will surface findings, confidence, and recommendations — always labeled as advisory analysis requiring human review."
+          />
+        )}
       </section>
 
       {/* ── Bottom row — approvals + recently reviewed ── */}

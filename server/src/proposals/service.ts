@@ -1,8 +1,9 @@
-import { NotFoundError } from "../utils/errors.js";
+import { NotFoundError, ValidationError } from "../utils/errors.js";
 import { db } from "../db/connection.js";
 import { projects } from "../db/schema/projects.js";
 import { eq } from "drizzle-orm";
 import { validateProposal } from "./validation.js";
+import { FEATURES } from "../config/features.js";
 
 import {
   proposalRepository,
@@ -32,15 +33,28 @@ export const proposalService = {
       .from(projects)
       .where(eq(projects.code, data.projectCode));
 
-    const validation = validateProposal(
-      { title: data.title, content: data.content, amount: data.amount },
-      Boolean(project),
-      data.projectCode,
-    );
+    // Unknown project codes used to only surface as an "AI issue" buried in
+    // aiValidation — with that surface hidden behind the flag, a bad code
+    // would otherwise be silently accepted. Reject it directly instead.
+    if (!project) {
+      throw new ValidationError(
+        `Project code "${data.projectCode}" does not match any existing project.`,
+      );
+    }
+
+    const aiValidation = FEATURES.ai
+      ? JSON.stringify(
+          validateProposal(
+            { title: data.title, content: data.content, amount: data.amount },
+            true,
+            data.projectCode,
+          ),
+        )
+      : null;
 
     const proposal = await proposalRepository.create({
       ...data,
-      aiValidation: JSON.stringify(validation),
+      aiValidation,
     });
     if (!proposal) {
       throw new Error("Failed to create proposal");

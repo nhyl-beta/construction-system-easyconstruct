@@ -45,6 +45,7 @@ import {
 import { Label } from "@/components/ui/label";
 import type { Proposal } from "@/features/proposals/types/proposal.types";
 import type { UpdateProposalInput } from "@/features/proposals/controllers/proposal.controller";
+import { FEATURES } from "@/config/features";
 
 interface ValidationResult {
   passed: boolean;
@@ -464,9 +465,9 @@ export default function ArchitectProposals() {
 
               <TableHead className="w-[10%]">Status</TableHead>
 
-              <TableHead className="w-[16%]">Validation</TableHead>
+              {FEATURES.ai && <TableHead className="w-[16%]">Validation</TableHead>}
 
-              <TableHead className="w-[16%]">Review</TableHead>
+              <TableHead className={FEATURES.ai ? "w-[16%]" : "w-[32%]"}>Review</TableHead>
 
               <TableHead className="w-[6%]" />
             </TableRow>
@@ -476,7 +477,7 @@ export default function ArchitectProposals() {
             {c.loading ? (
               <TableRow>
                 <TableCell
-                  colSpan={9}
+                  colSpan={FEATURES.ai ? 9 : 8}
                   className="h-24 text-center"
                 >
                   Loading proposals...
@@ -485,7 +486,7 @@ export default function ArchitectProposals() {
             ) : c.proposals.length === 0 ? (
               <TableRow>
                 <TableCell
-                  colSpan={9}
+                  colSpan={FEATURES.ai ? 9 : 8}
                   className="h-24 text-center text-muted-foreground"
                 >
                   No proposals found.
@@ -522,9 +523,11 @@ export default function ArchitectProposals() {
                     />
                   </TableCell>
 
-                  <TableCell>
-                    <ValidationSummary raw={proposal.aiValidation} />
-                  </TableCell>
+                  {FEATURES.ai && (
+                    <TableCell>
+                      <ValidationSummary raw={proposal.aiValidation} />
+                    </TableCell>
+                  )}
 
                   <TableCell className="text-sm">
                     {proposal.reviewComment ? (

@@ -21,6 +21,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { KpiStrip } from "@/components/ui/kpi-strip";
 import { StatusBadge } from "@/components/ui/status-badge";
+import { FEATURES } from "@/config/features";
 import { useProposals } from "../hooks/useProposals";
 import type { Proposal } from "../types/proposal.types";
 import { ProposalsTable } from "./ProposalsTable";
@@ -125,7 +126,7 @@ export function ProposalsRegister({
             {selected.reviewComment && (
               <Section label="Review comment" body={selected.reviewComment} />
             )}
-            {selected.aiValidation && (
+            {FEATURES.ai && selected.aiValidation && (
               <Section label="AI validation" body={selected.aiValidation} />
             )}
 

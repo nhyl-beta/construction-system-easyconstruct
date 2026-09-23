@@ -1,22 +1,19 @@
 // client/src/features/finance/hooks/use-finance-dashboard.ts
 import type {
-  AIInsight,
   Approval,
   Budget,
   CashFlowPoint,
   Expense,
   FinanceKpis,
-  FinancialRisk,
   ProjectProfitability,
 } from "@/features/finance/types/finance.types";
 import { useEffect, useState } from "react";
+import { apiClient } from "@/services/api.client";
 
 interface UseFinanceDashboardResult {
   budgets: Budget[];
   expenses: Expense[];
   approvals: Approval[];
-  risks: FinancialRisk[];
-  insights: AIInsight[];
   cashFlow: CashFlowPoint[];
   projectProfit: ProjectProfitability[];
   kpis: FinanceKpis;
@@ -35,10 +32,12 @@ const EMPTY_KPIS: FinanceKpis = {
   profitMargin: 0,
 };
 
-async function getJson<T>(url: string, signal: AbortSignal): Promise<T> {
-  const res = await fetch(url, { signal });
-  if (!res.ok) throw new Error(`${url} failed: ${res.status}`);
-  const json = await res.json();
+// Routed through apiClient (not raw fetch) so the Authorization header goes
+// out — /api/finance now requires a token (see app.ts), and a bare fetch()
+// here would 401 on every call.
+async function getJson<T>(path: string, signal: AbortSignal): Promise<T> {
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const json: any = await apiClient.get(path, { signal });
   return json.data as T;
 }
 
@@ -46,8 +45,6 @@ export function useFinanceDashboardController(): UseFinanceDashboardResult {
   const [budgets, setBudgets] = useState<Budget[]>([]);
   const [expenses, setExpenses] = useState<Expense[]>([]);
   const [approvals, setApprovals] = useState<Approval[]>([]);
-  const [risks, setRisks] = useState<FinancialRisk[]>([]);
-  const [insights, setInsights] = useState<AIInsight[]>([]);
   const [cashFlow, setCashFlow] = useState<CashFlowPoint[]>([]);
   const [projectProfit, setProjectProfit] = useState<ProjectProfitability[]>(
     [],
@@ -61,27 +58,25 @@ export function useFinanceDashboardController(): UseFinanceDashboardResult {
     setIsLoading(true);
     setError(null);
 
-    // Three of these routers (approvals, risks, ai-insights) are still
-    // commented out in server/src/routes/finance.ts. Under Promise.all a
-    // single 404 rejected the batch, so the whole dashboard showed an error
-    // banner and zeroed KPIs even though budgets/expenses/cash-flow/summary
-    // all answered. allSettled lets the built endpoints render and degrades
-    // the unbuilt ones to empty.
+    // "approvals" is still commented out in server/src/routes/finance.ts.
+    // "risks" and "ai-insights" are the AI Insights surface — dropped
+    // entirely rather than fetched and hidden, so the dashboard never calls
+    // a route that doesn't exist for a feature that's off (see
+    // config/features.ts). Under Promise.all a single 404 rejected the whole
+    // batch, so allSettled lets the built endpoints render regardless.
     Promise.allSettled([
-      getJson<Budget[]>("/api/finance/budgets", controller.signal),
-      getJson<Expense[]>("/api/finance/expenses", controller.signal),
-      getJson<Approval[]>("/api/finance/approvals", controller.signal),
-      getJson<FinancialRisk[]>("/api/finance/risks", controller.signal),
-      getJson<AIInsight[]>("/api/finance/ai-insights", controller.signal),
-      getJson<CashFlowPoint[]>("/api/finance/cash-flow", controller.signal),
+      getJson<Budget[]>("/finance/budgets", controller.signal),
+      getJson<Expense[]>("/finance/expenses", controller.signal),
+      getJson<Approval[]>("/finance/approvals", controller.signal),
+      getJson<CashFlowPoint[]>("/finance/cash-flow", controller.signal),
       getJson<ProjectProfitability[]>(
-        "/api/finance/project-profitability",
+        "/finance/project-profitability",
         controller.signal,
       ),
-      getJson<FinanceKpis>("/api/finance/summary", controller.signal),
+      getJson<FinanceKpis>("/finance/summary", controller.signal),
     ])
       .then((results) => {
-        const [b, e, a, r, i, cf, pp, k] = results;
+        const [b, e, a, cf, pp, k] = results;
         const value = <T,>(
           result: PromiseSettledResult<T>,
           fallback: T,
@@ -90,8 +85,6 @@ export function useFinanceDashboardController(): UseFinanceDashboardResult {
         setBudgets(value(b, []));
         setExpenses(value(e, []));
         setApprovals(value(a, []));
-        setRisks(value(r, []));
-        setInsights(value(i, []));
         setCashFlow(value(cf, []));
         setProjectProfit(value(pp, []));
         setKpis(value(k, EMPTY_KPIS));
@@ -121,8 +114,6 @@ export function useFinanceDashboardController(): UseFinanceDashboardResult {
     budgets,
     expenses,
     approvals,
-    risks,
-    insights,
     cashFlow,
     projectProfit,
     kpis,

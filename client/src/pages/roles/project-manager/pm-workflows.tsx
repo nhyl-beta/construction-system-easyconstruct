@@ -14,6 +14,7 @@ import { WorkflowStagePipeline } from "@/components/workflows/workflow-stage-pip
 import { WorkflowDetailDialog } from "@/components/workflows/workflow-detail-dialog";
 import { EditWorkflowDialog } from "@/components/workflows/edit-workflow-dialog";
 import { useAuth } from "@/auth/auth-context";
+import { FEATURES } from "@/config/features";
 import type { Workflow } from "@/features/workflows/types/workflow.types";
 import {
   Eye,
@@ -62,7 +63,7 @@ export default function WorkflowsPage() {
         <TabsList className="h-10 rounded-xl">
           <TabsTrigger value="active" className="rounded-lg">Active pipeline</TabsTrigger>
           <TabsTrigger value="templates" className="rounded-lg">Templates</TabsTrigger>
-          <TabsTrigger value="ai" className="rounded-lg">AI suggestions</TabsTrigger>
+          {FEATURES.ai && <TabsTrigger value="ai" className="rounded-lg">AI suggestions</TabsTrigger>}
         </TabsList>
 
         <TabsContent value="active" className="space-y-4">
@@ -178,27 +179,29 @@ export default function WorkflowsPage() {
           ))}
         </TabsContent>
 
-        <TabsContent value="ai">
-          <Card className="rounded-2xl border-ai/20 bg-linear-to-br from-ai-soft/60 to-card shadow-sm">
-            <CardHeader>
-              <Badge
-                variant="outline"
-                className="w-fit rounded-full border-ai/30 bg-ai/10 px-2.5 py-0.5 text-[11px] text-ai"
-              >
-                <Sparkles className="mr-1 h-3 w-3" />
-                AI recommendation — human review required
-              </Badge>
-              <CardTitle className="text-base">Not yet connected</CardTitle>
-            </CardHeader>
-            <CardContent className="space-y-3 text-sm text-muted-foreground">
-              This panel will surface AI-suggested pipeline optimizations
-              (e.g. "this template's Finance stage is rarely rejected —
-              consider fast-tracking it") once a real AI endpoint exists for
-              workflows. Nothing here is auto-applied — a PM must review and
-              accept, edit, or dismiss each suggestion.
-            </CardContent>
-          </Card>
-        </TabsContent>
+        {FEATURES.ai && (
+          <TabsContent value="ai">
+            <Card className="rounded-2xl border-ai/20 bg-linear-to-br from-ai-soft/60 to-card shadow-sm">
+              <CardHeader>
+                <Badge
+                  variant="outline"
+                  className="w-fit rounded-full border-ai/30 bg-ai/10 px-2.5 py-0.5 text-[11px] text-ai"
+                >
+                  <Sparkles className="mr-1 h-3 w-3" />
+                  AI recommendation — human review required
+                </Badge>
+                <CardTitle className="text-base">Not yet connected</CardTitle>
+              </CardHeader>
+              <CardContent className="space-y-3 text-sm text-muted-foreground">
+                This panel will surface AI-suggested pipeline optimizations
+                (e.g. "this template's Finance stage is rarely rejected —
+                consider fast-tracking it") once a real AI endpoint exists for
+                workflows. Nothing here is auto-applied — a PM must review and
+                accept, edit, or dismiss each suggestion.
+              </CardContent>
+            </Card>
+          </TabsContent>
+        )}
       </Tabs>
 
       <NewWorkflowDialog

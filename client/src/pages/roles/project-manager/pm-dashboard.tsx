@@ -11,6 +11,7 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { ComingSoonCard } from "@/components/refine-ui/views/coming-soon-card";
+import { FEATURES } from "@/config/features";
 import { KpiStrip } from "@/components/ui/kpi-strip";
 import { Progress } from "@/components/ui/progress";
 import { useRoleConfig } from "@/hooks/use-role-config";
@@ -184,11 +185,13 @@ export default function DashboardPage() {
           </CardContent>
         </Card>
 
-        {/* AI Insights — not yet connected to any backend */}
-        <ComingSoonCard
-          title="AI insights"
-          description="Portfolio-wide AI recommendations aren't wired to a backend yet. This panel will surface schedule, budget, and risk suggestions once that's built."
-        />
+        {/* AI Insights — hidden behind FEATURES.ai, see config/features.ts */}
+        {FEATURES.ai && (
+          <ComingSoonCard
+            title="AI insights"
+            description="Portfolio-wide AI recommendations aren't wired to a backend yet. This panel will surface schedule, budget, and risk suggestions once that's built."
+          />
+        )}
       </section>
 
       {/* ── Bottom row — approvals + activity, neither backed yet ── */}

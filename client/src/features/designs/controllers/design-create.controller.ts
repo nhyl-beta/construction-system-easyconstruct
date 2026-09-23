@@ -132,7 +132,7 @@ export const useDesignCreateController = () => {
   };
 
   const stepErrors = useMemo(() => {
-    const e: Record<number, string[]> = { 1: [], 2: [], 3: [], 4: [], 5: [], 6: [], 7: [] };
+    const e: Record<number, string[]> = { 1: [], 2: [], 3: [], 4: [], 5: [], 6: [] };
     if (!data.name.trim() || data.name.trim().length < 2) e[1].push("Design name is required");
     if (!data.discipline) e[1].push("Select a discipline");
     if (!data.category) e[1].push("Select a category");
@@ -146,7 +146,7 @@ export const useDesignCreateController = () => {
 
   const next = () => {
     if (!canAdvance) return false;
-    setStep((s) => Math.min(s + 1, 7));
+    setStep((s) => Math.min(s + 1, 6));
     return true;
   };
   const back = () => setStep((s) => Math.max(s - 1, 1));

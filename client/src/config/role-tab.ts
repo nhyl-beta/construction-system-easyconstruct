@@ -158,7 +158,6 @@ export const ROLE_CONFIGS: Record<string, RoleConfig> = {
       {
         label: "Intelligence",
         items: [
-          { label: "AI Insights", icon: ActivitySquare, route: "/ai-insights" },
           { label: "Reports", icon: BarChart2, route: "/reports" },
         ],
       },
@@ -267,7 +266,6 @@ export const ROLE_CONFIGS: Record<string, RoleConfig> = {
       {
         label: "Intelligence",
         items: [
-          { label: "AI Insights", icon: ActivitySquare, route: "/ai-insights" },
           { label: "Resources", icon: Wrench, route: "/resources" },
           { label: "Reports", icon: BarChart2, route: "/reports" },
         ],
@@ -389,11 +387,6 @@ export const ROLE_CONFIGS: Record<string, RoleConfig> = {
       { label: "Projects", icon: FolderKanban, route: "/projects" },
       { label: "Designs", icon: Ruler, route: "/designs" },
       { label: "Proposals", icon: FileText, route: "/proposals" },
-      {
-        label: "AI Insights",
-        icon: ActivitySquare,
-        route: "/ai-insights",
-      },
     ],
 
     sections: [
@@ -413,7 +406,6 @@ export const ROLE_CONFIGS: Record<string, RoleConfig> = {
           { label: "Reviews", icon: BadgeCheck, route: "/reviews" },
           { label: "Revisions", icon: SquarePen, route: "/revisions" },
           { label: "Documentation", icon: BarChart2, route: "/architect/documents" },
-          { label: "AI Insights", icon: BarChart2, route: "/ai-insights" },
         ],
       },
     ],
@@ -557,7 +549,6 @@ export const ROLE_CONFIGS: Record<string, RoleConfig> = {
         label: "Output",
         items: [
           { label: "Advisory Docs", icon: BarChart2, route: "/advisory-docs" },
-          { label: "AI Insights", icon: BarChart2, route: "/ai-insights" },
           { label: "Reports", icon: BadgeCheck, route: "/reports" },
         ],
       },

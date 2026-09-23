@@ -120,19 +120,6 @@ export function WorkflowCard({
           </div>
         </div>
 
-        {/* AI note */}
-        {workflow.aiNote && (
-          <div className="rounded-lg border border-border/60 bg-muted/40 p-3">
-            <p className="text-xs font-medium">
-              AI note
-            </p>
-
-            <p className="mt-1 text-sm text-muted-foreground">
-              {workflow.aiNote}
-            </p>
-          </div>
-        )}
-
         {/* Workflow stages */}
         {workflow.stages.length > 0 && (
           <div className="space-y-2">

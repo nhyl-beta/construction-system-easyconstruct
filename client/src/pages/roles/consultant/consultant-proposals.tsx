@@ -24,6 +24,7 @@ import { useAuth } from "@/auth/auth-context";
 import { ProposalAttachments } from "@/pages/roles/consultant/proposal-attachments";
 import { WorkflowRepository } from "@/features/workflows/repositories/workflow.repository";
 import type { Proposal } from "@/features/proposals/types/proposal.types";
+import { FEATURES } from "@/config/features";
 
 /*
  * ============================================================
@@ -543,74 +544,76 @@ export default function ConsultantProposalsPage() {
                 RULE-BASED VALIDATION
                 ------------------------------------------------ */}
 
-            <div className="rounded-xl border bg-card">
+            {FEATURES.ai && (
+              <div className="rounded-xl border bg-card">
 
-              <div className="border-b p-6">
+                <div className="border-b p-6">
 
-                <h2 className="font-semibold">
-                  Rule-Based Validation Summary
-                </h2>
+                  <h2 className="font-semibold">
+                    Rule-Based Validation Summary
+                  </h2>
 
-                <p className="mt-1 text-sm text-muted-foreground">
-                  Automated, deterministic checks run at submission time —
-                  decision support only. This does not replace your
-                  professional judgment or approve/reject anything itself.
-                </p>
+                  <p className="mt-1 text-sm text-muted-foreground">
+                    Automated, deterministic checks run at submission time —
+                    decision support only. This does not replace your
+                    professional judgment or approve/reject anything itself.
+                  </p>
 
-              </div>
+                </div>
 
-              <div className="p-6">
-                {(() => {
-                  if (!selectedProposal.aiValidation) {
+                <div className="p-6">
+                  {(() => {
+                    if (!selectedProposal.aiValidation) {
+                      return (
+                        <p className="text-sm text-muted-foreground">
+                          No validation summary is available for this proposal.
+                        </p>
+                      );
+                    }
+                    let parsed: { passed: boolean; issues: string[]; warnings: string[] } | null = null;
+                    try {
+                      parsed = JSON.parse(selectedProposal.aiValidation);
+                    } catch {
+                      parsed = null;
+                    }
+                    if (!parsed) {
+                      return (
+                        <p className="whitespace-pre-wrap text-sm leading-7">
+                          {selectedProposal.aiValidation}
+                        </p>
+                      );
+                    }
                     return (
-                      <p className="text-sm text-muted-foreground">
-                        No validation summary is available for this proposal.
-                      </p>
-                    );
-                  }
-                  let parsed: { passed: boolean; issues: string[]; warnings: string[] } | null = null;
-                  try {
-                    parsed = JSON.parse(selectedProposal.aiValidation);
-                  } catch {
-                    parsed = null;
-                  }
-                  if (!parsed) {
-                    return (
-                      <p className="whitespace-pre-wrap text-sm leading-7">
-                        {selectedProposal.aiValidation}
-                      </p>
-                    );
-                  }
-                  return (
-                    <div className="space-y-3 text-sm">
-                      <div className={`font-medium ${parsed.passed ? "text-success" : "text-destructive"}`}>
-                        {parsed.passed ? "No blocking issues found" : "Blocking issues found"}
+                      <div className="space-y-3 text-sm">
+                        <div className={`font-medium ${parsed.passed ? "text-success" : "text-destructive"}`}>
+                          {parsed.passed ? "No blocking issues found" : "Blocking issues found"}
+                        </div>
+                        {parsed.issues.length > 0 && (
+                          <div>
+                            <p className="mb-1 text-xs font-medium uppercase tracking-wider text-muted-foreground">Issues</p>
+                            <ul className="list-inside list-disc space-y-0.5 text-destructive">
+                              {parsed.issues.map((i) => <li key={i}>{i}</li>)}
+                            </ul>
+                          </div>
+                        )}
+                        {parsed.warnings.length > 0 && (
+                          <div>
+                            <p className="mb-1 text-xs font-medium uppercase tracking-wider text-muted-foreground">Warnings</p>
+                            <ul className="list-inside list-disc space-y-0.5 text-muted-foreground">
+                              {parsed.warnings.map((w) => <li key={w}>{w}</li>)}
+                            </ul>
+                          </div>
+                        )}
+                        {parsed.issues.length === 0 && parsed.warnings.length === 0 && (
+                          <p className="text-muted-foreground">No issues or warnings raised.</p>
+                        )}
                       </div>
-                      {parsed.issues.length > 0 && (
-                        <div>
-                          <p className="mb-1 text-xs font-medium uppercase tracking-wider text-muted-foreground">Issues</p>
-                          <ul className="list-inside list-disc space-y-0.5 text-destructive">
-                            {parsed.issues.map((i) => <li key={i}>{i}</li>)}
-                          </ul>
-                        </div>
-                      )}
-                      {parsed.warnings.length > 0 && (
-                        <div>
-                          <p className="mb-1 text-xs font-medium uppercase tracking-wider text-muted-foreground">Warnings</p>
-                          <ul className="list-inside list-disc space-y-0.5 text-muted-foreground">
-                            {parsed.warnings.map((w) => <li key={w}>{w}</li>)}
-                          </ul>
-                        </div>
-                      )}
-                      {parsed.issues.length === 0 && parsed.warnings.length === 0 && (
-                        <p className="text-muted-foreground">No issues or warnings raised.</p>
-                      )}
-                    </div>
-                  );
-                })()}
-              </div>
+                    );
+                  })()}
+                </div>
 
-            </div>
+              </div>
+            )}
 
             {/* ------------------------------------------------
                 CONSULTANT REVIEW
