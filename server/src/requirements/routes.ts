@@ -1,7 +1,7 @@
 import { Router } from "express";
 import * as controller from "./controller.js";
 import { validate } from "../middleware/validate.js";
-import { authenticate } from "../middleware/auth.js";
+import { authenticate, requireRole } from "../middleware/auth.js";
 import {
   createRequirementSchema,
   updateRequirementSchema,
@@ -15,9 +15,22 @@ const router = Router();
 router.use(authenticate);
 
 router.get("/", controller.getAll);
-router.post("/", validate(createRequirementSchema), controller.create);
+router.post(
+  "/",
+  requireRole("engineer", "admin"),
+  validate(createRequirementSchema),
+  controller.create,
+);
 router.get("/:id", controller.getById);
-router.patch("/:id", validate(updateRequirementSchema), controller.update);
-router.delete("/:id", controller.remove);
+// project-manager is here to decide (Approved/Rejected) — the route only
+// says who may ever PATCH; which status values they may set is enforced in
+// requirements/service.ts assertCanSetStatus.
+router.patch(
+  "/:id",
+  requireRole("engineer", "admin", "project-manager"),
+  validate(updateRequirementSchema),
+  controller.update,
+);
+router.delete("/:id", requireRole("engineer", "admin"), controller.remove);
 
 export default router;

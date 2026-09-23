@@ -2,14 +2,19 @@ import { NextFunction, Request, Response } from "express";
 import { HTTP } from "../constants/http-status.js";
 import { MSG } from "../constants/messages.js";
 import { formatSuccess } from "../utils/response.js";
+import { UnauthorizedError } from "../utils/errors.js";
+import type { AuthedRequest } from "../middleware/auth.js";
 import * as service from "./service.js";
 
-export const getAll = async (req: Request, res: Response, next: NextFunction) => {
+export const getAll = async (req: AuthedRequest, res: Response, next: NextFunction) => {
   try {
-    const data = await service.getAll({
-      recipientRole: req.query.role as string,
-      unreadOnly: req.query.unreadOnly === "true",
-    });
+    if (!req.authUser) throw new UnauthorizedError();
+    // Always the caller's own inbox — ?role= is ignored on purpose (see
+    // notifications/repository.ts findForRecipient).
+    const data = await service.getForRecipient(
+      { userId: req.authUser.id, role: req.authUser.role },
+      { unreadOnly: req.query.unreadOnly === "true" },
+    );
     res.json(formatSuccess(data, MSG.notifications.retrieved));
   } catch (err) { next(err); }
 };

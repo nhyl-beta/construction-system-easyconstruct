@@ -1,38 +1,48 @@
 import { db } from "../db/connection.js";
 import { notifications } from "../db/schema/notifications.js";
-import { eq, and, desc, SQL } from "drizzle-orm";
+import { eq, and, or, desc, isNull, SQL } from "drizzle-orm";
 import type {
   CreateNotificationInput,
   NotificationFilters,
+  NotificationScope,
 } from "./types.js";
 
-export const findAll = async (filters: NotificationFilters = {}) => {
-  const conditions: SQL[] = [];
-
-  if (filters.recipientRole) {
-    conditions.push(eq(notifications.role, filters.recipientRole));
-  }
+export const findForRecipient = async (
+  scope: NotificationScope,
+  filters: NotificationFilters = {},
+) => {
+  // Mine: addressed to me by name, or role-addressed to my role with no
+  // specific user named. Never an arbitrary ?role= from the query string —
+  // that let anyone read every other role's notifications just by asking.
+  const conditions: SQL[] = [
+    or(
+      eq(notifications.recipientUserId, scope.userId),
+      and(isNull(notifications.recipientUserId), eq(notifications.role, scope.role)),
+    )!,
+  ];
 
   if (filters.unreadOnly) {
     conditions.push(eq(notifications.isRead, false));
   }
 
-  return conditions.length
-    ? db
-        .select()
-        .from(notifications)
-        .where(and(...conditions))
-        .orderBy(desc(notifications.createdAt))
-    : db
-        .select()
-        .from(notifications)
-        .orderBy(desc(notifications.createdAt));
+  return db
+    .select()
+    .from(notifications)
+    .where(and(...conditions))
+    .orderBy(desc(notifications.createdAt));
 };
 
 export const create = async (data: CreateNotificationInput) => {
   const [created] = await db
     .insert(notifications)
-    .values(data)
+    .values({
+      title: data.title,
+      message: data.body,
+      role: data.recipientRole ?? null,
+      recipientUserId: data.recipientUserId ?? null,
+      projectCode: data.projectCode ?? null,
+      link: data.link ?? null,
+    })
     .returning();
 
   return created;

@@ -2,12 +2,25 @@ import { db } from "../db/connection.js";
 import { requirements } from "../db/schema/requirements.js";
 import { projects } from "../db/schema/projects.js";
 import { and, desc, eq, ilike, SQL } from "drizzle-orm";
-import { ValidationError } from "../utils/errors.js";
+import { ForbiddenError, ValidationError } from "../utils/errors.js";
 import type {
   CreateRequirementInput,
   UpdateRequirementInput,
   RequirementFilters,
 } from "./types.js";
+
+// The engineer who authors a requirement may move it as far as "Under
+// Review" — asking for a decision — but deciding it (Approved/Rejected) is
+// the Project Manager's call, same split as engineering reports.
+const DECISION_STATUSES = new Set(["Approved", "Rejected"]);
+
+const assertCanSetStatus = (status: string | undefined, actorRole: string) => {
+  if (!status || !DECISION_STATUSES.has(status)) return;
+  if (actorRole === "admin" || actorRole === "project-manager") return;
+  throw new ForbiddenError(
+    `Role '${actorRole}' cannot set a requirement to '${status}'; only the Project Manager or Admin can decide it`,
+  );
+};
 
 export const findAll = async (filters: RequirementFilters = {}) => {
   const conditions: SQL[] = [];
@@ -49,7 +62,12 @@ export const create = async (data: CreateRequirementInput) => {
   return created;
 };
 
-export const update = async (id: number, data: UpdateRequirementInput) => {
+export const update = async (
+  id: number,
+  data: UpdateRequirementInput,
+  actorRole: string,
+) => {
+  assertCanSetStatus(data.status, actorRole);
   const [updated] = await db
     .update(requirements)
     .set({ ...data, updatedAt: new Date() })

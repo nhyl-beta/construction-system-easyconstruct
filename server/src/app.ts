@@ -92,7 +92,14 @@ app.use(
   payrollReviewRoutes,
 );
 
-app.use("/api/finance", financeRouter);
+// Every finance sub-route (budgets, expenses, budget-adjustments,
+// budget-approval-steps, cash-flow, project-profitability, summary) was
+// mountable with no token at all — GET /api/finance/budgets returned real
+// contract figures to an anonymous caller. Reads stay open to any
+// authenticated role; write-side role restrictions live in each
+// sub-router (see finance/budget/routes.ts etc.), matching which roles'
+// screens actually call them.
+app.use("/api/finance", authenticate, financeRouter);
 app.use("/api/notifications", notificationRoutes);
 app.use("/api/audit-logs", auditLogRoutes);
 app.use("/api/requirements", requirementRoutes);

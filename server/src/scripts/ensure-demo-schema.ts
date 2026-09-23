@@ -254,6 +254,18 @@ async function main() {
 
     CREATE INDEX IF NOT EXISTS milestone_links_milestone_idx
       ON milestone_links (milestone_id);
+
+    -- notifications/service.create has always accepted
+    -- { recipientRole, title, body, link }, but the table only had
+    -- (title, message, type, role, is_read) — recipientRole (as "role")
+    -- was the only field that actually landed, body/link were silently
+    -- dropped on every insert. Add the missing columns and a specific-user
+    -- target (recipient_user_id), so a notification can be aimed at one
+    -- person instead of only ever "every holder of this role".
+    ALTER TABLE notifications
+      ADD COLUMN IF NOT EXISTS recipient_user_id integer REFERENCES users(id),
+      ADD COLUMN IF NOT EXISTS project_code varchar(50),
+      ADD COLUMN IF NOT EXISTS link varchar(500);
   `);
 
   console.log("Demo schema tables and compatibility columns are ready.");

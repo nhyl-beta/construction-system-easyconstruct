@@ -2,6 +2,7 @@ import { NextFunction, Request, Response } from "express";
 import { HTTP } from "../constants/http-status.js";
 import { MSG } from "../constants/messages.js";
 import { formatSuccess } from "../utils/response.js";
+import type { AuthedRequest } from "../middleware/auth.js";
 import * as service from "./service.js";
 import type { RequirementFilters } from "./types.js";
 
@@ -38,9 +39,13 @@ export const create = async (req: Request, res: Response, next: NextFunction) =>
   }
 };
 
-export const update = async (req: Request, res: Response, next: NextFunction) => {
+export const update = async (req: AuthedRequest, res: Response, next: NextFunction) => {
   try {
-    const data = await service.update(Number(req.params.id), req.body);
+    const data = await service.update(
+      Number(req.params.id),
+      req.body,
+      req.authUser?.role ?? "",
+    );
     res.json(formatSuccess(data, MSG.requirements.updated));
   } catch (err) {
     next(err);
