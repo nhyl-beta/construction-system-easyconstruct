@@ -2,7 +2,7 @@
 
 Branch: `feature/project-lifecycle`
 
-Group A commit: `379923e`. Group B commit: `71036b0`.
+Group A commit: `379923e`. Group B commit: `71036b0`. Group C commit: `5447187`.
 
 ## Checklist
 
