@@ -2,7 +2,7 @@
 
 Branch: `feature/project-lifecycle`
 
-Group A commit: `379923e`. Group B commit: `71036b0`. Group C commit: `5447187`. Group D commit: `2cddaa1`. Group E commit: `41a55f6`. Group F commit: `e755a34`. Group G commit: `64bffbd`. Group H commit: `4e09a01`.
+Group A commit: `379923e`. Group B commit: `71036b0`. Group C commit: `5447187`. Group D commit: `2cddaa1`. Group E commit: `41a55f6`. Group F commit: `e755a34`. Group G commit: `64bffbd`. Group H commit: `4e09a01`. Group I: no code changes (I1 was already complete as of Group C) — verified only, recorded in the commit below.
 
 ## Checklist
 
@@ -86,7 +86,7 @@ Group A commit: `379923e`. Group B commit: `71036b0`. Group C commit: `5447187`.
 - [x] H7 🟢 `documents/routes.ts`'s `/upload` guard gained `"architect"` (was PM/Admin/IT Designer/Site Personnel/Consultant only — Architect couldn't file into the shared `documents` table at all, so an As-Built Drawing could never reach the table gate X2's sibling check or any lifecycle gate reads from). Client: `architect-documentation.tsx` (previously a read-only view over an entirely separate `architect-documents` table) gained an "Upload As-Built / document" button wired to the shared `useFieldDocuments`/`UploadDocumentDialog` pair every other role's document page already uses — the existing architect-documents table/list is untouched.
 
 ### I. Archive
-- [ ] I1 🔴 /archive endpoint (Admin, from Completed)
+- [x] I1 🔴 Already fully implemented in Group C — `lifecycle/service.ts archive()` requires `actor.role === "admin"`, requires `project.status === "Completed"`, sets `archivedAt`, records the transition, and notifies every staffed member + PM. Route (`POST /projects/:id/lifecycle/archive`) and client Actions-menu entry (`ProjectLifecyclePanel`) both already existed too. No code changed for I1 itself; verified only.
 
 **→ CHECKPOINT 4**
 
@@ -108,6 +108,15 @@ Group A commit: `379923e`. Group B commit: `71036b0`. Group C commit: `5447187`.
 - [ ] L5 🟡 demo-full-cycle.ts script
 
 **→ CHECKPOINT 5 (final)**
+
+## Verification (checkpoint 4)
+
+Ran against the real dev DB (TEST_v22, id 2), forced into `Completed` for the run (restored to `Proposal`/progress 4/`completedAt`+`archivedAt` both `null` afterward):
+
+- Non-admin (PM) `POST /projects/2/lifecycle/archive` → 403 "Only Admin may archive a project" (role checked before phase).
+- Admin, project not yet Completed → 409 "Only a Completed project can be archived".
+- Admin, project Completed → 200, phase → `Archived`, a `Completed→Archived` row added to phase history, `GET /projects/2` confirmed `archivedAt` set to a real timestamp.
+- Test phase-history rows and notifications deleted afterward; TEST_v22 reset. Server `tsc --noEmit` and client `tsc && vite build` both clean (no code changed since Group H's last build check — I1 required no edits).
 
 ## Verification (group H, no checkpoint required — next one is after I)
 
