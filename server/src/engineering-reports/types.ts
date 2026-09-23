@@ -7,6 +7,9 @@ export const ENGINEERING_REPORT_TYPES = [
   "Progress Report",
   "Engineering Recommendation",
   "Non-Conformance Report",
+  // H1: gate X1 (Closeout exit) requires an Approved report of this exact
+  // type — see lifecycle/gates.ts x1.
+  "Final Inspection",
 ] as const;
 
 export const REPORT_PRIORITIES = ["Low", "Medium", "High", "Critical"] as const;

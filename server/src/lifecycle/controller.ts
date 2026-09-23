@@ -35,6 +35,16 @@ export const getLifecycle = async (req: AuthedRequest, res: Response, next: Next
   }
 };
 
+export const getCloseoutSummary = async (req: AuthedRequest, res: Response, next: NextFunction) => {
+  try {
+    const code = await resolveProjectCode(req);
+    const data = await service.getCloseoutSummary(code);
+    res.json(formatSuccess(data, "Closeout summary retrieved"));
+  } catch (err) {
+    next(err);
+  }
+};
+
 export const advance = async (req: AuthedRequest, res: Response, next: NextFunction) => {
   try {
     const code = await resolveProjectCode(req);

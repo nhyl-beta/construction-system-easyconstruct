@@ -27,6 +27,7 @@ import { useAuth } from "@/auth/auth-context";
 import { useProjectLifecycle } from "../hooks/useProjectLifecycle";
 import { SEQUENCED_PHASES } from "../types/lifecycle.types";
 import { formatRelativeTime } from "@/lib/format-relative-time";
+import { CloseoutSummaryCard } from "./CloseoutSummaryCard";
 
 const TONE_CLASS: Record<string, string> = {
   Proposal: "border-border text-foreground",
@@ -266,6 +267,10 @@ export function ProjectLifecyclePanel({ projectId }: { projectId: string | numbe
           )}
         </>
       )}
+
+      {/* H6: everything Closeout cares about (documents, budgets, payroll,
+          the closeout workflow) in one place, rather than four screens. */}
+      {view.phase === "Closeout" && <CloseoutSummaryCard projectId={projectId} />}
 
       {view.history.length > 0 && (
         <div className="space-y-2 border-t border-border/60 pt-3">

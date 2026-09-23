@@ -57,3 +57,13 @@ export interface LifecycleView {
   history: PhaseHistoryEntry[];
   hasRejectedProposal?: boolean;
 }
+
+// H6
+export interface CloseoutSummary {
+  phase: ProjectPhase;
+  checks: GateCheck[];
+  documents: { certificateOfCompletion: boolean; asBuiltDrawing: boolean };
+  budgets: { category: string; planned: number; committed: number; spent: number }[];
+  payroll: { pending: number; approvedSinceCloseout: number };
+  closeoutWorkflow: { status: string; currentStageRoleLabel: string | null } | null;
+}

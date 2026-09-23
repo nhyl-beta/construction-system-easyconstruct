@@ -123,6 +123,65 @@ export const getLifecycleView = async (projectCode: string): Promise<LifecycleVi
   return view;
 };
 
+// ── H6: Closeout summary ────────────────────────────────────────────────
+
+export interface CloseoutSummary {
+  phase: ProjectPhase;
+  checks: GateCheck[];
+  documents: { certificateOfCompletion: boolean; asBuiltDrawing: boolean };
+  budgets: { category: string; planned: number; committed: number; spent: number }[];
+  payroll: { pending: number; approvedSinceCloseout: number };
+  closeoutWorkflow: { status: string; currentStageRoleLabel: string | null } | null;
+}
+
+/** H6: one read-only rollup of everything Closeout cares about — the X1-X4
+ * gate checks plus the underlying data behind each (documents, budgets,
+ * payroll), so PM/Admin/Finance don't have to cross-reference four separate
+ * screens to see what's still blocking the move to Completed. */
+export const getCloseoutSummary = async (projectCode: string): Promise<CloseoutSummary> => {
+  const snapshot = await repo.loadSnapshot(projectCode);
+  if (!snapshot) throw new NotFoundError("Project", projectCode);
+
+  const phase = snapshot.project.status as ProjectPhase;
+  const checks = isSequencedPhase(phase) ? evaluateGate("Closeout", snapshot) : [];
+
+  const enteredCloseout = snapshot.phaseHistory.find((h) => h.toStatus === "Closeout");
+  const enteredAt = enteredCloseout?.createdAt ?? null;
+
+  const closeoutWorkflows =
+    snapshot.closeoutTemplateId == null
+      ? []
+      : snapshot.workflows.filter((w) => w.templateId === snapshot.closeoutTemplateId);
+  const activeCloseout = closeoutWorkflows.find((w) => w.status === "active") ?? closeoutWorkflows[0] ?? null;
+  const currentStage = activeCloseout
+    ? snapshot.workflowStages.find((s) => s.workflowId === activeCloseout.id && s.status === "current")
+    : undefined;
+
+  return {
+    phase,
+    checks,
+    documents: {
+      certificateOfCompletion: snapshot.documents.some((d) => d.type === "Certificate of Completion"),
+      asBuiltDrawing: snapshot.documents.some((d) => d.type === "As-Built Drawing"),
+    },
+    budgets: snapshot.budgets.map((b) => ({
+      category: b.category,
+      planned: Number(b.planned),
+      committed: Number(b.committed),
+      spent: Number(b.actual),
+    })),
+    payroll: {
+      pending: snapshot.payrollBatches.filter((b) => b.status === "pending").length,
+      approvedSinceCloseout: snapshot.payrollBatches.filter(
+        (b) => b.status === "approved" && (!enteredAt || (b.createdAt != null && new Date(b.createdAt) > new Date(enteredAt))),
+      ).length,
+    },
+    closeoutWorkflow: activeCloseout
+      ? { status: activeCloseout.status, currentStageRoleLabel: currentStage?.roleLabel ?? null }
+      : null,
+  };
+};
+
 // ── Write guard ──────────────────────────────────────────────────────────
 
 /** Blocks ordinary project-scoped writes while a project is frozen

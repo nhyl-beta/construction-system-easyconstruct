@@ -16,6 +16,7 @@ const router = Router({ mergeParams: true });
 router.use(authenticate);
 
 router.get("/", controller.getLifecycle);
+router.get("/closeout-summary", controller.getCloseoutSummary);
 router.post("/advance", controller.advance);
 router.post("/hold", controller.hold);
 router.post("/resume", controller.resume);

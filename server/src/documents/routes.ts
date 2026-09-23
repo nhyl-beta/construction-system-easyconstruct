@@ -37,9 +37,12 @@ router.post(
 // with a documents page: PM/Admin (pm-documents.tsx, reused by
 // admin-documents.tsx) and Site Personnel (sp-documents.tsx) both call it
 // via the same useFieldDocuments hook.
+// H7: Architect added so they can file an As-Built Drawing at Closeout
+// (gate X2's Certificate of Completion is PM/Admin's; this is the
+// architect's own document).
 router.post(
   "/upload",
-  requireRole("project-manager", "admin", "it-designer", "site-personnel", "consultant"),
+  requireRole("project-manager", "admin", "it-designer", "site-personnel", "consultant", "architect"),
   advisoryDocumentUpload.single("file"),
   controller.upload,
 );

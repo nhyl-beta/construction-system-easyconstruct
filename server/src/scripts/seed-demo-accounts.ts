@@ -161,6 +161,23 @@ const TEMPLATES = [
       { role: "admin", roleLabel: "Admin Sign-off", iconKey: "ShieldCheck" },
     ],
   },
+  // H3: name must be exactly "Project Closeout" — matched by string in
+  // lifecycle/repository.ts's CLOSEOUT_TEMPLATE_NAME (gate X4 reads
+  // closeoutTemplateId from this lookup) and in workflows/service.ts's
+  // phase/role restriction on who may start one. Engineer initiates (the
+  // Final Inspection is theirs, gate X1); Finance's stage is where H4 blocks
+  // on pending expenses; PM and Admin sign off last.
+  {
+    name: "Project Closeout",
+    description: "Engineer confirms final inspection; Finance clears outstanding expenses; PM and Admin sign off to complete the project.",
+    avgDurationHours: "72.0",
+    defaultStages: [
+      { role: "engineer", roleLabel: "Final Inspection Sign-off", iconKey: "FileSignature" },
+      { role: "finance-manager", roleLabel: "Finance Closeout Review", iconKey: "Wallet" },
+      { role: "project-manager", roleLabel: "PM Sign-off", iconKey: "ShieldCheck" },
+      { role: "admin", roleLabel: "Admin Final Approval", iconKey: "ShieldCheck" },
+    ],
+  },
 ] as const;
 
 function initials(name: string) {

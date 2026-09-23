@@ -1,18 +1,36 @@
+import { useState } from "react";
 import { PageHeader } from "@/components/refine-ui/views/page-header";
 import { StatusBadge } from "@/components/ui/status-badge";
 import { Input } from "@/components/ui/input";
+import { Button } from "@/components/ui/button";
 import {
   Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
 } from "@/components/ui/select";
-import { FileText, Search } from "lucide-react";
+import { FileText, Search, Upload } from "lucide-react";
 import { useArchitectDocuments } from "@/features/architect-documents/hooks/useArchitectDocuments";
+import { UploadDocumentDialog } from "@/components/documents/upload-document-dialog";
+import { useFieldDocuments } from "@/features/documents/hooks/use-field-documents";
 
 export default function ArchitectDocumentation() {
   const c = useArchitectDocuments();
+  // H7: separate from useArchitectDocuments' own read-only table above — an
+  // As-Built Drawing (gate X-check territory) has to land in the shared
+  // `documents` table every other role's uploads and the lifecycle gates
+  // read from, not this page's own architect-documents table.
+  const { uploading, upload } = useFieldDocuments();
+  const [uploadOpen, setUploadOpen] = useState(false);
 
   return (
     <div className="flex-1 space-y-6 p-4 md:p-8">
-      <PageHeader title="Documentation" description="Specifications, permits, and supporting documents." />
+      <PageHeader
+        title="Documentation"
+        description="Specifications, permits, and supporting documents."
+        actions={
+          <Button className="rounded-xl" onClick={() => setUploadOpen(true)}>
+            <Upload className="h-4 w-4" /> Upload As-Built / document
+          </Button>
+        }
+      />
 
       <div className="flex flex-wrap items-center gap-2">
         <div className="relative w-64">
@@ -60,6 +78,8 @@ export default function ArchitectDocumentation() {
           ))}
         </div>
       )}
+
+      <UploadDocumentDialog open={uploadOpen} onOpenChange={setUploadOpen} uploading={uploading} onSubmit={upload} />
     </div>
   );
 }

@@ -33,7 +33,7 @@ import { workflowTemplates } from "../db/schema/workflows.js";
 // Closeout" template (H3) without gates.ts — a pure-function module — ever
 // touching the database itself, so the id is resolved once here and carried
 // on the snapshot instead.
-const CLOSEOUT_TEMPLATE_NAME = "Project Closeout";
+export const CLOSEOUT_TEMPLATE_NAME = "Project Closeout";
 
 export type LifecycleSnapshot = NonNullable<Awaited<ReturnType<typeof loadSnapshot>>>;
 

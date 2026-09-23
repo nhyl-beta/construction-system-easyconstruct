@@ -7,6 +7,8 @@ export const ENGINEERING_REPORT_TYPES = [
   "Progress Report",
   "Engineering Recommendation",
   "Non-Conformance Report",
+  // H1: gate X1 (Closeout exit) requires an Approved report of this type.
+  "Final Inspection",
 ] as const;
 
 export type EngineeringReportType = (typeof ENGINEERING_REPORT_TYPES)[number];
@@ -31,6 +33,7 @@ export const PROGRESS_REPORT_TYPES: EngineeringReportType[] = [
   "Structural Assessment",
   "Quality Inspection",
   "Technical Report",
+  "Final Inspection",
 ];
 
 // Reports that flag a problem needing action — surfaced on the Issues page.

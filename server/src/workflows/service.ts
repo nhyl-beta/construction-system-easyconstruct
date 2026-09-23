@@ -1,9 +1,12 @@
 import { ConflictError, ForbiddenError, NotFoundError, ValidationError } from "../utils/errors.js";
 import { assertProjectWritable, refreshProjectProgress } from "../lifecycle/service.js";
+import { CLOSEOUT_TEMPLATE_NAME } from "../lifecycle/repository.js";
 import { proposalRepository } from "../proposals/repository.js";
 import * as notificationsService from "../notifications/service.js";
 import * as budgetService from "../finance/budget/service.js";
 import * as budgetAdjustmentsService from "../finance/budget-adjustments/service.js";
+import * as projectsRepo from "../projects/repository.js";
+import { expensesRepository } from "../finance/expenses/repository.js";
 import * as repo from "./repository.js";
 import type {
   ApprovalQueueItem,
@@ -230,6 +233,21 @@ export const createWorkflow = async (
   if (!template) throw new ValidationError(`Unknown workflow template ${input.templateId}`);
   await assertProjectWritable(input.projectCode);
 
+  // H3: a Project Closeout workflow only makes sense once the project has
+  // actually reached Closeout, and only the Engineer (whose own Final
+  // Inspection stage opens it) may start one — mirrors the "auto-approve the
+  // initiator's own stage" assumption below, which requires the initiator's
+  // role to actually be the template's first stage's role.
+  if (template.name === CLOSEOUT_TEMPLATE_NAME) {
+    if (createdByRole !== "engineer" && createdByRole !== "admin") {
+      throw new ForbiddenError('Only Engineer (or Admin) may start a "Project Closeout" workflow');
+    }
+    const project = await projectsRepo.findByCode(input.projectCode);
+    if (!project || project.status !== "Closeout") {
+      throw new ConflictError('A "Project Closeout" workflow can only be started once the project is in Closeout');
+    }
+  }
+
   const seq = await repo.nextWorkflowSeq();
   const code = `WF-${1000 + seq}`;
 
@@ -407,6 +425,21 @@ export const decideStage = async (
     throw new ForbiddenError(
       `This stage requires a '${stage.role}' decision; you are '${requesterRole}'`,
     );
+  }
+
+  // H4: Finance may not sign off a Project Closeout workflow's own stage
+  // while the project still has an unresolved (pending) expense — the same
+  // spend gate X3 already enforces for payroll, applied to expenses here.
+  if (owningWorkflow && stage.role === "finance-manager" && input.decision === "approve") {
+    const template = owningWorkflow.templateId ? await repo.findTemplateById(owningWorkflow.templateId) : null;
+    if (template?.name === CLOSEOUT_TEMPLATE_NAME) {
+      const pending = await expensesRepository.hasPending(owningWorkflow.projectCode);
+      if (pending) {
+        throw new ConflictError(
+          "This project still has a pending expense — resolve it before signing off Closeout",
+        );
+      }
+    }
   }
 
   const decidedAt = new Date();

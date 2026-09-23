@@ -61,4 +61,17 @@ export const expensesRepository = {
       .returning();
     return row;
   },
+
+  // H4: Finance's Project Closeout sign-off is refused while a project still
+  // has unresolved expenses — findMany has no project filter at all (its
+  // callers are all a global, unfiltered Finance list), so this is a
+  // dedicated query rather than overloading that one.
+  async hasPending(project: string) {
+    const [row] = await db
+      .select({ id: expenses.id })
+      .from(expenses)
+      .where(and(eq(expenses.project, project), eq(expenses.status, "pending")))
+      .limit(1);
+    return row != null;
+  },
 };
