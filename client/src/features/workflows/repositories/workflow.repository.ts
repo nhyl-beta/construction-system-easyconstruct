@@ -64,6 +64,13 @@ export const WorkflowRepository = {
     );
   },
 
+  /** Only the workflow's own initiator, or admin — enforced server-side. */
+  async resubmitStage(workflowId: number, stageId: number): Promise<Workflow> {
+    return unwrap<Workflow>(
+      apiClient.post(`/workflows/${workflowId}/stages/${stageId}/resubmit`, {}),
+    );
+  },
+
   async listApprovals(scope: ApprovalScope): Promise<ApprovalQueueItem[]> {
     return unwrap<ApprovalQueueItem[]>(apiClient.get(`/workflows/approvals?scope=${scope}`));
   },

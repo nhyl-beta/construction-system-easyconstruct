@@ -71,6 +71,8 @@ export interface LifecycleView {
   blockedReason?: string;
   constructionTasks?: { done: number; total: number };
   history: Awaited<ReturnType<typeof repo.findPhaseHistory>>;
+  /** D6: a rejected proposal in Proposal phase offers "Mark bid lost" (→ /cancel). */
+  hasRejectedProposal?: boolean;
 }
 
 export const getLifecycleView = async (projectCode: string): Promise<LifecycleView> => {
@@ -110,6 +112,12 @@ export const getLifecycleView = async (projectCode: string): Promise<LifecycleVi
       done: snapshot.tasks.filter((t) => t.status === "Completed").length,
       total: snapshot.tasks.length,
     };
+  }
+
+  if (phase === "Proposal") {
+    view.hasRejectedProposal = snapshot.proposals.some(
+      (p) => p.workflowId != null && snapshot.proposalWorkflows.some((w) => w.id === p.workflowId && w.status === "rejected"),
+    );
   }
 
   return view;

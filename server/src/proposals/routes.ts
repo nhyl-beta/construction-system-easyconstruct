@@ -37,6 +37,18 @@ router.post(
   proposalController.create,
 );
 
+// D2: creates the proposal AND opens its Design Proposal Approval workflow
+// in one call, linking them (proposals.workflow_id) — see
+// proposals/service.ts submit(). Kept alongside plain POST "/" above rather
+// than replacing it: POST "/" still works for anything that doesn't want a
+// workflow opened.
+router.post(
+  "/submit",
+  canAuthor,
+  validate(createProposalSchema),
+  proposalController.submit,
+);
+
 router.get(
   "/:id",
   proposalController.getById,

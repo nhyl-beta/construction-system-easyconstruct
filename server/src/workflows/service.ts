@@ -1,5 +1,7 @@
 import { ConflictError, ForbiddenError, NotFoundError, ValidationError } from "../utils/errors.js";
 import { assertProjectWritable, refreshProjectProgress } from "../lifecycle/service.js";
+import { proposalRepository } from "../proposals/repository.js";
+import * as notificationsService from "../notifications/service.js";
 import * as repo from "./repository.js";
 import type {
   ApprovalQueueItem,
@@ -414,8 +416,21 @@ export const decideStage = async (
     comments: input.comments ?? null,
   });
 
+  // D3: a proposal linked to this workflow (proposals.workflow_id, set by
+  // POST /proposals/submit) has its status kept in sync rather than decided
+  // independently — one source of truth instead of two, since the old
+  // PATCH /proposals/:id/review wrote the proposal directly with nothing
+  // keeping it and its workflow's stages in agreement.
+  const syncLinkedProposal = async (status: "Approved" | "Rejected" | "Revision Requested") => {
+    const linked = await proposalRepository.findByWorkflowId(workflowId);
+    if (linked) await proposalRepository.update(linked.id, { status });
+  };
+
   if (input.decision === "reject") {
     await repo.updateWorkflowStatus(workflowId, "rejected");
+    await syncLinkedProposal("Rejected");
+  } else if (input.decision === "revise") {
+    await syncLinkedProposal("Revision Requested");
   } else if (input.decision === "approve") {
     const allStages = await repo.findStagesByWorkflow(workflowId);
     const next = allStages.find((s) => s.sequence === stage.sequence + 1);
@@ -423,6 +438,7 @@ export const decideStage = async (
       await repo.updateStage(next.id, { status: "current" });
     } else {
       await repo.updateWorkflowStatus(workflowId, "completed");
+      await syncLinkedProposal("Approved");
     }
   }
   // "revise" leaves the workflow status as-is and the stage in
@@ -436,6 +452,61 @@ export const decideStage = async (
   if (decidedWorkflow) {
     await refreshProjectProgress(decidedWorkflow.projectCode);
   }
+
+  return getWorkflowById(workflowId);
+};
+
+export interface ResubmitStageInput {
+  attachment?: WorkflowAttachmentInput;
+}
+
+/**
+ * D4: puts a stage that came back "revision-required" back to "current" so
+ * its owning role sees it in their queue again. Only the workflow's own
+ * initiator, or admin, can do this — same ownership rule as
+ * assertCanManageWorkflow, inlined here rather than reused because that
+ * helper throws NotFoundError for a missing id, which resubmit's caller
+ * (the stage, not the workflow) doesn't have a natural equivalent of.
+ */
+export const resubmitStage = async (
+  workflowId: number,
+  stageId: number,
+  input: ResubmitStageInput,
+  actor: { role: string; name: string },
+): Promise<WorkflowWithStages> => {
+  const workflow = await repo.findWorkflowById(workflowId);
+  if (!workflow) throw new NotFoundError("Workflow", String(workflowId));
+  if (actor.role !== "admin" && workflow.createdBy !== actor.name) {
+    throw new ForbiddenError("Only the workflow's initiator, or Admin, can resubmit a stage");
+  }
+
+  const stage = await repo.findStageById(stageId);
+  if (!stage || stage.workflowId !== workflowId) {
+    throw new NotFoundError("Workflow stage", String(stageId));
+  }
+  if (stage.status !== "revision-required") {
+    throw new ValidationError(
+      `Stage ${stageId} is '${stage.status}', not 'revision-required' — nothing to resubmit`,
+    );
+  }
+
+  await assertProjectWritable(workflow.projectCode);
+
+  await repo.updateStage(stageId, { status: "current", decidedBy: null, decidedAt: null, comments: null });
+
+  if (input.attachment) {
+    await repo.insertAttachments([toAttachmentRow(input.attachment, workflowId, stageId, actor.name)]);
+  }
+
+  await notificationsService.create({
+    recipientRole: stage.role,
+    title: "Workflow resubmitted",
+    body: `"${workflow.title}" (${workflow.code}) was resubmitted and is waiting on your ${stage.roleLabel} decision again.`,
+    link: `/workflows`,
+    projectCode: workflow.projectCode,
+  });
+
+  await refreshProjectProgress(workflow.projectCode);
 
   return getWorkflowById(workflowId);
 };

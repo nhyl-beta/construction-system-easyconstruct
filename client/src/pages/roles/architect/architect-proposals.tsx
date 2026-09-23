@@ -169,7 +169,7 @@ export default function ArchitectProposals() {
   // Submitting a proposal also opens its Design Proposal Approval workflow
   // (Architect Submission → Consultant Review → PM Approval). Composed in the
   // feature layer rather than here — see useDesignProposalSubmission.
-  const designSubmission = useDesignProposalSubmission(c.createProposal);
+  const designSubmission = useDesignProposalSubmission(c.submitProposal);
 
   const [showCreateForm, setShowCreateForm] =
     useState(false);
@@ -321,12 +321,8 @@ export default function ArchitectProposals() {
             </h2>
 
             <p className="text-sm text-muted-foreground">
-              Submitting the proposal also opens its design-approval workflow
-              {designSubmission.template
-                ? `: ${designSubmission.template.defaultStages
-                    .map((stage) => stage.roleLabel)
-                    .join(" → ")}.`
-                : "."}
+              Submitting the proposal also opens its Design Proposal Approval
+              workflow: Architect Submission → Consultant Review → PM Approval.
             </p>
           </div>
 

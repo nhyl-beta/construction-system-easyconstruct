@@ -22,11 +22,14 @@ import { useState } from "react";
 import { useNavigate } from "react-router";
 import { PROJECT_CURRENCIES, RISK_LEVELS } from "@/features/projects/types/project.types";
 
-const ASSIGNABLE_TEAM_ROLES: { role: ProjectMemberRole; label: string }[] = [
-  { role: "architect", label: "Architect" },
+// Architect and Consultant are required (D1) — the lifecycle's Proposal
+// phase gate checks P1/P2 need both staffed before the project can ever
+// advance past 4%.
+const ASSIGNABLE_TEAM_ROLES: { role: ProjectMemberRole; label: string; required?: boolean }[] = [
+  { role: "architect", label: "Architect", required: true },
   { role: "engineer", label: "Engineer" },
   { role: "site-personnel", label: "Site Personnel" },
-  { role: "consultant", label: "Consultant" },
+  { role: "consultant", label: "Consultant", required: true },
 ];
 
 type TeamSelections = Partial<Record<ProjectMemberRole, { id: number; name: string }>>;
@@ -153,6 +156,17 @@ export default function ProjectCreatePage() {
       setError(`${missing[0]} is required.`);
       return;
     }
+    // D1: gate P1/P2 (Proposal phase) need an architect and a consultant
+    // staffed before the project can ever advance — required here rather
+    // than only discovered later as a blocked Advance.
+    if (!team.architect) {
+      setError("Assign an Architect before creating the project.");
+      return;
+    }
+    if (!team.consultant) {
+      setError("Assign a Consultant before creating the project.");
+      return;
+    }
 
     setSubmitting(true);
     setError(null);
@@ -167,9 +181,8 @@ export default function ProjectCreatePage() {
         due: data.due,
         pm: data.pm,
         description: data.description.trim() || undefined,
-        status: "Planning",
-        statusTone: "neutral",
-        progress: 0,
+        // status/progress are lifecycle-owned now — every project starts at
+        // Proposal/0% regardless of what's sent (server/src/lifecycle).
         // budget is utilisation-to-date (a percentage), which starts at zero;
         // the contract amount is its own column.
         budget: 0,
@@ -707,11 +720,12 @@ function StepTeam({
           )}
         </div>
 
-        {ASSIGNABLE_TEAM_ROLES.map(({ role, label }) => (
+        {ASSIGNABLE_TEAM_ROLES.map(({ role, label, required }) => (
           <TeamRolePicker
             key={role}
             role={role}
             label={label}
+            required={required}
             selected={team[role] ?? null}
             onChange={(person) =>
               setTeam((prev) => {
@@ -725,8 +739,10 @@ function StepTeam({
         ))}
       </div>
       <p className="text-xs text-muted-foreground">
-        Team assignment is optional here — the Project Manager can also add or
-        change team members later from the project's detail page.
+        Architect and Consultant are required to start the project's
+        lifecycle. Engineer and Site Personnel are optional here — any of
+        these can also be added or changed later from the project's detail
+        page.
       </p>
     </div>
   );
@@ -735,11 +751,13 @@ function StepTeam({
 function TeamRolePicker({
   role,
   label,
+  required,
   selected,
   onChange,
 }: {
   role: ProjectMemberRole;
   label: string;
+  required?: boolean;
   selected: { id: number; name: string } | null;
   onChange: (person: { id: number; name: string } | null) => void;
 }) {
@@ -747,7 +765,10 @@ function TeamRolePicker({
 
   return (
     <div className="space-y-1.5">
-      <Label>{label}</Label>
+      <Label>
+        {label}
+        {required && <span className="text-destructive"> *</span>}
+      </Label>
       <Select
         value={selected ? String(selected.id) : ""}
         onValueChange={(v) => {
@@ -756,7 +777,11 @@ function TeamRolePicker({
         }}
       >
         <SelectTrigger className="rounded-xl">
-          <SelectValue placeholder={loading ? "Loading…" : `Select ${label.toLowerCase()} (optional)`} />
+          <SelectValue
+            placeholder={
+              loading ? "Loading…" : `Select ${label.toLowerCase()}${required ? "" : " (optional)"}`
+            }
+          />
         </SelectTrigger>
         <SelectContent>
           {users.length === 0 && !loading && (

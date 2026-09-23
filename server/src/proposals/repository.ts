@@ -27,6 +27,15 @@ export const proposalRepository = {
     return result[0];
   },
 
+  async findByWorkflowId(workflowId: number) {
+    const result = await db
+      .select()
+      .from(proposals)
+      .where(eq(proposals.workflowId, workflowId));
+
+    return result[0];
+  },
+
   async create(data: NewProposal) {
     const result = await db
       .insert(proposals)

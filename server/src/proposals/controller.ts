@@ -58,6 +58,30 @@ export const proposalController = {
     });
   },
 
+  async submit(
+    req: AuthedRequest,
+    res: Response,
+  ) {
+    const data = await proposalService.submit(
+      req.body,
+      req.authUser?.name ?? req.body.submittedBy ?? "unknown",
+      req.authUser?.role ?? "",
+    );
+
+    await logAudit({
+      entityType: "proposal",
+      entityId: String(data.proposal.id),
+      action: "created",
+      actor: req.authUser?.name ?? data.proposal.submittedBy ?? "unknown",
+      summary: `Submitted proposal "${data.proposal.title}" for project ${data.proposal.projectCode} — workflow ${data.workflow.code} started`,
+    });
+
+    return res.status(201).json({
+      success: true,
+      data,
+    });
+  },
+
   async update(
     req: Request,
     res: Response,
@@ -86,6 +110,7 @@ export const proposalController = {
       await proposalService.review(
         id,
         req.body,
+        req.authUser?.role ?? "",
       );
 
     await logAudit({

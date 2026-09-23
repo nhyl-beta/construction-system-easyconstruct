@@ -164,6 +164,18 @@ export function ProjectLifecyclePanel({ projectId }: { projectId: string | numbe
                 >
                   Cancel project
                 </DropdownMenuItem>
+                {/* D6: surfaced once a proposal's approval workflow came back
+                    rejected — same /cancel action, pre-filled reason. */}
+                {view.phase === "Proposal" && view.hasRejectedProposal && (
+                  <DropdownMenuItem
+                    onClick={() => {
+                      setReason("Bid lost — proposal was rejected.");
+                      setReasonDialog("cancel");
+                    }}
+                  >
+                    Mark bid lost
+                  </DropdownMenuItem>
+                )}
                 {isAdmin && view.phase === "Completed" && (
                   <DropdownMenuItem onClick={() => void archive()}>Archive</DropdownMenuItem>
                 )}

@@ -41,12 +41,12 @@ Group A commit: `379923e`. Group B commit: `71036b0`. Group C commit: `5447187`.
 **→ CHECKPOINT 2** — curl transcript below
 
 ### D. Phase 1 — Proposal
-- [ ] D1 🔴 ProjectCreatePage: drop status:"Planning"; require Architect+Consultant in Team step
-- [ ] D2 🔴 proposals.workflow_id + POST /api/proposals/submit
-- [ ] D3 🔴 decideStage syncs linked proposal status; consultant review routes through workflow
-- [ ] D4 🔴 POST /api/workflows/:id/stages/:stageId/resubmit + client Resubmit button
-- [ ] D5 🔴 New document types
-- [ ] D6 🟡 "Mark bid lost" action on rejected proposal workflow
+- [x] D1 🔴 ProjectCreatePage: dropped status/statusTone/progress from the create payload (lifecycle-owned now, forced server-side regardless); Architect and Consultant are now required in the Team step (asterisked, validated in handleSubmit) — gates P1/P2 need both staffed.
+- [x] D2 🔴 proposals.workflow_id (added in C2) + `POST /api/proposals/submit` (proposals/service.ts submit()): creates the proposal, opens the "Design Proposal Approval" workflow via the existing createWorkflow (auto-approves the architect's own stage), links workflowId, all in one call. Old `POST /proposals` still works unlinked. Client: useDesignProposalSubmission.ts rewritten to call submitProposal() instead of composing create+initiate as two round trips; file upload stays a second call (needs the workflow id) via WorkflowRepository.uploadAttachment.
+- [x] D3 🔴 workflows/service.ts decideStage now syncs a linked proposal's status on every decision (approve+final stage → Approved, reject → Rejected, revise → Revision Requested) via a new proposalRepository.findByWorkflowId. proposals/service.ts review() now decides the workflow's current stage for a linked proposal instead of writing status directly; falls back to the old direct write for a legacy/unlinked proposal.
+- [x] D4 🔴 `POST /api/workflows/:id/stages/:stageId/resubmit` (workflows/service.ts resubmitStage): only the workflow's own createdBy or admin, stage must be revision-required, optional attachment, notifies the stage's role, refreshes progress. Client: WorkflowCard.tsx turned out to be dead code (no consumers) — added the Resubmit button to the actual active-pipeline UI in pm-workflows.tsx instead, shown per revision-required stage when the current user can manage that workflow.
+- [x] D5 🔴 Added Notice of Award / Contract / Notice to Proceed / Certificate of Completion / Turnover Document / As-Built Drawing to server/src/validators/document-validators.ts and the shared upload-document-dialog.tsx (used by PM/Admin/HR). Left site-personnel's own upload form (sp-documents.tsx, a separate smaller type list) unchanged — those document types aren't ones site personnel would file.
+- [x] D6 🟡 lifecycle/service.ts's GET view now reports `hasRejectedProposal` for the Proposal phase (a linked proposal whose workflow status is rejected); ProjectLifecyclePanel shows a "Mark bid lost" action in that case, pre-filling the Cancel reason dialog.
 
 ### E. Phase 2 — Design
 - [ ] E1 🔴 design-reviews decide guard + design status sync + notify architect; guard designs writes
@@ -108,6 +108,15 @@ Group A commit: `379923e`. Group B commit: `71036b0`. Group C commit: `5447187`.
 - [ ] L5 🟡 demo-full-cycle.ts script
 
 **→ CHECKPOINT 5 (final)**
+
+## Verification (group D, no checkpoint required — next one is after F)
+
+Ran against the real dev DB (TEST_v22):
+- `POST /proposals/submit` (architect) → proposal created with `workflowId` set, workflow's architect stage auto-approved, consultant stage `current`.
+- `PATCH /proposals/2/review` (consultant, status "Revision Requested") → proposal status synced to "Revision Requested"; workflow's consultant stage became `revision-required`.
+- `POST /workflows/2/stages/5/resubmit` as the consultant (not the initiator) → 403. As the architect (initiator) → 200, stage back to `current`.
+- `GET /notifications` (consultant) confirmed the "Workflow resubmitted" notification.
+- Test proposal/workflow/notification rows deleted afterward. Server `tsc --noEmit` and client `tsc && vite build` both clean.
 
 ## Verification (checkpoint 2)
 

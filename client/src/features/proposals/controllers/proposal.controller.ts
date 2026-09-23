@@ -11,6 +11,7 @@ import type {
   Proposal,
   ProposalReviewer,
 } from "../types/proposal.types";
+import type { Workflow } from "@/features/workflows/types/workflow.types";
 
 export interface CreateProposalInput {
   proposalId: string;
@@ -164,6 +165,37 @@ export const useProposalsController = () => {
     };
 
   /*
+   * SUBMIT — creates the proposal and opens its Design Proposal Approval
+   * workflow in one server call (server/src/proposals/service.ts submit()),
+   * linking proposal.workflowId instead of the old two-round-trip client
+   * composition (create, then separately initiate a workflow) that never
+   * recorded the link at all.
+   */
+  const submitProposal = async (
+    input: CreateProposalInput,
+  ): Promise<{ proposal: Proposal; workflow: Workflow } | null> => {
+    setSaving(true);
+    setError(null);
+
+    try {
+      const json = await apiClient.post("/proposals/submit", {
+        ...input,
+        status: "Pending",
+      });
+
+      const created = unwrap<{ proposal: Proposal; workflow: Workflow }>(json);
+      await loadProposals();
+      return created;
+    } catch (err) {
+      console.error(err);
+      setError(err instanceof Error ? err.message : "Failed to submit proposal.");
+      return null;
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  /*
    * UPDATE
    */
   const updateProposal =
@@ -291,6 +323,8 @@ export const useProposalsController = () => {
     refresh: loadProposals,
 
     createProposal,
+
+    submitProposal,
 
     updateProposal,
 

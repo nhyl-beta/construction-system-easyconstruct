@@ -29,6 +29,16 @@ const DOC_TYPES = [
   "Site Photo",
   "Progress Evidence",
   "Supporting Document",
+  // Lifecycle gate documents (D5) — each one is what a specific gate check
+  // reads: P5 (Notice of Award + Contract), C5 (Notice to Proceed), X2
+  // (Certificate of Completion). Turnover Document and As-Built Drawing
+  // aren't gate-checked but round out project closeout paperwork.
+  "Notice of Award",
+  "Contract",
+  "Notice to Proceed",
+  "Certificate of Completion",
+  "Turnover Document",
+  "As-Built Drawing",
 ] as const;
 
 interface UploadDocumentDialogProps {

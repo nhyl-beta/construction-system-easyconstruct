@@ -55,4 +55,5 @@ export interface LifecycleView {
   blockedReason?: string;
   constructionTasks?: { done: number; total: number };
   history: PhaseHistoryEntry[];
+  hasRejectedProposal?: boolean;
 }

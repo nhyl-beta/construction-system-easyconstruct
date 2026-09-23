@@ -114,4 +114,13 @@ router.patch(
   controller.decideStage,
 );
 
+// D4: route guard is just "who may ever call this" — "only the workflow's
+// own initiator" is a per-row ownership check that belongs in the service
+// (resubmitStage), same split as assertCanManageWorkflow.
+router.post(
+  "/:id/stages/:stageId/resubmit",
+  canInitiateWorkflow,
+  controller.resubmitStage,
+);
+
 export default router;

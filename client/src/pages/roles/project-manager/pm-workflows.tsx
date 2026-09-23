@@ -15,6 +15,7 @@ import { WorkflowDetailDialog } from "@/components/workflows/workflow-detail-dia
 import { EditWorkflowDialog } from "@/components/workflows/edit-workflow-dialog";
 import { useAuth } from "@/auth/auth-context";
 import { FEATURES } from "@/config/features";
+import { WorkflowRepository } from "@/features/workflows/repositories/workflow.repository";
 import type { Workflow } from "@/features/workflows/types/workflow.types";
 import {
   Eye,
@@ -23,6 +24,7 @@ import {
   Paperclip,
   Pencil,
   Plus,
+  RotateCcw,
   Sparkles,
   Trash2,
 } from "lucide-react";
@@ -40,6 +42,17 @@ export default function WorkflowsPage() {
   const [detailWorkflowId, setDetailWorkflowId] = useState<number | null>(null);
   const [deletingWorkflow, setDeletingWorkflow] = useState<Workflow | null>(null);
   const [deletingBusy, setDeletingBusy] = useState(false);
+  const [resubmittingStageId, setResubmittingStageId] = useState<number | null>(null);
+
+  const resubmitStage = async (workflowId: number, stageId: number) => {
+    setResubmittingStageId(stageId);
+    try {
+      await WorkflowRepository.resubmitStage(workflowId, stageId);
+      await reload();
+    } finally {
+      setResubmittingStageId(null);
+    }
+  };
 
   return (
     <div className="flex-1 space-y-6 p-4 md:p-8">
@@ -139,8 +152,32 @@ export default function WorkflowsPage() {
                   )}
                   </div>
                 </CardHeader>
-                <CardContent>
+                <CardContent className="space-y-3">
                   <WorkflowStagePipeline stages={workflow.stages} />
+                  {canManage &&
+                    workflow.stages
+                      .filter((stage) => stage.status === "revision-required")
+                      .map((stage) => (
+                        <div
+                          key={stage.id}
+                          className="flex items-center justify-between rounded-xl border border-warning/30 bg-warning/5 px-3 py-2 text-xs"
+                        >
+                          <span>
+                            {stage.roleLabel} sent this back for revision
+                            {stage.comments ? `: ${stage.comments}` : "."}
+                          </span>
+                          <Button
+                            size="sm"
+                            variant="outline"
+                            className="h-7 rounded-lg text-xs"
+                            disabled={resubmittingStageId === stage.id}
+                            onClick={() => void resubmitStage(workflow.id, stage.id)}
+                          >
+                            <RotateCcw className="h-3 w-3" />
+                            {resubmittingStageId === stage.id ? "Resubmitting…" : "Resubmit"}
+                          </Button>
+                        </div>
+                      ))}
                 </CardContent>
               </Card>
             );

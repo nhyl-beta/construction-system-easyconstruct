@@ -152,6 +152,28 @@ export const decideStage = async (req: AuthedRequest, res: Response, next: NextF
   }
 };
 
+export const resubmitStage = async (req: AuthedRequest, res: Response, next: NextFunction) => {
+  try {
+    const actor = { role: req.authUser?.role ?? "", name: req.authUser?.name ?? "unknown" };
+    const data = await service.resubmitStage(
+      Number(req.params.id),
+      Number(req.params.stageId),
+      { attachment: req.body?.attachment },
+      actor,
+    );
+    await logAudit({
+      entityType: "workflow_stage",
+      entityId: String(req.params.stageId),
+      action: "resubmitted",
+      actor: actor.name,
+      summary: `Resubmitted stage on workflow "${data.title}" (${data.code})`,
+    });
+    res.json(formatSuccess(data, MSG.workflowStages.updated));
+  } catch (err) {
+    next(err);
+  }
+};
+
 export const getApprovals = async (req: AuthedRequest, res: Response, next: NextFunction) => {
   try {
     const scope = (req.query.scope as ApprovalScope) ?? "pending";
