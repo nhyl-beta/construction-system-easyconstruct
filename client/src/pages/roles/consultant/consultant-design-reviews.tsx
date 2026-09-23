@@ -4,26 +4,20 @@ import { Button } from "@/components/ui/button";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import { Check, X, Send } from "lucide-react";
 import { useDesignReviews } from "@/features/design-reviews/hooks/useDesignReviews";
-import { WorkflowInitiationActions } from "@/components/workflows/workflow-initiation-actions";
-import { useAuth } from "@/auth/auth-context";
 
-export default function ArchitectReviews() {
+// E1/E2: deciding a design review (Approved/Rejected/Changes Requested) is
+// the Consultant's call, enforced server-side (design-reviews/routes.ts:
+// requireRole("consultant","project-manager","admin")). This page used to
+// be "architect-reviews.tsx" mounted at /reviews for the Architect — the
+// architect reviewing their own design's approval made no sense and, after
+// the server guard was added, would just 403. The decide UI itself needed
+// no changes, so it moved here rather than being rebuilt.
+export default function ConsultantDesignReviews() {
   const c = useDesignReviews();
-  const { user } = useAuth();
 
   return (
     <div className="flex-1 space-y-6 p-4 md:p-8">
-      <PageHeader title="Review queue" description="Design reviews awaiting action." />
-
-      {/* The architect's review step on a public-sector project is the first
-          stage of the "Public works compliance" workflow (Architect Review →
-          PM → Finance → Admin). Starting that chain had no entry point
-          anywhere in the app, so the stage existed with nothing that could
-          ever produce it. */}
-      <WorkflowInitiationActions
-        role={user?.role ?? ""}
-        only={["Public works compliance"]}
-      />
+      <PageHeader title="Design reviews" description="Design reviews awaiting your decision." />
 
       <Tabs value={c.tab} onValueChange={(v) => c.setTab(v as typeof c.tab)}>
         <TabsList className="rounded-xl">
@@ -80,4 +74,4 @@ export default function ArchitectReviews() {
   );
 }
 
-ArchitectReviews.displayName = "ArchitectReviews";
+ConsultantDesignReviews.displayName = "ConsultantDesignReviews";

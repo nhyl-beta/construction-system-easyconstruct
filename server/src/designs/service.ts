@@ -1,5 +1,6 @@
-import { NotFoundError } from "../utils/errors.js";
+import { NotFoundError, ValidationError } from "../utils/errors.js";
 import { assertProjectWritable, refreshProjectProgress } from "../lifecycle/service.js";
+import * as projectMemberRepo from "../project-members/repository.js";
 import * as repo from "./repository.js";
 import type {
   AssignedEngineer,
@@ -7,6 +8,24 @@ import type {
   DesignFilters,
   UpdateDesignInput,
 } from "./types.js";
+
+// E4: an assigned engineer who isn't actually staffed on the project can't
+// be who gate D1 means by "a staffed engineer" — enforced here so a design
+// can never carry one gate D1 will silently never count.
+const assertEngineersStaffed = async (
+  projectCode: string,
+  engineers: AssignedEngineer[] | undefined,
+) => {
+  if (!engineers?.length) return;
+  const staffed = await projectMemberRepo.findAll({ projectCode, role: "engineer" });
+  const staffedIds = new Set(staffed.map((m) => m.userId));
+  const unstaffed = engineers.filter((e) => !staffedIds.has(e.userId));
+  if (unstaffed.length > 0) {
+    throw new ValidationError(
+      `${unstaffed.map((e) => e.userName).join(", ")} ${unstaffed.length === 1 ? "is" : "are"} not staffed on ${projectCode} as an engineer`,
+    );
+  }
+};
 
 /**
  * `designs.assignedEngineerId/_name` predate multi-engineer support. They're
@@ -61,6 +80,7 @@ export const getById = async (id: number) => {
 export const create = async (input: CreateDesignInput) => {
   const { assignedEngineers, ...designInput } = input;
   await assertProjectWritable(designInput.projectCode);
+  await assertEngineersStaffed(designInput.projectCode, assignedEngineers);
 
   const created = await repo.create({
     ...designInput,
@@ -80,6 +100,7 @@ export const update = async (id: number, input: UpdateDesignInput) => {
   const existing = await getById(id);
   await assertProjectWritable(existing.projectCode);
   const { assignedEngineers, ...designInput } = input;
+  await assertEngineersStaffed(existing.projectCode, assignedEngineers);
 
   const updated = await repo.update(id, {
     ...designInput,

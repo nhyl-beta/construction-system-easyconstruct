@@ -1,27 +1,73 @@
-import { useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { apiClient } from "@/services/api.client";
-import type { Blueprint } from "../types/blueprint.types";
+import type { Blueprint, CreateBlueprintInput } from "../types/blueprint.types";
+
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+async function unwrap<T>(promise: Promise<any>): Promise<T> {
+  const json = await promise;
+  if (json && typeof json === "object" && "data" in json) return json.data as T;
+  return json as T;
+}
 
 export const useBlueprintsController = () => {
   const [blueprints, setBlueprints] = useState<Blueprint[]>([]);
   const [loading, setLoading] = useState(true);
   const [query, setQuery] = useState("");
   const [folder, setFolder] = useState("all");
+  const [projectCode, setProjectCode] = useState("");
+  const [creating, setCreating] = useState(false);
+  const [createError, setCreateError] = useState<string | null>(null);
 
-  useEffect(() => {
+  const load = useCallback(() => {
     const params = new URLSearchParams();
     if (query) params.set("search", query);
     if (folder !== "all") params.set("folder", folder);
+    if (projectCode) params.set("projectCode", projectCode);
     setLoading(true);
-    fetch(`/api/blueprints?${params.toString()}`)
-      .then((res) => res.json())
-      .then((json) => setBlueprints(json.data ?? []))
+    // Was raw fetch() with no Authorization header — authenticate() has
+    // always required a Bearer token (server/src/middleware/auth.ts), so
+    // this 401'd on every call and the gallery silently showed empty.
+    unwrap<Blueprint[]>(apiClient.get(`/blueprints?${params.toString()}`))
+      .then((data) => setBlueprints(data ?? []))
       .catch((err) => console.error(err))
       .finally(() => setLoading(false));
-  }, [query, folder]);
+  }, [query, folder, projectCode]);
+
+  useEffect(() => {
+    load();
+  }, [load]);
+
+  const create = async (input: CreateBlueprintInput): Promise<boolean> => {
+    setCreating(true);
+    setCreateError(null);
+    try {
+      await apiClient.post("/blueprints", input);
+      await load();
+      return true;
+    } catch (err) {
+      setCreateError(err instanceof Error ? err.message : "Failed to create blueprint.");
+      return false;
+    } finally {
+      setCreating(false);
+    }
+  };
 
   const folders = useMemo(() => Array.from(new Set(blueprints.map((b) => b.folder))), [blueprints]);
   const favorites = useMemo(() => blueprints.filter((b) => b.favorite), [blueprints]);
 
-  return { blueprints, favorites, loading, query, setQuery, folder, setFolder, folders };
+  return {
+    blueprints,
+    favorites,
+    loading,
+    query,
+    setQuery,
+    folder,
+    setFolder,
+    projectCode,
+    setProjectCode,
+    folders,
+    creating,
+    createError,
+    create,
+  };
 };

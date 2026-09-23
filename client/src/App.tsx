@@ -52,7 +52,6 @@ import ArchitectDesigns from "./pages/roles/architect/architect-designs";
 import ArchitectDocumentation from "./pages/roles/architect/architect-documentation";
 import ArchitectProjects from "./pages/roles/architect/architect-projects";
 import ArchitectProposals from "./pages/roles/architect/architect-proposals";
-import ArchitectReviews from "./pages/roles/architect/architect-reviews";
 import ArchitectRevisions from "./pages/roles/architect/architect-revisions";
 
 // ── Engineer Pages ──
@@ -72,6 +71,7 @@ import IssuesRouter from "./pages/routers/issues-router";
 import ConsultantAdvisoryDocs from "./pages/roles/consultant/consultant-advisory-docs";
 import ConsultantProposals from "./pages/roles/consultant/consultant-proposals";
 import ConsultantDesigns from "./pages/roles/consultant/consultant-designs";
+import ConsultantDesignReviews from "./pages/roles/consultant/consultant-design-reviews";
 import ConsultantProjects from "./pages/roles/consultant/consultant-projects";
 
 // ── Admin Pages ──
@@ -225,7 +225,6 @@ function App() {
                     element={<ArchitectProjects />}
                   />
                   <Route path="/revisions" element={<ArchitectRevisions />} />
-                  <Route path="/reviews" element={<ArchitectReviews />} />
                   <Route
                     path="/architect/documents"
                     element={<ArchitectDocumentation />}
@@ -274,6 +273,18 @@ function App() {
                     element={
                       <RequireRole allow={["consultant"]}>
                         <ConsultantProjects />
+                      </RequireRole>
+                    }
+                  />
+                  {/* E2: was "/reviews" under Architect (architect-reviews.tsx)
+                      — the architect deciding their own design's review made
+                      no sense, and the server now refuses it anyway
+                      (design-reviews/routes.ts requireRole consultant/pm/admin). */}
+                  <Route
+                    path="/consultant/design-reviews"
+                    element={
+                      <RequireRole allow={["consultant"]}>
+                        <ConsultantDesignReviews />
                       </RequireRole>
                     }
                   />

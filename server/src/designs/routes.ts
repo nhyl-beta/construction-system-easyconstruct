@@ -5,15 +5,17 @@ import {
   updateDesignSchema,
 } from "../validators/design-validators.js";
 import * as controller from "./controller.js";
-import { authenticate } from "../middleware/auth.js";
+import { authenticate, requireRole } from "../middleware/auth.js";
 
 const router = Router();
 
 router.use(authenticate);
 router.get("/", controller.getAll);
-router.post("/", validate(createDesignSchema), controller.create);
+// E1: was authenticate-only — any signed-in role could create, edit or
+// delete a design. Authoring belongs to Architect; admin kept as break-glass.
+router.post("/", requireRole("architect", "admin"), validate(createDesignSchema), controller.create);
 router.get("/:id", controller.getById);
-router.patch("/:id", validate(updateDesignSchema), controller.update);
-router.delete("/:id", controller.remove);
+router.patch("/:id", requireRole("architect", "admin"), validate(updateDesignSchema), controller.update);
+router.delete("/:id", requireRole("architect", "admin"), controller.remove);
 
 export default router;

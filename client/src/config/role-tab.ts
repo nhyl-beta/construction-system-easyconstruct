@@ -403,7 +403,6 @@ export const ROLE_CONFIGS: Record<string, RoleConfig> = {
         label: "Collaboration",
         items: [
           { label: "Approvals", icon: CheckSquare, route: "/approvals" },
-          { label: "Reviews", icon: BadgeCheck, route: "/reviews" },
           { label: "Revisions", icon: SquarePen, route: "/revisions" },
           { label: "Documentation", icon: BarChart2, route: "/architect/documents" },
         ],
@@ -526,6 +525,7 @@ export const ROLE_CONFIGS: Record<string, RoleConfig> = {
       tabs: [
         { label: "Proposal Review", icon: FileText, route: "/consultant/proposals" },
         { label: "Designs", icon: Ruler, route: "/consultant/designs" },
+        { label: "Design Reviews", icon: BadgeCheck, route: "/consultant/design-reviews" },
         { label: "Advisory Docs", icon: ClipboardList, route: "/advisory-docs" },
         { label: "Projects", icon: FolderKanban, route: "/consultant/projects" },
       ],
@@ -534,13 +534,14 @@ export const ROLE_CONFIGS: Record<string, RoleConfig> = {
       {
         label: "Overview",
         items: [
-          { label: "Dashboard", icon: LayoutDashboard, route: "/dashboard" },       
+          { label: "Dashboard", icon: LayoutDashboard, route: "/dashboard" },
           {
             label: "Proposal Review",
             icon: FileText,
             route: "/consultant/proposals"
           },
           { label: "Designs", icon: Ruler, route: "/consultant/designs" },
+          { label: "Design Reviews", icon: BadgeCheck, route: "/consultant/design-reviews" },
           { label: "Projects", icon: FolderKanban, route: "/consultant/projects" },
         ],
       },

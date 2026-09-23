@@ -49,10 +49,10 @@ Group A commit: `379923e`. Group B commit: `71036b0`. Group C commit: `5447187`.
 - [x] D6 🟡 lifecycle/service.ts's GET view now reports `hasRejectedProposal` for the Proposal phase (a linked proposal whose workflow status is rejected); ProjectLifecyclePanel shows a "Mark bid lost" action in that case, pre-filling the Cancel reason dialog.
 
 ### E. Phase 2 — Design
-- [ ] E1 🔴 design-reviews decide guard + design status sync + notify architect; guard designs writes
-- [ ] E2 🔴 Decide-review UI (consultant or PM)
-- [ ] E3 🔴 blueprints.project_code + design_id, ProjectPicker, list filter
-- [ ] E4 🟡 assignedEngineerId must be staffed engineer
+- [x] E1 🔴 design-reviews/routes.ts: `/:id/decide` now `requireRole("consultant","project-manager","admin")` (was authenticate-only). service.decide() maps the review's decision vocabulary (Approved/Rejected/Changes Requested) to the design's own status vocabulary (Approved/Revision Required — Rejected and Changes Requested both mean "needs rework"), writes it, and notifies the architect role. designs/routes.ts write guard: `requireRole("architect","admin")` (was authenticate-only).
+- [x] E2 🔴 Found a fully-built decide-review UI already existed at `/reviews` — but mounted under **Architect** (architect-reviews.tsx), which after E1's guard would just 403 for that role (an architect can't decide their own design's review). Moved it to Consultant as `consultant-design-reviews.tsx` at `/consultant/design-reviews`, dropping the architect-only "Public works compliance" workflow-initiation block it also carried (already covered separately on architect-proposals.tsx). No new UI needed beyond the move + nav/resource updates. Also fixed a real bug found in the process: the underlying hook used raw unauthenticated `fetch()`, so this screen 401'd on every load even before E1 — same class of bug as the design-detail fetch fixed in the original punch list.
+- [x] E3 🔴 blueprints.project_code/design_id (schema added in C2). Server: controller/service/repository now accept and filter by `projectCode`. Client: there was no blueprint create UI at all (architect-blueprints.tsx was a read-only gallery) — added a "New blueprint" dialog with a ProjectPicker, plus a project filter on the list. Also fixed the same raw-fetch auth bug in blueprints.controller.ts (client) while touching the file.
+- [x] E4 🟡 designs/service.ts assertEngineersStaffed(): every assignedEngineers entry must be staffed on the design's project as `engineer`, else ValidationError naming who isn't. Checked on both create and update.
 
 ### F. Phase 3 — Pre-Construction
 - [ ] F1 🔴 PM approve/reject requirements UI
@@ -108,6 +108,14 @@ Group A commit: `379923e`. Group B commit: `71036b0`. Group C commit: `5447187`.
 - [ ] L5 🟡 demo-full-cycle.ts script
 
 **→ CHECKPOINT 5 (final)**
+
+## Verification (group E, no checkpoint required — next one is after F)
+
+Ran against the real dev DB (TEST_v22, design DSN-2026-3947 / id 1):
+- E4: PATCH design 1 with an unstaffed `assignedEngineers` entry → 400 `VALIDATION_ERROR` naming the person.
+- E1: created a design review; architect (the design's own author) tried to decide it → 403; consultant decided "Approved" → 200, design.status flipped to "Approved", architect received a "Design review: Approved" notification.
+- E3: created a blueprint with `projectCode: "TEST_v22"` → row created with the link; `GET /blueprints?projectCode=TEST_v22` returned it.
+- All test rows (design review, blueprint, notification) deleted afterward; design status reset to Draft. Server `tsc --noEmit` and client `tsc && vite build` both clean.
 
 ## Verification (group D, no checkpoint required — next one is after F)
 

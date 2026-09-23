@@ -74,7 +74,6 @@ export const ROLE_RESOURCE_ACCESS: Record<string, string[]> = {
     // act on them — and to start them.
     "approvals",
     "revisions",
-    "reviews",
     "blueprints",
     "architect-documents",
   ],
@@ -97,6 +96,10 @@ export const ROLE_RESOURCE_ACCESS: Record<string, string[]> = {
     // unmerged path back into the same decisions.
     "consultant-proposals",
     "consultant-designs",
+    // E2: deciding a design review moved here from the Architect (see
+    // consultant-design-reviews.tsx) — enforced server-side too
+    // (design-reviews/routes.ts requireRole consultant/pm/admin).
+    "consultant-design-reviews",
     "advisory-docs",
     "consultant-projects",
   ],
