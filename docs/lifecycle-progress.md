@@ -2,6 +2,8 @@
 
 Branch: `feature/project-lifecycle`
 
+Group A commit: `379923e`. Group B commit: `71036b0`.
+
 ## Checklist
 
 ### A. Fix first
