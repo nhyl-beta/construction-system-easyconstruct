@@ -55,13 +55,13 @@ Group A commit: `379923e`. Group B commit: `71036b0`. Group C commit: `5447187`.
 - [x] E4 🟡 designs/service.ts assertEngineersStaffed(): every assignedEngineers entry must be staffed on the design's project as `engineer`, else ValidationError naming who isn't. Checked on both create and update.
 
 ### F. Phase 3 — Pre-Construction
-- [ ] F1 🔴 PM approve/reject requirements UI
-- [ ] F2 🔴 Finance budget create/approve flow works end to end; fix stale validator message
-- [ ] F3 🔴 MilestonesPanel: PM/Admin set status + edit date
-- [ ] F4 🔴 Milestone links API + task-create milestone select
-- [ ] F5 🔴 C4 fully implemented with detail naming
-- [ ] F6 🔴 Project detail PM edits site lat/long/radius
-- [ ] F7 🟡 IT Designer "staffed but no login/employee" list
+- [x] F1 🔴 No PM requirements view existed at all — added a `RequirementsPanel` to ProjectDetailPage.tsx (filtered by project) with Approve/Reject, gated to `role === "project-manager" || role === "admin"` (matches assertCanSetStatus exactly, not the broader canEdit set that also includes it-designer). Allows deciding from Draft or Under Review — nothing in the app currently moves a requirement to Under Review (engineer-requirements.tsx only creates drafts), so requiring that intermediate step first would leave requirements undecidable; noted as a deviation.
+- [x] F2 🔴 Found and fixed real, active bugs, all regressions from A1's new `/api/finance` auth gate: budget.controllers.ts, budget-approval.controller.ts, budget-adjustment.controller.ts and use-expenses.ts all used raw unauthenticated `fetch()` against `/api/finance/*`, so the whole Budget Management page (and Expenses) 401'd on every load. Also found and fixed a second, independent bug in budget-approval.controller.ts: `current` (the approval stage to decide next) was derived from the step-decision history instead of the budget's own `status` column, so after the first Approve click it fell back to the just-decided stage forever — Approve never advanced past step 1 through the UI. Fixed `current = selectedBudget.status`, wired a reload callback so the budget list refreshes after each decision, and replaced the hardcoded `actor: "Current User"` with the real signed-in user. Fixed the stale "Project name is required" → "Project code is required" message in budget-validator.ts.
+- [x] F3 🔴 The status Select (draft→active→at-risk→completed/cancelled) already existed in MilestonesPanel.tsx; added the missing piece — an Edit dialog (title + estimated completion date) opened via a pencil button per milestone.
+- [x] F4 🔴 POST/DELETE `/milestones/:id/links`, guarded PM/admin/it-designer + engineer-for-task (role check inline in service since it depends on request body); GET `/milestones/:id` now resolves `linkType='task'` links to the task's title/status/assignee. Client: sp-tasks.tsx's NewTaskCard gets an optional milestone select (that project's draft/active milestones) and creates the link after the task saves.
+- [x] F5 🔴 Already fully implemented as part of C4 (group C) — gate C4's `detail` names exactly who is missing an Active employee record/login and which active milestones lack a staffed task. No further work needed.
+- [x] F6 🔴 Already done — ProjectDetailPage.tsx's `LocationMapPicker` (from an earlier session, kept through C10's rework) already lets PM/admin edit siteLatitude/siteLongitude/geofenceRadiusM. NTP document type came from D5.
+- [x] F7 🟡 New `StaffingGapsCard` (project-members feature) on it-designer-users.tsx: cross-references every `project_members` row against `employees` (by `userId` + `status='Active'`) org-wide, listing who's staffed without an Active employee link. Uses the existing unfiltered `GET /project-members` and `GET /employees` (both already open to any authenticated role) rather than adding new endpoints.
 
 **→ CHECKPOINT 3**
 
@@ -108,6 +108,15 @@ Group A commit: `379923e`. Group B commit: `71036b0`. Group C commit: `5447187`.
 - [ ] L5 🟡 demo-full-cycle.ts script
 
 **→ CHECKPOINT 5 (final)**
+
+## Verification (checkpoint 3)
+
+Ran against the real dev DB (TEST_v22):
+- F1: engineer creates a Draft requirement → PM PATCHes `status:"Approved"` → 200.
+- F2: created a budget line (`status:"draft"`) → walked it through all four `budget-approval-steps/decide` calls using the FIXED client logic (read `budget.status` as `stage` before each call) → draft → pending-review → finance-review → manager-review → **approved**. This exact sequence would have gotten stuck resubmitting `stage:"draft"` forever under the old buggy `current` derivation.
+- F3: drafted a milestone → set `status:"active"` → edited `estimatedCompletionDate` → both persisted independently.
+- F4: created a task on TEST_v22 → engineer `POST /milestones/4/links {linkType:"task", linkId}` → **201**; `GET /milestones/4` returned the link resolved with the task's title/status/assignee.
+- All test rows (requirement, budget + its approval steps, milestone + link, task) deleted afterward. Server `tsc --noEmit` + `tsc --noCheck` build, and client `tsc && vite build`, all clean.
 
 ## Verification (group E, no checkpoint required — next one is after F)
 
@@ -185,6 +194,8 @@ Ran `npm run dev` (server) against the real dev DB after applying the ensure-dem
 - D-7's "recompute progress for every project" (end of the status migration) is deferred to L1, which already lists "run refreshProjectProgress for all projects at the end of the seed" — recomputing requires the lifecycle service (gates, bands), which doesn't exist until C5, so it can't run inside ensure-demo-schema.ts itself. Ran it manually against the one project used for checkpoint verification instead.
 - GateBlockedError (`server/src/utils/errors.ts`) is a new AppError subclass, and AppError gained an optional `extra` field merged into the JSON error response — needed to carry `{failing: GateCheck[]}` on the 409 spec requires; every other error class/call site is unaffected (extra defaults to undefined).
 - C7's refresh-call-site list was extended to include `issues` (create/updateStatus), which the spec's own C7 list omits but gate K3 directly reads (no open issues) — leaving it out would mean K3 never updates when an issue is filed or resolved.
+- F1: requirements can be decided straight from Draft (not only Under Review) — see F1's checklist note; the app has no UI path to Under Review at all yet, and gating decide on it would make every requirement stuck.
+- F7 built as a new client-only component reusing existing unfiltered list endpoints rather than adding a dedicated `/api/staffing-gaps`-style endpoint — simpler given the read scope is already org-wide on both `/project-members` and `/employees`.
 - C12 was wired into pm-projects.tsx only (the canonical "All projects" list), not every role's project list page (owner-portfolio, admin-projects, etc.) — scoped down to keep checkpoint 2 on schedule; flagged as a possible K2 follow-up.
 
 ## Questions

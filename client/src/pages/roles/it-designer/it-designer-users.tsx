@@ -14,6 +14,7 @@ import { DataTablePagination } from "@/components/refine-ui/data-table/data-tabl
 import { usePagination } from "@/hooks/use-pagination";
 import { useRoles } from "@/features/roles/hooks/useRoles";
 import { useUsers } from "@/features/users/hooks/use-users";
+import { StaffingGapsCard } from "@/features/project-members/components/StaffingGapsCard";
 import type { PublicUser } from "@/features/users/repositories/user.repository";
 
 export default function ITDesignerUsersPage() {
@@ -119,6 +120,9 @@ export default function ITDesignerUsersPage() {
         }
       />
       <PageContent className="p-6 md:p-8">
+        <div className="mb-4">
+          <StaffingGapsCard />
+        </div>
         <div className="mb-4 flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
           <div className="flex flex-wrap gap-2">
             <Badge

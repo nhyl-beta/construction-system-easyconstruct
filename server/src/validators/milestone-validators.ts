@@ -17,3 +17,8 @@ export const updateMilestoneSchema = z.object({
   status: z.enum(["draft", "active", "at-risk", "completed", "cancelled"]).optional(),
   estimatedCompletionDate: z.string().max(20).optional(),
 });
+
+export const createMilestoneLinkSchema = z.object({
+  linkType: z.enum(["requirement", "document", "budget", "task"]),
+  linkId: z.number().int().positive(),
+});

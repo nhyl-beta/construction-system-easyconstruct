@@ -11,9 +11,12 @@ export const budgetStatusSchema = z.enum([
 ]);
 
 export const createBudgetSchema = z.object({
+  // Despite the message's old wording, this column stores the project
+  // CODE (see docs/lifecycle-progress.md 4.6) — the message was stale from
+  // before a ProjectPicker replaced whatever free-text field this validated.
   project: z
     .string()
-    .min(2, "Project name is required")
+    .min(2, "Project code is required")
     .max(255),
 
   category: z

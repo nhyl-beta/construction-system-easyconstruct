@@ -75,3 +75,43 @@ export const remove = async (req: AuthedRequest, res: Response, next: NextFuncti
     next(err);
   }
 };
+
+export const createLink = async (req: AuthedRequest, res: Response, next: NextFunction) => {
+  try {
+    const data = await service.createLink(
+      Number(req.params.id),
+      req.body,
+      req.authUser?.role ?? "",
+    );
+    await logAudit({
+      entityType: "milestone",
+      entityId: String(req.params.id),
+      action: "linked",
+      actor: req.authUser?.name ?? "unknown",
+      summary: `Linked ${req.body.linkType} #${req.body.linkId} to milestone "${data.title}"`,
+    });
+    res.status(HTTP.CREATED).json(formatSuccess(data, MSG.milestones.updated));
+  } catch (err) {
+    next(err);
+  }
+};
+
+export const removeLink = async (req: AuthedRequest, res: Response, next: NextFunction) => {
+  try {
+    const data = await service.removeLink(
+      Number(req.params.id),
+      Number(req.params.linkId),
+      req.authUser?.role ?? "",
+    );
+    await logAudit({
+      entityType: "milestone",
+      entityId: String(req.params.id),
+      action: "unlinked",
+      actor: req.authUser?.name ?? "unknown",
+      summary: `Removed link #${req.params.linkId} from milestone "${data.title}"`,
+    });
+    res.json(formatSuccess(data, MSG.milestones.updated));
+  } catch (err) {
+    next(err);
+  }
+};

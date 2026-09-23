@@ -34,3 +34,24 @@ export interface UpdateMilestoneInput {
 export interface MilestoneFilters {
   projectCode?: string;
 }
+
+export interface MilestoneLinkRecord {
+  id: number;
+  milestoneId: number;
+  linkType: MilestoneLinkType;
+  linkId: number;
+  createdAt: Date | null;
+  /** Populated for linkType='task' — the only kind anything resolves against yet. */
+  task?: {
+    id: number;
+    title: string;
+    status: string;
+    assignedToUserId: number | null;
+    assignedToName: string | null;
+  } | null;
+}
+
+export interface CreateMilestoneLinkInput {
+  linkType: MilestoneLinkType;
+  linkId: number;
+}

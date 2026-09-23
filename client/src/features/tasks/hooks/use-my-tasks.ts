@@ -61,16 +61,16 @@ export function useMyTasks() {
   const [creating, setCreating] = useState(false);
 
   const createTask = useCallback(
-    async (input: CreateTaskInput) => {
+    async (input: CreateTaskInput): Promise<TaskRecord | null> => {
       setCreating(true);
       setError(null);
       try {
-        await tasksRepository.create(input);
+        const { data } = await tasksRepository.create(input);
         await refresh();
-        return true;
+        return data;
       } catch (e) {
         setError(e instanceof Error ? e.message : "Failed to create task");
-        return false;
+        return null;
       } finally {
         setCreating(false);
       }

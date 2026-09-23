@@ -25,6 +25,8 @@ import { useProjectMembers } from "@/features/project-members/hooks/use-project-
 import { useMyTasks } from "@/features/tasks/hooks/use-my-tasks";
 import { CompleteTaskDialog } from "@/components/tasks/complete-task-dialog";
 import { ProjectPicker } from "@/components/shared/project-picker";
+import { useMilestones } from "@/features/milestones/hooks/use-milestones";
+import { MilestoneRepository } from "@/features/milestones/repositories/milestone.repository";
 import { isRealFileUrl, openFileUrl } from "@/lib/file-url";
 import { formatRelativeTime } from "@/lib/format-relative-time";
 import type { TaskRecord } from "@/features/tasks/repositories/task.repository";
@@ -198,7 +200,7 @@ function NewTaskCard({
     dueDate?: string;
     assignedToUserId?: number;
     assignedToName?: string;
-  }) => Promise<boolean>;
+  }) => Promise<{ id: number } | null>;
   creating: boolean;
 }) {
   const [assignee, setAssignee] = useState("");
@@ -208,6 +210,11 @@ function NewTaskCard({
   // reason to ever see this project.
   const { members: sitePersonnel, loading: loadingAssignees } =
     useProjectMembers(projectCode || null, "site-personnel");
+  // F4: optional milestone link — only draft/active milestones are offered,
+  // since a completed/cancelled one has nothing left to gate.
+  const { milestones, loading: loadingMilestones } = useMilestones(projectCode);
+  const linkableMilestones = milestones.filter((m) => m.status === "draft" || m.status === "active");
+  const [milestoneId, setMilestoneId] = useState("");
   const [title, setTitle] = useState("");
   const [description, setDescription] = useState("");
   const [priority, setPriority] = useState("Medium");
@@ -232,7 +239,7 @@ function NewTaskCard({
     // taskCode is required and unique on the backend; generating it here keeps
     // the form to the fields a PM/Engineer actually cares about.
     const taskCode = `TSK-${Date.now().toString().slice(-6)}`;
-    const ok = await onCreate({
+    const createdTask = await onCreate({
       taskCode,
       projectCode: projectCode.trim(),
       title: title.trim(),
@@ -243,11 +250,22 @@ function NewTaskCard({
       assignedToUserId: Number(assignee),
       assignedToName: assigned?.userName,
     });
-    if (ok) {
+    if (createdTask) {
+      if (milestoneId) {
+        // Best-effort: the task already exists, so a failed link shouldn't
+        // discard it — it can still be linked later once F4's UI grows a
+        // way to manage links after the fact.
+        try {
+          await MilestoneRepository.createLink(Number(milestoneId), "task", createdTask.id);
+        } catch (err) {
+          console.error(err);
+        }
+      }
       setCreated(taskCode);
       setTitle("");
       setDescription("");
       setDueDate("");
+      setMilestoneId("");
     }
   };
 
@@ -339,6 +357,34 @@ function NewTaskCard({
               onChange={setDueDate}
               placeholder="Select due date"
             />
+          </div>
+          <div className="space-y-1.5">
+            <Label>Milestone (optional)</Label>
+            <Select value={milestoneId} onValueChange={setMilestoneId} disabled={!projectCode}>
+              <SelectTrigger className="rounded-xl">
+                <SelectValue
+                  placeholder={
+                    !projectCode
+                      ? "Select a project first"
+                      : loadingMilestones
+                        ? "Loading…"
+                        : "No milestone"
+                  }
+                />
+              </SelectTrigger>
+              <SelectContent>
+                {linkableMilestones.length === 0 && !loadingMilestones && (
+                  <div className="px-2 py-1.5 text-xs text-muted-foreground">
+                    No draft/active milestones on this project
+                  </div>
+                )}
+                {linkableMilestones.map((m) => (
+                  <SelectItem key={m.id} value={String(m.id)}>
+                    {m.title}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
           </div>
         </div>
 

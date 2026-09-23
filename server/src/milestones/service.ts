@@ -1,9 +1,14 @@
 // server/src/milestones/service.ts — NEW
-import { NotFoundError } from "../utils/errors.js";
+import { ForbiddenError, NotFoundError } from "../utils/errors.js";
 import * as notificationsService from "../notifications/service.js";
 import { assertProjectWritable, refreshProjectProgress } from "../lifecycle/service.js";
 import * as repo from "./repository.js";
-import type { CreateMilestoneInput, MilestoneStatus, UpdateMilestoneInput } from "./types.js";
+import type {
+  CreateMilestoneInput,
+  CreateMilestoneLinkInput,
+  MilestoneStatus,
+  UpdateMilestoneInput,
+} from "./types.js";
 
 // A milestone's status was only ever visible to whoever had that project's
 // detail page open — nothing told the roles who actually act on it that
@@ -23,7 +28,11 @@ export const getAll = async (projectCode?: string) => repo.findAll(projectCode);
 export const getById = async (id: number) => {
   const milestone = await repo.findById(id);
   if (!milestone) throw new NotFoundError("Milestone", String(id));
-  return milestone;
+  // F4: resolved links — currently only linkType='task' resolves to
+  // anything (title/status/assignee); other link types come back bare
+  // (linkType/linkId only) until something actually creates one.
+  const links = await repo.findLinks(id);
+  return { ...milestone, links };
 };
 
 /**
@@ -70,4 +79,46 @@ export const remove = async (id: number) => {
   if (!deleted) throw new NotFoundError("Milestone", String(id));
   await refreshProjectProgress(existing.projectCode);
   return existing;
+};
+
+// ── Links (F4) ───────────────────────────────────────────────────────────
+//
+// Route-level guard (milestones/routes.ts) is "PM/admin/it-designer, plus
+// engineer for linkType='task'" — the engineer half can't be expressed as a
+// single requireRole() since it depends on the request BODY, not just the
+// role, so it's enforced here instead.
+const assertCanLink = (requesterRole: string, linkType: string) => {
+  if (["project-manager", "admin", "it-designer"].includes(requesterRole)) return;
+  if (requesterRole === "engineer" && linkType === "task") return;
+  throw new ForbiddenError(
+    `Role '${requesterRole}' cannot link a '${linkType}' to a milestone`,
+  );
+};
+
+export const createLink = async (
+  milestoneId: number,
+  input: CreateMilestoneLinkInput,
+  requesterRole: string,
+) => {
+  assertCanLink(requesterRole, input.linkType);
+  const milestone = await getById(milestoneId);
+  await assertProjectWritable(milestone.projectCode);
+  const created = await repo.createLink(milestoneId, input);
+  if (!created) throw new Error("Failed to create milestone link");
+  await refreshProjectProgress(milestone.projectCode);
+  return getById(milestoneId);
+};
+
+export const removeLink = async (milestoneId: number, linkId: number, requesterRole: string) => {
+  const link = await repo.findLinkById(linkId);
+  if (!link || link.milestoneId !== milestoneId) {
+    throw new NotFoundError("Milestone link", String(linkId));
+  }
+  assertCanLink(requesterRole, link.linkType);
+  const milestone = await getById(milestoneId);
+  await assertProjectWritable(milestone.projectCode);
+  const deleted = await repo.removeLink(linkId);
+  if (!deleted) throw new NotFoundError("Milestone link", String(linkId));
+  await refreshProjectProgress(milestone.projectCode);
+  return getById(milestoneId);
 };

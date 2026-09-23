@@ -22,6 +22,7 @@ interface BackendRequirement {
 function normalizeRequirement(raw: BackendRequirement): Requirement {
   return {
     id: raw.requirementId,
+    dbId: raw.id,
     title: raw.title,
     project: raw.project,
     category: raw.category as Requirement["category"],
@@ -56,6 +57,12 @@ export const RequirementRepository = {
 
   async create(payload: CreateRequirementInput): Promise<Requirement> {
     const raw = await unwrap<BackendRequirement>(apiClient.post("/requirements", payload));
+    return normalizeRequirement(raw);
+  },
+
+  /** F1: PM approve/reject. Only `status` is ever sent from this path. */
+  async setStatus(dbId: number, status: "Approved" | "Rejected"): Promise<Requirement> {
+    const raw = await unwrap<BackendRequirement>(apiClient.patch(`/requirements/${dbId}`, { status }));
     return normalizeRequirement(raw);
   },
 };

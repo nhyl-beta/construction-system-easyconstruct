@@ -12,6 +12,8 @@ export type RequirementStatus = (typeof REQUIREMENT_STATUSES)[number];
 
 export interface Requirement {
   id: string; // human-readable code, e.g. "REQ-101"
+  /** Numeric primary key — what PATCH /requirements/:id actually takes. */
+  dbId: number;
   title: string;
   project: string;
   category: RequirementCategory;

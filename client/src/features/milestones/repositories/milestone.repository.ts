@@ -54,4 +54,9 @@ export const MilestoneRepository = {
   async remove(id: number): Promise<Milestone> {
     return unwrap<Milestone>(apiClient.del(`/milestones/${id}`));
   },
+
+  /** F4: linkType='task' is the only kind anything creates yet. */
+  async createLink(milestoneId: number, linkType: "task", linkId: number): Promise<Milestone> {
+    return unwrap<Milestone>(apiClient.post(`/milestones/${milestoneId}/links`, { linkType, linkId }));
+  },
 };

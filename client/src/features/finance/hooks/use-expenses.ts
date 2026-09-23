@@ -1,4 +1,5 @@
 import type { Expense } from "@/features/finance/types/finance.types";
+import { apiClient } from "@/services/api.client";
 import { useCallback, useEffect, useMemo, useState } from "react";
 
 export interface CreateExpenseInput {
@@ -45,16 +46,14 @@ export function useExpensesController(): UseExpensesResult {
     if (query) params.set("query", query);
     if (category !== "all") params.set("category", category);
 
-    fetch(`/api/finance/expenses?${params.toString()}`, {
-      signal: controller.signal,
-    })
-      .then((res) => {
-        if (!res.ok) throw new Error(`Request failed: ${res.status}`);
-        return res.json();
-      })
-      .then((json) => setExpenses(json.data ?? []))
+    // Was raw fetch() with no Authorization header — /api/finance now
+    // requires a token (see app.ts), so this always 401'd.
+    apiClient
+      .get(`/finance/expenses?${params.toString()}`, { signal: controller.signal })
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      .then((json: any) => setExpenses(json.data ?? []))
       .catch((err) => {
-        if (err.name !== "AbortError") setError(err.message);
+        if (err.name !== "AbortError") setError(err instanceof Error ? err.message : "Failed to load expenses.");
       })
       .finally(() => setIsLoading(false));
 
@@ -65,12 +64,7 @@ export function useExpensesController(): UseExpensesResult {
     setCreating(true);
     setCreateError(null);
     try {
-      const res = await fetch("/api/finance/expenses", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(input),
-      });
-      if (!res.ok) throw new Error(`Request failed: ${res.status}`);
+      await apiClient.post("/finance/expenses", input);
       setReloadToken((t) => t + 1);
       return true;
     } catch (err) {

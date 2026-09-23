@@ -3,7 +3,11 @@ import { Router } from "express";
 import * as controller from "./controller.js";
 import { validate } from "../middleware/validate.js";
 import { authenticate, requireRole } from "../middleware/auth.js";
-import { createMilestoneSchema, updateMilestoneSchema } from "../validators/milestone-validators.js";
+import {
+  createMilestoneLinkSchema,
+  createMilestoneSchema,
+  updateMilestoneSchema,
+} from "../validators/milestone-validators.js";
 
 const router = Router();
 
@@ -23,5 +27,20 @@ const canManageMilestones = requireRole("project-manager", "admin", "it-designer
 router.post("/", canManageMilestones, validate(createMilestoneSchema), controller.create);
 router.patch("/:id", canManageMilestones, validate(updateMilestoneSchema), controller.update);
 router.delete("/:id", canManageMilestones, controller.remove);
+
+// F4: same guard as milestone writes, plus engineer for linkType='task' —
+// the engineer half depends on the request body, not just the role, so it's
+// enforced in milestones/service.ts assertCanLink rather than here.
+router.post(
+  "/:id/links",
+  requireRole("project-manager", "admin", "it-designer", "engineer"),
+  validate(createMilestoneLinkSchema),
+  controller.createLink,
+);
+router.delete(
+  "/:id/links/:linkId",
+  requireRole("project-manager", "admin", "it-designer", "engineer"),
+  controller.removeLink,
+);
 
 export default router;

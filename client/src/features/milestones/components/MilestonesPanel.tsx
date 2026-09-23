@@ -9,7 +9,7 @@
 // into later (see server/src/db/schema/milestones.ts) without another
 // migration on top of this one.
 import { useState } from "react";
-import { CalendarClock, Flag, Plus, Trash2 } from "lucide-react";
+import { CalendarClock, Flag, Pencil, Plus, Trash2 } from "lucide-react";
 
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -33,7 +33,7 @@ import {
 } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
 import { useMilestones } from "@/features/milestones/hooks/use-milestones";
-import type { MilestoneStatus } from "@/features/milestones/repositories/milestone.repository";
+import type { Milestone, MilestoneStatus } from "@/features/milestones/repositories/milestone.repository";
 import { formatDue } from "@/features/projects/lib/project-format";
 
 const STATUS_TONE: Record<MilestoneStatus, string> = {
@@ -54,6 +54,7 @@ export function MilestonesPanel({ projectCode, canManage }: MilestonesPanelProps
   const { milestones, loading, saving, error, createDraft, update, remove } =
     useMilestones(projectCode);
   const [dialogOpen, setDialogOpen] = useState(false);
+  const [editingMilestone, setEditingMilestone] = useState<Milestone | null>(null);
 
   return (
     <div className="space-y-4 rounded-2xl border border-border bg-card p-6">
@@ -128,6 +129,16 @@ export function MilestonesPanel({ projectCode, canManage }: MilestonesPanelProps
                   <Button
                     variant="ghost"
                     size="icon"
+                    className="h-8 w-8 rounded-lg"
+                    disabled={saving}
+                    title="Edit date"
+                    onClick={() => setEditingMilestone(m)}
+                  >
+                    <Pencil className="h-3.5 w-3.5" />
+                  </Button>
+                  <Button
+                    variant="ghost"
+                    size="icon"
                     className="h-8 w-8 rounded-lg text-destructive hover:text-destructive"
                     disabled={saving}
                     title="Delete"
@@ -148,7 +159,102 @@ export function MilestonesPanel({ projectCode, canManage }: MilestonesPanelProps
         saving={saving}
         onCreate={createDraft}
       />
+
+      {/* F3: editing an already-drafted milestone's title/date — there was
+          previously no way back into a milestone once created, short of
+          deleting and redrafting it. */}
+      <EditMilestoneDialog
+        milestone={editingMilestone}
+        onOpenChange={(open) => !open && setEditingMilestone(null)}
+        saving={saving}
+        onSave={update}
+      />
     </div>
+  );
+}
+
+function EditMilestoneDialog({
+  milestone,
+  onOpenChange,
+  saving,
+  onSave,
+}: {
+  milestone: Milestone | null;
+  onOpenChange: (open: boolean) => void;
+  saving: boolean;
+  onSave: (
+    id: number,
+    input: { title?: string; description?: string; estimatedCompletionDate?: string },
+  ) => Promise<unknown>;
+}) {
+  return (
+    <Dialog open={milestone !== null} onOpenChange={onOpenChange}>
+      {/* Remounted per milestone (via key) so each open starts from that
+          milestone's own current values instead of whatever was last typed. */}
+      {milestone && (
+        <EditMilestoneForm
+          key={milestone.id}
+          milestone={milestone}
+          saving={saving}
+          onCancel={() => onOpenChange(false)}
+          onSave={async (input) => {
+            const ok = await onSave(milestone.id, input);
+            if (ok) onOpenChange(false);
+          }}
+        />
+      )}
+    </Dialog>
+  );
+}
+
+function EditMilestoneForm({
+  milestone,
+  saving,
+  onCancel,
+  onSave,
+}: {
+  milestone: Milestone;
+  saving: boolean;
+  onCancel: () => void;
+  onSave: (input: { title: string; estimatedCompletionDate?: string }) => Promise<void>;
+}) {
+  const [title, setTitle] = useState(milestone.title);
+  const [estimatedCompletionDate, setEstimatedCompletionDate] = useState(
+    milestone.estimatedCompletionDate ?? "",
+  );
+
+  return (
+    <DialogContent className="max-w-md">
+      <DialogHeader>
+        <DialogTitle>Edit milestone</DialogTitle>
+      </DialogHeader>
+      <div className="space-y-4 py-1">
+        <div className="grid gap-1.5">
+          <Label htmlFor="ms-edit-title">Title</Label>
+          <Input id="ms-edit-title" value={title} onChange={(e) => setTitle(e.target.value)} disabled={saving} />
+        </div>
+        <div className="grid gap-1.5">
+          <Label htmlFor="ms-edit-date">Estimated completion</Label>
+          <DatePicker
+            id="ms-edit-date"
+            value={estimatedCompletionDate}
+            onChange={setEstimatedCompletionDate}
+            placeholder="Select an estimated date"
+          />
+        </div>
+      </div>
+      <DialogFooter>
+        <Button variant="outline" disabled={saving} onClick={onCancel}>
+          Cancel
+        </Button>
+        <Button
+          disabled={saving || !title.trim()}
+          onClick={() => void onSave({ title: title.trim(), estimatedCompletionDate: estimatedCompletionDate || undefined })}
+        >
+          {saving ? "Saving…" : "Save"}
+        </Button>
+      </DialogFooter>
+    </DialogContent>
   );
 }
 

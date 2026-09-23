@@ -20,6 +20,7 @@ import { LocationMapPicker } from "@/components/maps/location-map-picker";
 import { useProjectDesigns } from "@/features/designs/hooks/useProjectDesigns";
 import { StatusBadge } from "@/components/ui/status-badge";
 import { ProjectLifecyclePanel } from "@/features/lifecycle/components/ProjectLifecyclePanel";
+import { RequirementsPanel } from "@/features/requirements/components/RequirementsPanel";
 import type { ProjectMemberRole } from "@/features/project-members/repositories/project-member.repository";
 import { useUsersByRole } from "@/features/users/hooks/use-users-by-role";
 import { ArrowLeft, HardHat, Loader2, PencilRuler, Trash2, UserPlus, X } from "lucide-react";
@@ -377,6 +378,17 @@ export default function ProjectDetailPage() {
 
       <div className="max-w-4xl">
         <LinkedDesignsPanel projectCode={project.code} />
+      </div>
+
+      <div className="max-w-4xl">
+        {/* F1: matches requirements/service.ts assertCanSetStatus exactly —
+            project-manager or admin, not the broader PROJECT_EDITORS set
+            (it-designer can edit the project record but can't decide a
+            requirement, and would just 403 on click). */}
+        <RequirementsPanel
+          projectCode={project.code}
+          canDecide={role === "project-manager" || role === "admin"}
+        />
       </div>
 
       <div className="max-w-4xl">

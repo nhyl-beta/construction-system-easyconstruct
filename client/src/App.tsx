@@ -142,6 +142,7 @@ function App() {
                       account's (IT Designer's) password. PublicAuthRoute would
                       otherwise bounce a logged-in visitor straight back to
                       their dashboard before they could use the link. */}
+                      
                   <Route path="/reset-password" element={<ResetPasswordPage />} />
 
                   <Route element={<ProtectedRoutes />}>

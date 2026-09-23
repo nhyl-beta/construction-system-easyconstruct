@@ -220,7 +220,7 @@ function NewBudgetDialog({
 export default function FinanceBudget() {
   const [tab, setTab] = useState("overview");
   const c = useBudgets();
-  const approval = useBudgetApproval(c.budgets);
+  const approval = useBudgetApproval(c.budgets, c.reload);
 
   const allocation = useBudgetAllocationController(
     c.budgets.map((b) => ({

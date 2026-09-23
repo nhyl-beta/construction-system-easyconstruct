@@ -1,9 +1,12 @@
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
+import { apiClient } from "@/services/api.client";
+import { useAuth } from "@/auth/auth-context";
 import type { Budget } from "../types/budget.types";
 import type { ApprovalDecision, ApprovalStage, BudgetApprovalStep } from "../types/budget-approval.types";
 import { APPROVAL_STAGES } from "../types/budget-approval.types";
 
-export const useBudgetApprovalController = (budgets: Budget[]) => {
+export const useBudgetApprovalController = (budgets: Budget[], onDecided?: () => void) => {
+  const { user } = useAuth();
   const [selectedBudgetId, setSelectedBudgetId] = useState<string>("");
   const [steps, setSteps] = useState<BudgetApprovalStep[]>([]);
   const [loading, setLoading] = useState(false);
@@ -19,9 +22,12 @@ export const useBudgetApprovalController = (budgets: Budget[]) => {
   const fetchSteps = useCallback((budgetId: string) => {
     if (!budgetId) return;
     setLoading(true);
-    fetch(`/api/finance/budget-approval-steps?budgetId=${budgetId}`)
-      .then((res) => res.json())
-      .then((json) => setSteps(json.data ?? []))
+    // Was raw fetch() with no Authorization header — /api/finance now
+    // requires a token (see app.ts), so this always 401'd.
+    apiClient
+      .get(`/finance/budget-approval-steps?budgetId=${budgetId}`)
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      .then((json: any) => setSteps(json.data ?? []))
       .catch((err) => console.error(err))
       .finally(() => setLoading(false));
   }, []);
@@ -32,28 +38,29 @@ export const useBudgetApprovalController = (budgets: Budget[]) => {
 
   const selectedBudget = budgets.find((b) => String(b.id) === selectedBudgetId);
 
-  const current: string = useMemo(() => {
-    const undecided = steps.find((s) => !s.decision);
-    return undecided?.stage ?? steps.at(-1)?.stage ?? "draft";
-  }, [steps]);
+  // The budget's own `status` (set by budget-approval-steps/service.ts on
+  // every decision) IS the current pending stage — deriving it from the
+  // step history instead ("last decided step's own stage") meant that once
+  // a stage was approved, `current` fell back to that SAME stage forever,
+  // so Approve never advanced past the first click.
+  const current: string = selectedBudget?.status ?? "draft";
 
   const decide = async (decision: ApprovalDecision) => {
     if (!selectedBudget) return;
     setSubmitting(true);
     try {
-      await fetch(`/api/finance/budget-approval-steps/decide`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          budgetId: selectedBudget.id,
-          stage: current as ApprovalStage,
-          decision,
-          actor: "Current User", // TODO: wire to real auth session once available
-          comment: comment || undefined,
-        }),
+      await apiClient.post("/finance/budget-approval-steps/decide", {
+        budgetId: selectedBudget.id,
+        stage: current as ApprovalStage,
+        decision,
+        actor: user?.name ?? "unknown",
+        comment: comment || undefined,
       });
       setComment("");
       fetchSteps(selectedBudgetId);
+      // The budget's own status just changed — the parent's budget list
+      // (and this hook's `current`, derived from it) needs the fresh row.
+      onDecided?.();
     } catch (err) {
       console.error(err);
     } finally {

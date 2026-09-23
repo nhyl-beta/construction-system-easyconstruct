@@ -27,9 +27,13 @@ export const useBudgetsController = (initialQuery = "") => {
     if (query) params.set("search", query);
     if (fy !== "all") params.set("fiscalYear", fy);
 
-    fetch(`/api/finance/budgets?${params.toString()}`, { signal: controller.signal })
-      .then((res) => res.json())
-      .then((json) => setBudgets(json.data ?? []))
+    // Was raw fetch() with no Authorization header — /api/finance now
+    // requires a token (see app.ts), so this 401'd on every load and the
+    // budgets table always showed empty.
+    apiClient
+      .get(`/finance/budgets?${params.toString()}`, { signal: controller.signal })
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      .then((json: any) => setBudgets(json.data ?? []))
       .catch((err) => {
         if (err.name !== "AbortError") console.error(err);
       })
@@ -65,5 +69,5 @@ export const useBudgetsController = (initialQuery = "") => {
     return { planned, committed, spent, remaining: planned - spent };
   }, [budgets]);
 
-  return { budgets, totals, loading, query, setQuery, fy, setFy, creating, error, createBudget };
+  return { budgets, totals, loading, query, setQuery, fy, setFy, creating, error, createBudget, reload };
 };

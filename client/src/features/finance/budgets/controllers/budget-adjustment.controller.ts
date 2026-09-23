@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
+import { apiClient } from "@/services/api.client";
 import type { AdjustmentKind, BudgetAdjustment } from "../types/budget-adjustment.types";
 
 export const useBudgetAdjustmentController = () => {
@@ -17,9 +18,12 @@ export const useBudgetAdjustmentController = () => {
     if (kind !== "all") params.set("kind", kind);
     if (status !== "all") params.set("status", status);
 
-    fetch(`/api/finance/budget-adjustments?${params.toString()}`, { signal: controller.signal })
-      .then((res) => res.json())
-      .then((json) => setItems(json.data ?? []))
+    // Was raw fetch() with no Authorization header — /api/finance now
+    // requires a token (see app.ts), so this always 401'd.
+    apiClient
+      .get(`/finance/budget-adjustments?${params.toString()}`, { signal: controller.signal })
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      .then((json: any) => setItems(json.data ?? []))
       .catch((err) => {
         if (err.name !== "AbortError") console.error(err);
       })
