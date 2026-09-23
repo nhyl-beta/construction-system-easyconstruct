@@ -109,6 +109,18 @@ Group A commit: `379923e`. Group B commit: `71036b0`.
 
 **→ CHECKPOINT 5 (final)**
 
+## Verification (checkpoint 1)
+
+Ran `npm run dev` (server) against the real dev DB after applying the ensure-demo-schema migration, and exercised each item with curl:
+
+- A1: `GET /api/finance/budgets` and `GET /api/engineering-reports` with no token → 401. With an engineer token → 200 (reads open to any authenticated role).
+- A2 (engineering reports): engineer creates a report (200) → engineer PATCH `status: Approved` → 403 → PM PATCH same → 200.
+- A2 (requirements): engineer creates (Draft) → engineer PATCH `status: Under Review` → 200 → engineer PATCH `status: Approved` → 403 → PM PATCH same → 200.
+- A3: removed and re-added `architect@easyconstruct.demo` as a project member on TEST_v22 → their own `GET /api/notifications` now shows `{"title":"Assigned to a project","message":"...","link":"/architect/projects",...}` (previously `message`/`link` were silently dropped on insert) → confirmed `pm@easyconstruct.demo`'s own inbox does NOT see it (role-scoped correctly).
+- B1: `POST /api/proposals` with a nonexistent project code → 400 `VALIDATION_ERROR` (previously only recorded as a buried AI issue). Same call with a real project code → `aiValidation: null` in the response (flag off).
+- Test records created for verification were deleted afterward.
+- Client build (`tsc && refine build`) passed clean after all group A + B edits — this is the verification method for the ~15 client-side AI-hiding edits in B2–B7 (conditional renders behind `FEATURES.ai`, which defaults false); did not additionally drive the browser through every role's screens to visually confirm each hidden panel, given the number of surfaces touched.
+
 ## Deviations
 
 - `docs/` is gitignored repo-wide (`.gitignore`: "Ignore docs"). Force-added this one file (`git add -f`) since the working protocol requires it to carry commit hashes across sessions/checkpoints — everything else under `docs/` stays ignored.
