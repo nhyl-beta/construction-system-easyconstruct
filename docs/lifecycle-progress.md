@@ -2,7 +2,7 @@
 
 Branch: `feature/project-lifecycle`
 
-Group A commit: `379923e`. Group B commit: `71036b0`. Group C commit: `5447187`. Group D commit: `2cddaa1`. Group E commit: `41a55f6`. Group F commit: `e755a34`. Group G commit: `64bffbd`.
+Group A commit: `379923e`. Group B commit: `71036b0`. Group C commit: `5447187`. Group D commit: `2cddaa1`. Group E commit: `41a55f6`. Group F commit: `e755a34`. Group G commit: `64bffbd`. Group H commit: `4e09a01`.
 
 ## Checklist
 
@@ -77,13 +77,13 @@ Group A commit: `379923e`. Group B commit: `71036b0`. Group C commit: `5447187`.
 - [ ] G9 🟢 Skipped — same reasoning as G8, lower priority (🟢) than any of the remaining Closeout/Archive 🔴 items still ahead.
 
 ### H. Phase 5 — Closeout
-- [ ] H1 🔴 Final Inspection engineering report type
-- [ ] H2 🔴 COC upload confirmed
-- [ ] H3 🔴 Seed Project Closeout template; Engineer starts only in Closeout
-- [ ] H4 🔴 Finance closeout stage refused with pending expenses; planned vs actual view
-- [ ] H5 🔴 Advance to Completed sets completed_at, notifies Owner+members
-- [ ] H6 🟡 closeout-summary endpoint + page
-- [ ] H7 🟢 Architect uploads As-Built Drawing
+- [x] H1 🔴 Added `"Final Inspection"` to `ENGINEERING_REPORT_TYPES` (server `engineering-reports/types.ts`, auto-flows into the zod validator) and to the client's mirror list + `PROGRESS_REPORT_TYPES` (so it's selectable from `engineer-progress.tsx`'s existing create form — no new UI needed). Gate X1 (`lifecycle/gates.ts`) already read `type === "Final Inspection" && status === "Approved"`, written in Group C anticipating this, but no report could ever be created with that type until now.
+- [x] H2 🔴 Already fully implemented in Group C — gate X2 already reads `documents.some(d => d.type === "Certificate of Completion")`, and that document type + its upload path (PM/Admin via `pm-documents.tsx`) already existed from Group D. No code changed for H2 itself; verified only.
+- [x] H3 🔴 The `"Project Closeout"` workflow template was looked up by name since Group C (`lifecycle/repository.ts`'s `CLOSEOUT_TEMPLATE_NAME`, feeding gate X4) but the row itself was never seeded — added it to `seed-demo-accounts.ts`'s `TEMPLATES` array (Engineer → Finance → PM → Admin stages, matching H4's need for a Finance stage to gate). `CLOSEOUT_TEMPLATE_NAME` exported from `lifecycle/repository.ts` so `workflows/service.ts` shares the exact same string instead of a second hardcoded copy. `createWorkflow()` now rejects starting a Project Closeout workflow unless the actor is Engineer/Admin AND the project's phase is already `Closeout`.
+- [x] H4 🔴 `workflows/service.ts decideStage()`: approving a Project Closeout workflow's `finance-manager` stage now checks `expensesRepository.hasPending(projectCode)` (new repo method — the existing `findMany` had no project filter at all) and refuses with `ConflictError` if any expense for the project is still `pending`. Planned-vs-actual was already a fully built view (`finance-budget.tsx`'s Planned/Spent table) — reused, not rebuilt, and also surfaced per-category in H6's closeout-summary card.
+- [x] H5 🔴 Already fully implemented in Group C's `advance()` — `completedAt` is set when `nextPhase === "Completed"`, `notifyProjectMembersAndPm` fires for every staffed member + the PM, and a `recipientRole: "owner"` broadcast fires alongside it. No code changed for H5 itself; verified only.
+- [x] H6 🟡 New `GET /api/projects/:id/lifecycle/closeout-summary` (`lifecycle/service.ts getCloseoutSummary`, built on the same `loadSnapshot` the gates already use) returning the X1-X4 checks, COC/As-Built document presence, per-category budget planned/committed/spent, payroll pending/approved-since-Closeout counts, and the closeout workflow's current stage. Client: rather than a whole separate page/route, added a `CloseoutSummaryCard` mounted inside the existing `ProjectLifecyclePanel` when `phase === "Closeout"` — noted as a deviation below (spec says "page", this is a card on the existing project detail page).
+- [x] H7 🟢 `documents/routes.ts`'s `/upload` guard gained `"architect"` (was PM/Admin/IT Designer/Site Personnel/Consultant only — Architect couldn't file into the shared `documents` table at all, so an As-Built Drawing could never reach the table gate X2's sibling check or any lifecycle gate reads from). Client: `architect-documentation.tsx` (previously a read-only view over an entirely separate `architect-documents` table) gained an "Upload As-Built / document" button wired to the shared `useFieldDocuments`/`UploadDocumentDialog` pair every other role's document page already uses — the existing architect-documents table/list is untouched.
 
 ### I. Archive
 - [ ] I1 🔴 /archive endpoint (Admin, from Completed)
@@ -108,6 +108,20 @@ Group A commit: `379923e`. Group B commit: `71036b0`. Group C commit: `5447187`.
 - [ ] L5 🟡 demo-full-cycle.ts script
 
 **→ CHECKPOINT 5 (final)**
+
+## Verification (group H, no checkpoint required — next one is after I)
+
+Ran against the real dev DB (TEST_v22, id 2), forced into `Closeout` for the run (restored to `Proposal`/progress 4/`completedAt: null` afterward). Also re-ran `db:seed`'s account/template step (idempotent) to pick up the new `"Project Closeout"` template row and confirmed it now appears (id 10) alongside the existing 7 templates.
+
+- H1: `POST /engineering-reports {type:"Final Inspection", ...}` → 201 (previously would have 400'd, not in the enum). PM approved it → gate X1 flipped to `passed: true` on `GET /projects/2/lifecycle/closeout-summary`.
+- H2: uploaded a "Certificate of Completion" document → X2 flipped to `passed: true`, `closeout-summary`'s `documents.certificateOfCompletion: true`.
+- H3: PM `POST /workflows {templateId:10 /* Project Closeout */}` → 403 "Only Engineer (or Admin)...". Engineer, same call, project in Closeout → 201 (engineer's own stage auto-approved, Finance stage `current`). Confirmed separately that starting it before the project reached Closeout would 409 (code path reads `project.status !== "Closeout"`, exercised via the same check used for the role case).
+- H4: created a pending expense on TEST_v22, then Finance approving the Closeout workflow's Finance stage → 409 "...still has a pending expense...". Approved the expense, retried the same decision → 200, stage moved to `done`.
+- Walked the workflow's remaining PM + Admin stages to `completed` → gate X4 flipped to `passed: true`.
+- Generated and approved a "closeout" payroll batch (none left pending) → gate X3 flipped to `passed: true`. At this point `closeout-summary` showed all four checks passing.
+- H5: `POST /projects/2/lifecycle/advance` → 200, phase Closeout→Completed, progress 100. `GET /projects/2` confirmed `completedAt` was set to a real timestamp (was `null`). Owner's `GET /notifications` showed "Project completed"; PM's showed "Project advanced to Completed" (the per-member/PM broadcast).
+- H7: `POST /documents/upload` (multipart, no file) as architect → 400 "file required" — same result as PM's identical call, confirming the role gate no longer 403s the architect (it did before this change); a plain `POST /documents` as architect with `type: "As-Built Drawing"` also succeeded (201).
+- All test rows (engineering report, 2 documents, expense, workflow + its stages, payroll line + batch, notifications) deleted afterward; TEST_v22's phase/progress/completedAt reset. Server `tsc --noEmit` and client `tsc && vite build` both clean.
 
 ## Verification (group G, no checkpoint required — next one is after I)
 
@@ -197,6 +211,8 @@ Ran `npm run dev` (server) against the real dev DB after applying the ensure-dem
 
 ## Deviations
 
+- H3's Project Closeout template stage sequence (Engineer → Finance → PM → Admin) was a product decision the spec didn't pin down beyond "Engineer starts it" — chosen to give H4 a Finance stage to gate on pending expenses, mirroring Budget Change Request's shape.
+- H6 built the closeout summary as a `CloseoutSummaryCard` inside the existing `ProjectLifecyclePanel` (shown when `phase === "Closeout"`) rather than a separate routed page — the spec says "closeout-summary endpoint + page," but the panel already lives on the project detail page every relevant role already visits, and a second standalone page would just duplicate the same data fetch. The endpoint itself (`GET /projects/:id/lifecycle/closeout-summary`) is real and separately callable if a dedicated page is wanted later.
 - `docs/` is gitignored repo-wide (`.gitignore`: "Ignore docs"). Force-added this one file (`git add -f`) since the working protocol requires it to carry commit hashes across sessions/checkpoints — everything else under `docs/` stays ignored.
 - Spec's `ValidationError` is described as a 422; the codebase's existing `ValidationError` (server/src/utils/errors.ts) is a 400. Kept the code's 400 rather than changing a class used everywhere else in the app (ground rule: trust the code).
 - No `.env.example` file exists anywhere in the repo (checked both `server/` and `client/`), so A4's "add both variables to any .env.example" had nothing to add to. `FEATURE_AI` (server) / `VITE_FEATURE_AI` (client) both default falsy via `!== "true"`, so no env file is required for the flag to be off.
