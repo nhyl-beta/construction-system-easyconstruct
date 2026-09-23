@@ -4,6 +4,7 @@ import { projects } from "../db/schema/projects.js";
 import { eq } from "drizzle-orm";
 import { ForbiddenError, NotFoundError, ValidationError } from "../utils/errors.js";
 import { assertProjectWritable, refreshProjectProgress } from "../lifecycle/service.js";
+import * as notificationsService from "../notifications/service.js";
 import * as repo from "./repository.js";
 import type { CreateIssueInput, IssueFilters } from "./types.js";
 
@@ -35,8 +36,26 @@ export const updateStatus = async (id: number, status: string, resolutionNotes: 
     throw new ForbiddenError("Only Project Managers or Engineers can update issue status");
   }
   await assertProjectWritable(existing.projectCode);
+
+  // The zod schema already requires this on the Resolved transition;
+  // re-checked here so the rule holds for any non-HTTP caller too.
+  if (status === "Resolved" && !resolutionNotes?.trim()) {
+    throw new ValidationError("Resolution notes are required to resolve an issue");
+  }
+
   const updated = await repo.updateStatus(id, status, resolutionNotes);
   if (!updated) throw new NotFoundError("Issue", String(id));
   await refreshProjectProgress(updated.projectCode);
+
+  if (status === "Resolved" && updated.reportedByUserId != null) {
+    await notificationsService.create({
+      recipientUserId: updated.reportedByUserId,
+      title: "Issue resolved",
+      body: `"${updated.title}" on ${updated.projectCode} was marked Resolved`,
+      link: `/projects/${encodeURIComponent(updated.projectCode)}`,
+      projectCode: updated.projectCode,
+    });
+  }
+
   return updated;
 };

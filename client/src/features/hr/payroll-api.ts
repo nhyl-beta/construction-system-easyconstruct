@@ -128,6 +128,19 @@ export async function listPayrollBatches(): Promise<PayrollBatch[]> {
   }));
 }
 
+// G5: verified attendance for a project, summed per employee — used to
+// prefill the Generate form's entries instead of typing hours by hand.
+export async function getAttendanceSummary(
+  projectCode: string,
+  dateFrom?: string,
+  dateTo?: string,
+): Promise<GeneratePayrollEntry[]> {
+  const params = new URLSearchParams({ projectCode });
+  if (dateFrom) params.set("dateFrom", dateFrom);
+  if (dateTo) params.set("dateTo", dateTo);
+  return unwrap<GeneratePayrollEntry[]>(apiClient.get(`/payroll/attendance-summary?${params.toString()}`));
+}
+
 export async function generatePayroll(
   input: GeneratePayrollInput,
 ): Promise<{ lines: PayrollLine[]; batch: PayrollBatch }> {

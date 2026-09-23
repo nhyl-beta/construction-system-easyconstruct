@@ -66,15 +66,15 @@ Group A commit: `379923e`. Group B commit: `71036b0`. Group C commit: `5447187`.
 **→ CHECKPOINT 3**
 
 ### G. Phase 4 — Construction
-- [ ] G1 🔴 Attendance clock-in guard (projectCode, staffed site-personnel, Construction/Closeout)
-- [ ] G2 🔴 Task create/complete refresh + notify; milestone-ready notice
-- [ ] G3 🔴 Issues resolve requires resolutionNotes; notify reporter
-- [ ] G4 🔴 Budget Change Request completion → budgets.planned + budget_adjustments row
-- [ ] G5 🔴 Payroll project picker + prefill from verified attendance; approved batch → Labor actual
-- [ ] G6 🟡 Approved expense → budget actual
-- [ ] G7 🟡 (merged into G2)
-- [ ] G8 🟡 Issue detail "Create corrective task"
-- [ ] G9 🟢 Project detail activity feed
+- [x] G1 🔴 attendance/service.ts create() now: requires `projectCode` (validator, no longer optional), requires the project to be in Construction or Closeout (new check, separate from assertProjectWritable which only blocks Archived/Cancelled/On Hold), and — when the acting user is site-personnel — requires them to be staffed on that project as site-personnel (resolved employeeId → userId → project-members lookup). Admin/IT Designer may still record attendance for anyone (unchanged, matches the existing route guard). Client: sp-attendance.tsx had no project selection at all before this — added a picker scoped to the worker's own staffed projects (`ProjectMemberRepository.listForUser`), wired into `clockIn`.
+- [x] G2 🔴 tasks/service.ts: `updateStatus`'s Completed transition now notifies the project's PM (resolves `projects.pmUserId`, falls back to a `project-manager` role broadcast) and, via the new `milestones/repository.findMilestonesLinkedToTask` reverse lookup, checks every milestone the completed task is linked to — if every task link on that milestone is now Completed, sends a second "Milestone ready" notice. `create` still only refreshes progress (no create-time notification — spec's "create/complete" reads as both getting the progress refresh, not both getting a notification, and refresh already existed for create since group C).
+- [x] G3 🔴 issue-validators.ts: `updateIssueStatusSchema` now `.refine`s that `resolutionNotes` is present when `status === "Resolved"`. issues/service.ts `updateStatus` re-checks the same rule (same pattern as tasks' completion-note re-check) and, on a Resolved transition, notifies `reportedByUserId` if the issue has one linked.
+- [x] G4 🔴 Added a nullable `workflows.budget_id` FK (schema + ensure-demo-schema.ts) — no FK from a workflow to a budget existed at all before this. `createWorkflow` accepts an optional `budgetId`; `decideStage`'s final-approve branch gained `syncLinkedBudgetChange()` (mirrors D3's `syncLinkedProposal`): when the completing workflow has a `budgetId`, sums its line items' `requestedAmount − currentAmount` (falls back to `workflow.amount` if no line items), updates that budget's `planned` by the delta via `finance/budget/service.ts`, and inserts a `budget_adjustments` row recording it. Client: new-workflow-dialog.tsx shows a budget picker (scoped to the selected project's budgets) only when the chosen template is named "Budget Change Request".
+- [x] G5 🔴 New `attendance/repository.findVerified` (project + `status='Verified'`, a different column from `attendanceStatus` which `findAll`'s existing `status` filter already reads — kept as two functions rather than overloading one filter to mean two columns). New `payroll/service.getAttendanceSummary(projectCode, dateFrom?, dateTo?)` sums verified hours per employee, splitting regular (≤8/day) from overtime, exposed at `GET /payroll/attendance-summary`. Client: hr-payroll.tsx's Generate form gained a "Prefill from attendance" button that fills entries per-employee from this endpoint (employees with no verified attendance still fall back to the existing flat hours/overtime fields). `finance/payroll-review/service.ts decidePayrollBatch`: on `"approved"`, looks up a `(projectCode, "Labor")` budget via new `finance/budget/repository.findByProjectAndCategory` and adds the batch's `grossPayroll` to its `spent`.
+- [x] G6 🟡 `finance/expenses/services.ts approve()`: after marking the expense approved, matches it to a budget by `(project, category)` via the same `findByProjectAndCategory` and adds the expense's `amount` to that budget's `spent`.
+- [x] G7 🟡 (merged into G2, as spec'd)
+- [ ] G8 🟡 Skipped — no issue-detail page exists anywhere in the app to add a "Create corrective task" action to (grepped for one; there is no per-issue detail route, only list views). Building one from scratch was judged out of scope for a 🟡 item at this point in the checklist; flagged for the final report's skipped-items list.
+- [ ] G9 🟢 Skipped — same reasoning as G8, lower priority (🟢) than any of the remaining Closeout/Archive 🔴 items still ahead.
 
 ### H. Phase 5 — Closeout
 - [ ] H1 🔴 Final Inspection engineering report type
@@ -108,6 +108,18 @@ Group A commit: `379923e`. Group B commit: `71036b0`. Group C commit: `5447187`.
 - [ ] L5 🟡 demo-full-cycle.ts script
 
 **→ CHECKPOINT 5 (final)**
+
+## Verification (group G, no checkpoint required — next one is after I)
+
+Ran against the real dev DB (TEST_v22, id 2), forced into `Construction` for the duration of this run (restored to `Proposal`/progress 4 — its actual pre-test state — afterward), using demo accounts (PM, engineer, site personnel ×2, finance, admin, HR):
+
+- G1: POST `/attendance` with no `projectCode` → 400 (validator). With `projectCode` but project in `Design` → 409 `CONFLICT` ("...Construction or Closeout..."). As `sitepersonnel1@` (not staffed on TEST_v22) → 403 "...not staffed on TEST_v22 as site personnel". As the staffed site-personnel (Rico Domingo, employee EMP-DEMO-07), project in Construction → 201.
+- G2: created task, linked it to milestone 1 via `POST /milestones/1/links`, completed it as the assigned site-personnel → PM's `GET /notifications` showed both "Task completed" and "Milestone ready" (milestone 1 had only that one task link).
+- G3: `PATCH /issues/1/status {status:"Resolved"}` with no `resolutionNotes` → 400; with notes → 200, and the reporting engineer's notifications showed "Issue resolved".
+- G4: created a "Materials" budget (planned 100000), raised a "Budget Change Request" workflow linked to it (`budgetId`) with one line item (100000→115000), walked it through Finance → PM → Admin approval → `GET /finance/budgets/2` showed `planned: 115000`, and `GET /finance/budget-adjustments?budgetId=2` showed the recorded `+15000 increase` row.
+- G5: `GET /payroll/attendance-summary?projectCode=TEST_v22` correctly summed a 10-hour Verified attendance record into `{hoursWorked:8, overtimeHours:2}`. Generated payroll from that entry (gross 5500), approved the batch via Finance → `GET /finance/budgets/3` (the project's "Labor" budget) showed `spent` moved 0→5500.
+- G6: created a "Materials" expense (2500), approved it → `GET /finance/budgets/2` showed `spent` moved 0→2500.
+- All test rows (attendance, task + milestone link, issue, workflow + stages + line items, both budgets + the adjustment row, payroll line + batch, expense) deleted afterward; Rico Domingo's test pay rate and TEST_v22's phase/progress reset to their pre-test values. Server `tsc --noEmit` and client `tsc && vite build` both clean throughout.
 
 ## Verification (checkpoint 3)
 
@@ -196,6 +208,9 @@ Ran `npm run dev` (server) against the real dev DB after applying the ensure-dem
 - C7's refresh-call-site list was extended to include `issues` (create/updateStatus), which the spec's own C7 list omits but gate K3 directly reads (no open issues) — leaving it out would mean K3 never updates when an issue is filed or resolved.
 - F1: requirements can be decided straight from Draft (not only Under Review) — see F1's checklist note; the app has no UI path to Under Review at all yet, and gating decide on it would make every requirement stuck.
 - F7 built as a new client-only component reusing existing unfiltered list endpoints rather than adding a dedicated `/api/staffing-gaps`-style endpoint — simpler given the read scope is already org-wide on both `/project-members` and `/employees`.
+- G4: no FK ever linked a workflow to a budget before this — added `workflows.budget_id` (nullable) specifically for the "Budget Change Request" template rather than a more general "workflow ↔ budget" join table, since it's the only template with anything to link. The new-workflow-dialog still has no line-item editor UI (line items were already server-only, unused by any dialog before this work) — the budget picker is wired, but a real budget change still needs its line items supplied via a non-UI caller (or the dialog's existing "Amount" field, which `syncLinkedBudgetChange` falls back to when there are no line items).
+- G5/G6: neither `payroll_batches` nor `expenses` has an FK to `budgets` — both "approved spend → budget actual" hooks match by `(project, category)` text equality (new `finance/budget/repository.findByProjectAndCategory`), same join-key gap G4 has. If no budget row exists for that project/category, or more than one does (picks the most recently created), the sync is silently skipped/best-effort rather than erroring — documented here since a mismatch numbers gap here is expected in the demo data.
+- G8/G9 (🟡/🟢) skipped: no issue-detail page exists to hang a "Create corrective task" action off, and an activity feed is lower priority than the remaining Closeout/Archive 🔴 items — see the checklist notes above.
 - C12 was wired into pm-projects.tsx only (the canonical "All projects" list), not every role's project list page (owner-portfolio, admin-projects, etc.) — scoped down to keep checkpoint 2 on schedule; flagged as a possible K2 follow-up.
 
 ## Questions

@@ -2,7 +2,23 @@
 import { ForbiddenError, NotFoundError, ValidationError } from "../utils/errors.js";
 import { assertProjectWritable, refreshProjectProgress } from "../lifecycle/service.js";
 import * as repo from "./repository.js";
+import * as milestonesRepo from "../milestones/repository.js";
+import * as projectsRepo from "../projects/repository.js";
+import * as notificationsService from "../notifications/service.js";
 import type { CreateTaskInput, TaskFilters, UpdateTaskInput } from "./types.js";
+
+// G2: PM-facing notice — resolves to the project's own PM when known, else
+// broadcasts to the project-manager role (same fallback lifecycle/service.ts
+// uses; J1 will generalize this into a shared notifications/service helper).
+const notifyPm = async (projectCode: string, title: string, body: string) => {
+  const project = await projectsRepo.findByCode(projectCode);
+  const link = `/projects/${encodeURIComponent(projectCode)}`;
+  if (project?.pmUserId != null) {
+    await notificationsService.create({ recipientUserId: project.pmUserId, title, body, link, projectCode });
+  } else {
+    await notificationsService.create({ recipientRole: "project-manager", title, body, link, projectCode });
+  }
+};
 
 const VALID_TRANSITIONS: Record<string, string[]> = {
   Pending: ["In Progress"],
@@ -71,6 +87,31 @@ export const updateStatus = async (
   // Construction's progress is completed/total tasks (D-2) — the only gate
   // band whose number this call site can move on its own.
   await refreshProjectProgress(updated.projectCode);
+
+  if (completing) {
+    await notifyPm(
+      updated.projectCode,
+      "Task completed",
+      `"${updated.title}" was marked complete on ${updated.projectCode}`,
+    );
+
+    // G2: if every task linked to a milestone is now Completed, tell the PM
+    // the milestone itself is ready to be moved along.
+    const linkedMilestones = await milestonesRepo.findMilestonesLinkedToTask(updated.id);
+    for (const milestone of linkedMilestones) {
+      const links = await milestonesRepo.findLinks(milestone.id);
+      const taskLinks = links.filter((l) => l.linkType === "task");
+      const allDone = taskLinks.length > 0 && taskLinks.every((l) => l.task?.status === "Completed");
+      if (allDone) {
+        await notifyPm(
+          updated.projectCode,
+          "Milestone ready",
+          `All tasks linked to milestone "${milestone.title}" are complete`,
+        );
+      }
+    }
+  }
+
   return updated;
 };
 

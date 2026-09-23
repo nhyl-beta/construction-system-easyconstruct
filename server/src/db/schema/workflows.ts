@@ -8,6 +8,7 @@ import {
   timestamp,
   varchar,
 } from "drizzle-orm/pg-core";
+import { budgets } from "./finance.js";
 
 export interface WorkflowStageDefinition {
   role: string;
@@ -30,6 +31,11 @@ export const workflows = pgTable("workflows", {
   title: varchar("title", { length: 255 }).notNull(),
   projectCode: varchar("project_code", { length: 50 }).notNull(),
   templateId: integer("template_id").references(() => workflowTemplates.id),
+  // G4: links a "Budget Change Request" workflow to the budget it targets, so
+  // a final approval can sync budgets.planned + insert a budget_adjustments
+  // row instead of the change living only in the workflow's line items.
+  // Nullable — every other workflow template has no budget to link.
+  budgetId: integer("budget_id").references(() => budgets.id),
   amount: numeric("amount", { precision: 14, scale: 2 }),
   type: varchar("type", { length: 50 }),
   severity: varchar("severity", { length: 20 }).notNull().default("medium"),

@@ -27,6 +27,21 @@ export const findAll = async (filters: AttendanceFilters = {}) => {
     : await db.select().from(attendance);
 };
 
+// G5: verification status (Verified/Flagged/Pending, attendance.status) is a
+// separate column from attendanceStatus (Present/Absent/…, what findAll's
+// own `status` filter already reads) — payroll only wants hours HR has
+// actually verified, so this is a dedicated query rather than overloading
+// findAll's filter to mean two different columns.
+export const findVerified = async (filters: { projectCode: string; dateFrom?: string; dateTo?: string }) => {
+  const conditions: SQL[] = [
+    eq(attendance.projectCode, filters.projectCode),
+    eq(attendance.status, "Verified"),
+  ];
+  if (filters.dateFrom) conditions.push(gte(attendance.logDate, filters.dateFrom));
+  if (filters.dateTo) conditions.push(lte(attendance.logDate, filters.dateTo));
+  return db.select().from(attendance).where(and(...conditions));
+};
+
 export const findById = async (id: number) => {
   const [row] = await db.select().from(attendance).where(eq(attendance.id, id));
   return row ?? null;

@@ -199,6 +199,13 @@ async function main() {
     CREATE INDEX IF NOT EXISTS workflow_line_items_workflow_idx
       ON workflow_line_items (workflow_id);
 
+    -- G4: links a "Budget Change Request" workflow to the budget row it
+    -- targets, so a final approval can sync budgets.planned and record a
+    -- budget_adjustments row instead of the change living only in the
+    -- workflow's line items. Nullable — no other template has a budget.
+    ALTER TABLE workflows
+      ADD COLUMN IF NOT EXISTS budget_id integer REFERENCES budgets(id);
+
     -- Payroll deductions were one flat 12% figure standing in for every
     -- statutory contribution at once. Philippine payroll is four separate
     -- computations (SSS, PhilHealth, Pag-IBIG, BIR withholding tax) on

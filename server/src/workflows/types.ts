@@ -70,6 +70,9 @@ export interface CreateWorkflowInput {
   /** Filed against the first stage — the initiator's own step. */
   attachments?: WorkflowAttachmentInput[];
   lineItems?: WorkflowLineItemInput[];
+  /** G4: the budget this workflow's approval should sync on completion —
+   * meaningful only for a "Budget Change Request" workflow. */
+  budgetId?: number;
 }
 
 export interface DecideStageInput {
@@ -92,6 +95,7 @@ export interface WorkflowWithStages {
   projectCode: string;
   templateId: number | null;
   templateName: string | null;
+  budgetId: number | null;
   amount: string | null;
   type: string | null;
   severity: string;

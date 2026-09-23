@@ -103,6 +103,7 @@ export interface Workflow {
   projectCode: string;
   templateId: number | null;
   templateName: string | null;
+  budgetId: number | null;
   amount: string | null;
   type: string | null;
   severity: "high" | "medium" | "low";
@@ -126,6 +127,8 @@ export interface CreateWorkflowInput {
   /** Filed against the first stage — the initiator's own step. */
   attachments?: WorkflowAttachmentInput[];
   lineItems?: WorkflowLineItemInput[];
+  /** G4: the budget a "Budget Change Request" workflow's approval syncs. */
+  budgetId?: number;
 }
 
 export interface UpdateWorkflowInput {

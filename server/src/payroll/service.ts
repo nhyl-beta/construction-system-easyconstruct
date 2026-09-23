@@ -1,10 +1,12 @@
 import { NotFoundError, ValidationError } from "../utils/errors.js";
 import * as employeesRepo from "../employees/repository.js";
+import * as attendanceRepo from "../attendance/repository.js";
 import * as repo from "./repository.js";
 import * as batchRepo from "./batch-repository.js";
 import { computeStatutoryDeductions } from "./ph-statutory.js";
 import type {
   GeneratePayrollInput,
+  PayrollEntryInput,
   PayrollFilters,
   UpdatePayrollLineInput,
 } from "./types.js";
@@ -61,6 +63,36 @@ export const getById = async (id: number) => {
 };
 
 export const listBatches = async () => batchRepo.findAll();
+
+// G5: verified attendance for a project/date range, summed to hours worked
+// per employee and split into regular/overtime past the standard shift — a
+// prefill for the Generate form's entries, not a replacement for it (HR can
+// still edit before submitting).
+export const getAttendanceSummary = async (
+  projectCode: string,
+  dateFrom?: string,
+  dateTo?: string,
+): Promise<PayrollEntryInput[]> => {
+  const records = await attendanceRepo.findVerified({ projectCode, dateFrom, dateTo });
+  const byEmployee = new Map<string, { hoursWorked: number; overtimeHours: number }>();
+
+  for (const record of records) {
+    const hours = Number(record.hours ?? 0);
+    if (hours <= 0) continue;
+    const regular = Math.min(hours, STANDARD_HOURS_PER_DAY);
+    const overtime = Math.max(hours - STANDARD_HOURS_PER_DAY, 0);
+    const existing = byEmployee.get(record.employeeId) ?? { hoursWorked: 0, overtimeHours: 0 };
+    existing.hoursWorked += regular;
+    existing.overtimeHours += overtime;
+    byEmployee.set(record.employeeId, existing);
+  }
+
+  return Array.from(byEmployee.entries()).map(([employeeId, totals]) => ({
+    employeeId,
+    hoursWorked: Number(totals.hoursWorked.toFixed(1)),
+    overtimeHours: Number(totals.overtimeHours.toFixed(1)),
+  }));
+};
 
 export const generate = async (input: GeneratePayrollInput) => {
   if (!input.entries?.length)

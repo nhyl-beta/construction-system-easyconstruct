@@ -12,7 +12,7 @@ export const attendanceStatusEnum = z.enum([
 export const createAttendanceSchema = z.object({
   employeeId: z.string().min(1, "Employee is required"),
   site: z.string().min(1, "Site is required"),
-  projectCode: z.string().max(50).optional(),
+  projectCode: z.string().min(1, "Project is required").max(50),
   clockIn: z.string().regex(/^\d{2}:\d{2}$/, "Use HH:MM"),
   clockOut: z.string().regex(/^\d{2}:\d{2}$/, "Use HH:MM").optional(),
   latitude: z.number().min(-90).max(90).optional(),

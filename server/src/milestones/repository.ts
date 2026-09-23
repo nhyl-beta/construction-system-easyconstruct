@@ -1,5 +1,5 @@
 // server/src/milestones/repository.ts — NEW
-import { asc, eq, inArray } from "drizzle-orm";
+import { and, asc, eq, inArray } from "drizzle-orm";
 import { db } from "../db/connection.js";
 import { milestones, milestoneLinks } from "../db/schema/milestones.js";
 import { tasks } from "../db/schema/task.js";
@@ -56,6 +56,18 @@ export const findLinks = async (milestoneId: number) => {
         : null,
     };
   });
+};
+
+// G2: the reverse of findLinks — given a task, which milestone(s) reference
+// it, so a task completion can check whether its milestone is now fully done.
+export const findMilestonesLinkedToTask = async (taskId: number) => {
+  const links = await db
+    .select()
+    .from(milestoneLinks)
+    .where(and(eq(milestoneLinks.linkType, "task"), eq(milestoneLinks.linkId, taskId)));
+  const milestoneIds = [...new Set(links.map((l) => l.milestoneId))];
+  if (milestoneIds.length === 0) return [];
+  return db.select().from(milestones).where(inArray(milestones.id, milestoneIds));
 };
 
 export const createLink = async (milestoneId: number, data: CreateMilestoneLinkInput) => {

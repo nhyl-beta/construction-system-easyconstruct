@@ -1,5 +1,5 @@
 // client/src/pages/roles/site-personnel/sp-attendance.tsx — NEW
-import { useMemo, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { Camera, MapPin, CheckCircle2, AlertTriangle, Clock } from "lucide-react";
 import { PageContainer } from "@/components/refine-ui/views/page-container";
 import { PageHeader } from "@/components/refine-ui/views/page-header";
@@ -7,10 +7,13 @@ import { PageContent } from "@/components/refine-ui/views/page-content";
 import { SectionCard } from "@/components/ui/section-card";
 import { Button } from "@/components/ui/button";
 import { StatusBadge } from "@/components/ui/status-badge";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { useAuth } from "@/auth/auth-context";
 import { useAttendance } from "@/features/attendance/hooks/use-attendance";
 import { useUploadFile} from "@/features/uploads/hooks/use-upload-file";
 import { useMyEmployee } from "@/features/employees/hooks/use-my-employee";
+import { useProjects } from "@/features/projects/hooks/useProjects";
+import { ProjectMemberRepository } from "@/features/project-members/repositories/project-member.repository";
 
 
 
@@ -19,11 +22,43 @@ function useMyEmployeeId(): string | null {
   return useMemo(() => (user ? user.email.split("@")[0] : null), [user]);
 }
 
+/** G1: attendance can only be logged against a project this worker is
+ * actually staffed on as site personnel — the server enforces this too,
+ * but without a scoped picker the page had no way to pick a project at all. */
+function useMyStaffedProjectCodes(): string[] {
+  const { user } = useAuth();
+  const [codes, setCodes] = useState<string[]>([]);
+
+  useEffect(() => {
+    if (!user) return;
+    let cancelled = false;
+    ProjectMemberRepository.listForUser(user.id)
+      .then((members) => {
+        if (cancelled) return;
+        setCodes(members.filter((m) => m.role === "site-personnel").map((m) => m.projectCode));
+      })
+      .catch(() => setCodes([]));
+    return () => {
+      cancelled = true;
+    };
+  }, [user]);
+
+  return codes;
+}
+
 type GeoState = "idle" | "requesting" | "granted" | "denied";
 
 export default function SPAttendancePage() {
   const { employeeId, loading: employeeLoading, error: employeeError } = useMyEmployee();
   const { today, loading, error, submitting, clockIn, clockOut } = useAttendance(employeeId);
+
+  const { projects } = useProjects();
+  const staffedCodes = useMyStaffedProjectCodes();
+  const staffedProjects = useMemo(
+    () => projects.filter((p) => staffedCodes.includes(p.code)),
+    [projects, staffedCodes],
+  );
+  const [projectCode, setProjectCode] = useState("");
 
   const {uploadDataUrl, uploading: uploadingPhoto} = useUploadFile();
   const [geoState, setGeoState] = useState<GeoState>("idle");
@@ -55,14 +90,15 @@ export default function SPAttendancePage() {
     reader.readAsDataURL(file);
   };
 
-  const canSubmit = geoState === "granted" && !!photoDataUrl && !submitting;
+  const canSubmit = geoState === "granted" && !!photoDataUrl && !!projectCode && !submitting;
 
   const handleSubmit = async () => {
-    if (!coords || !photoDataUrl) return;
+    if (!coords || !photoDataUrl || !projectCode) return;
     const [, mimeMatch] = /^data:([^;]+);base64,/.exec(photoDataUrl) ?? [];
     const photoUrl = await uploadDataUrl(`attendance-${Date.now()}.jpg`, mimeMatch ?? "image/jpeg", photoDataUrl);
     await clockIn({
       site: "Assigned Site",
+      projectCode,
       latitude: coords.lat,
       longitude: coords.lng,
       photoUrl,
@@ -115,6 +151,26 @@ export default function SPAttendancePage() {
         ) : (
           <SectionCard title="Log attendance" subtitle="Verify your location and identity to clock in">
             <div className="space-y-4">
+              <div className="space-y-1.5">
+                <Select value={projectCode || undefined} onValueChange={setProjectCode}>
+                  <SelectTrigger className="rounded-xl">
+                    <SelectValue placeholder="Select a project" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {staffedProjects.length === 0 && (
+                      <div className="px-2 py-1.5 text-xs text-muted-foreground">
+                        You are not staffed on any project as site personnel
+                      </div>
+                    )}
+                    {staffedProjects.map((p) => (
+                      <SelectItem key={p.code} value={p.code}>
+                        {p.code} · {p.name}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+
               <div className="flex items-center gap-3">
                 <Button
                   variant={geoState === "granted" ? "outline" : "default"}

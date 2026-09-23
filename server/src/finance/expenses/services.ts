@@ -1,6 +1,7 @@
 import { NotFoundError, ValidationError } from "../../utils/errors.js";
 import { assertProjectWritable } from "../../lifecycle/service.js";
 import { expensesRepository } from "./repository.js";
+import * as budgetRepo from "../budget/repository.js";
 import type { CreateExpenseInput, ListExpensesQuery } from "./types.js";
 
 export const expensesService = {
@@ -23,6 +24,12 @@ export const expensesService = {
     const row = await expensesRepository.updateStatus(id, "approved");
     if (!row) {
       throw new NotFoundError("Expense", id);
+    }
+    // G6: an approved expense is real spend against the budget it matches
+    // on (project, category) — best-effort match, same as G5's payroll link.
+    const budget = await budgetRepo.findByProjectAndCategory(row.project, row.category);
+    if (budget) {
+      await budgetRepo.update(budget.id, { spent: budget.spent + row.amount });
     }
     return row;
   },

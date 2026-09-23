@@ -59,6 +59,20 @@ export const findById = async (id: number) => {
   return row ? toDto(row) : null;
 };
 
+// G5/G6: the join key an approved payroll batch or expense needs to find
+// "the budget it counts against" — there is no FK from either onto budgets,
+// so this is a best-effort match on (project, category); ties (e.g. across
+// fiscal years) resolve to the most recently created row.
+export const findByProjectAndCategory = async (project: string, category: string) => {
+  const rows = await db
+    .select()
+    .from(budgets)
+    .where(and(eq(budgets.project, project), eq(budgets.category, category)));
+  if (rows.length === 0) return null;
+  const latest = rows.reduce((a, b) => (a.createdAt > b.createdAt ? a : b));
+  return toDto(latest);
+};
+
 export const create = async (data: CreateBudgetInput) => {
   const [created] = await db
     .insert(budgets)

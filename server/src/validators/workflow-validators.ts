@@ -30,6 +30,7 @@ export const createWorkflowSchema = z.object({
   stageAssignments: z.record(z.string(), z.string().max(100)).optional(),
   attachments: z.array(workflowAttachmentSchema).max(20).optional(),
   lineItems: z.array(workflowLineItemSchema).max(100).optional(),
+  budgetId: z.number().int().positive().optional(),
 });
 
 export const addAttachmentSchema = workflowAttachmentSchema;

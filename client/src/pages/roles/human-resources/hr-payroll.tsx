@@ -23,8 +23,10 @@ import {
 import { useEffect, useMemo, useState } from "react";
 import {
   generatePayroll,
+  getAttendanceSummary,
   listPayroll,
   listPayrollBatches,
+  type GeneratePayrollEntry,
   type PayrollBatch,
   type PayrollLine,
 } from "@/features/hr/payroll-api";
@@ -75,6 +77,29 @@ export default function HRPayrollPage() {
   const [hoursInput, setHoursInput] = useState("160");
   const [overtimeInput, setOvertimeInput] = useState("0");
   const [showGenerateForm, setShowGenerateForm] = useState(false);
+  // G5: entries pulled from verified attendance for the selected project,
+  // keyed by employeeId — takes over from the flat hours/overtime inputs
+  // (which still apply to anyone attendance had nothing verified for).
+  const [attendanceEntries, setAttendanceEntries] = useState<Map<string, GeneratePayrollEntry> | null>(null);
+  const [loadingAttendance, setLoadingAttendance] = useState(false);
+
+  const handlePrefillFromAttendance = async () => {
+    if (!projectCodeInput.trim()) return;
+    setLoadingAttendance(true);
+    setError(null);
+    try {
+      const entries = await getAttendanceSummary(projectCodeInput.trim());
+      setAttendanceEntries(new Map(entries.map((e) => [e.employeeId, e])));
+    } catch (prefillError) {
+      setError(
+        prefillError instanceof Error
+          ? prefillError.message
+          : "Failed to load verified attendance for this project.",
+      );
+    } finally {
+      setLoadingAttendance(false);
+    }
+  };
 
   // The Export button was rendered with no handler at all — clicking it did
   // nothing. Exports the tracksheet currently on screen.
@@ -185,14 +210,20 @@ export default function HRPayrollPage() {
         period: periodInput.trim(),
         group: groupInput.trim() || "All departments",
         projectCode: projectCodeInput.trim() || undefined,
-        entries: employees.map((employee) => ({
-          employeeId: employee.id,
-          hoursWorked: Number(hoursInput) || 0,
-          overtimeHours: Number(overtimeInput) || 0,
-        })),
+        entries: employees.map((employee) => {
+          const attended = attendanceEntries?.get(employee.id);
+          return attended
+            ? { employeeId: employee.id, hoursWorked: attended.hoursWorked, overtimeHours: attended.overtimeHours ?? 0 }
+            : {
+                employeeId: employee.id,
+                hoursWorked: Number(hoursInput) || 0,
+                overtimeHours: Number(overtimeInput) || 0,
+              };
+        }),
       });
 
       setShowGenerateForm(false);
+      setAttendanceEntries(null);
       await loadPayroll();
     } catch (generationError) {
       console.error(generationError);
@@ -301,7 +332,10 @@ export default function HRPayrollPage() {
             />
             <ProjectPicker
               value={projectCodeInput}
-              onChange={setProjectCodeInput}
+              onChange={(code) => {
+                setProjectCodeInput(code);
+                setAttendanceEntries(null);
+              }}
               placeholder="Project code"
               className="h-9 rounded-md border bg-background px-3 text-sm"
             />
@@ -325,7 +359,20 @@ export default function HRPayrollPage() {
                 setOvertimeInput(event.target.value)
               }
             />
-            <div className="flex gap-2 md:col-span-5">
+            <div className="flex flex-wrap items-center gap-2 md:col-span-5">
+              <Button
+                variant="outline"
+                onClick={() => void handlePrefillFromAttendance()}
+                disabled={!projectCodeInput.trim() || loadingAttendance}
+                title={!projectCodeInput.trim() ? "Select a project first" : "Prefill hours from verified attendance"}
+              >
+                {loadingAttendance ? "Loading attendance…" : "Prefill from attendance"}
+              </Button>
+              {attendanceEntries && (
+                <span className="text-xs text-muted-foreground">
+                  {attendanceEntries.size} employee(s) with verified attendance — the rest fall back to the hours/overtime fields above.
+                </span>
+              )}
               <Button
                 onClick={() => void handleGeneratePayroll()}
                 disabled={generating}

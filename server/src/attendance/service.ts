@@ -7,11 +7,14 @@ import { eq } from "drizzle-orm";
 import { db } from "../db/connection.js";
 import { projects } from "../db/schema/projects.js";
 import {
+  ConflictError,
   ForbiddenError,
   NotFoundError,
   ValidationError,
 } from "../utils/errors.js";
 import { assertProjectWritable } from "../lifecycle/service.js";
+import * as employeesRepo from "../employees/repository.js";
+import * as projectMemberRepo from "../project-members/repository.js";
 
 import * as repo from "./repository.js";
 
@@ -138,11 +141,12 @@ export const getById = async (id: number) => {
  */
 export const create = async (
   input: CreateAttendanceInput & {
-    projectCode?: string;
+    projectCode: string;
     latitude?: number;
     longitude?: number;
     photoUrl?: string;
   },
+  actor?: { role: string; userId: number },
 ) => {
   // ---------------------------------------------------------
   // Prevent duplicate attendance for the same employee/day.
@@ -170,8 +174,48 @@ export const create = async (
     );
   }
 
-  if (input.projectCode) {
-    await assertProjectWritable(input.projectCode);
+  await assertProjectWritable(input.projectCode);
+
+  // G1: a clock-in only counts against a project actually under
+  // construction, and (for Site Personnel themselves) only for someone
+  // actually staffed on it. Admin/IT Designer may still backfill/correct
+  // records for any employee, so the staffing check is scoped to the
+  // Site Personnel actor's own submission.
+  const project = await db
+    .select()
+    .from(projects)
+    .where(eq(projects.code, input.projectCode))
+    .then((rows) => rows[0]);
+
+  if (!project) {
+    throw new NotFoundError("Project", input.projectCode);
+  }
+
+  if (!["Construction", "Closeout"].includes(project.status)) {
+    throw new ConflictError(
+      `Attendance can only be logged while the project is in Construction or Closeout (currently ${project.status})`,
+    );
+  }
+
+  if (actor?.role === "site-personnel") {
+    const employee = await employeesRepo.findByEmployeeId(input.employeeId);
+    if (!employee?.userId) {
+      throw new ForbiddenError(
+        "No account is linked to this employee record",
+      );
+    }
+
+    const staffed = await projectMemberRepo.findAll({
+      projectCode: input.projectCode,
+      userId: employee.userId,
+      role: "site-personnel",
+    });
+
+    if (staffed.length === 0) {
+      throw new ForbiddenError(
+        `${employee.name} is not staffed on ${input.projectCode} as site personnel`,
+      );
+    }
   }
 
   // ---------------------------------------------------------

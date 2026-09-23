@@ -33,9 +33,12 @@ export const getById = async (req: Request, res: Response, next: NextFunction) =
   }
 };
 
-export const create = async (req: Request, res: Response, next: NextFunction) => {
+export const create = async (req: AuthedRequest, res: Response, next: NextFunction) => {
   try {
-    const data = await service.create(req.body);
+    const data = await service.create(
+      req.body,
+      req.authUser ? { role: req.authUser.role, userId: req.authUser.id } : undefined,
+    );
     res.status(HTTP.CREATED).json(formatSuccess(data, MSG.attendance.created));
   } catch (err) {
     next(err);

@@ -20,6 +20,7 @@ import {
 } from "@/components/ui/select";
 import { ProjectPicker } from "@/components/shared/project-picker";
 import { UserRepository, type PublicUser } from "@/features/users/repositories/user.repository";
+import { useBudgetsController } from "@/features/finance/budgets/controllers/budget.controllers";
 import type { CreateWorkflowInput, WorkflowTemplate } from "@/features/workflows/types/workflow.types";
 
 interface NewWorkflowDialogProps {
@@ -47,10 +48,21 @@ export function NewWorkflowDialog({
   // same as everywhere else this column is populated).
   const [stageAssignments, setStageAssignments] = useState<Record<string, string>>({});
   const [usersByRole, setUsersByRole] = useState<Record<string, PublicUser[]>>({});
+  const [budgetId, setBudgetId] = useState("");
 
   const selectedTemplate = useMemo(
     () => templates.find((t) => String(t.id) === templateId) ?? null,
     [templates, templateId],
+  );
+
+  // G4: a Budget Change Request workflow needs to know which budget its
+  // approval should sync (budgets.planned + a budget_adjustments row) —
+  // every other template has nothing to link, so this only shows here.
+  const isBudgetChangeRequest = selectedTemplate?.name === "Budget Change Request";
+  const { budgets } = useBudgetsController();
+  const projectBudgets = useMemo(
+    () => budgets.filter((b) => b.project === projectCode),
+    [budgets, projectCode],
   );
 
   useEffect(() => {
@@ -79,6 +91,7 @@ export function NewWorkflowDialog({
     setAmount("");
     setType("");
     setStageAssignments({});
+    setBudgetId("");
   };
 
   const handleSubmit = async () => {
@@ -93,8 +106,9 @@ export function NewWorkflowDialog({
       amount: amount ? Number(amount) : undefined,
       type: type || undefined,
       stageAssignments: Object.keys(cleanedAssignments).length ? cleanedAssignments : undefined,
+      budgetId: isBudgetChangeRequest && budgetId ? Number(budgetId) : undefined,
     });
-    
+
     reset();
     onOpenChange(false);
   };
@@ -155,6 +169,35 @@ export function NewWorkflowDialog({
               </SelectContent>
             </Select>
           </div>
+
+          {isBudgetChangeRequest && (
+            <div className="grid gap-1.5">
+              <Label>Budget to change</Label>
+              <Select value={budgetId || undefined} onValueChange={setBudgetId}>
+                <SelectTrigger className="w-full">
+                  <SelectValue
+                    placeholder={
+                      !projectCode
+                        ? "Select a project first"
+                        : projectBudgets.length === 0
+                          ? "No budgets on file for this project"
+                          : "Select a budget"
+                    }
+                  />
+                </SelectTrigger>
+                <SelectContent>
+                  {projectBudgets.map((b) => (
+                    <SelectItem key={b.id} value={String(b.id)}>
+                      {b.category} · {b.fiscalYear} · ₱{b.planned.toLocaleString()} planned
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+              <p className="text-xs text-muted-foreground">
+                On final approval, this budget's planned amount is updated by the line items' requested delta.
+              </p>
+            </div>
+          )}
 
           {selectedTemplate && (
             <div className="grid gap-2 rounded-lg border border-border p-3">

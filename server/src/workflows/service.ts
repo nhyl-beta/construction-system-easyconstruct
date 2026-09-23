@@ -2,6 +2,8 @@ import { ConflictError, ForbiddenError, NotFoundError, ValidationError } from ".
 import { assertProjectWritable, refreshProjectProgress } from "../lifecycle/service.js";
 import { proposalRepository } from "../proposals/repository.js";
 import * as notificationsService from "../notifications/service.js";
+import * as budgetService from "../finance/budget/service.js";
+import * as budgetAdjustmentsService from "../finance/budget-adjustments/service.js";
 import * as repo from "./repository.js";
 import type {
   ApprovalQueueItem,
@@ -151,6 +153,7 @@ const attachStages = async (rows: (typeof import("../db/schema/workflows.js").wo
     projectCode: w.projectCode,
     templateId: w.templateId,
     templateName: w.templateId ? templateNameById.get(w.templateId) ?? null : null,
+    budgetId: w.budgetId,
     amount: w.amount,
     type: w.type,
     severity: w.severity,
@@ -237,6 +240,7 @@ export const createWorkflow = async (
     templateId: template.id,
     amount: input.amount !== undefined ? String(input.amount) : null,
     type: input.type ?? null,
+    budgetId: input.budgetId ?? null,
     severity: "medium",
     aiNote: null,
     status: "active",
@@ -426,6 +430,33 @@ export const decideStage = async (
     if (linked) await proposalRepository.update(linked.id, { status });
   };
 
+  // G4: a "Budget Change Request" workflow (workflows.budgetId set) that
+  // completes its final approval moves the delta into the real budget —
+  // budgets.planned, plus a budget_adjustments row recording the change —
+  // rather than the change living only in the workflow's line items.
+  const syncLinkedBudgetChange = async () => {
+    if (!owningWorkflow?.budgetId) return;
+    const lineItems = await repo.findLineItemsForWorkflows([workflowId]);
+    const delta = lineItems.length
+      ? lineItems.reduce((sum, item) => sum + (Number(item.requestedAmount) - Number(item.currentAmount)), 0)
+      : Number(owningWorkflow.amount ?? 0);
+    if (delta === 0) return;
+
+    const budget = await budgetService.getById(owningWorkflow.budgetId);
+    const newPlanned = budget.planned + delta;
+    await budgetService.update(budget.id, { planned: newPlanned });
+    await budgetAdjustmentsService.create({
+      budgetId: budget.id,
+      kind: delta >= 0 ? "increase" : "decrease",
+      originalAmount: budget.planned,
+      adjustmentAmount: delta,
+      newAmount: newPlanned,
+      reason: `Approved via workflow ${owningWorkflow.code}: ${owningWorkflow.title}`,
+      requestedBy: owningWorkflow.createdBy,
+      status: "approved",
+    });
+  };
+
   if (input.decision === "reject") {
     await repo.updateWorkflowStatus(workflowId, "rejected");
     await syncLinkedProposal("Rejected");
@@ -439,6 +470,7 @@ export const decideStage = async (
     } else {
       await repo.updateWorkflowStatus(workflowId, "completed");
       await syncLinkedProposal("Approved");
+      await syncLinkedBudgetChange();
     }
   }
   // "revise" leaves the workflow status as-is and the stage in

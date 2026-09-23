@@ -15,7 +15,12 @@ export const createIssueSchema = z.object({
   reportedByName: z.string().max(100).optional(),
 });
 
-export const updateIssueStatusSchema = z.object({
-  status: z.enum(["Submitted", "Under Review", "Resolved", "Rejected"]),
-  resolutionNotes: z.string().max(2000).optional(),
-});
+export const updateIssueStatusSchema = z
+  .object({
+    status: z.enum(["Submitted", "Under Review", "Resolved", "Rejected"]),
+    resolutionNotes: z.string().max(2000).optional(),
+  })
+  .refine(
+    (data) => data.status !== "Resolved" || !!data.resolutionNotes?.trim(),
+    { message: "Resolution notes are required to resolve an issue", path: ["resolutionNotes"] },
+  );

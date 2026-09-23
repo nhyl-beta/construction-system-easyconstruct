@@ -4,6 +4,7 @@ import { MSG } from "../constants/messages.js";
 import { formatSuccess } from "../utils/response.js";
 import { logAudit } from "../utils/audit.js";
 import type { AuthedRequest } from "../middleware/auth.js";
+import { ValidationError } from "../utils/errors.js";
 import * as service from "./service.js";
 import type { PayrollFilters } from "./types.js";
 
@@ -45,6 +46,22 @@ export const remove = async (req: Request, res: Response, next: NextFunction) =>
   try {
     const data = await service.remove(Number(req.params.id));
     res.json(formatSuccess(data, MSG.payroll.deleted));
+  } catch (err) {
+    next(err);
+  }
+};
+
+// G5: verified-attendance prefill for the Generate form.
+export const getAttendanceSummary = async (req: Request, res: Response, next: NextFunction) => {
+  try {
+    const projectCode = req.query.projectCode as string;
+    if (!projectCode) throw new ValidationError("projectCode is required");
+    const data = await service.getAttendanceSummary(
+      projectCode,
+      req.query.dateFrom as string | undefined,
+      req.query.dateTo as string | undefined,
+    );
+    res.json(formatSuccess(data, "Attendance summary retrieved"));
   } catch (err) {
     next(err);
   }
