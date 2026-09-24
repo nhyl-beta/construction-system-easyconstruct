@@ -35,6 +35,7 @@ export const create = async (req: AuthedRequest, res: Response, next: NextFuncti
       action: "created",
       actor: createdBy,
       summary: `Created draft milestone "${data.title}" for project ${data.projectCode}`,
+      projectCode: data.projectCode,
     });
     res.status(HTTP.CREATED).json(formatSuccess(data, MSG.milestones.created));
   } catch (err) {
@@ -52,6 +53,7 @@ export const update = async (req: AuthedRequest, res: Response, next: NextFuncti
       action: "updated",
       actor,
       summary: `Updated milestone "${data.title}"`,
+      projectCode: data.projectCode,
     });
     res.json(formatSuccess(data, MSG.milestones.updated));
   } catch (err) {
@@ -69,6 +71,7 @@ export const remove = async (req: AuthedRequest, res: Response, next: NextFuncti
       action: "deleted",
       actor,
       summary: `Deleted milestone "${data.title}"`,
+      projectCode: data.projectCode,
     });
     res.json(formatSuccess(data, MSG.milestones.deleted));
   } catch (err) {
@@ -89,6 +92,7 @@ export const createLink = async (req: AuthedRequest, res: Response, next: NextFu
       action: "linked",
       actor: req.authUser?.name ?? "unknown",
       summary: `Linked ${req.body.linkType} #${req.body.linkId} to milestone "${data.title}"`,
+      projectCode: data.projectCode,
     });
     res.status(HTTP.CREATED).json(formatSuccess(data, MSG.milestones.updated));
   } catch (err) {
@@ -109,6 +113,7 @@ export const removeLink = async (req: AuthedRequest, res: Response, next: NextFu
       action: "unlinked",
       actor: req.authUser?.name ?? "unknown",
       summary: `Removed link #${req.params.linkId} from milestone "${data.title}"`,
+      projectCode: data.projectCode,
     });
     res.json(formatSuccess(data, MSG.milestones.updated));
   } catch (err) {

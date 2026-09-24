@@ -16,6 +16,7 @@ import { ComingSoonCard } from "@/components/refine-ui/views/coming-soon-card";
 import { KpiStrip } from "@/components/ui/kpi-strip";
 import { useRoleConfig } from "@/hooks/use-role-config";
 import { useITDesignerDashboardController } from "@/features/dashboard/controllers/it-designer-dashboard.controller";
+import { WaitingOnYouCard } from "@/features/lifecycle/components/WaitingOnYouCard";
 import { formatRelativeTime } from "@/lib/format-relative-time";
 import { useNavigate } from "react-router";
 
@@ -81,6 +82,9 @@ export default function ITDesignerDashboardPage() {
           },
         ]}
       />
+
+      {/* K1: cross-project gate checks waiting on IT Designer */}
+      <WaitingOnYouCard />
 
       {/* ── Accounts by role + misconfiguration check ── */}
       <section className="grid grid-cols-1 gap-6 xl:grid-cols-3">

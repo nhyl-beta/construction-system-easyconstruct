@@ -14,13 +14,16 @@ export function useProjectsController(initialQuery = "") {
   // archived project cluttering every list by default is exactly what
   // "archive" was supposed to get it out of.
   const [showArchived, setShowArchived] = useState(false);
+  // K2: Owner's portfolio wants a quick way to see only wrapped-up projects.
+  const [completedOnly, setCompletedOnly] = useState(false);
 
   const load = useCallback(async () => {
     setLoading(true);
     setError(null);
     try {
       const { data } = await ProjectService.queryProjects({ q: query });
-      const visible = showArchived ? data : data.filter((p) => p.status !== "Archived");
+      let visible = showArchived ? data : data.filter((p) => p.status !== "Archived");
+      if (completedOnly) visible = visible.filter((p) => p.status === "Completed");
       setProjects(visible);
       setKpis(ProjectService.calcKpis(visible));
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -29,7 +32,7 @@ export function useProjectsController(initialQuery = "") {
     } finally {
       setLoading(false);
     }
-  }, [query]);
+  }, [query, showArchived, completedOnly]);
 
   useEffect(() => {
     load();
@@ -46,6 +49,8 @@ export function useProjectsController(initialQuery = "") {
     kpis,
     showArchived,
     setShowArchived,
+    completedOnly,
+    setCompletedOnly,
     reload: load,
   } as const;
 }

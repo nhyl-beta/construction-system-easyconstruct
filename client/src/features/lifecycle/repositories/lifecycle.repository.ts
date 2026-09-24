@@ -1,5 +1,6 @@
 import { apiClient } from "@/services/api.client";
 import type { CloseoutSummary, LifecycleView } from "../types/lifecycle.types";
+import type { MyActionItem } from "../types/my-actions.types";
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 async function unwrap<T>(promise: Promise<any>): Promise<T> {
@@ -39,5 +40,10 @@ export const LifecycleRepository = {
   // H6
   async getCloseoutSummary(projectId: string | number): Promise<CloseoutSummary> {
     return unwrap<CloseoutSummary>(apiClient.get(`/projects/${projectId}/lifecycle/closeout-summary`));
+  },
+
+  // K1
+  async getMyActions(): Promise<MyActionItem[]> {
+    return unwrap<MyActionItem[]>(apiClient.get(`/lifecycle/my-actions`));
   },
 };

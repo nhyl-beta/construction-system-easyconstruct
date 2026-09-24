@@ -47,6 +47,7 @@ import {
   XAxis,
   YAxis,
 } from "recharts";
+import { WaitingOnYouCard } from "@/features/lifecycle/components/WaitingOnYouCard";
 
 const allocationColors = [
   "#10b981",
@@ -399,6 +400,10 @@ export default function FinanceDashboardPage() {
                 ))}
               </ul>
             </SectionCard>
+
+            {/* K1: cross-project gate checks + workflow stages (separate from
+                the approvals-queue table above, which is finance's own). */}
+            <WaitingOnYouCard />
 
             <SectionCard title="Recent transactions">
               <ul className="space-y-1.5 text-xs">

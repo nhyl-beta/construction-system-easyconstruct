@@ -8,6 +8,7 @@ export const getAll = async (req: Request, res: Response, next: NextFunction) =>
     const data = await service.getAll({
       entityType: req.query.entityType as string,
       entityId: req.query.entityId as string,
+      projectCode: req.query.projectCode as string,
     });
     res.json(formatSuccess(data, MSG.auditLogs.retrieved));
   } catch (err) { next(err); }

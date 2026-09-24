@@ -2,6 +2,13 @@ import { useMemo, useState } from "react";
 import { Search, ShieldCheck } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import { PageContainer } from "@/components/refine-ui/views/page-container";
 import { PageHeader } from "@/components/refine-ui/views/page-header";
 import { PageContent } from "@/components/refine-ui/views/page-content";
@@ -22,6 +29,9 @@ export default function AdminActivityLogsPage() {
   const { logs, loading, error, reload } = useAuditLogs();
   const [search, setSearch] = useState("");
   const [entityType, setEntityType] = useState<string | null>(null);
+  // K3: filter by project code — audit_logs.project_code is nullable
+  // (many entries, e.g. auth/user admin, have no single project).
+  const [projectCode, setProjectCode] = useState<string | null>(null);
 
   const entityTypes = useMemo(() => {
     const set = new Set<string>();
@@ -29,9 +39,16 @@ export default function AdminActivityLogsPage() {
     return Array.from(set);
   }, [logs]);
 
+  const projectCodes = useMemo(() => {
+    const set = new Set<string>();
+    for (const log of logs) if (log.projectCode) set.add(log.projectCode);
+    return Array.from(set).sort();
+  }, [logs]);
+
   const filtered = useMemo(() => {
     return logs.filter((log) => {
       if (entityType && log.entityType !== entityType) return false;
+      if (projectCode && log.projectCode !== projectCode) return false;
       if (search) {
         const term = search.toLowerCase();
         const haystack = `${log.actor} ${log.action} ${log.entityType} ${log.entityId} ${log.summary ?? ""}`.toLowerCase();
@@ -70,14 +87,29 @@ export default function AdminActivityLogsPage() {
               </Badge>
             ))}
           </div>
-          <div className="relative w-full md:w-64">
-            <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
-            <Input
-              placeholder="Search activity…"
-              value={search}
-              onChange={(e) => setSearch(e.target.value)}
-              className="h-9 rounded-xl border-border bg-muted/40 pl-9"
-            />
+          <div className="flex items-center gap-2">
+            <Select value={projectCode ?? "all"} onValueChange={(v) => setProjectCode(v === "all" ? null : v)}>
+              <SelectTrigger className="h-9 w-44 rounded-xl text-xs">
+                <SelectValue placeholder="All projects" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">All projects</SelectItem>
+                {projectCodes.map((code) => (
+                  <SelectItem key={code} value={code}>
+                    {code}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+            <div className="relative w-full md:w-64">
+              <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+              <Input
+                placeholder="Search activity…"
+                value={search}
+                onChange={(e) => setSearch(e.target.value)}
+                className="h-9 rounded-xl border-border bg-muted/40 pl-9"
+              />
+            </div>
           </div>
         </div>
 
@@ -106,6 +138,7 @@ export default function AdminActivityLogsPage() {
                   <th className="px-5 py-2.5">Actor</th>
                   <th className="px-3 py-2.5">Action</th>
                   <th className="px-3 py-2.5">Entity</th>
+                  <th className="px-3 py-2.5">Project</th>
                   <th className="px-3 py-2.5">Summary</th>
                   <th className="px-5 py-2.5">When</th>
                 </tr>
@@ -121,6 +154,9 @@ export default function AdminActivityLogsPage() {
                     </td>
                     <td className="px-3 py-3.5 font-mono text-xs text-muted-foreground">
                       {log.entityType} #{log.entityId}
+                    </td>
+                    <td className="px-3 py-3.5 font-mono text-xs text-muted-foreground">
+                      {log.projectCode ?? "—"}
                     </td>
                     <td className="px-3 py-3.5 text-muted-foreground">{log.summary ?? "—"}</td>
                     <td className="px-5 py-3.5 text-xs text-muted-foreground">

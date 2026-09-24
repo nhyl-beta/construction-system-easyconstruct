@@ -17,6 +17,7 @@ export const AuditLogRepository = {
     const params = new URLSearchParams();
     if (query.entityType) params.set("entityType", query.entityType);
     if (query.entityId) params.set("entityId", query.entityId);
+    if (query.projectCode) params.set("projectCode", query.projectCode);
     const qs = params.toString();
     return unwrap<AuditLog[]>(apiClient.get(`/audit-logs${qs ? `?${qs}` : ""}`));
   },

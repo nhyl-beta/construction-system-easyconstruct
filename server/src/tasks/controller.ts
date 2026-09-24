@@ -49,6 +49,7 @@ export const create = async (req: AuthedRequest, res: Response, next: NextFuncti
       action: "created",
       actor: req.authUser?.name ?? "unknown",
       summary: `Created task "${data.title}" for project ${data.projectCode}`,
+      projectCode: data.projectCode,
     });
     res.status(HTTP.CREATED).json(formatSuccess(data, MSG.tasks.created));
   } catch (err) {
@@ -73,6 +74,7 @@ export const updateStatus = async (req: AuthedRequest, res: Response, next: Next
       action: "updated",
       actor: req.authUser?.name ?? "unknown",
       summary: `Task "${data.title}" status changed to ${req.body.status}`,
+      projectCode: data.projectCode,
     });
     res.json(formatSuccess(data, MSG.tasks.updated));
   } catch (err) {

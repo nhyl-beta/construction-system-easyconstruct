@@ -9,6 +9,8 @@ export const findAll = async (filters: AuditLogFilters = {}) => {
     conditions.push(eq(auditLogs.entityType, filters.entityType));
   if (filters.entityId)
     conditions.push(eq(auditLogs.entityId, filters.entityId));
+  if (filters.projectCode)
+    conditions.push(eq(auditLogs.projectCode, filters.projectCode));
 
   return conditions.length
     ? await db

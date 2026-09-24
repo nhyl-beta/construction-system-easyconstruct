@@ -50,6 +50,7 @@ export const proposalController = {
       action: "created",
       actor: req.authUser?.name ?? data.submittedBy ?? "unknown",
       summary: `Submitted proposal "${data.title}" for project ${data.projectCode}`,
+      projectCode: data.projectCode,
     });
 
     return res.status(201).json({
@@ -75,6 +76,7 @@ export const proposalController = {
       action: "created",
       actor: req.authUser?.name ?? data.proposal.submittedBy ?? "unknown",
       summary: `Submitted proposal "${data.proposal.title}" for project ${data.proposal.projectCode} — workflow ${data.workflow.code} started`,
+      projectCode: data.proposal.projectCode,
     });
 
     return res.status(201).json({
@@ -120,6 +122,7 @@ export const proposalController = {
       action: data.status === "Approved" ? "approved" : data.status === "Rejected" ? "rejected" : "revision-requested",
       actor: req.authUser?.name ?? req.body.reviewerName ?? "unknown",
       summary: `Reviewed proposal "${data.title}": ${data.status}`,
+      projectCode: data.projectCode,
     });
 
     return res.json({

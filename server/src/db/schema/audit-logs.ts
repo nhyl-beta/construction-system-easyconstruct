@@ -7,6 +7,11 @@ export const auditLogs = pgTable('audit_logs', {
   action: varchar('action', { length: 50 }).notNull(),            // e.g. "approved", "created", "rejected"
   actor: varchar('actor', { length: 100 }).notNull(),
   summary: text('summary'),
+  // K3: nullable — many entries (auth, user/role/template admin) have no
+  // single project to attach to. Populated at call sites that have a
+  // project code in scope, letting the audit-log screen filter reliably
+  // instead of substring-matching the free-text summary.
+  projectCode: varchar('project_code', { length: 50 }),
   createdAt: timestamp('created_at').defaultNow(),
 });
 

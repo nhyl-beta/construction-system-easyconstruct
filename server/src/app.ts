@@ -39,6 +39,7 @@ import projectMemberRoutes from "./project-members/routes.js";
 // ── workflows/approvals ──
 import workflowRoutes from "./workflows/routes.js";
 import milestoneRoutes from "./milestones/routes.js";
+import myActionsRoutes from "./lifecycle/my-actions.js";
 
 import uploadRoutes from "./uploads/routes.js";
 
@@ -109,6 +110,10 @@ app.use("/api/users", userRoutes);
 app.use("/api/project-members", projectMemberRoutes);
 app.use("/api/workflows", workflowRoutes);
 app.use("/api/milestones", milestoneRoutes);
+// K1: cross-project "what's waiting on me" — deliberately its own top-level
+// mount, not nested under /api/projects/:id/lifecycle, since it spans every
+// project the caller is relevant to rather than one.
+app.use("/api/lifecycle", myActionsRoutes);
 app.use("/api/uploads", uploadRoutes);
 
 

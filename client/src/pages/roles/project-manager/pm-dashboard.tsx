@@ -11,6 +11,7 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { ComingSoonCard } from "@/components/refine-ui/views/coming-soon-card";
+import { WaitingOnYouCard } from "@/features/lifecycle/components/WaitingOnYouCard";
 import { FEATURES } from "@/config/features";
 import { KpiStrip } from "@/components/ui/kpi-strip";
 import { Progress } from "@/components/ui/progress";
@@ -184,6 +185,9 @@ export default function DashboardPage() {
             )}
           </CardContent>
         </Card>
+
+        {/* K1: cross-project gate checks + workflow stages waiting on this PM */}
+        <WaitingOnYouCard />
 
         {/* AI Insights — hidden behind FEATURES.ai, see config/features.ts */}
         {FEATURES.ai && (

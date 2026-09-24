@@ -353,6 +353,12 @@ async function main() {
     -- ── D2 ──
     ALTER TABLE proposals
       ADD COLUMN IF NOT EXISTS workflow_id integer REFERENCES workflows(id);
+
+    -- K3: nullable — many audit entries (auth, user/role/template admin) have
+    -- no single project to attach to. Lets the audit-log screen filter by
+    -- project code reliably instead of substring-matching free-text summary.
+    ALTER TABLE audit_logs
+      ADD COLUMN IF NOT EXISTS project_code varchar(50);
   `);
 
   console.log("Demo schema tables and compatibility columns are ready.");

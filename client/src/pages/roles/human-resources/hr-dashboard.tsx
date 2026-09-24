@@ -74,6 +74,7 @@ import {
 import { useMemo, useState } from "react";
 import { Link } from "react-router";
 import { useWorkforceReport } from "@/features/hr/hooks/use-hr";
+import { WaitingOnYouCard } from "@/features/lifecycle/components/WaitingOnYouCard";
 
 
 function toneBg(tone: ToneBg) {
@@ -337,6 +338,9 @@ function OverviewSection() {
 
   return (
     <>
+      {/* K1: cross-project gate checks (payroll/staffing) waiting on HR */}
+      <WaitingOnYouCard />
+
       {/* KPI strip */}
       <div className="grid grid-cols-2 gap-3 md:grid-cols-3 xl:grid-cols-6">
         {kpis.map((k) => (

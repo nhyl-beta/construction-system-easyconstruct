@@ -79,6 +79,7 @@ export const decidePayrollBatch = async (
       action: req.body.decision,
       actor: req.authUser?.name ?? req.body.reviewedBy ?? "unknown",
       summary: `Payroll batch ${req.params.id} ${req.body.decision}`,
+      projectCode: batch?.projectCode ?? undefined,
     });
 
     return sendSuccess(

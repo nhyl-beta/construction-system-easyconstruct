@@ -72,6 +72,7 @@ export const update = async (req: AuthedRequest, res: Response, next: NextFuncti
       action: "updated",
       actor: req.authUser?.name ?? "unknown",
       summary: `Updated attendance record for ${data.employeeId} (${data.logDate})`,
+      projectCode: data.projectCode ?? undefined,
     });
     res.json(formatSuccess(data, MSG.attendance.updated));
   } catch (err) {

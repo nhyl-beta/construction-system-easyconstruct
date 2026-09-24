@@ -26,6 +26,10 @@ export default function OwnerPortfolioPage() {
         view={ctrl.view}
         setView={ctrl.setView}
         showCreate={false}
+        showArchived={ctrl.showArchived}
+        onToggleArchived={ctrl.setShowArchived}
+        completedOnly={ctrl.completedOnly}
+        onToggleCompletedOnly={ctrl.setCompletedOnly}
       />
 
       {ctrl.error ? (

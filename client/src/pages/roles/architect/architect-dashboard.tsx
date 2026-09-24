@@ -5,6 +5,7 @@ import { KpiStrip } from "@/components/ui/kpi-strip";
 import { SectionCard } from "@/components/ui/section-card";
 import { StatusBadge } from "@/components/ui/status-badge";
 import { useArchitectDashboardController } from "@/features/dashboard/controllers/architect-dashboard.controller";
+import { WaitingOnYouCard } from "@/features/lifecycle/components/WaitingOnYouCard";
 import {
   CheckSquare,
   Eye,
@@ -65,6 +66,9 @@ export default function ArchitectDashboard() {
           },
         ]}
       />
+
+      {/* K1: cross-project gate checks + workflow stages waiting on this architect */}
+      <WaitingOnYouCard />
 
       <div className="grid gap-4 lg:grid-cols-3">
         <SectionCard

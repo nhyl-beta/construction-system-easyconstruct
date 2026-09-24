@@ -17,6 +17,7 @@ import { Progress } from "@/components/ui/progress";
 import { useEngineerDashboardController } from "@/features/dashboard/controllers/engineer-dashboard.controller";
 import { ReportStatusBadge } from "@/pages/roles/shared/shared-engineer";
 import { useAuth } from "@/auth/auth-context";
+import { WaitingOnYouCard } from "@/features/lifecycle/components/WaitingOnYouCard";
 
 export default function EngineerDashboardPage() {
   const { user } = useAuth();
@@ -102,6 +103,9 @@ export default function EngineerDashboardPage() {
             },
           ]}
         />
+
+        {/* K1: cross-project gate checks waiting on this engineer */}
+        <WaitingOnYouCard />
 
         <section className="grid grid-cols-1 gap-6 xl:grid-cols-3">
           {/* Assigned projects */}

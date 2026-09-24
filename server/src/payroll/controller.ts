@@ -78,6 +78,7 @@ export const generate = async (req: AuthedRequest, res: Response, next: NextFunc
       action: "created",
       actor: req.authUser?.name ?? "unknown",
       summary: `Generated payroll for ${data.batch.period} (${data.lines.length} employees)`,
+      projectCode: data.batch.projectCode ?? undefined,
     });
     res
       .status(HTTP.CREATED)

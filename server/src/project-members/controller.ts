@@ -35,6 +35,7 @@ export const create = async (req: AuthedRequest, res: Response, next: NextFuncti
       action: "created",
       actor: req.authUser?.name ?? "unknown",
       summary: `Added ${data.userName} to project ${data.projectCode} as ${data.role}`,
+      projectCode: data.projectCode,
     });
     res.status(HTTP.CREATED).json(formatSuccess(data, "Project member added"));
   } catch (err) {
@@ -55,6 +56,7 @@ export const remove = async (req: AuthedRequest, res: Response, next: NextFuncti
       action: "deleted",
       actor: req.authUser?.name ?? "unknown",
       summary: `Removed ${data.userName} (${data.role}) from project ${data.projectCode}`,
+      projectCode: data.projectCode,
     });
     res.json(formatSuccess(data, "Project member removed"));
   } catch (err) {

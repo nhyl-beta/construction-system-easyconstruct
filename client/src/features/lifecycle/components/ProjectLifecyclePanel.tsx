@@ -268,9 +268,12 @@ export function ProjectLifecyclePanel({ projectId }: { projectId: string | numbe
         </>
       )}
 
-      {/* H6: everything Closeout cares about (documents, budgets, payroll,
-          the closeout workflow) in one place, rather than four screens. */}
-      {view.phase === "Closeout" && <CloseoutSummaryCard projectId={projectId} />}
+      {/* H6/K2: everything Closeout cares about (documents, budgets, payroll,
+          the closeout workflow) in one place, rather than four screens —
+          also shown once Completed, so the record stays visible afterward. */}
+      {(view.phase === "Closeout" || view.phase === "Completed") && (
+        <CloseoutSummaryCard projectId={projectId} />
+      )}
 
       {view.history.length > 0 && (
         <div className="space-y-2 border-t border-border/60 pt-3">

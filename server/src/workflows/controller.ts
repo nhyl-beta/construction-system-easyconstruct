@@ -84,6 +84,7 @@ export const update = async (req: AuthedRequest, res: Response, next: NextFuncti
       action: "updated",
       actor,
       summary: `Updated workflow "${data.title}" (${data.code})`,
+      projectCode: data.projectCode,
     });
     res.json(formatSuccess(data, MSG.workflows.updated));
   } catch (err) {
@@ -105,6 +106,7 @@ export const remove = async (req: AuthedRequest, res: Response, next: NextFuncti
       action: "deleted",
       actor,
       summary: `Deleted workflow "${data.title}" (${data.code})`,
+      projectCode: data.projectCode,
     });
     res.json(formatSuccess(data, MSG.workflows.deleted));
   } catch (err) {
@@ -122,6 +124,7 @@ export const create = async (req: AuthedRequest, res: Response, next: NextFuncti
       action: "created",
       actor: createdBy,
       summary: `Started workflow "${data.title}" (${data.code}) for project ${data.projectCode}`,
+      projectCode: data.projectCode,
     });
     res.status(HTTP.CREATED).json(formatSuccess(data, MSG.workflows.created));
   } catch (err) {
@@ -145,6 +148,7 @@ export const decideStage = async (req: AuthedRequest, res: Response, next: NextF
       action: req.body.decision === "approve" ? "approved" : req.body.decision === "reject" ? "rejected" : "revision-requested",
       actor: decidedBy,
       summary: `Decided stage on workflow "${data.title}" (${data.code}): ${req.body.decision}`,
+      projectCode: data.projectCode,
     });
     res.json(formatSuccess(data, MSG.workflowStages.updated));
   } catch (err) {
@@ -167,6 +171,7 @@ export const resubmitStage = async (req: AuthedRequest, res: Response, next: Nex
       action: "resubmitted",
       actor: actor.name,
       summary: `Resubmitted stage on workflow "${data.title}" (${data.code})`,
+      projectCode: data.projectCode,
     });
     res.json(formatSuccess(data, MSG.workflowStages.updated));
   } catch (err) {
@@ -206,6 +211,7 @@ export const addAttachment = async (req: AuthedRequest, res: Response, next: Nex
       action: "updated",
       actor,
       summary: `Filed "${req.body.label}" against workflow "${data.title}" (${data.code})`,
+      projectCode: data.projectCode,
     });
     res.status(HTTP.CREATED).json(formatSuccess(data, MSG.workflows.updated));
   } catch (err) {
@@ -250,6 +256,7 @@ export const uploadAttachment = async (req: AuthedRequest, res: Response, next: 
       action: "updated",
       actor,
       summary: `Attached file "${req.file.originalname}" to workflow "${data.title}" (${data.code})`,
+      projectCode: data.projectCode,
     });
 
     return res.status(HTTP.CREATED).json(formatSuccess(data, MSG.workflows.updated));

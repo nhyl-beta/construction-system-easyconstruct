@@ -23,6 +23,7 @@ import { KpiStrip } from "@/components/ui/kpi-strip";
 import { StatusBadge } from "@/components/ui/status-badge";
 import { useRoleConfig } from "@/hooks/use-role-config";
 import { useConsultantDashboardController } from "@/features/dashboard/controllers/consultant-dashboard.controller";
+import { WaitingOnYouCard } from "@/features/lifecycle/components/WaitingOnYouCard";
 import { useNavigate } from "react-router";
 
 export default function ConsultantDashboardPage() {
@@ -278,10 +279,9 @@ export default function ConsultantDashboardPage() {
           </Card>
         </div>
 
-        <ComingSoonCard
-          title="Approval participation"
-          description="No approvals backend exists yet — this will surface workflow approval requests requiring your advisory input once that module is built."
-        />
+        {/* K1: was a "not built yet" placeholder for exactly this — cross-project
+            workflow stages and gate checks waiting on this consultant. */}
+        <WaitingOnYouCard />
       </section>
 
       {/* ── Footer status ── */}

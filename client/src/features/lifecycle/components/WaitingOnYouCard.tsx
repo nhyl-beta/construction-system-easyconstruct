@@ -1,0 +1,64 @@
+// K1: cross-project "what's waiting on you" — the lifecycle gate checks and
+// the workflow approval queue are both single-project or per-call-site;
+// this is the one place a role sees everything at once, mirroring
+// GET /api/lifecycle/my-actions.
+import { AlertCircle, ChevronRight, ClipboardCheck } from "lucide-react";
+import { useNavigate } from "react-router";
+import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { useMyActions } from "../hooks/useMyActions";
+
+export function WaitingOnYouCard() {
+  const { actions, loading } = useMyActions();
+  const navigate = useNavigate();
+
+  return (
+    <Card className="rounded-2xl">
+      <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-3">
+        <CardTitle className="flex items-center gap-2 text-base">
+          <ClipboardCheck className="h-4 w-4 text-primary" />
+          Waiting on you
+        </CardTitle>
+        {actions.length > 0 && (
+          <Badge variant="outline" className="rounded-full text-[10px]">
+            {actions.length}
+          </Badge>
+        )}
+      </CardHeader>
+      <CardContent className="space-y-1">
+        {loading && <p className="py-4 text-sm text-muted-foreground">Checking…</p>}
+        {!loading && actions.length === 0 && (
+          <p className="flex items-center gap-2 py-4 text-sm text-muted-foreground">
+            Nothing waiting on you right now.
+          </p>
+        )}
+        {!loading &&
+          actions.slice(0, 6).map((a, i) => (
+            <button
+              key={`${a.projectCode}-${a.kind}-${i}`}
+              type="button"
+              onClick={() => navigate(a.link)}
+              className="flex w-full items-start gap-2.5 rounded-lg px-2 py-2 text-left hover:bg-muted/50"
+            >
+              <AlertCircle className="mt-0.5 h-3.5 w-3.5 shrink-0 text-warning" />
+              <span className="min-w-0 flex-1">
+                <span className="block text-sm font-medium leading-tight">{a.title}</span>
+                <span className="mt-0.5 block text-xs text-muted-foreground">
+                  {a.projectName} · {a.detail}
+                </span>
+              </span>
+              <ChevronRight className="mt-0.5 h-3.5 w-3.5 shrink-0 text-muted-foreground" />
+            </button>
+          ))}
+        {!loading && actions.length > 6 && (
+          <p className="px-2 pt-1 text-xs text-muted-foreground">
+            +{actions.length - 6} more
+          </p>
+        )}
+      </CardContent>
+    </Card>
+  );
+}
+
+WaitingOnYouCard.displayName = "WaitingOnYouCard";

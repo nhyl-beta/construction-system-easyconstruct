@@ -21,6 +21,7 @@ import { useMyTasks } from "@/features/tasks/hooks/use-my-tasks";
 import { useMyIssues } from "@/features/issues/hooks/use-my-issues";
 import { useFieldDocuments } from "@/features/documents/hooks/use-field-documents";
 import { useMyEmployee } from "@/features/employees/hooks/use-my-employee";
+import { WaitingOnYouCard } from "@/features/lifecycle/components/WaitingOnYouCard";
 
 
 export default function SPDashboardPage() {
@@ -60,6 +61,9 @@ export default function SPDashboardPage() {
           { label: "Open issues", value: String(myIssues.counts.open), icon: ShieldAlert, tone: myIssues.counts.open > 0 ? "warn" : "neutral" },
         ]}
       />
+
+      {/* K1: cross-project gate checks waiting on this worker */}
+      <WaitingOnYouCard />
 
       <div className="grid gap-6 lg:grid-cols-2">
         <SectionCard title="Quick actions">

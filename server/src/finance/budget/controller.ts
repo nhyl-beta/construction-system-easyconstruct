@@ -79,6 +79,7 @@ export const create = async (
       action: "created",
       actor: req.authUser?.name ?? "unknown",
       summary: `Created budget for ${data.project} (${data.category})`,
+      projectCode: data.project,
     });
 
     res.status(HTTP.CREATED).json(formatSuccess(data, MSG.budgets.created));
@@ -101,6 +102,7 @@ export const update = async (
       action: "updated",
       actor: req.authUser?.name ?? "unknown",
       summary: `Updated budget for ${data.project} (${data.category})`,
+      projectCode: data.project,
     });
 
     res.json(formatSuccess(data, MSG.budgets.updated));
