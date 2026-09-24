@@ -12,18 +12,18 @@ At the start of every session: read this file and continue from the first untick
   - `npx tsc --noEmit -p server` — clean, 0 errors.
   - `npm --prefix server test` — 22/22 pass (all from the lifecycle work: `gates.test.ts`, `progress.test.ts`).
   - `/api/finance` mount confirmed at `server/src/app.ts:103`: `app.use("/api/finance", authenticate, financeRouter);` — already fixed by the lifecycle work's own A1, nothing to do here.
-  - Commit: `d78d5be` (see below).
+  - Commit: `568a4ec` (see below).
 - [x] **A2** Verified EstimationPro.ai live, 2026-09-24-25. Both endpoints answer with **200** and a shape close to, but not identical to, the spec (see Deviations §AV-1):
   - `GET /api/v1/trades` → `{ data: { trades: [{trade, itemCount}, ...], totalItems }, meta: { source: "EstimationPro.ai Construction Cost API", url, methodology, updated, license } }`. 34 trades, 411 total items.
   - `GET /api/v1/costs?trade=concrete` → `{ data: { trade, location: "National average", multiplier: 1, itemCount, items: [{id, description, unit, low, high, typical, volatility, lastVerified, regionallyAdjusted}, ...] }, meta: {...} }`.
   - `location=Manila` query param is accepted but ignored — no PH-specific data, always returns `"National average"`, `multiplier: 1`. Fine: `region_multiplier` is nullable/defaults to 1 in the schema anyway.
   - `GET /api/v1/index` also answers (200), confirming the higher 500/day quota endpoint exists, though nothing in this build uses it yet.
   - **Not a stop condition** — proceeding to Group B on this shape.
-  - Commit: `d78d5be`.
+  - Commit: `568a4ec`.
 - [x] **A3** Split `FEATURES.ai` (client) into `ai` (real output) and `aiPlaceholders` (hardcoded `false`, never wired to an env var). Full surface audit and moves below. Verified: `npm --prefix client run build` succeeds (exit 0) after every move; `npx tsc --noEmit -p server` stays clean.
-  - Commit: `d78d5be`.
+  - Commit: `568a4ec`.
 - [x] **A4** `server/src/config/signals.ts` created with `SIGNAL_THRESHOLDS` (S-4), `SIMILARITY_FLOOR = 0.40`, `REFERENCE_CACHE_TTL_MS` (7 days), `DAILY_REQUEST_BUDGET = 80`. `server/src/config/env.ts` gained `FX_RATE_USD_PHP` (default 62.73) and `FX_RATE_AS_OF` (default "2026-09-22").
-  - Commit: `d78d5be`.
+  - Commit: `568a4ec`.
 
 **A3 surface table** (audited via a full grep of `client/src` for `FEATURES.ai`, both client and server sides):
 
