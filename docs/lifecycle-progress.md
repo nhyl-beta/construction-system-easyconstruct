@@ -2,7 +2,7 @@
 
 Branch: `feature/project-lifecycle`
 
-Group A commit: `379923e`. Group B commit: `71036b0`. Group C commit: `5447187`. Group D commit: `2cddaa1`. Group E commit: `41a55f6`. Group F commit: `e755a34`. Group G commit: `64bffbd`. Group H commit: `4e09a01`. Group I commit: `17a5f40` (verify-only — I1 was already complete as of Group C). Group J commit: `46bc1b8`. Group K commit: `6127e32`.
+Group A commit: `379923e`. Group B commit: `71036b0`. Group C commit: `5447187`. Group D commit: `2cddaa1`. Group E commit: `41a55f6`. Group F commit: `e755a34`. Group G commit: `64bffbd`. Group H commit: `4e09a01`. Group I commit: `17a5f40` (verify-only — I1 was already complete as of Group C). Group J commit: `46bc1b8`. Group K commit: `6127e32`. Group L commit: `d96b348`.
 
 ## Checklist
 
@@ -101,13 +101,35 @@ Group A commit: `379923e`. Group B commit: `71036b0`. Group C commit: `5447187`.
 - [x] K3 🟡 Added a nullable `audit_logs.project_code` column (schema + `ensure-demo-schema.ts`) — no structured project field existed before this (a project code sometimes appeared only as free text inside `summary`, inconsistently, across ~29 call sites). Threaded `projectCode` through every `logAudit(...)` call site that has one in scope (proposals, workflows/stages, tasks, issues, milestones, budgets, payroll/payroll-review, attendance, project-members — 26 call sites); left auth/user/role/workflow-template events without one (genuinely project-agnostic). `audit-logs` repository/controller/client type/repository gained a `projectCode` filter; `admin-activity-logs.tsx` (also Owner's "Audit Trail" — same component) gained a project dropdown (options derived from projects actually present in the loaded logs) and a Project column.
 
 ### L. Tests and demo
-- [ ] L1 🔴 Seed: closeout template, demo accounts linked to employees, refreshProjectProgress for all
-- [ ] L2 🔴 Node test runner: lifecycle/gates.test.ts, lifecycle/progress.test.ts
-- [ ] L3 🔴 API-level tests/curl (403/409/401 cases)
-- [ ] L4 🔴 Walkthrough run against fresh seed, record actual %
-- [ ] L5 🟡 demo-full-cycle.ts script
+- [x] L1 🔴 Closeout template: done in Group H. Demo accounts linked to employees: already done by `seed-demo-accounts.ts` (every account gets a matching `EMP-DEMO-NN` row with `userId` set) — verified only, no code needed. `refreshProjectProgress` for all: added a final step to `seed-demo-accounts.ts` that recomputes every project's progress once the lifecycle service is importable (D-7's deviation, resolved).
+- [x] L2 🔴 `server/src/lifecycle/gates.test.ts` (22 cases across P1-P5/D1-D3/C1-C5/K1-K4/X1-X4, via `evaluateGate`) and `server/src/lifecycle/progress.test.ts` (7 cases for `computeProgress`'s band math, Construction's task-ratio formula, and the frozen/100% terminal phases), both using Node's built-in test runner (`node --import tsx --test`, no new runtime dependency). `npm test` in `server/`. All 22 pass.
+- [x] L3 🔴 `server/src/scripts/api-smoke-test.ts` — a runnable script (not just ad-hoc curl) asserting 401 (no token), 403 (wrong role/ownership), and 400/409 (validation, gate-blocked, override-too-short, hold-with-no-reason) across attendance, lifecycle advance/hold, and workflow creation. Run with `npx tsx src/scripts/api-smoke-test.ts` against a running `npm run dev`. All 11 assertions pass; the project it scratches on (TEST_v22) is restored to its prior status afterward.
+- [x] L4 🔴 Full walkthrough run — see the table in the Verification section below. Ran via L5's script against the live dev server.
+- [x] L5 🟡 `server/src/scripts/demo-full-cycle.ts` — walks one freshly-created project through every phase (Proposal → Design → Pre-Construction → Construction → Closeout → Completed → Archived) via real API calls as the actual role each step belongs to, printing the phase/progress table L4 needed. Left its output project (see below) in the database, Archived, as a working end-to-end example.
 
 **→ CHECKPOINT 5 (final)**
+
+## Verification (checkpoint 5 — final)
+
+**L2** — `npm test` in `server/`: 22/22 pass (`gates.test.ts` covers every gate group's empty-snapshot-fails and fully-satisfied-passes cases plus targeted edge cases — a pending design review blocking D2, an unstaffed site worker blocking C4, X3's "approved but before entering Closeout" and "one still pending" cases, X4 with no Closeout template configured; `progress.test.ts` covers the terminal 100% phases, the frozen On-Hold/Cancelled value, Construction's task-ratio formula including the zero-tasks case, and a sequenced phase's start/end/partial band math).
+
+**L3** — `npx tsx src/scripts/api-smoke-test.ts` against a live `npm run dev`: 11/11 pass (401 unauthenticated, 403 role/ownership × 3, 400/409 validation and gate boundaries × 5, 401 on two more read endpoints). No residue left on TEST_v22 afterward (confirmed by direct query).
+
+**L4/L5** — `npx tsx src/scripts/demo-full-cycle.ts` walked a freshly-created project (`DEMO-MUF1U69O`, id 7) through the entire lifecycle as the real role each step belongs to (PM, Architect, Consultant, Engineer, Site Personnel, Finance, HR, Admin) — no shortcuts, no direct DB writes except for reading ids. Actual recorded progress at each transition:
+
+| Transition | Phase | Actual progress |
+|---|---|---|
+| Project created | Proposal | 4% |
+| Advance → Design | Design | 10% |
+| Advance → Pre-Construction | Pre-Construction | 25% |
+| Advance → Construction | Construction | 30% |
+| Advance → Closeout | Closeout | 95% |
+| Advance → Completed | Completed | 100% |
+| Archive | Archived | 100% |
+
+Each number is exactly that phase's `PHASE_BANDS` **start** (`lifecycle/phases.ts`) immediately after Advance, which is correct and expected: Advance recomputes progress right after the transition, before anything has been done yet in the *new* phase, so it lands at the new band's floor every time — progress climbs from there as gate checks and (in Construction's case) tasks are completed, exactly as the checkpoint 2-4 verification transcripts already demonstrated per phase. The walkthrough exercised, in order: staffing all four project-member roles; a proposal submitted and approved through its full 3-stage workflow; Notice of Award + Contract on file with a contract value set; a design with files assigned to the staffed engineer, an approved design review, and an approved current blueprint; two approved requirements (Materials, Specifications); a budget walked through all 4 approval stages; a dated, active milestone with a task assigned to the staffed site worker and linked to it; a Notice to Proceed on file with site coordinates set; the task completed and the milestone closed; an issue reported and resolved; a Final Inspection report approved; a Certificate of Completion on file; a Project Closeout workflow (Engineer → Finance → PM → Admin) completed with no pending expenses; a payroll batch generated and approved since entering Closeout; and finally Admin archiving the Completed project. The project remains in the database, Archived, as a live example.
+
+Two earlier, incomplete runs of the script (from debugging two real bugs it caught — a missing `method: "POST"` on the proposal-submit call, and a `documentId` generator that exceeded the column's 20-character limit) were cleaned up afterward; only the one successful, complete run's project was kept.
 
 ## Verification (group K, no checkpoint required — next one is after L)
 
@@ -238,6 +260,8 @@ Ran `npm run dev` (server) against the real dev DB after applying the ensure-dem
 
 ## Deviations
 
+- L4's walkthrough used a freshly-created project (code `DEMO-` + a short unique suffix, since `demo-full-cycle.ts` needs to be re-runnable against any seed rather than assuming a project literally named `DEMO-001` already exists) rather than reusing TEST_v22 — TEST_v22 was Group C onward's scratch project for ad-hoc curl verification and was never meant to be a clean, from-scratch example of the full cycle.
+- L3's smoke test and L5's walkthrough script both require a separately-running `npm run dev` (they hit a live HTTP server, deliberately — the whole point is exercising real middleware, not a mock of it) and `SMOKE_BASE_URL`/`DATABASE_URL` from `.env`; neither is wired into `npm test` (which only runs L2's pure-function unit tests) since they mutate real data and need a live server up.
 - J1's refactor of `notifyEnteringPhase` (lifecycle/service.ts) changes behavior, not just implementation: a gate's `ownerRoles` that include a staffable role (e.g. `"engineer"`) now resolves to the engineer(s) actually staffed on that project via `notifyProject`, where it previously broadcast to every engineer in the org. This was a real bug (checkpoint 2's own verification only "worked" because the test architect happened to be staffed on the test project), fixed as a natural consequence of building J1, not a separately-requested change.
 - J2's "notify the initiator on workflow outcome" only works for workflows created after the `created_by_user_id` column was added — a workflow created before this change has `createdByUserId: null` and silently gets no such notification (best-effort, not backfilled, since there's no reliable way to resolve a legacy `createdBy` display-name string back to a user id).
 - Found but left alone (out of scope for J3's literal checklist item): `notifications/repository.ts markRead()` has no check that the notification actually belongs to the caller — any authenticated user who knows/guesses a notification id can mark it read. Low impact (a read-flag flip, not a data read), but a real gap; flagging for the final report rather than fixing unrequested behavior mid-group.
