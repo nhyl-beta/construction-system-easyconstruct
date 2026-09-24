@@ -2,7 +2,7 @@
 
 Branch: `feature/project-lifecycle`
 
-Group A commit: `379923e`. Group B commit: `71036b0`. Group C commit: `5447187`. Group D commit: `2cddaa1`. Group E commit: `41a55f6`. Group F commit: `e755a34`. Group G commit: `64bffbd`. Group H commit: `4e09a01`. Group I: no code changes (I1 was already complete as of Group C) — verified only, recorded in the commit below.
+Group A commit: `379923e`. Group B commit: `71036b0`. Group C commit: `5447187`. Group D commit: `2cddaa1`. Group E commit: `41a55f6`. Group F commit: `e755a34`. Group G commit: `64bffbd`. Group H commit: `4e09a01`. Group I commit: `17a5f40` (verify-only — I1 was already complete as of Group C). Group J commit: `46bc1b8`.
 
 ## Checklist
 
@@ -91,9 +91,9 @@ Group A commit: `379923e`. Group B commit: `71036b0`. Group C commit: `5447187`.
 **→ CHECKPOINT 4**
 
 ### J. Notifications
-- [ ] J1 🔴 notifyProject(projectCode, roles, {title, body, link})
-- [ ] J2 🔴 Fire every event in 4.5
-- [ ] J3 🔴 Bell reads fixed endpoint; click marks read + navigates
+- [x] J1 🔴 New `notifications/service.ts notifyProject(projectCode, roles, {title, body, link})`: a role that can be staffed on a project (engineer/architect/site-personnel/consultant) resolves to the actual staffed user(s) via project-members; `"project-manager"` resolves to `project.pmUserId`; every other role (admin/it-designer/finance-manager/human-resources/owner) broadcasts by role. `lifecycle/service.ts`'s `notifyProjectMembersAndPm` and `notifyEnteringPhase`, and `tasks/service.ts`'s `notifyPm`, are now thin wrappers around it — this also fixed a latent bug in `notifyEnteringPhase`, which previously broadcast to e.g. *every* architect org-wide for a staffable `ownerRole` instead of the one(s) actually staffed on that project.
+- [x] J2 🔴 Closed the gaps found by auditing every notification call site: (1) `project-members/service.ts`'s "assigned/removed" notice was architect-only and broadcast to every architect org-wide — generalized to every role, targeted at the specific user added/removed (`recipientUserId`). (2) `workflows/service.ts createWorkflow`/`decideStage`: added a notification to whichever role's stage newly becomes `"current"` (covers "proposal submitted", "budget change submitted", every workflow template generically, not a bespoke notice per domain), plus a new nullable `workflows.created_by_user_id` column (schema + `ensure-demo-schema.ts`; `createdBy` was a display-name string, not a usable recipient) so the initiator is notified directly on final approval or rejection. `proposals/service.ts submit()` threads `createdByUserId` through the same path. (3) `requirements/service.ts update()`: an Approved/Rejected decision now notifies the project's staffed engineer(s) (via `notifyProject`) — requirements has no author user id to target directly.
+- [x] J3 🔴 Client `Notification` type was missing `link`/`projectCode` even though the server always sent them — added both. `notification-bell.tsx`: clicking a notification now marks it read (if unread) *and* navigates to its `link`; previously the button `disabled`'d itself once read, so a read notification couldn't even be clicked, and nothing ever called `navigate()` at all. Same fix applied to `admin-notifications.tsx`'s full-page list (row click navigates; the existing "Mark read" button still works standalone via `stopPropagation`). The `GET`/`PATCH .../read` endpoints themselves needed no change — already correctly scoped to the caller since A3.
 
 ### K. Role screens
 - [ ] K1 🔴 GET /api/lifecycle/my-actions + WaitingOnYouCard on dashboards
@@ -108,6 +108,15 @@ Group A commit: `379923e`. Group B commit: `71036b0`. Group C commit: `5447187`.
 - [ ] L5 🟡 demo-full-cycle.ts script
 
 **→ CHECKPOINT 5 (final)**
+
+## Verification (group J, no checkpoint required — next one is after L)
+
+Ran against the real dev DB (TEST_v22, id 2), no phase changes needed this time:
+
+- J1/J2: architect created a "Design Proposal Approval" workflow → the specific staffed consultant (Elena Bautista, `recipientUserId`) got "...needs your review", confirmed a *different*, unstaffed consultant (`consultant1@`) got nothing. Consultant approved → PM got the "needs your review" notice for the next stage. PM approved (final stage) → the architect *initiator* (`recipientUserId` resolved from the new `createdByUserId` column) got "Workflow approved". A second workflow rejected at the consultant stage → same initiator got "Workflow rejected".
+- J2: staffed `engineer3@` on TEST_v22 → they personally got "Assigned to a project" (previously only architects, and only as an org-wide broadcast). Removed them → they personally got "Removed from a project".
+- J3: logged in as the architect in the actual browser (not curl) — bell showed "Workflow approved"/"Workflow rejected" from the test above; clicking "Workflow approved" navigated to `/workflows` (confirmed by URL/page title change) and the unread badge dropped 8→7 in the same click, confirming mark-read fired alongside navigation.
+- All test rows (workflows + stages, notifications, the temporary project-member row) deleted afterward; TEST_v22 untouched (no phase change this run). Server `tsc --noEmit` and client `tsc && vite build` both clean.
 
 ## Verification (checkpoint 4)
 
@@ -220,6 +229,10 @@ Ran `npm run dev` (server) against the real dev DB after applying the ensure-dem
 
 ## Deviations
 
+- J1's refactor of `notifyEnteringPhase` (lifecycle/service.ts) changes behavior, not just implementation: a gate's `ownerRoles` that include a staffable role (e.g. `"engineer"`) now resolves to the engineer(s) actually staffed on that project via `notifyProject`, where it previously broadcast to every engineer in the org. This was a real bug (checkpoint 2's own verification only "worked" because the test architect happened to be staffed on the test project), fixed as a natural consequence of building J1, not a separately-requested change.
+- J2's "notify the initiator on workflow outcome" only works for workflows created after the `created_by_user_id` column was added — a workflow created before this change has `createdByUserId: null` and silently gets no such notification (best-effort, not backfilled, since there's no reliable way to resolve a legacy `createdBy` display-name string back to a user id).
+- Found but left alone (out of scope for J3's literal checklist item): `notifications/repository.ts markRead()` has no check that the notification actually belongs to the caller — any authenticated user who knows/guesses a notification id can mark it read. Low impact (a read-flag flip, not a data read), but a real gap; flagging for the final report rather than fixing unrequested behavior mid-group.
+- Also found but left alone: `client/src/features/notifications/repositories/notification.repository.ts`'s `list()` still sends a `?role=` query param that the server's `getAll` controller explicitly ignores (by design, per its own comment) — dead/misleading code, not a functional bug, left untouched to keep this group's diff scoped to J1-J3.
 - H3's Project Closeout template stage sequence (Engineer → Finance → PM → Admin) was a product decision the spec didn't pin down beyond "Engineer starts it" — chosen to give H4 a Finance stage to gate on pending expenses, mirroring Budget Change Request's shape.
 - H6 built the closeout summary as a `CloseoutSummaryCard` inside the existing `ProjectLifecyclePanel` (shown when `phase === "Closeout"`) rather than a separate routed page — the spec says "closeout-summary endpoint + page," but the panel already lives on the project detail page every relevant role already visits, and a second standalone page would just duplicate the same data fetch. The endpoint itself (`GET /projects/:id/lifecycle/closeout-summary`) is real and separately callable if a dedicated page is wanted later.
 - `docs/` is gitignored repo-wide (`.gitignore`: "Ignore docs"). Force-added this one file (`git add -f`) since the working protocol requires it to carry commit hashes across sessions/checkpoints — everything else under `docs/` stays ignored.
