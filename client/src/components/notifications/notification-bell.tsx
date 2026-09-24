@@ -4,7 +4,9 @@
 // it — no count, no list, no click handler. The data layer already existed
 // (features/notifications + GET /api/notifications), it was simply never
 // connected to the one place every role looks.
+import { useState } from "react";
 import { Bell } from "lucide-react";
+import { useNavigate } from "react-router";
 
 import { Button } from "@/components/ui/button";
 import {
@@ -14,19 +16,33 @@ import {
 } from "@/components/ui/popover";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { useNotifications } from "@/features/notifications/hooks/useNotifications";
+import type { Notification } from "@/features/notifications/types/notification.types";
 import { formatRelativeTime } from "@/lib/format-relative-time";
 
 export function NotificationBell() {
   const { notifications, loading, error, marking, markRead, reload } =
     useNotifications();
+  const navigate = useNavigate();
+  const [open, setOpen] = useState(false);
 
   const unread = notifications.filter((n) => !n.isRead);
 
+  // J3: mark read (if not already) and navigate to the notification's own
+  // link — previously the button disabled itself once read, so a read
+  // notification could never be clicked at all, let alone go anywhere.
+  const handleSelect = (n: Notification) => {
+    if (!n.isRead) void markRead(n.id);
+    setOpen(false);
+    if (n.link) navigate(n.link);
+  };
+
   return (
     <Popover
-      onOpenChange={(open) => {
+      open={open}
+      onOpenChange={(nextOpen) => {
+        setOpen(nextOpen);
         // Refetch on open so the list is current without polling.
-        if (open) void reload();
+        if (nextOpen) void reload();
       }}
     >
       <PopoverTrigger asChild>
@@ -78,8 +94,8 @@ export function NotificationBell() {
               <button
                 key={n.id}
                 type="button"
-                disabled={n.isRead || marking === n.id}
-                onClick={() => void markRead(n.id)}
+                disabled={marking === n.id}
+                onClick={() => handleSelect(n)}
                 className="flex w-full items-start gap-3 border-b border-border/60 px-4 py-3 text-left last:border-0 hover:bg-muted/40 disabled:cursor-default disabled:hover:bg-transparent"
               >
                 <span

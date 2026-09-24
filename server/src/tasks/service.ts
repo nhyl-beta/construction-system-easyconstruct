@@ -3,21 +3,16 @@ import { ForbiddenError, NotFoundError, ValidationError } from "../utils/errors.
 import { assertProjectWritable, refreshProjectProgress } from "../lifecycle/service.js";
 import * as repo from "./repository.js";
 import * as milestonesRepo from "../milestones/repository.js";
-import * as projectsRepo from "../projects/repository.js";
 import * as notificationsService from "../notifications/service.js";
 import type { CreateTaskInput, TaskFilters, UpdateTaskInput } from "./types.js";
 
-// G2: PM-facing notice — resolves to the project's own PM when known, else
-// broadcasts to the project-manager role (same fallback lifecycle/service.ts
-// uses; J1 will generalize this into a shared notifications/service helper).
+// G2/J1: PM-facing notice, routed through the shared notifyProject helper.
 const notifyPm = async (projectCode: string, title: string, body: string) => {
-  const project = await projectsRepo.findByCode(projectCode);
-  const link = `/projects/${encodeURIComponent(projectCode)}`;
-  if (project?.pmUserId != null) {
-    await notificationsService.create({ recipientUserId: project.pmUserId, title, body, link, projectCode });
-  } else {
-    await notificationsService.create({ recipientRole: "project-manager", title, body, link, projectCode });
-  }
+  await notificationsService.notifyProject(projectCode, ["project-manager"], {
+    title,
+    body,
+    link: `/projects/${encodeURIComponent(projectCode)}`,
+  });
 };
 
 const VALID_TRANSITIONS: Record<string, string[]> = {

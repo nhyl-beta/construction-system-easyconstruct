@@ -102,6 +102,7 @@ export interface WorkflowWithStages {
   aiNote: string | null;
   status: string;
   createdBy: string;
+  createdByUserId: number | null;
   createdAt: Date | null;
   updatedAt: Date | null;
   stages: {

@@ -4,6 +4,7 @@ import { projects } from "../db/schema/projects.js";
 import { and, desc, eq, ilike, SQL } from "drizzle-orm";
 import { ForbiddenError, ValidationError } from "../utils/errors.js";
 import { assertProjectWritable, refreshProjectProgress } from "../lifecycle/service.js";
+import * as notificationsService from "../notifications/service.js";
 import type {
   CreateRequirementInput,
   UpdateRequirementInput,
@@ -78,7 +79,19 @@ export const update = async (
     .set({ ...data, updatedAt: new Date() })
     .where(eq(requirements.id, id))
     .returning();
-  if (updated) await refreshProjectProgress(updated.project);
+  if (updated) {
+    await refreshProjectProgress(updated.project);
+    // J2: requirements has no author userId (createdBy is a display name),
+    // so this reaches whoever is actually staffed as engineer on the
+    // project rather than the specific author.
+    if (data.status && DECISION_STATUSES.has(data.status)) {
+      await notificationsService.notifyProject(updated.project, ["engineer"], {
+        title: `Requirement ${data.status.toLowerCase()}`,
+        body: `"${updated.title}" was ${data.status.toLowerCase()} on ${updated.project}`,
+        link: `/projects/${encodeURIComponent(updated.project)}`,
+      });
+    }
+  }
   return updated ?? null;
 };
 

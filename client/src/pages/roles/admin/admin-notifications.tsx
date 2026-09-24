@@ -1,5 +1,6 @@
 import { useMemo, useState } from "react";
 import { Bell, Check } from "lucide-react";
+import { useNavigate } from "react-router";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
@@ -19,6 +20,7 @@ const TYPE_TONE: Record<string, string> = {
 export default function AdminNotificationsPage() {
   const { notifications, loading, error, marking, markRead } = useNotifications();
   const [filter, setFilter] = useState<"all" | "unread">("all");
+  const navigate = useNavigate();
 
   const visible = useMemo(
     () => (filter === "unread" ? notifications.filter((n) => !n.isRead) : notifications),
@@ -61,9 +63,15 @@ export default function AdminNotificationsPage() {
             {visible.map((n) => (
               <div
                 key={n.id}
+                role={n.link ? "button" : undefined}
+                tabIndex={n.link ? 0 : undefined}
+                onClick={() => {
+                  if (!n.isRead) void markRead(n.id);
+                  if (n.link) navigate(n.link);
+                }}
                 className={`flex items-start justify-between gap-3 rounded-xl border px-4 py-3 ${
-                  n.isRead ? "border-border/70 bg-card" : "border-primary/30 bg-primary-soft/40"
-                }`}
+                  n.link ? "cursor-pointer" : ""
+                } ${n.isRead ? "border-border/70 bg-card" : "border-primary/30 bg-primary-soft/40"}`}
               >
                 <div className="flex items-start gap-3">
                   <div className={`mt-1 h-2 w-2 shrink-0 rounded-full ${n.isRead ? "bg-muted-foreground/30" : "bg-primary"}`} />
@@ -89,7 +97,10 @@ export default function AdminNotificationsPage() {
                     variant="outline"
                     className="h-8 shrink-0 rounded-lg"
                     disabled={marking === n.id}
-                    onClick={() => markRead(n.id)}
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      void markRead(n.id);
+                    }}
                   >
                     <Check className="h-3.5 w-3.5" />
                     {marking === n.id ? "Saving…" : "Mark read"}

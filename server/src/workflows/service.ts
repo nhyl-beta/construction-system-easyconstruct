@@ -163,6 +163,7 @@ const attachStages = async (rows: (typeof import("../db/schema/workflows.js").wo
     aiNote: w.aiNote,
     status: w.status,
     createdBy: w.createdBy,
+    createdByUserId: w.createdByUserId,
     createdAt: w.createdAt,
     updatedAt: w.updatedAt,
     stages: (stagesByWorkflow.get(w.id) ?? []).map((s) => ({
@@ -228,6 +229,7 @@ export const createWorkflow = async (
   input: CreateWorkflowInput,
   createdBy: string,
   createdByRole?: string,
+  createdByUserId?: number,
 ): Promise<WorkflowWithStages> => {
   const template = await repo.findTemplateById(input.templateId);
   if (!template) throw new ValidationError(`Unknown workflow template ${input.templateId}`);
@@ -263,6 +265,7 @@ export const createWorkflow = async (
     aiNote: null,
     status: "active",
     createdBy,
+    createdByUserId: createdByUserId ?? null,
   });
   if (!workflow) throw new Error("Failed to create workflow");
 
@@ -326,6 +329,22 @@ export const createWorkflow = async (
       // A single-stage workflow: the initiator's own step was the only one.
       await repo.updateWorkflowStatus(workflow.id, "completed");
     }
+  }
+
+  // J2: whichever stage actually ends up "current" after the auto-approve
+  // above (stage 1 itself, or stage 2 if stage 1 was auto-approved) gets its
+  // owning role notified that something is waiting on them — covers
+  // "Proposal submitted", "Budget change submitted", etc. for every
+  // template generically, rather than one bespoke notification per domain.
+  const openingStage = firstStage && createdByRole && firstStage.role === createdByRole
+    ? insertedStages.find((stage) => stage.sequence === 2)
+    : firstStage;
+  if (openingStage) {
+    await notificationsService.notifyProject(input.projectCode, [openingStage.role], {
+      title: `${template.name} needs your review`,
+      body: `"${input.title}" (${workflow.code}) on ${input.projectCode} is waiting on your ${openingStage.roleLabel} decision.`,
+      link: "/workflows",
+    });
   }
 
   // A new active workflow can flip gate K4 (Construction exit: "no active
@@ -490,9 +509,27 @@ export const decideStage = async (
     });
   };
 
+  // J2: tells the workflow's own initiator the outcome — createdByUserId is
+  // only set on workflows created after that column existed, so a legacy
+  // row just doesn't get this (best-effort, not a hard requirement).
+  const notifyInitiator = async (title: string, body: string) => {
+    if (!owningWorkflow?.createdByUserId) return;
+    await notificationsService.create({
+      recipientUserId: owningWorkflow.createdByUserId,
+      title,
+      body,
+      link: "/workflows",
+      projectCode: owningWorkflow.projectCode,
+    });
+  };
+
   if (input.decision === "reject") {
     await repo.updateWorkflowStatus(workflowId, "rejected");
     await syncLinkedProposal("Rejected");
+    await notifyInitiator(
+      "Workflow rejected",
+      `"${owningWorkflow?.title}" (${owningWorkflow?.code}) was rejected at the ${stage.roleLabel} stage.`,
+    );
   } else if (input.decision === "revise") {
     await syncLinkedProposal("Revision Requested");
   } else if (input.decision === "approve") {
@@ -500,10 +537,22 @@ export const decideStage = async (
     const next = allStages.find((s) => s.sequence === stage.sequence + 1);
     if (next) {
       await repo.updateStage(next.id, { status: "current" });
+      // J2: the next stage's owning role now has something waiting on them.
+      if (owningWorkflow) {
+        await notificationsService.notifyProject(owningWorkflow.projectCode, [next.role], {
+          title: `${owningWorkflow.title} needs your review`,
+          body: `"${owningWorkflow.title}" (${owningWorkflow.code}) is waiting on your ${next.roleLabel} decision.`,
+          link: "/workflows",
+        });
+      }
     } else {
       await repo.updateWorkflowStatus(workflowId, "completed");
       await syncLinkedProposal("Approved");
       await syncLinkedBudgetChange();
+      await notifyInitiator(
+        "Workflow approved",
+        `"${owningWorkflow?.title}" (${owningWorkflow?.code}) has completed approval.`,
+      );
     }
   }
   // "revise" leaves the workflow status as-is and the stage in

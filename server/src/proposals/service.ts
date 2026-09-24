@@ -85,6 +85,7 @@ export const proposalService = {
     data: any,
     createdBy: string,
     createdByRole: string,
+    createdByUserId?: number,
   ) {
     const [project] = await db.select().from(projects).where(eq(projects.code, data.projectCode));
     if (!project) {
@@ -133,6 +134,7 @@ export const proposalService = {
       },
       createdBy,
       createdByRole,
+      createdByUserId,
     );
 
     const linked = await proposalRepository.update(proposal.id, { workflowId: workflow.id });

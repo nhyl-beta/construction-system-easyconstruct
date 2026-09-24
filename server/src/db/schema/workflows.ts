@@ -9,6 +9,7 @@ import {
   varchar,
 } from "drizzle-orm/pg-core";
 import { budgets } from "./finance.js";
+import { users } from "./users.js";
 
 export interface WorkflowStageDefinition {
   role: string;
@@ -42,6 +43,11 @@ export const workflows = pgTable("workflows", {
   aiNote: varchar("ai_note", { length: 500 }),
   status: varchar("status", { length: 30 }).notNull().default("active"),
   createdBy: varchar("created_by", { length: 100 }).notNull(),
+  // J2: lets decideStage notify the initiator directly on the workflow's
+  // outcome (rejected / final-approved) — createdBy is a denormalized
+  // display name, not a usable recipient. Nullable so legacy rows (created
+  // before this column existed) just don't get that notification.
+  createdByUserId: integer("created_by_user_id").references(() => users.id),
   createdAt: timestamp("created_at").defaultNow(),
   updatedAt: timestamp("updated_at").defaultNow(),
 });

@@ -66,6 +66,7 @@ export const proposalController = {
       req.body,
       req.authUser?.name ?? req.body.submittedBy ?? "unknown",
       req.authUser?.role ?? "",
+      req.authUser?.id,
     );
 
     await logAudit({

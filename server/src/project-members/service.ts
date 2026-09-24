@@ -34,17 +34,16 @@ export const create = async (
   const created = await repo.create(input);
   if (!created) throw new Error("Failed to add project member");
 
-  // Architect had no way to learn they'd been staffed on a project short of
-  // stumbling onto it in the project list — notify the same way every other
-  // role-scoped event does (see notifications/service.ts).
-  if (created.role === "architect") {
-    await notificationsService.create({
-      recipientRole: "architect",
-      title: "Assigned to a project",
-      body: `${created.userName} was assigned to project ${created.projectCode}.`,
-      link: `/architect/projects`,
-    });
-  }
+  // J2: was architect-only, and broadcast to every architect org-wide
+  // rather than the one actually staffed — notify the specific person added,
+  // whatever their role.
+  await notificationsService.create({
+    recipientUserId: created.userId,
+    title: "Assigned to a project",
+    body: `You were assigned to project ${created.projectCode} as ${created.role}.`,
+    link: `/projects/${encodeURIComponent(created.projectCode)}`,
+    projectCode: created.projectCode,
+  });
 
   await refreshProjectProgress(created.projectCode);
   return created;
@@ -57,14 +56,13 @@ export const remove = async (id: number, requesterRole: string, requesterName: s
   const deleted = await repo.remove(id);
   if (!deleted) throw new NotFoundError("Project member", String(id));
 
-  if (deleted.role === "architect") {
-    await notificationsService.create({
-      recipientRole: "architect",
-      title: "Removed from a project",
-      body: `${deleted.userName} was removed from project ${deleted.projectCode}.`,
-      link: `/architect/projects`,
-    });
-  }
+  await notificationsService.create({
+    recipientUserId: deleted.userId,
+    title: "Removed from a project",
+    body: `You were removed from project ${deleted.projectCode}.`,
+    link: `/projects/${encodeURIComponent(deleted.projectCode)}`,
+    projectCode: deleted.projectCode,
+  });
 
   await refreshProjectProgress(deleted.projectCode);
   return deleted;

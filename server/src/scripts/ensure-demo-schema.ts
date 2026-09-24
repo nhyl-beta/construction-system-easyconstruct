@@ -206,6 +206,11 @@ async function main() {
     ALTER TABLE workflows
       ADD COLUMN IF NOT EXISTS budget_id integer REFERENCES budgets(id);
 
+    -- J2: lets a workflow decision notify the initiator directly — createdBy
+    -- is a denormalized display name, not a usable notification recipient.
+    ALTER TABLE workflows
+      ADD COLUMN IF NOT EXISTS created_by_user_id integer REFERENCES users(id);
+
     -- Payroll deductions were one flat 12% figure standing in for every
     -- statutory contribution at once. Philippine payroll is four separate
     -- computations (SSS, PhilHealth, Pag-IBIG, BIR withholding tax) on

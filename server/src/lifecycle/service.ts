@@ -230,36 +230,19 @@ const assertCanCancel = (
 
 // ── Notifications (4.5) ──────────────────────────────────────────────────
 //
-// A minimal, project-scoped notifier — membership-scoped roles resolve to
-// the actual staffed users, org-wide roles broadcast by role. J1 generalizes
-// this into notifications/service.notifyProject for every other domain
-// event; lifecycle is its first caller, not its only one.
+// J1: thin wrapper around notifications/service.notifyProject — every
+// staffed role on the project, plus the PM.
 const notifyProjectMembersAndPm = async (
   snapshot: LifecycleSnapshot,
   title: string,
   body: string,
 ) => {
-  const link = `/projects/${encodeURIComponent(snapshot.project.code)}`;
-  const recipientUserIds = new Set(snapshot.members.map((m) => m.userId));
-  if (snapshot.project.pmUserId != null) recipientUserIds.add(snapshot.project.pmUserId);
-
-  const perUser = Array.from(recipientUserIds).map((recipientUserId) =>
-    notificationsService.create({
-      recipientUserId,
-      title,
-      body,
-      link,
-      projectCode: snapshot.project.code,
-    }),
-  );
-  // pmUserId unset (legacy/backfill gap) — fall back to a role broadcast so
-  // the PM still hears about their own project.
-  const pmBroadcast =
-    snapshot.project.pmUserId == null
-      ? [notificationsService.create({ recipientRole: "project-manager", title, body, link, projectCode: snapshot.project.code })]
-      : [];
-
-  await Promise.all([...perUser, ...pmBroadcast]);
+  const roles = [...new Set(snapshot.members.map((m) => m.role)), "project-manager"];
+  await notificationsService.notifyProject(snapshot.project.code, roles, {
+    title,
+    body,
+    link: `/projects/${encodeURIComponent(snapshot.project.code)}`,
+  });
 };
 
 const notifyEnteringPhase = async (snapshot: LifecycleSnapshot, phase: SequencedPhase) => {
@@ -273,14 +256,17 @@ const notifyEnteringPhase = async (snapshot: LifecycleSnapshot, phase: Sequenced
     }
   }
   const link = `/projects/${encodeURIComponent(snapshot.project.code)}`;
+  // Each role's own gate checks give it its own body text, so this is one
+  // notifyProject call per role rather than a single multi-role call — but
+  // still routed through it (not a bare recipientRole broadcast) so a
+  // staffable role like "engineer" reaches the engineer(s) actually staffed
+  // on this project, not every engineer in the org.
   await Promise.all(
     Array.from(rolesToChecks.entries()).map(([role, roleChecks]) =>
-      notificationsService.create({
-        recipientRole: role,
+      notificationsService.notifyProject(snapshot.project.code, [role], {
         title: `Project entering ${phase}`,
         body: `${snapshot.project.code}: ${roleChecks.map((c) => c.label).join(", ")} needed.`,
         link,
-        projectCode: snapshot.project.code,
       }),
     ),
   );

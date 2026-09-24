@@ -115,7 +115,7 @@ export const remove = async (req: AuthedRequest, res: Response, next: NextFuncti
 export const create = async (req: AuthedRequest, res: Response, next: NextFunction) => {
   try {
     const createdBy = req.authUser?.name ?? req.authUser?.email ?? "unknown";
-    const data = await service.createWorkflow(req.body, createdBy, req.authUser?.role);
+    const data = await service.createWorkflow(req.body, createdBy, req.authUser?.role, req.authUser?.id);
     await logAudit({
       entityType: "workflow",
       entityId: String(data.id),
