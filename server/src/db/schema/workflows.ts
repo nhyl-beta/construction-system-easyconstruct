@@ -137,6 +137,11 @@ export const workflowLineItems = pgTable("workflow_line_items", {
   requestedAmount: numeric("requested_amount", { precision: 14, scale: 2 })
     .notNull()
     .default("0"),
+  // ai-signals B2: optional inputs for the decision-support cost comparison
+  // (ai-validation/service.ts) — without both, a line is a "no-match" by
+  // definition, never an error.
+  quantity: numeric("quantity", { precision: 14, scale: 3 }),
+  unit: varchar("unit", { length: 20 }),
   createdAt: timestamp("created_at").defaultNow(),
 });
 

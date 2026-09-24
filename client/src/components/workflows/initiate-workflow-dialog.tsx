@@ -35,6 +35,7 @@ import {
 } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
 import { ProjectPicker } from "@/components/shared/project-picker";
+import { FEATURES } from "@/config/features";
 import {
   useWorkflowInitiation,
   type InitiateWorkflowInput,
@@ -57,6 +58,8 @@ interface DraftLineItem {
   description: string;
   currentAmount: string;
   requestedAmount: string;
+  quantity: string;
+  unit: string;
 }
 
 const emptyLineItem = (): DraftLineItem => ({
@@ -64,7 +67,26 @@ const emptyLineItem = (): DraftLineItem => ({
   description: "",
   currentAmount: "",
   requestedAmount: "",
+  quantity: "",
+  unit: "",
 });
+
+// ai-signals C6: only units units.ts (server) actually knows how to
+// convert between — anything else is accepted as free-form text elsewhere,
+// but a comparison against the cost catalog needs one of these to have any
+// chance of matching a reference item's unit.
+const LINE_ITEM_UNITS = [
+  { value: "sqm", label: "sq m" },
+  { value: "sqft", label: "sq ft" },
+  { value: "m", label: "m" },
+  { value: "lf", label: "linear ft" },
+  { value: "m3", label: "cu m" },
+  { value: "cy", label: "cu yd" },
+  { value: "kg", label: "kg" },
+  { value: "lb", label: "lb" },
+  { value: "each", label: "each" },
+  { value: "bag", label: "bag" },
+];
 
 export interface InitiateWorkflowDialogProps {
   open: boolean;
@@ -194,6 +216,8 @@ export function InitiateWorkflowDialog({
         description: item.description.trim(),
         currentAmount: Number(item.currentAmount || 0),
         requestedAmount: Number(item.requestedAmount),
+        quantity: item.quantity.trim() ? Number(item.quantity) : undefined,
+        unit: item.unit.trim() ? item.unit : undefined,
       }));
       // The headline amount is the net movement the line items add up to, so
       // the queue's amount column and the line items can never disagree.
@@ -312,66 +336,99 @@ export function InitiateWorkflowDialog({
               </div>
 
               {lineItems.map((item, index) => (
-                <div
-                  key={index}
-                  className="grid grid-cols-1 gap-2 rounded-lg bg-muted/30 p-2 md:grid-cols-[minmax(0,9rem)_minmax(0,1fr)_7rem_7rem_2rem]"
-                >
-                  <Select
-                    value={item.category}
-                    onValueChange={(v) =>
-                      updateLineItem(index, { category: v as WorkflowLineItemCategory })
-                    }
-                    disabled={submitting}
-                  >
-                    <SelectTrigger className="h-9">
-                      <SelectValue />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {LINE_ITEM_CATEGORIES.map((c) => (
-                        <SelectItem key={c.value} value={c.value}>
-                          {c.label}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                  <Input
-                    className="h-9"
-                    value={item.description}
-                    onChange={(e) => updateLineItem(index, { description: e.target.value })}
-                    placeholder="What is changing"
-                    disabled={submitting}
-                  />
-                  <Input
-                    className="h-9"
-                    type="number"
-                    min="0"
-                    value={item.currentAmount}
-                    onChange={(e) => updateLineItem(index, { currentAmount: e.target.value })}
-                    placeholder="Current"
-                    disabled={submitting}
-                  />
-                  <Input
-                    className="h-9"
-                    type="number"
-                    min="0"
-                    value={item.requestedAmount}
-                    onChange={(e) => updateLineItem(index, { requestedAmount: e.target.value })}
-                    placeholder="Requested"
-                    disabled={submitting}
-                  />
-                  <Button
-                    type="button"
-                    size="icon"
-                    variant="ghost"
-                    className="h-9 w-9 rounded-lg text-destructive hover:text-destructive"
-                    title="Remove this change"
-                    disabled={submitting || lineItems.length === 1}
-                    onClick={() =>
-                      setLineItems((prev) => prev.filter((_, i) => i !== index))
-                    }
-                  >
-                    <Trash2 className="h-3.5 w-3.5" />
-                  </Button>
+                <div key={index} className="rounded-lg bg-muted/30 p-2">
+                  <div className="grid grid-cols-1 gap-2 md:grid-cols-[minmax(0,9rem)_minmax(0,1fr)_7rem_7rem_2rem]">
+                    <Select
+                      value={item.category}
+                      onValueChange={(v) =>
+                        updateLineItem(index, { category: v as WorkflowLineItemCategory })
+                      }
+                      disabled={submitting}
+                    >
+                      <SelectTrigger className="h-9">
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {LINE_ITEM_CATEGORIES.map((c) => (
+                          <SelectItem key={c.value} value={c.value}>
+                            {c.label}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                    <Input
+                      className="h-9"
+                      value={item.description}
+                      onChange={(e) => updateLineItem(index, { description: e.target.value })}
+                      placeholder="What is changing"
+                      disabled={submitting}
+                    />
+                    <Input
+                      className="h-9"
+                      type="number"
+                      min="0"
+                      value={item.currentAmount}
+                      onChange={(e) => updateLineItem(index, { currentAmount: e.target.value })}
+                      placeholder="Current"
+                      disabled={submitting}
+                    />
+                    <Input
+                      className="h-9"
+                      type="number"
+                      min="0"
+                      value={item.requestedAmount}
+                      onChange={(e) => updateLineItem(index, { requestedAmount: e.target.value })}
+                      placeholder="Requested"
+                      disabled={submitting}
+                    />
+                    <Button
+                      type="button"
+                      size="icon"
+                      variant="ghost"
+                      className="h-9 w-9 rounded-lg text-destructive hover:text-destructive"
+                      title="Remove this change"
+                      disabled={submitting || lineItems.length === 1}
+                      onClick={() =>
+                        setLineItems((prev) => prev.filter((_, i) => i !== index))
+                      }
+                    >
+                      <Trash2 className="h-3.5 w-3.5" />
+                    </Button>
+                  </div>
+
+                  <div className="mt-2 grid grid-cols-2 gap-2 md:grid-cols-[7rem_9rem_1fr]">
+                    <Input
+                      className="h-9"
+                      type="number"
+                      min="0"
+                      step="any"
+                      value={item.quantity}
+                      onChange={(e) => updateLineItem(index, { quantity: e.target.value })}
+                      placeholder="Quantity"
+                      disabled={submitting}
+                    />
+                    <Select
+                      value={item.unit}
+                      onValueChange={(v) => updateLineItem(index, { unit: v })}
+                      disabled={submitting}
+                    >
+                      <SelectTrigger className="h-9">
+                        <SelectValue placeholder="Unit" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {LINE_ITEM_UNITS.map((u) => (
+                          <SelectItem key={u.value} value={u.value}>
+                            {u.label}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                    {FEATURES.ai && (
+                      <p className="col-span-2 self-center text-xs text-muted-foreground md:col-span-1">
+                        Add quantity and unit to compare against market cost.
+                      </p>
+                    )}
+                  </div>
                 </div>
               ))}
             </div>

@@ -265,6 +265,19 @@ export const uploadAttachment = async (req: AuthedRequest, res: Response, next: 
   }
 };
 
+// ai-signals C8: re-runs the decision-support cost comparison on demand
+// (e.g. after the reference catalog has been refreshed). Never fails the
+// request over a validation-side error — service.revalidateWorkflow itself
+// swallows those and just returns the workflow unchanged.
+export const revalidate = async (req: AuthedRequest, res: Response, next: NextFunction) => {
+  try {
+    const data = await service.revalidateWorkflow(Number(req.params.id));
+    res.json(formatSuccess(data, MSG.workflows.updated));
+  } catch (err) {
+    next(err);
+  }
+};
+
 // Finance's budget-change review: every request raised from the Budget Change
 // Request template, each carrying the line items behind its headline amount.
 export const getBudgetChangeRequests = async (

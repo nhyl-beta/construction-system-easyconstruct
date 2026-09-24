@@ -19,6 +19,11 @@ export const workflowLineItemSchema = z.object({
   description: z.string().min(1).max(255),
   currentAmount: z.number().optional(),
   requestedAmount: z.number(),
+  // ai-signals: optional inputs for the decision-support cost comparison —
+  // without both, the line is simply never compared (a "no-match" reason,
+  // not a validation error).
+  quantity: z.number().positive().optional(),
+  unit: z.string().min(1).max(20).optional(),
 });
 
 export const createWorkflowSchema = z.object({

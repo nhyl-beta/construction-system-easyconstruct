@@ -123,4 +123,12 @@ router.post(
   controller.resubmitStage,
 );
 
+// ai-signals C8: manual "re-check market cost" — decision support only,
+// so it needs no gate beyond who's allowed to review the numbers at all.
+router.post(
+  "/:id/revalidate",
+  requireRole("finance-manager", "admin"),
+  controller.revalidate,
+);
+
 export default router;

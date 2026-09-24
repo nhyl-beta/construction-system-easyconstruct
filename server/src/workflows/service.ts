@@ -3,6 +3,10 @@ import { assertProjectWritable, refreshProjectProgress } from "../lifecycle/serv
 import { CLOSEOUT_TEMPLATE_NAME } from "../lifecycle/repository.js";
 import { proposalRepository } from "../proposals/repository.js";
 import * as notificationsService from "../notifications/service.js";
+import { validateWorkflowLineItems } from "../ai-validation/service.js";
+import * as validationRepo from "../ai-validation/repository.js";
+import type { LineItemValidationSummary } from "../ai-validation/types.js";
+import { FEATURES } from "../config/features.js";
 import * as budgetService from "../finance/budget/service.js";
 import * as budgetAdjustmentsService from "../finance/budget-adjustments/service.js";
 import * as projectsRepo from "../projects/repository.js";
@@ -21,6 +25,11 @@ import type {
   WorkflowLineItemRecord,
   WorkflowWithStages,
 } from "./types.js";
+
+// ai-signals C5: only these two templates carry cost line items worth
+// comparing against a market-rate catalog — every other template's line
+// items (if any) are non-monetary or out of scope for this pass.
+const COST_COMPARABLE_TEMPLATES = new Set(["Budget Change Request", "Change Order Request"]);
 
 // Same ownership rule used for project-engineers (EC-017): admin may manage
 // any workflow; anyone else only the one they created. IT Designer used to
@@ -128,6 +137,25 @@ const attachStages = async (rows: (typeof import("../db/schema/workflows.js").wo
   ]);
   const templateNameById = new Map(templates.map((t) => [t.id, t.name]));
 
+  // ai-signals C7: decision support only — the flag gates whether this even
+  // runs, and a validation result can never change what attachStages
+  // returns for approval purposes (stages/status/amount are untouched).
+  const validationByLineItemId = new Map<number, LineItemValidationSummary>();
+  if (FEATURES.ai) {
+    const latest = await validationRepo.findLatestByLineItemIds(lineItemRows.map((li) => li.id));
+    for (const [lineItemId, row] of latest) {
+      validationByLineItemId.set(lineItemId, {
+        verdict: row.verdict as LineItemValidationSummary["verdict"],
+        variancePct: row.variancePct != null ? Number(row.variancePct) : null,
+        referenceLowPhp: row.referenceLowPhp != null ? Number(row.referenceLowPhp) : null,
+        referenceMidPhp: row.referenceMidPhp != null ? Number(row.referenceMidPhp) : null,
+        referenceHighPhp: row.referenceHighPhp != null ? Number(row.referenceHighPhp) : null,
+        basisSummary: row.basisSummary,
+        sources: row.sources as LineItemValidationSummary["sources"],
+      });
+    }
+  }
+
   const stagesByWorkflow = new Map<number, typeof stages>();
   for (const s of stages) {
     const list = stagesByWorkflow.get(s.workflowId) ?? [];
@@ -145,7 +173,7 @@ const attachStages = async (rows: (typeof import("../db/schema/workflows.js").wo
   const lineItemsByWorkflow = new Map<number, WorkflowLineItemRecord[]>();
   for (const item of lineItemRows) {
     const list = lineItemsByWorkflow.get(item.workflowId) ?? [];
-    list.push(item);
+    list.push({ ...item, validation: validationByLineItemId.get(item.id) ?? null });
     lineItemsByWorkflow.set(item.workflowId, list);
   }
 
@@ -182,6 +210,17 @@ const attachStages = async (rows: (typeof import("../db/schema/workflows.js").wo
     attachments: attachmentsByWorkflow.get(w.id) ?? [],
     lineItems: lineItemsByWorkflow.get(w.id) ?? [],
   }));
+};
+
+// ai-signals C8: a manual re-check, for when the cached catalog has been
+// refreshed since the workflow was raised. Same non-blocking guarantee as
+// C5 — never throws, never changes what the workflow's own status/stages
+// are, only its aiNote and validation_results rows.
+export const revalidateWorkflow = async (id: number): Promise<WorkflowWithStages> => {
+  await validateWorkflowLineItems(id).catch((error) =>
+    console.error(`[ai-validation] revalidateWorkflow(${id}) threw:`, error),
+  );
+  return getWorkflowById(id);
 };
 
 export const getActiveWorkflows = async (): Promise<WorkflowWithStages[]> => {
@@ -298,8 +337,20 @@ export const createWorkflow = async (
         description: item.description,
         currentAmount: (item.currentAmount ?? 0).toFixed(2),
         requestedAmount: item.requestedAmount.toFixed(2),
+        quantity: item.quantity != null ? item.quantity.toFixed(3) : null,
+        unit: item.unit ?? null,
       })),
     );
+
+    // ai-signals C5: decision support only, never a gate — a thrown error
+    // here must not stop the workflow that already exists above from being
+    // returned to the caller, so this is awaited (bounded by the reference
+    // client's own 5s timeout) but never allowed to propagate.
+    if (FEATURES.ai && COST_COMPARABLE_TEMPLATES.has(template.name)) {
+      await validateWorkflowLineItems(workflow.id).catch((error) =>
+        console.error(`[ai-validation] validateWorkflowLineItems(${workflow.id}) threw:`, error),
+      );
+    }
   }
 
   // Auto-approve the initiator's own stage. The role that raises a workflow

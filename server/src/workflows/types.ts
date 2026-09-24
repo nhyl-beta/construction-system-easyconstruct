@@ -48,6 +48,8 @@ export interface WorkflowLineItemInput {
   description: string;
   currentAmount?: number;
   requestedAmount: number;
+  quantity?: number;
+  unit?: string;
 }
 
 export interface WorkflowLineItemRecord {
@@ -57,7 +59,12 @@ export interface WorkflowLineItemRecord {
   description: string;
   currentAmount: string;
   requestedAmount: string;
+  quantity: string | null;
+  unit: string | null;
   createdAt: Date | null;
+  // ai-signals C7: only populated when FEATURES.ai is on — see
+  // workflows/service.ts attachStages.
+  validation?: import("../ai-validation/types.js").LineItemValidationSummary | null;
 }
 
 export interface CreateWorkflowInput {

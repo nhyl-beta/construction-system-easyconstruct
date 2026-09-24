@@ -359,6 +359,77 @@ async function main() {
     -- project code reliably instead of substring-matching free-text summary.
     ALTER TABLE audit_logs
       ADD COLUMN IF NOT EXISTS project_code varchar(50);
+
+    -- ai-signals B1: cached EstimationPro.ai catalog rows (retrieve, don't
+    -- generate — nothing here is written except by reference-client.ts's
+    -- upsert). Unique on (source, source_item_id) so re-fetching the same
+    -- catalog item updates it in place instead of duplicating rows.
+    CREATE TABLE IF NOT EXISTS reference_snapshots (
+      id serial PRIMARY KEY,
+      source varchar(50) NOT NULL DEFAULT 'estimationpro',
+      source_item_id varchar(100) NOT NULL,
+      trade varchar(50) NOT NULL,
+      description text NOT NULL,
+      unit varchar(30) NOT NULL,
+      low_usd numeric(12, 2) NOT NULL,
+      typical_usd numeric(12, 2) NOT NULL,
+      high_usd numeric(12, 2) NOT NULL,
+      region_multiplier numeric(6, 3),
+      volatility varchar(20),
+      currency varchar(10) NOT NULL DEFAULT 'USD',
+      source_url varchar(500),
+      raw_payload jsonb,
+      fetched_at timestamp NOT NULL DEFAULT now(),
+      CONSTRAINT reference_snapshots_source_item_unique UNIQUE (source, source_item_id)
+    );
+
+    -- ai-signals B1: one row per workflow line item per comparison run.
+    -- "no-match" rows are kept (basis_summary always says why) so a UI
+    -- badge can show "No comparable reference" with a reason.
+    CREATE TABLE IF NOT EXISTS validation_results (
+      id serial PRIMARY KEY,
+      entity_type varchar(30) NOT NULL DEFAULT 'workflow_line_item',
+      entity_id integer NOT NULL,
+      workflow_id integer NOT NULL REFERENCES workflows(id) ON DELETE CASCADE,
+      project_code varchar(50) NOT NULL,
+      line_description varchar(255) NOT NULL,
+      line_quantity numeric(14, 3),
+      line_unit varchar(20),
+      project_value_php numeric(14, 2) NOT NULL,
+      matched_snapshot_id integer REFERENCES reference_snapshots(id) ON DELETE SET NULL,
+      match_score numeric(4, 3),
+      reference_unit varchar(30),
+      unit_factor numeric(14, 6),
+      reference_low_usd numeric(14, 2),
+      reference_mid_usd numeric(14, 2),
+      reference_high_usd numeric(14, 2),
+      reference_low_php numeric(14, 2),
+      reference_mid_php numeric(14, 2),
+      reference_high_php numeric(14, 2),
+      fx_rate_used numeric(8, 4) NOT NULL,
+      fx_rate_as_of varchar(20) NOT NULL,
+      variance_pct numeric(8, 4),
+      verdict varchar(20) NOT NULL,
+      basis_summary text NOT NULL,
+      sources jsonb,
+      created_at timestamp NOT NULL DEFAULT now()
+    );
+
+    -- ai-signals B2: quantity/unit inputs a line item needs before its cost
+    -- can be compared against the reference catalog at all — nullable since
+    -- most existing line items (and any without a sensible unit) simply
+    -- can't be compared, which cost.ts treats as a "no-match" reason, not
+    -- an error.
+    ALTER TABLE workflow_line_items
+      ADD COLUMN IF NOT EXISTS quantity numeric(14, 3),
+      ADD COLUMN IF NOT EXISTS unit varchar(20);
+
+    -- ai-signals B3: found live while seeding — some EstimationPro.ai
+    -- descriptions run past 500 characters, well beyond the varchar(255)
+    -- this table was first created with. Widen it if an earlier run of this
+    -- script already created the table with the narrower type.
+    ALTER TABLE reference_snapshots
+      ALTER COLUMN description TYPE text;
   `);
 
   console.log("Demo schema tables and compatibility columns are ready.");

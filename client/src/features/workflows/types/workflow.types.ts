@@ -66,6 +66,29 @@ export type WorkflowLineItemCategory =
   | "subcontractor"
   | "other";
 
+export type ValidationVerdict = "within-range" | "above-typical" | "below-typical" | "no-match";
+
+export interface LineItemValidationSource {
+  source: string;
+  itemName: string;
+  sourceUrl: string | null;
+  fetchedAt: string;
+  fxRate?: number;
+  fxAsOf?: string;
+}
+
+/** Decision-support cost comparison for one line item — only present when
+ * FEATURES.ai is on server-side. Never affects approval. */
+export interface LineItemValidationSummary {
+  verdict: ValidationVerdict;
+  variancePct: number | null;
+  referenceLowPhp: number | null;
+  referenceMidPhp: number | null;
+  referenceHighPhp: number | null;
+  basisSummary: string;
+  sources: LineItemValidationSource[] | null;
+}
+
 /** One cost change behind a budget-change request's headline amount. */
 export interface WorkflowLineItem {
   id: number;
@@ -74,7 +97,10 @@ export interface WorkflowLineItem {
   description: string;
   currentAmount: string;
   requestedAmount: string;
+  quantity: string | null;
+  unit: string | null;
   createdAt: string | null;
+  validation?: LineItemValidationSummary | null;
 }
 
 export interface WorkflowAttachmentInput {
@@ -92,6 +118,8 @@ export interface WorkflowLineItemInput {
   description: string;
   currentAmount?: number;
   requestedAmount: number;
+  quantity?: number;
+  unit?: string;
 }
 
 export type WorkflowStatus = "active" | "completed" | "rejected" | "cancelled";

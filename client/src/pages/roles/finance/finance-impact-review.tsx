@@ -29,8 +29,11 @@ import {
 } from "@/components/workflows/workflow-submission-panel";
 import { WorkflowStagePipeline } from "@/components/workflows/workflow-stage-pipeline";
 import { useBudgetChangeRequests } from "@/features/workflows/hooks/useWorkflows";
+import { WorkflowRepository } from "@/features/workflows/repositories/workflow.repository";
 import { formatCurrency } from "@/lib/format-currency";
 import { formatRelativeTime } from "@/lib/format-relative-time";
+import { FEATURES } from "@/config/features";
+import { RefreshCw } from "lucide-react";
 import type { Workflow } from "@/features/workflows/types/workflow.types";
 
 function netChangeOf(workflow: Workflow): number {
@@ -40,10 +43,24 @@ function netChangeOf(workflow: Workflow): number {
   );
 }
 
-function RequestCard({ request }: { request: Workflow }) {
+function RequestCard({ request, onRevalidated }: { request: Workflow; onRevalidated: () => void }) {
   const [expanded, setExpanded] = useState(false);
+  const [revalidating, setRevalidating] = useState(false);
   const netChange = netChangeOf(request);
   const currentStage = request.stages.find((stage) => stage.status === "current");
+
+  const handleRevalidate = async () => {
+    setRevalidating(true);
+    try {
+      await WorkflowRepository.revalidate(request.id);
+      onRevalidated();
+    } catch {
+      // Decision support only — a failed re-check is not worth surfacing
+      // as a page-level error, the stale badge just stays as it was.
+    } finally {
+      setRevalidating(false);
+    }
+  };
 
   return (
     <Card className="rounded-2xl border-border/70 shadow-sm">
@@ -114,9 +131,24 @@ function RequestCard({ request }: { request: Workflow }) {
         {expanded && (
           <div className="mt-4 space-y-5 border-t border-border/60 pt-4">
             <section className="space-y-2">
-              <h3 className="text-xs font-medium uppercase tracking-wider text-muted-foreground">
-                Requested changes
-              </h3>
+              <div className="flex items-center justify-between">
+                <h3 className="text-xs font-medium uppercase tracking-wider text-muted-foreground">
+                  Requested changes
+                </h3>
+                {FEATURES.ai && request.lineItems.length > 0 && (
+                  <Button
+                    type="button"
+                    size="sm"
+                    variant="ghost"
+                    className="h-7 rounded-lg text-xs"
+                    disabled={revalidating}
+                    onClick={handleRevalidate}
+                  >
+                    <RefreshCw className={`h-3.5 w-3.5 ${revalidating ? "animate-spin" : ""}`} />
+                    {revalidating ? "Re-checking…" : "Re-check market cost"}
+                  </Button>
+                )}
+              </div>
               {request.lineItems.length > 0 ? (
                 <WorkflowLineItemsTable lineItems={request.lineItems} />
               ) : (
@@ -153,7 +185,7 @@ function RequestCard({ request }: { request: Workflow }) {
 }
 
 export default function ImpactReviewPage() {
-  const { requests, loading, error } = useBudgetChangeRequests();
+  const { requests, loading, error, reload } = useBudgetChangeRequests();
 
   const kpis = useMemo(() => {
     const open = requests.filter((r) => r.status === "active");
@@ -204,7 +236,7 @@ export default function ImpactReviewPage() {
 
         <div className="space-y-2">
           {requests.map((request) => (
-            <RequestCard key={request.id} request={request} />
+            <RequestCard key={request.id} request={request} onRevalidated={() => void reload()} />
           ))}
         </div>
       </PageContent>

@@ -114,4 +114,9 @@ export const WorkflowRepository = {
   async listBudgetChangeRequests(): Promise<Workflow[]> {
     return unwrap<Workflow[]>(apiClient.get("/workflows/budget-change-requests"));
   },
+
+  /** ai-signals C8: re-runs the decision-support cost comparison on demand. */
+  async revalidate(workflowId: number): Promise<Workflow> {
+    return unwrap<Workflow>(apiClient.post(`/workflows/${workflowId}/revalidate`, {}));
+  },
 };
