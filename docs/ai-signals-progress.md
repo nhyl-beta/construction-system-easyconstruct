@@ -53,6 +53,17 @@ Server-side `FEATURES.ai` sites (both real, unchanged): `proposals/service.ts` `
 - **AV-2 (A3):** the HR "AI HR assistant" card was the one placeholder surface that visually implied real, live output (a "Live" badge over static mock data) rather than reading as an obvious stub like the others ("Coming soon", "Not yet connected"). Moved to `aiPlaceholders` like the rest rather than deleting it, per the "hide, don't delete" rule — flagged here since it's the one a reviewer is most likely to have believed was real.
 - **AV-3 (A3):** `providers/resources.ts`'s `resources` export changed from a plain array literal to a filtered one (`allResources` + a conditional `.filter`), the minimal change to stop the nav from linking to a route that only redirects away. No other resource entries were touched.
 
+## Queued UI/UX fixes (user-reported, out of scope for AI-signals — pick up after Group L/Checkpoint 4)
+
+Reported by the user 2026-09-25, not part of the AI-validation decision-support spec. Logged here so they aren't lost, not yet started. Located by a quick grep, not a full read — verify before fixing.
+
+- [ ] **Q1** Notification overflow: with many notifications, the dropdown needs pagination or an infinite-scroll/"load more" instead of one long list. Likely `client/src/components/notifications/notification-bell.tsx`.
+- [ ] **Q2** Consultant proposal review (Design Approval step): no visible affordance for what to click to approve — needs a clearer call-to-action/button styling. Likely `client/src/pages/roles/consultant/consultant-design-reviews.tsx`.
+- [ ] **Q3** Project creation map: scrolling up on the create-project form causes the map to overlap the page header (a z-index/stacking-context issue). Likely `client/src/components/maps/location-map-picker.tsx`, used from the PM project-create page.
+- [ ] **Q4** Finance approvals: creating a budget change should put a red badge/dot on the approvals nav entry or bell to signal something is pending review. Likely ties into `client/src/pages/roles/finance/finance-approvals.tsx` and the sidebar/nav badge pattern (check how other pending-count badges are done, e.g. notification-bell's unread count).
+- [ ] **Q5** No visible interaction affordance for a PM to approve a Final Inspection report during Closeout — same "not obviously clickable" class of issue as Q2. Location not yet pinned down precisely; candidates are the `ProjectLifecyclePanel`/`CloseoutSummaryCard` (`client/src/features/lifecycle/components/`) or a shared engineering-reports view (`client/src/pages/roles/shared/shared-engineer.tsx`) — needs a proper look before fixing.
+- [ ] **Q6** Payroll computation interactions are broken/need fixing on the finance side — vague as reported, needs reproduction first. Candidates: `client/src/pages/roles/finance/finance-payroll-review.tsx`, `finance-dashboard.tsx`, `finance-reports.tsx`.
+
 ## Questions
 
 (none yet)
