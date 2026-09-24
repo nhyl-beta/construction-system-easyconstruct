@@ -55,7 +55,7 @@ Server-side `FEATURES.ai` sites (both real, unchanged): `proposals/service.ts` `
 - [x] **B4** `server/src/ai-validation/cache.ts`: `getReferenceItems()` reads cached rows, triggers exactly one lazy refresh (deduplicated via a shared in-flight promise) when empty or the newest `fetchedAt` is older than the 7-day TTL, falls back to stale rows if the refresh yields nothing.
 - [x] **B5** `server/src/scripts/seed-reference-data.ts` + `npm run ai:seed-references`. **Run live end-to-end**: pulled all 34 trades, 411 items, zero failures on the second run. Verified via direct SQL: `SELECT count(*) FROM reference_snapshots` → 411; spot-checked `concrete` trade's 13 rows for correct `low_usd`/`typical_usd`/`high_usd`/`region_multiplier` (`1.000`, matching the API's `multiplier: 1`) and description length.
   - **Real bug found and fixed while running this live**: some EstimationPro.ai item descriptions run past 500 characters (e.g. the `addition` trade's `master-suite-addition-per-sqft`/`bathroom-addition-per-sqft` items), overflowing the original `varchar(255)` `reference_snapshots.description` column with a Postgres `22001` error. Fixed by widening the column to `text` in both the Drizzle schema and `ensure-demo-schema.ts` (with an `ALTER COLUMN ... TYPE text` for the table already created once with the narrower type) — logged as AV-4.
-  - Commit: `<pending>`.
+  - Commit: `77a8bf7`.
 
 ### C. Cost comparison
 
@@ -67,7 +67,7 @@ Server-side `FEATURES.ai` sites (both real, unchanged): `proposals/service.ts` `
 - [x] **C6** `initiate-workflow-dialog.tsx`: added Quantity + Unit (select, from `units.ts`'s exact-conversion set) to each line-item row; helper text "Add quantity and unit to compare against market cost." shown only when `FEATURES.ai` is on; fields themselves always shown (plain data, not AI-gated).
 - [x] **C7** `attachStages` attaches each line item's latest `validation_results` row (via new `ai-validation/repository.ts findLatestByLineItemIds`) when `FEATURES.ai` is on; new `ai-validation/types.ts LineItemValidationSummary`; client `workflow.types.ts` updated to match (`WorkflowLineItem.validation`).
 - [x] **C8** 🟡 `POST /api/workflows/:id/revalidate` (finance-manager, admin) + a "Re-check market cost" button on Finance Impact Review (`finance-impact-review.tsx`), flag-gated, reloads the list on success, swallows failure silently (decision support, not worth a page-level error banner).
-  - Commit: `<pending>`.
+  - Commit: `77a8bf7`.
 
 **Live verification (checkpoint 2 evidence)**: ran the dev server with `FEATURE_AI=true`, logged in as the demo engineer, temporarily flipped `DEMO-01` to Construction, and created a real "Budget Change Request" workflow with three line items — one matchable (128.5 lf of "Rebar installation, #4 bar" against the seeded catalog's "Rebar #4 (1/2 inch)"), one with the same match but a wildly inflated amount, and one with no quantity at all. Actual server response:
   - Matched line → `verdict: "above-typical"`, `basisSummary: "Matched 'Rebar #4 (1/2 inch)' (score 0.44) · EstimationPro.ai, fetched 2026-09-24 · ₱62.73/$1 as of 2026-09-22 · reference ₱3,224–₱8,061 (typical ₱5,240) · submitted ₱850,000 · +16122.9%."` — real citation, real numbers, correctly flagged as far above typical (the test amount was deliberately unrealistic to force the branch).
