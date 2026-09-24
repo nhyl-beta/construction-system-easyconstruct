@@ -2,7 +2,7 @@
 
 Branch: `feature/project-lifecycle`
 
-Group A commit: `379923e`. Group B commit: `71036b0`. Group C commit: `5447187`. Group D commit: `2cddaa1`. Group E commit: `41a55f6`. Group F commit: `e755a34`. Group G commit: `64bffbd`. Group H commit: `4e09a01`. Group I commit: `17a5f40` (verify-only — I1 was already complete as of Group C). Group J commit: `46bc1b8`.
+Group A commit: `379923e`. Group B commit: `71036b0`. Group C commit: `5447187`. Group D commit: `2cddaa1`. Group E commit: `41a55f6`. Group F commit: `e755a34`. Group G commit: `64bffbd`. Group H commit: `4e09a01`. Group I commit: `17a5f40` (verify-only — I1 was already complete as of Group C). Group J commit: `46bc1b8`. Group K commit: `6127e32`.
 
 ## Checklist
 
@@ -96,9 +96,9 @@ Group A commit: `379923e`. Group B commit: `71036b0`. Group C commit: `5447187`.
 - [x] J3 🔴 Client `Notification` type was missing `link`/`projectCode` even though the server always sent them — added both. `notification-bell.tsx`: clicking a notification now marks it read (if unread) *and* navigates to its `link`; previously the button `disabled`'d itself once read, so a read notification couldn't even be clicked, and nothing ever called `navigate()` at all. Same fix applied to `admin-notifications.tsx`'s full-page list (row click navigates; the existing "Mark read" button still works standalone via `stopPropagation`). The `GET`/`PATCH .../read` endpoints themselves needed no change — already correctly scoped to the caller since A3.
 
 ### K. Role screens
-- [ ] K1 🔴 GET /api/lifecycle/my-actions + WaitingOnYouCard on dashboards
-- [ ] K2 🟡 Owner portfolio phase badge/%%/Completed filter/closeout-summary link
-- [ ] K3 🟡 Audit-log screen filter by project code
+- [x] K1 🔴 New `GET /api/lifecycle/my-actions` (own top-level mount, `server/src/lifecycle/my-actions.ts` — deliberately its own file, not lifecycle/service.ts, to avoid a circular import with workflows/service.ts). Resolves the caller's relevant projects (staffable roles → project-members; PM → `pmUserId`; every other role → every active project), evaluates that phase's gate checks per project filtered to `!passed && ownerRoles.includes(role)`, and merges in every workflow stage `workflows/repository.findPendingStagesForRole` already answers cross-project. Client: new `WaitingOnYouCard` (`client/src/features/lifecycle/components`) mounted on 9 of 10 role dashboards — PM, Engineer, Architect, Consultant (replacing a "not built yet" placeholder that described exactly this), Finance, HR, Admin, IT Designer, Site Personnel. Owner's dashboard was deliberately skipped: `"owner"` never appears in any gate's `ownerRoles` and no workflow template has an owner-decided stage, so the card would always be empty by the role's own read-only design.
+- [x] K2 🟡 Phase badge and progress % were already rendered by the shared `ProjectsTable`/`ProjectsGrid` components Owner's portfolio already used — nothing to add there. Added what was missing: a "Completed only" toggle (`useProjectsController` gained `completedOnly`/`setCompletedOnly`, wired through `ProjectsToolbar`) and wired Owner's existing (but previously unused) `showArchived` toggle. The closeout-summary "link" is the portfolio's existing "Open" link once `ProjectLifecyclePanel`'s `CloseoutSummaryCard` was extended to also show for `Completed` (previously Closeout-only) — a separate link would have just duplicated that data fetch.
+- [x] K3 🟡 Added a nullable `audit_logs.project_code` column (schema + `ensure-demo-schema.ts`) — no structured project field existed before this (a project code sometimes appeared only as free text inside `summary`, inconsistently, across ~29 call sites). Threaded `projectCode` through every `logAudit(...)` call site that has one in scope (proposals, workflows/stages, tasks, issues, milestones, budgets, payroll/payroll-review, attendance, project-members — 26 call sites); left auth/user/role/workflow-template events without one (genuinely project-agnostic). `audit-logs` repository/controller/client type/repository gained a `projectCode` filter; `admin-activity-logs.tsx` (also Owner's "Audit Trail" — same component) gained a project dropdown (options derived from projects actually present in the loaded logs) and a Project column.
 
 ### L. Tests and demo
 - [ ] L1 🔴 Seed: closeout template, demo accounts linked to employees, refreshProjectProgress for all
@@ -108,6 +108,15 @@ Group A commit: `379923e`. Group B commit: `71036b0`. Group C commit: `5447187`.
 - [ ] L5 🟡 demo-full-cycle.ts script
 
 **→ CHECKPOINT 5 (final)**
+
+## Verification (group K, no checkpoint required — next one is after L)
+
+Ran against the real dev DB (TEST_v22, id 2) and in the actual browser (not just curl):
+
+- K1: `GET /lifecycle/my-actions` as the staffed architect on TEST_v22 (Proposal phase) returned gate P3 "Proposal submitted"; the same call as the project's PM returned P4/P5 instead (different `ownerRoles`); an unrelated engineer got `[]` for that project. Raised a workflow and confirmed the consultant holding the current stage saw it as a `kind:"workflow"` action ("Awaiting your Consultant Review decision").
+- K2: in the browser as Owner, clicked "Completed only" → 0 projects (correct — none are Completed yet); clicked "Show archived" → the toggle label flipped to "Hide archived" and the list actually re-fetched/re-filtered. This exposed and fixed a real, previously-latent bug: `useProjectsController`'s `load()` was memoized on `[query]` only, so toggling `showArchived` (or the new `completedOnly`) never re-ran it at all until something else changed `query` — the toggle button existed and looked functional but silently did nothing. Fixed by adding both to `load`'s dependency array.
+- K3: in the browser as Owner on the Audit Trail screen, selected "TEST_v22" from the new project dropdown → table correctly narrowed from 273 rows to the 1 row that actually has that project code (confirmed combined with the existing entity-type filter too). `GET /audit-logs?projectCode=TEST_v22` returned the same single row directly.
+- All test rows (workflow + stages, notifications, the audit log entry) deleted afterward; TEST_v22 untouched. Server `tsc --noEmit` and client `tsc && vite build` both clean.
 
 ## Verification (group J, no checkpoint required — next one is after L)
 
