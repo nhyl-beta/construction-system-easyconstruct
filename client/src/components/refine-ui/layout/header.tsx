@@ -133,7 +133,7 @@ function DesktopHeader() {
             </button>
           );
         })}
-        {FEATURES.ai && (
+        {FEATURES.aiPlaceholders && (
           <span className="ml-auto hidden text-[11px] text-muted-foreground md:inline">
             AI · {config.primaryAi}
           </span>

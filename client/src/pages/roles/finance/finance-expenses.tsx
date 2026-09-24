@@ -213,7 +213,7 @@ export default function FinanceExpensesPage() {
                       <TableHead className="text-right">Amount</TableHead>
                       <TableHead>Submitted</TableHead>
                       <TableHead>Receipt</TableHead>
-                      {FEATURES.ai && <TableHead>AI</TableHead>}
+                      {FEATURES.aiPlaceholders && <TableHead>AI</TableHead>}
                       <TableHead>Status</TableHead>
                     </TableRow>
                   </TableHeader>
@@ -229,7 +229,7 @@ export default function FinanceExpensesPage() {
                         <TableCell>
                           <Paperclip className="h-3.5 w-3.5 text-muted-foreground" />
                         </TableCell>
-                        {FEATURES.ai && (
+                        {FEATURES.aiPlaceholders && (
                           <TableCell>
                             {e.anomalyScore !== null && (
                               <Badge
@@ -271,7 +271,7 @@ export default function FinanceExpensesPage() {
                   </ResponsiveContainer>
                 </div>
               </SectionCard>
-              {FEATURES.ai && (
+              {FEATURES.aiPlaceholders && (
                 <SectionCard title="AI anomaly detection" subtitle="Outliers worth investigating">
                   <ul className="space-y-2">
                     {c.expenses

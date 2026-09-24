@@ -425,7 +425,7 @@ function OverviewSection() {
             </div>
           </CardContent>
         </Card>
-        {FEATURES.ai && <AIInsightsCard />}
+        {FEATURES.aiPlaceholders && <AIInsightsCard />}
       </div>
 
       {/* Department + Payroll + Activity */}

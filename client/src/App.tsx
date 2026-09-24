@@ -156,9 +156,10 @@ function App() {
                   {/* ── Shared Routes ── */}
                   <Route path="/" element={<DashboardRouter />} />
                   <Route path="/dashboard" element={<DashboardRouter />} />
-                  {/* AI Insights is hidden behind FEATURES.ai (off by
-                      default) — see config/features.ts. A stale link/bookmark
-                      lands on the dashboard instead of a dead AI surface. */}
+                  {/* AI Insights is a placeholder surface, permanently hidden
+                      behind FEATURES.aiPlaceholders (hardcoded false) — see
+                      config/features.ts. A stale link/bookmark lands on the
+                      dashboard instead of a dead AI surface. */}
                   <Route path="/ai-insights" element={<Navigate to="/dashboard" replace />} />
                   <Route path="/reports" element={<SharedReports />} />
                   <Route path="/resources" element={<SharedResources />} />

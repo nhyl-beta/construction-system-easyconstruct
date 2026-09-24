@@ -1,6 +1,7 @@
 import type { ResourceProps } from "@refinedev/core";
+import { FEATURES } from "@/config/features";
 
-export const resources: ResourceProps[] = [
+const allResources: ResourceProps[] = [
   // Shared
   {
     name: "dashboard",
@@ -304,3 +305,10 @@ export const resources: ResourceProps[] = [
     meta: { label: "Resources", group: "Intelligence" },
   },
 ];
+
+// "ai-insights" points at a placeholder route (App.tsx redirects it to
+// /dashboard) — drop it from the nav entirely rather than leaving a link
+// that goes nowhere useful. See config/features.ts's aiPlaceholders.
+export const resources: ResourceProps[] = FEATURES.aiPlaceholders
+  ? allResources
+  : allResources.filter((r) => r.name !== "ai-insights");

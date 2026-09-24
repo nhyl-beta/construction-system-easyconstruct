@@ -189,8 +189,8 @@ export default function DashboardPage() {
         {/* K1: cross-project gate checks + workflow stages waiting on this PM */}
         <WaitingOnYouCard />
 
-        {/* AI Insights — hidden behind FEATURES.ai, see config/features.ts */}
-        {FEATURES.ai && (
+        {/* AI Insights — placeholder, hidden behind FEATURES.aiPlaceholders (see config/features.ts) */}
+        {FEATURES.aiPlaceholders && (
           <ComingSoonCard
             title="AI insights"
             description="Portfolio-wide AI recommendations aren't wired to a backend yet. This panel will surface schedule, budget, and risk suggestions once that's built."

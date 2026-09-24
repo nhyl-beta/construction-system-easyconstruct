@@ -16,12 +16,12 @@ interface UseFinanceAiInsightsResult {
 
 // /api/finance/ai-insights and /api/finance/risks are commented out
 // server-side (server/src/routes/finance.ts) — this used to fetch them
-// anyway and silently swallow the 404s. With FEATURES.ai off, this never
-// calls them at all rather than hitting routes that don't exist.
+// anyway and silently swallow the 404s. With FEATURES.aiPlaceholders off,
+// this never calls them at all rather than hitting routes that don't exist.
 export function useFinanceAiInsightsController(): UseFinanceAiInsightsResult {
   const [insights, setInsights] = useState<AIInsight[]>([]);
   const [risks, setRisks] = useState<FinancialRisk[]>([]);
-  const [isLoading, setIsLoading] = useState(FEATURES.ai);
+  const [isLoading, setIsLoading] = useState(FEATURES.aiPlaceholders);
   const [error, setError] = useState<string | null>(null);
 
   // Acknowledge is a client-side dismissal for now — add a persisted

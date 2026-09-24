@@ -221,8 +221,8 @@ export default function ConsultantDashboardPage() {
           </CardContent>
         </Card>
 
-        {/* ── AI Insights — hidden behind FEATURES.ai, see config/features.ts ── */}
-        {FEATURES.ai && (
+        {/* ── AI Insights — placeholder, hidden behind FEATURES.aiPlaceholders (see config/features.ts) ── */}
+        {FEATURES.aiPlaceholders && (
           <ComingSoonCard
             title="AI validation insights"
             description="Proposal-level AI validation summaries aren't wired to a backend yet. Once connected, this panel will surface findings, confidence, and recommendations — always labeled as advisory analysis requiring human review."

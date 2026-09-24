@@ -15,5 +15,11 @@ export const env = {
   // Origin the password-reset link points at. Defaults to the CORS origin,
   // which is already the browser app's address in every environment.
   APP_URL:      process.env.APP_URL ?? process.env.CORS_ORIGIN ?? 'http://localhost:5173',
-  BLOB_READ_WRITE_TOKEN: process.env.BLOB_READ_WRITE_TOKEN
+  BLOB_READ_WRITE_TOKEN: process.env.BLOB_READ_WRITE_TOKEN,
+  // Decision-support cost comparisons (server/src/ai-validation/cost.ts)
+  // convert catalog USD prices to PHP with this dated constant rather than a
+  // live FX API — S-2. Every stored comparison records both fields so the
+  // rate used is always visible, not just the current default.
+  FX_RATE_USD_PHP: parseFloat(process.env.FX_RATE_USD_PHP ?? '62.73'),
+  FX_RATE_AS_OF:   process.env.FX_RATE_AS_OF ?? '2026-09-22',
 } as const;

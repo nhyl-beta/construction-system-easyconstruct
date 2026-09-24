@@ -76,7 +76,7 @@ export default function WorkflowsPage() {
         <TabsList className="h-10 rounded-xl">
           <TabsTrigger value="active" className="rounded-lg">Active pipeline</TabsTrigger>
           <TabsTrigger value="templates" className="rounded-lg">Templates</TabsTrigger>
-          {FEATURES.ai && <TabsTrigger value="ai" className="rounded-lg">AI suggestions</TabsTrigger>}
+          {FEATURES.aiPlaceholders && <TabsTrigger value="ai" className="rounded-lg">AI suggestions</TabsTrigger>}
         </TabsList>
 
         <TabsContent value="active" className="space-y-4">
@@ -216,7 +216,7 @@ export default function WorkflowsPage() {
           ))}
         </TabsContent>
 
-        {FEATURES.ai && (
+        {FEATURES.aiPlaceholders && (
           <TabsContent value="ai">
             <Card className="rounded-2xl border-ai/20 bg-linear-to-br from-ai-soft/60 to-card shadow-sm">
               <CardHeader>
