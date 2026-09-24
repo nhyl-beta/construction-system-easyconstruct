@@ -3,9 +3,11 @@ import { eq, or } from "drizzle-orm";
 
 import { db } from "../db/connection.js";
 import { employees } from "../db/schema/employees.js";
+import { projects } from "../db/schema/projects.js";
 import { roles } from "../db/schema/roles.js";
 import { users } from "../db/schema/users.js";
 import { workflowTemplates } from "../db/schema/workflows.js";
+import { refreshProjectProgress } from "../lifecycle/service.js";
 
 const PASSWORD = "Demo@12345";
 
@@ -300,6 +302,18 @@ async function main() {
   for (const account of ALL_ACCOUNTS) {
     console.log(`  ${account.role.padEnd(16)} ${account.email}`);
   }
+
+  // L1: D-7's status migration (ensure-demo-schema.ts) rewrites free-text
+  // statuses to real phase names but can't recompute progress itself — the
+  // lifecycle service (gates, bands) it needs doesn't exist at that layer.
+  // Every project's progress is recomputed here instead, once the lifecycle
+  // service is actually importable, so a fresh seed never leaves a project
+  // with a phase/progress mismatch.
+  const allProjects = await db.select({ code: projects.code }).from(projects);
+  for (const project of allProjects) {
+    await refreshProjectProgress(project.code);
+  }
+  console.log(`\nRecomputed lifecycle progress for ${allProjects.length} project(s).`);
 }
 
 main().catch((error) => {

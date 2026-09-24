@@ -7,7 +7,7 @@
     "dev": "tsx watch src/index.ts",
     "build": "tsc --noCheck",
     "start": "node dist/index.js",
-    "test": "echo \"Error: no test specified\" && exit 1",
+    "test": "node --import tsx --test src/**/*.test.ts",
     "db:seed": "tsx src/scripts/ensure-demo-schema.ts && tsx src/scripts/seed-demo-accounts.ts",
     "db:reset": "drizzle-kit migrate && tsx src/scripts/db-reset.ts && npm run db:seed",
     "db:generate": "drizzle-kit generate",
