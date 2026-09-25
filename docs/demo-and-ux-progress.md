@@ -455,7 +455,13 @@ anything outside this table list.
 
 ## Round 3 (2026-09-25) — real vs. dead AI surfaces, punch list, nav sync
 
-Branch: `dev-ai`, started at HEAD `0728303`. Prior status correction confirmed by re-reading
+Branch: `dev-ai`, started at HEAD `0728303`. Part A commit: `8a38ce7`. Part B commit: `17b58c8`.
+Part C commit: `d06579b`. Server `npx tsc --noEmit -p server` and `npm test` (84/84) and client
+`npm run build` all clean as of `d06579b`. Every Part A/B/C checklist item above is checked off
+with live reproduction evidence (real local Postgres, real server, real client, Playwright for
+browser-level checks) — no "should work now" claims.
+
+Prior status correction confirmed by re-reading
 this file and `ai-signals-progress.md` in full: the five advisory signals (Groups D/E/F) ARE
 built — `server/src/signals/` (all five rule files, `index.ts`, `boundary.test.ts`),
 `DecisionSupportSection.tsx`, `my-actions.ts`'s `kind: "signal"` items, and
