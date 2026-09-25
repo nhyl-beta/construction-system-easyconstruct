@@ -131,7 +131,7 @@ Server-side `FEATURES.ai` sites (both real, unchanged): `proposals/service.ts` `
   | Every rule has a test | `signals.test.ts` has a dedicated `describe` block per rule (5) plus cross-cutting tests |
   | The flag changes what is shown, never what can be approved | F2's strongest evidence: the live server's `checks`/`canAdvance` (flag on, mid-anomaly) matched a direct, independent call to the pure gate functions exactly — not just "looked the same," provably the same computation |
 
-  - Commit: `<pending>`.
+  - Commit: `ef0bbc6`.
 
 ## Deviations
 
