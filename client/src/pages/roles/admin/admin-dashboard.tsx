@@ -21,6 +21,7 @@ import { useRoleConfig } from "@/hooks/use-role-config";
 import { useAdminDashboardController } from "@/features/dashboard/controllers/admin-dashboard.controller";
 import { WaitingOnYouCard } from "@/features/lifecycle/components/WaitingOnYouCard";
 import { RefreshReferencesCard } from "@/features/lifecycle/components/RefreshReferencesCard";
+import { WorkforceSnapshotCard } from "@/features/workforce/components/WorkforceSnapshotCard";
 import { FEATURES } from "@/config/features";
 import { formatDue } from "@/features/projects/lib/project-format";
 import { useNavigate } from "react-router";
@@ -287,10 +288,14 @@ export default function AdminDashboardPage() {
           </CardContent>
         </Card>
 
-        <ComingSoonCard
-          title="Workforce snapshot"
-          description="A cross-project attendance/workforce summary isn't backed by a dedicated endpoint yet — today's attendance API is scoped per employee. Visit HR's Workforce Reports for the current data."
-        />
+        {/* Part C3: was a ComingSoonCard claiming no cross-project
+            attendance/workforce endpoint exists. GET /employees and
+            GET /attendance were both already org-wide, unfiltered reads
+            (see server/src/employees/routes.ts, attendance/routes.ts) —
+            the gap was a client-side rollup, not a missing backend. Real
+            data via useWorkforceSnapshot, the same hook E3 wires HR's
+            WorkforceSection to. */}
+        <WorkforceSnapshotCard />
       </section>
 
       {/* ── Footer status ── */}

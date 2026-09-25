@@ -28,11 +28,28 @@ export const useDesignReviewsController = () => {
     fetchReviews();
   };
 
+  // Part C2: architect-dashboard.tsx's "Request review" quick action was
+  // hardcoded `disabled` even though POST /design-reviews already works
+  // (server/src/designs/design-reviews/service.ts create()) — this is the
+  // real create call, matching createDesignReviewSchema's shape exactly
+  // (server/src/validators/design-review-validator.ts).
+  const create = async (input: {
+    code: string;
+    designId: number;
+    requestedBy: string;
+    discipline?: string;
+    priority?: string;
+    dueDate?: string;
+  }) => {
+    await apiClient.post("/design-reviews", input);
+    fetchReviews();
+  };
+
   const filtered = useMemo(() => {
     if (tab === "pending") return reviews.filter((r) => r.status === "Pending" || r.status === "Changes Requested");
     if (tab === "approved") return reviews.filter((r) => r.status === "Approved");
     return reviews.filter((r) => r.status === "Rejected");
   }, [reviews, tab]);
 
-  return { reviews, filtered, loading, tab, setTab, decide };
+  return { reviews, filtered, loading, tab, setTab, decide, create };
 };

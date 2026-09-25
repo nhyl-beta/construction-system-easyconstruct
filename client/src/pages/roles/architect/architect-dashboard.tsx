@@ -1,11 +1,28 @@
 import { ComingSoonCard } from "@/components/refine-ui/views/coming-soon-card";
 import { PageHeader } from "@/components/refine-ui/views/page-header";
 import { Button } from "@/components/ui/button";
+import {
+  Dialog,
+  DialogContent,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
+import { Label } from "@/components/ui/label";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import { KpiStrip } from "@/components/ui/kpi-strip";
 import { SectionCard } from "@/components/ui/section-card";
 import { StatusBadge } from "@/components/ui/status-badge";
 import { useArchitectDashboardController } from "@/features/dashboard/controllers/architect-dashboard.controller";
 import { WaitingOnYouCard } from "@/features/lifecycle/components/WaitingOnYouCard";
+import { useAuth } from "@/auth/auth-context";
+import { useDesignReviews } from "@/features/design-reviews/hooks/useDesignReviews";
 import {
   CheckSquare,
   Eye,
@@ -13,14 +30,40 @@ import {
   MessageSquare,
   PencilRuler,
   Plus,
-  Sparkles,
   Upload,
 } from "lucide-react";
+import { useState } from "react";
 import { useNavigate } from "react-router";
 
 export default function ArchitectDashboard() {
   const navigate = useNavigate();
   const c = useArchitectDashboardController();
+  const { user } = useAuth();
+  const { create } = useDesignReviews();
+  const [reviewDialogOpen, setReviewDialogOpen] = useState(false);
+  const [selectedDesignId, setSelectedDesignId] = useState<string>("");
+  const [submitting, setSubmitting] = useState(false);
+  const [submitError, setSubmitError] = useState<string | null>(null);
+
+  const submitReviewRequest = async () => {
+    if (!selectedDesignId) return;
+    setSubmitting(true);
+    setSubmitError(null);
+    try {
+      const design = c.recentDesigns.find((d) => String(d.id) === selectedDesignId);
+      await create({
+        code: `REV-${(design?.code ?? selectedDesignId)}-${Date.now().toString(36).toUpperCase()}`.slice(0, 20),
+        designId: Number(selectedDesignId),
+        requestedBy: user?.name ?? "Architect",
+      });
+      setReviewDialogOpen(false);
+      setSelectedDesignId("");
+    } catch (err) {
+      setSubmitError(err instanceof Error ? err.message : "Failed to request review.");
+    } finally {
+      setSubmitting(false);
+    }
+  };
 
   return (
     <div className="flex-1 space-y-6 p-4 md:p-8">
@@ -111,27 +154,69 @@ export default function ArchitectDashboard() {
               description="Add a new DWG or PDF revision"
               onClick={() => navigate("/designs/new")}
             />
+            {/* Part C2: was hardcoded `disabled` even though POST
+                /design-reviews (server/src/designs/design-reviews/service.ts
+                create()) already works — a real design review is created
+                and shown to Consultant on /consultant/design-reviews. */}
             <QuickAction
               icon={Eye}
               label="Request review"
               description="Send a design to consultants"
-              disabled
+              onClick={() => setReviewDialogOpen(true)}
             />
+            {/* Part C2: confirmed (grepped server/src) there is no general
+                discussion-thread table anywhere — only per-decision comment
+                fields on design reviews/workflow stages, never a standing
+                thread. Left disabled, relabeled to read as "not built"
+                rather than ambiguous. */}
             <QuickAction
               icon={MessageSquare}
               label="Comment thread"
-              description="Open active review discussions"
+              description="Not built yet — no discussion-thread table exists"
               disabled
             />
-            <QuickAction
-              icon={Sparkles}
-              label="Generate options"
-              description="AI design variations"
-              disabled
-            />
+            {/* Part C2: "Generate options / AI design variations" was a
+                fake-AI placeholder, never part of the real AI-validation
+                scope (proposal checks / cost-comparison / the five signal
+                rules) — removed outright, not wired up, same standard as
+                FEATURES.aiPlaceholders' surface table. */}
           </div>
         </SectionCard>
       </div>
+
+      <Dialog open={reviewDialogOpen} onOpenChange={setReviewDialogOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Request a design review</DialogTitle>
+          </DialogHeader>
+          <div className="space-y-2 py-2">
+            <Label htmlFor="review-design">Design</Label>
+            <Select value={selectedDesignId} onValueChange={setSelectedDesignId}>
+              <SelectTrigger id="review-design">
+                <SelectValue placeholder="Pick a design to send" />
+              </SelectTrigger>
+              <SelectContent>
+                {c.recentDesigns.map((d) => (
+                  <SelectItem key={d.id} value={String(d.id)}>
+                    {d.name} · {d.code}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+            {submitError && (
+              <p className="text-sm text-destructive">{submitError}</p>
+            )}
+          </div>
+          <DialogFooter>
+            <Button
+              onClick={submitReviewRequest}
+              disabled={!selectedDesignId || submitting}
+            >
+              {submitting ? "Sending…" : "Send for review"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
 
       <SectionCard
         title="Coming soon"

@@ -866,3 +866,53 @@ clean before any edit.
   both before and after a second re-run — 7 rows both times, names as above.
 
 Server `npx tsc --noEmit -p server` and client `npm run build`: both clean.
+
+### Part C — four dashboards fixed
+
+- **[x] C1 — PM dashboard.** "No approvals backend exists yet" was false: `GET
+  /workflows/approvals/stats` + `GET /workflows/approvals?scope=pending` are real, already used
+  by `ApprovalQueuePanel`/`pm-approvals.tsx`. Checked `WaitingOnYouCard` first (per the task's own
+  instruction) — it already covers gate/workflow/signal items, but not specifically a compact
+  "approvals I can decide right now" list with amounts, so built `AwaitingApprovalCard`
+  (`client/src/features/workflows/components/AwaitingApprovalCard.tsx`), reusing the existing
+  `useApprovals("pending")` hook (same data path as the full queue, not a second query),
+  rendering title/project/amount/type per item, linking into `/approvals`. "Site advisories aren't
+  backed by any table" was also false — that's exactly what the five signal rules produce, and
+  `WaitingOnYouCard` (mounted directly above, unchanged) already renders them cross-project with
+  an "AI" badge via the same `GET /lifecycle/my-actions` path `DecisionSupportSection` uses.
+  Grepped `server/src` for any general activity-feed table/endpoint — genuinely none exists
+  (only the admin-only Audit Trail, a different, role-gated screen) — kept a `ComingSoonCard`,
+  relabeled "Activity feed" with honest copy instead of the false "advisories" claim.
+  Live-verified: `GET /workflows/approvals/stats` as PM real response `{"pending":0,"overdue":0,
+  "avgCycleDays":0,"thisWeek":50}` — 0 pending is correct (no open workflow stages owned by PM in
+  this DB state right now), not a stub.
+
+- **[x] C2 — Architect dashboard.** "Request review" was hardcoded `disabled` despite `POST
+  /design-reviews` (`server/src/designs/design-reviews/service.ts create()`) already working —
+  wired a small dialog (design picker + `useDesignReviews().create()`, matching
+  `createDesignReviewSchema`'s exact shape: `code`/`designId`/`requestedBy`). Live-verified: `POST
+  /design-reviews` as architect → `201 {"id":58,...,"status":"Pending"}`, real row, cleaned up
+  after. "Comment thread" — grepped `server/src` for any general discussion-thread table; found
+  only per-decision comment *fields* on workflow stages/design reviews, never a standing thread —
+  confirmed genuinely unbuilt, left `disabled` but relabeled "Not built yet — no discussion-thread
+  table exists" instead of the ambiguous "Open active review discussions". "Generate options / AI
+  design variations" — a fake-AI placeholder never part of the real AI-validation scope (proposal
+  checks / cost-comparison / the five signals) — **removed outright**, not wired up, same standard
+  as `FEATURES.aiPlaceholders`'s surface table.
+
+- **[x] C3 — Admin dashboard "Workforce snapshot".** Confirmed no cross-project
+  attendance/workforce *endpoint* was missing so much as a client-side rollup: `GET /employees`
+  and `GET /attendance` (`server/src/employees/routes.ts`, `server/src/attendance/routes.ts`) were
+  already org-wide, unfiltered, open to any authenticated role — no new server endpoint needed.
+  Built one shared client data path, `useWorkforceSnapshot()`
+  (`client/src/features/workforce/hooks/useWorkforceSnapshot.ts`), consumed by both this card
+  (`WorkforceSnapshotCard`) and HR's `WorkforceSection` (C4/E3) — not two ad-hoc queries. The "Visit
+  HR's Workforce Reports" text is now a real working button to `/workforce-reports` (confirmed
+  that route renders unguarded for any authenticated role, same convention as `/reports`/
+  `/blueprint-reviews`).
+
+- **[x] C4 — HR dashboard `WorkforceSection()`/`PayrollSection()`.** Folded into Part E (below) per
+  the task's own instruction not to fix in isolation — see E3.
+
+Server `npx tsc --noEmit -p server` and client `npm run build`: both clean.
+

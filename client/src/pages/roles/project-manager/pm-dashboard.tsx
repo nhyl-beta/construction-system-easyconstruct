@@ -12,6 +12,7 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { ComingSoonCard } from "@/components/refine-ui/views/coming-soon-card";
 import { WaitingOnYouCard } from "@/features/lifecycle/components/WaitingOnYouCard";
+import { AwaitingApprovalCard } from "@/features/workflows/components/AwaitingApprovalCard";
 import { KpiStrip } from "@/components/ui/kpi-strip";
 import { Progress } from "@/components/ui/progress";
 import { useRoleConfig } from "@/hooks/use-role-config";
@@ -192,17 +193,26 @@ export default function DashboardPage() {
         <WaitingOnYouCard />
       </section>
 
-      {/* ── Bottom row — approvals + activity, neither backed yet ── */}
+      {/* Part C1: "Awaiting your approval" was a ComingSoonCard claiming
+          "no approvals backend exists yet" — false. GET
+          /workflows/approvals(?scope=pending)/stats is real and already
+          used by ApprovalQueuePanel/pm-approvals.tsx; AwaitingApprovalCard
+          reads the same data. "Site advisories aren't backed by any table"
+          was also false — that's exactly what the five signal rules
+          produce, and WaitingOnYouCard (above) already renders them
+          cross-project via the same GET /lifecycle/my-actions path
+          DecisionSupportSection uses, with an "AI" badge. A general
+          cross-project *activity feed* (distinct from advisories/approvals)
+          genuinely has no backend (grepped server/src for any feed/log
+          endpoint besides the admin-only Audit Trail) — kept honest about
+          that specific piece rather than silently dropping it. */}
       <section className="grid grid-cols-1 gap-6 lg:grid-cols-3">
         <div className="lg:col-span-2">
-          <ComingSoonCard
-            title="Awaiting your approval"
-            description="No approvals backend exists yet — this will surface pending budget, proposal, and workflow approvals once that module is built."
-          />
+          <AwaitingApprovalCard />
         </div>
         <ComingSoonCard
-          title="Activity & advisories"
-          description="General project activity feed and site advisories aren't backed by any table yet."
+          title="Activity feed"
+          description="A general cross-project activity feed isn't backed by any table yet. Advisories are already covered above, in Waiting on you (Sparkles/AI-badged items) — this card is for a separate, broader event stream (every create/update across every project), not built."
         />
       </section>
 
