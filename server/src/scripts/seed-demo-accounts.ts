@@ -64,6 +64,114 @@ const PAY_RATE_BY_ROLE: Record<string, { payRate: string; rateType: "Hourly" | "
 };
 const DEFAULT_PAY_RATE = { payRate: "30000", rateType: "Monthly" as const };
 
+// ── Part E: 100-employee roster ─────────────────────────────────────────
+// The 50 demo-account employees above all have a `users` login. These are
+// roster-only (employees.userId stays null — nullable per the schema) real
+// construction trade rows so HR's dashboards have a realistic org to
+// summarize, not just the 10 canonical role logins ×5. Upserted on
+// `employeeId` (ROSTER-001..050), so re-running seed-demo-accounts.ts never
+// duplicates them.
+const ROSTER_FIRST_NAMES = [
+  "Jose", "Juan", "Antonio", "Ramon", "Ricardo", "Eduardo", "Roberto", "Manuel",
+  "Fernando", "Alfredo", "Danilo", "Rodrigo", "Ernesto", "Arnel", "Bienvenido",
+  "Rogelio", "Wilfredo", "Reynaldo", "Melchor", "Efren", "Maria", "Carmen",
+  "Rosario", "Corazon", "Imelda", "Josefina", "Remedios", "Consolacion",
+  "Leonora", "Estrella", "Divina", "Angelica", "Marites", "Grace", "Joy",
+  "Cristina", "Perla", "Lourdes", "Rowena", "Susan",
+] as const;
+const ROSTER_LAST_NAMES = [
+  "Santos", "Reyes", "Cruz", "Bautista", "Ocampo", "Garcia", "Mendoza",
+  "Torres", "Flores", "Ramos", "Villanueva", "Castro", "Aquino", "Del Rosario",
+  "Gonzales", "Manalo", "Fernandez", "Pascual", "Salazar", "Navarro",
+  "Domingo", "Rivera", "Marasigan", "Concepcion", "Ignacio", "Lazaro",
+  "Panganiban", "Espiritu", "Umali", "Bernardo",
+] as const;
+
+// (label, department, hourly/daily payRate+rateType, rateType). Real
+// Philippine construction trade titles, pay bands consistent with
+// ph-statutory.ts's deduction bands (which apply to `gross`, computed from
+// these — hourly rows land well within the SSS/PhilHealth/Pag-IBIG
+// contribution schedule's normal salary-credit range once annualized).
+const TRADE_DEFS: { role: string; department: string; payRate: string; rateType: "Hourly" | "Daily" | "Monthly" }[] = [
+  { role: "Mason", department: "Field Operations", payRate: "130", rateType: "Hourly" },
+  { role: "Carpenter", department: "Field Operations", payRate: "125", rateType: "Hourly" },
+  { role: "Steel Fixer / Rebar Worker", department: "Field Operations", payRate: "135", rateType: "Hourly" },
+  { role: "Electrician", department: "Field Operations", payRate: "165", rateType: "Hourly" },
+  { role: "Plumber", department: "Field Operations", payRate: "150", rateType: "Hourly" },
+  { role: "Welder", department: "Field Operations", payRate: "160", rateType: "Hourly" },
+  { role: "Painter", department: "Field Operations", payRate: "115", rateType: "Hourly" },
+  { role: "Heavy Equipment Operator", department: "Field Operations", payRate: "1200", rateType: "Daily" },
+  { role: "Foreman", department: "Field Operations", payRate: "1450", rateType: "Daily" },
+  { role: "Safety Officer", department: "Field Operations", payRate: "28000", rateType: "Monthly" },
+  { role: "Surveyor", department: "Engineering", payRate: "32000", rateType: "Monthly" },
+  { role: "Draftsman", department: "Design", payRate: "24000", rateType: "Monthly" },
+  { role: "Warehouseman", department: "Field Operations", payRate: "850", rateType: "Daily" },
+  { role: "Site Clerk", department: "Project Management", payRate: "20000", rateType: "Monthly" },
+  { role: "Laborer", department: "Field Operations", payRate: "645", rateType: "Daily" },
+];
+
+const ROSTER_STATUSES = ["Active", "Active", "Active", "Active", "On Leave", "Inactive"] as const;
+
+function mulberry32(seed: number) {
+  let a = seed;
+  return () => {
+    a |= 0; a = (a + 0x6d2b79f5) | 0;
+    let t = Math.imul(a ^ (a >>> 15), 1 | a);
+    t = (t + Math.imul(t ^ (t >>> 7), 61 | t)) ^ t;
+    return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
+  };
+}
+
+// Real, stable per-employee variance (deterministic seed so repeated runs
+// produce identical rows for the same index — a real requirement for
+// upsert idempotency, not just aesthetic reproducibility).
+function buildRosterEmployees(count: number, siteNames: readonly string[]) {
+  const rand = mulberry32(20260925);
+  const rows: {
+    employeeId: string;
+    name: string;
+    initials: string;
+    role: string;
+    department: string;
+    site: string;
+    status: string;
+    attendanceRate: number;
+    performance: string;
+    hiredOn: string;
+    payRate: string;
+    rateType: "Hourly" | "Daily" | "Monthly";
+  }[] = [];
+  for (let i = 0; i < count; i++) {
+    const first = ROSTER_FIRST_NAMES[Math.floor(rand() * ROSTER_FIRST_NAMES.length)]!;
+    const last = ROSTER_LAST_NAMES[Math.floor(rand() * ROSTER_LAST_NAMES.length)]!;
+    const trade = TRADE_DEFS[Math.floor(rand() * TRADE_DEFS.length)]!;
+    const site = siteNames[Math.floor(rand() * siteNames.length)]!;
+    const status = ROSTER_STATUSES[Math.floor(rand() * ROSTER_STATUSES.length)]!;
+    // Real variance, not a uniform value: attendance 72-100%, performance
+    // 2.8-5.0, hire dates spread across the last 6 years.
+    const attendanceRate = 72 + Math.floor(rand() * 29);
+    const performance = (2.8 + rand() * 2.2).toFixed(1);
+    const hireDaysAgo = Math.floor(rand() * 6 * 365);
+    const hiredOn = new Date(Date.now() - hireDaysAgo * 86400000).toISOString().slice(0, 10);
+    const name = `${first} ${last}`;
+    rows.push({
+      employeeId: `EMP-ROSTER-${String(i + 1).padStart(3, "0")}`,
+      name,
+      initials: initials(name),
+      role: trade.role,
+      department: trade.department,
+      site,
+      status,
+      attendanceRate,
+      performance,
+      hiredOn,
+      payRate: trade.payRate,
+      rateType: trade.rateType,
+    });
+  }
+  return rows;
+}
+
 const ORDINAL_NAME = ["One", "Two", "Three", "Four"] as const;
 
 // 4 accounts per role, email "<role-slug-without-hyphens><n>@easyconstruct.demo"
@@ -280,6 +388,35 @@ async function main() {
       });
       createdEmployees++;
       console.log(`created employee: ${account.email}`);
+    }
+
+    // Part E1: 50 roster-only employees (userId stays null — no login),
+    // spread across the real demo projects' display names so E3's
+    // useWorkforceSnapshot() per-site rollup has more than one bucket.
+    // Upserted on employeeId: a row that already exists is updated in
+    // place (same values, since the generator is deterministic) rather
+    // than re-inserted, so re-running this script never duplicates rows.
+    const demoProjects = await tx.select({ name: projects.name }).from(projects);
+    const siteNames = demoProjects.length > 0
+      ? demoProjects.map((p) => p.name)
+      : ["Main Office"];
+    const rosterRows = buildRosterEmployees(50, siteNames);
+    for (const row of rosterRows) {
+      const [existing] = await tx
+        .select()
+        .from(employees)
+        .where(eq(employees.employeeId, row.employeeId));
+      if (existing) {
+        await tx
+          .update(employees)
+          .set({ ...row, updatedAt: new Date() })
+          .where(eq(employees.id, existing.id));
+        console.log(`updated roster employee: ${row.employeeId}`);
+      } else {
+        await tx.insert(employees).values(row);
+        createdEmployees++;
+        console.log(`created roster employee: ${row.employeeId}`);
+      }
     }
 
     for (const role of ROLES) {
