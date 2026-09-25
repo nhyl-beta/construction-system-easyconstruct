@@ -50,9 +50,13 @@ CORS_ORIGIN=http://localhost:5173
 APP_URL=http://localhost:5173
 # Optional — enables Vercel Blob storage for uploads; falls back to local disk storage if unset
 BLOB_READ_WRITE_TOKEN=
+# Required for the AI-validation decision-support layer (proposal validation,
+# cost-comparison, the five advisory signals under DecisionSupportSection) —
+# set true for any demo/presentation environment. Defaults to false/off.
+FEATURE_AI=true
 ```
 
-The client reads `VITE_API_BASE` to decide whether to talk to the real API or use mock data; set it in a `.env` file inside `client/` (e.g. `VITE_API_BASE=http://localhost:8000/api`) once the server is running.
+The client reads `VITE_API_BASE` to decide whether to talk to the real API or use mock data; set it in a `.env` file inside `client/` (e.g. `VITE_API_BASE=http://localhost:8000/api`) once the server is running. It also needs its own `VITE_FEATURE_AI=true` (separate flag, separate `.env`, same gate) to show the same AI-validation surfaces client-side — the server-side `FEATURE_AI` alone does not turn on the UI.
 
 ### 3. Set up the database
 
@@ -107,6 +111,18 @@ npm run dev:server   # Express API with hot reload (tsx watch), default http://l
 | `npm run db:backfill-employee-links` | Backfills employee ↔ user links |
 | `npm run ai:seed-references` | Pulls the EstimationPro.ai cost-reference catalog (idempotent upsert) |
 | `npm run demo:seed` | Creates `DEMO-STAGE-0`..`6`, one demo project per lifecycle phase, via real API calls against a running `npm run dev` server. Idempotent — deletes and rebuilds its own rows on every run. Run `ai:seed-references` first for a full cost-reference catalog (falls back to a single seeded reference row otherwise — see `server/src/scripts/demo-seed-stages.ts`'s header comment). |
+| `npm run demo:ai-signals` | The one bookmarkable place to see the AI-validation decision-support layer trip all five advisory signals at once (cost-variance, cumulative-change-impact, burn-vs-progress, issue-recurrence, stalled-stage) — see "AI-validation demo project" below. |
+
+**AI-validation demo project.** `npm run demo:ai-signals` builds a single project at the stable
+code **`AISIG-DEMO`** (overridable via `AISIG_PROJECT_CODE`), deliberately engineered to trip
+all five advisory signals, then asserts the live API's gate checks are byte-for-byte identical
+to a direct, signals-bypassing call — proving decision support never affects gating. The script
+is idempotent (it clears out any previous `AISIG-DEMO` run before rebuilding), so **the 7
+`DEMO-STAGE-0`..`6` projects from `demo:seed` deliberately don't carry this scenario
+themselves** — the script's own console output prints the project's numeric id and
+`/projects/:id` link on every run; open that link as Project Manager, Consultant, Finance
+Manager or Engineer (the five signals' `ownerRoles`) to see `DecisionSupportSection` under the
+gate checklist with all five signals live.
 
 **`client/`**
 

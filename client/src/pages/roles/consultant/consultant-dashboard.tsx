@@ -17,8 +17,6 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
-import { ComingSoonCard } from "@/components/refine-ui/views/coming-soon-card";
-import { FEATURES } from "@/config/features";
 import { KpiStrip } from "@/components/ui/kpi-strip";
 import { StatusBadge } from "@/components/ui/status-badge";
 import { useRoleConfig } from "@/hooks/use-role-config";
@@ -221,13 +219,12 @@ export default function ConsultantDashboardPage() {
           </CardContent>
         </Card>
 
-        {/* ── AI Insights — placeholder, hidden behind FEATURES.aiPlaceholders (see config/features.ts) ── */}
-        {FEATURES.aiPlaceholders && (
-          <ComingSoonCard
-            title="AI validation insights"
-            description="Proposal-level AI validation summaries aren't wired to a backend yet. Once connected, this panel will surface findings, confidence, and recommendations — always labeled as advisory analysis requiring human review."
-          />
-        )}
+        {/* ai-signals E3: the old "AI validation insights" ComingSoonCard
+            here (permanently hidden behind FEATURES.aiPlaceholders) is now
+            redundant — the WaitingOnYouCard below already surfaces
+            warn/critical advisory signals (Sparkles-badged "AI" items from
+            GET /api/lifecycle/my-actions) for this consultant's projects,
+            so no second placeholder-turned-summary card is needed here. */}
       </section>
 
       {/* ── Bottom row — approvals + recently reviewed ── */}

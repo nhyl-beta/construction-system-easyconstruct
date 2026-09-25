@@ -344,6 +344,14 @@ export const ROLE_CONFIGS: Record<string, RoleConfig> = {
       },
       { label: "Expenses", icon: ActivitySquare, route: "/expenses" },
       { label: "Approvals", icon: CheckSquare, route: "/approvals" },
+      // A2: finance-manager is an explicit ownerRole on 3 of the 5 advisory
+      // signals (cost-variance, burn-vs-progress, cumulative-change-impact).
+      // Before this, finance-manager had no nav path into a project's own
+      // page at all — only the WaitingOnYouCard link, which only appears
+      // once a signal has already fired. This lets them browse a project
+      // (and its Decision Support panel) proactively, same read/write split
+      // as any other non-editor role reaching /projects.
+      { label: "Projects", icon: FolderKanban, route: "/projects" },
     ],
 
     sections: [
@@ -358,6 +366,7 @@ export const ROLE_CONFIGS: Record<string, RoleConfig> = {
         items: [
           { label: "Budget Overview", icon: BarChart2, route: "/budget" },
           { label: "Expenses", icon: ActivitySquare, route: "/expenses" },
+          { label: "Projects", icon: FolderKanban, route: "/projects" },
         ],
       },
       {

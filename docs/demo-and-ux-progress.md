@@ -452,3 +452,175 @@ anything outside this table list.
   to, and admin's nav wasn't touched either) — both can still reach `/blueprint-reviews`
   directly and the server permits their decision. If PM should have equal nav-level
   discoverability, that's a follow-up.
+
+## Round 3 (2026-09-25) — real vs. dead AI surfaces, punch list, nav sync
+
+Branch: `dev-ai`, started at HEAD `0728303`. Prior status correction confirmed by re-reading
+this file and `ai-signals-progress.md` in full: the five advisory signals (Groups D/E/F) ARE
+built — `server/src/signals/` (all five rule files, `index.ts`, `boundary.test.ts`),
+`DecisionSupportSection.tsx`, `my-actions.ts`'s `kind: "signal"` items, and
+`npm run demo:ai-signals` all verified present and working (re-run live this session, see
+Part A below). Nothing from Groups D/E/F was rebuilt.
+
+### Environment
+
+Same as the "read first" note above: no `.env`/deps present at session start. Provisioned the
+same local Postgres 16 dev database, ran `npm --prefix server install` / `npm --prefix client
+install` (fresh — `node_modules` were absent again in this worktree), wrote `server/.env`
+(`DATABASE_URL`, `PORT=8000`, `JWT_SECRET`, `CORS_ORIGIN`, `FEATURE_AI=true`) and `client/.env`
+(`VITE_API_BASE`, `VITE_FEATURE_AI=true`), both gitignored. `npm run db:seed` ran clean.
+`npm run ai:seed-references` still cannot reach EstimationPro.ai from this sandbox (`403` /
+proxy `connect_rejected`, same as every prior session) — used `npm run demo:seed`'s own
+`ensureFallbackReferenceRow()` fallback (one "Rebar #4" reference row) instead, per the existing
+AV-6-followup deviation.
+
+### Part A — real AI-validation layer vs. dead "Coming Soon" surfaces
+
+**A1 — ComingSoonCard audit.** Re-grepped every usage (12 files). Classified:
+
+- **AI-related, unreachable, deleted:**
+  - `client/src/pages/roles/project-manager/pm-ai-insights.tsx` and
+    `client/src/pages/roles/shared/shared-ai-insights.tsx` — confirmed by grep that nothing
+    imports either component; `App.tsx`'s only `/ai-insights` route unconditionally redirects to
+    `/dashboard` (per the A3 surface-table work already on `dev-ai`), and the nav entry is
+    filtered out via `FEATURES.aiPlaceholders` (permanently false). Both files deleted outright.
+  - The `FEATURES.aiPlaceholders`-gated "AI insights"/"AI validation insights" `ComingSoonCard`
+    blocks in `pm-dashboard.tsx` and `consultant-dashboard.tsx` — permanently unreachable (the
+    flag never turns on), and redundant with `WaitingOnYouCard`, which already sits directly
+    above/below them on both pages and already surfaces warn/critical advisory signals
+    (Sparkles icon, "AI" badge, per-project "Go to" navigation) from the *same*
+    `GET /api/lifecycle/my-actions` data path `DecisionSupportSection` reads. Removed both
+    blocks and their now-unused `ComingSoonCard`/`FEATURES` imports; no new query was added —
+    `WaitingOnYouCard` already filled this slot.
+  - `pm-reports.tsx` and `pm-resources.tsx` — found to be a **second instance of the same
+    dead-route bug** the AI pages had: neither file is imported anywhere in `App.tsx` (PM's
+    `/reports` and `/resources` nav entries route to the *shared* `SharedReports`/
+    `SharedResources` components instead — confirmed via `role-tab.ts`). Not AI-related, but
+    literal dead files superseded by working shared routes; deleted as the same class of
+    cleanup A1 asks for, documented as a reasonable-call deviation below.
+- **Non-AI, confirmed reachable-but-empty, left alone (documented per A1's instruction, not a
+  silent gap):**
+  - `shared-resources.tsx` (`/resources`, reachable, real "Resources & Tools" stub — no backend
+    table exists for it yet).
+  - `admin-dashboard.tsx`'s "Workforce snapshot" card — reachable (admin dashboard is real and
+    routed), explicit text explaining no cross-project attendance endpoint exists yet.
+  - `it-designer-dashboard.tsx`'s "Infrastructure health" card — reachable, explicit text (no
+    uptime/backup data recorded anywhere).
+  - `architect-dashboard.tsx`'s 4 "Not yet built — placeholders only" cards (blueprint library,
+    review queue, revision tracker, documentation hub) — reachable, explicitly labeled.
+  - `pm-dashboard.tsx`'s "Awaiting your approval" / "Activity & advisories" cards — reachable,
+    not AI-related (no approvals/activity-feed backend exists), left as-is.
+  - `shared-reports.tsx` — no longer a `ComingSoonCard` at all (already a real
+    approve/reject screen per Part B's Q5 fix, re-verified in B5 below); its file still
+    literally contains the string "ComingSoonCard" only in a comment describing what it used to
+    be.
+
+**A2 — role coverage for `DecisionSupportSection`.** `ProjectLifecyclePanel` is mounted in
+exactly one place, `ProjectDetailPage.tsx`, at the shared route `/projects/:projectId`
+(`App.tsx`) — not role-gated at the router level, only auth-gated, and `ProjectDetailPage`
+renders `ProjectLifecyclePanel` (and, inside it, `DecisionSupportSection`) unconditionally for
+every role; only *editing* the project record itself is role-restricted (`PROJECT_EDITORS`).
+The five signals' `ownerRoles` are `project-manager`, `finance-manager`, `engineer` (fixed) plus
+`stalled-stage`'s dynamic `ownerRole` (whichever role owns the currently-stalled workflow
+stage — in practice any of the ten roles, since workflow templates assign stages broadly).
+
+Every one of the 10 role dashboards renders `WaitingOnYouCard` (confirmed by grep — `admin`,
+`architect`, `consultant`, `engineer`, `finance`, `hr`, `it-designer`, `pm`, `site-personnel`
+dashboards all import and render it), and that card's `kind: "signal"` items link straight to
+`/projects/:id` (or, for `stalled-stage`, `/workflows` — both un-role-gated shared routes) via
+plain `navigate()`, which works regardless of whether that route is in the role's own sidebar.
+So **every role can already reach `DecisionSupportSection` for a project a signal has actually
+fired on for them** — this is the real, pre-existing coverage path, not something built this
+session.
+
+The gap found: `finance-manager` — an explicit `ownerRoles` entry on 3 of the 5 signals
+(cost-variance, burn-vs-progress, cumulative-change-impact) — had **no sidebar/tab entry into
+`/projects` at all** in `role-tab.ts` (only Budget/Payroll Review/Expenses/Approvals), unlike
+`project-manager`, `architect` and `engineer`, which all have one. That meant a finance manager
+could only reach a project's Decision Support panel reactively (after a signal already fired and
+put a link on their dashboard), never by browsing proactively. Fixed: added a "Projects" tab
+(`route: "/projects"`, reusing the existing `PMProjects` list — server-side `GET /projects` has
+no role restriction, confirmed in `server/src/projects/routes.ts`) plus a matching sidebar item
+under finance-manager's "Budget Management" section, in `client/src/config/role-tab.ts`. No new
+component built. `human-resources` and `site-personnel` are not fixed `ownerRoles` on any
+signal (only possible dynamic targets of `stalled-stage`, same reactive-link coverage as every
+other role) — left as-is.
+
+**A3 — `FEATURE_AI` deployment config.** The repo has no `.env.example` anywhere (confirmed by
+`find . -iname .env.example`); `README.md`'s "Configure environment variables" section is the
+only documented `.env` convention, and it **omitted `FEATURE_AI`/`VITE_FEATURE_AI` entirely** —
+someone following the README top-to-bottom for a fresh/presentation environment would never
+turn the AI-validation layer on. Added `FEATURE_AI=true` to the server `.env` block (with a
+comment on what it gates) and a sentence to the client-env paragraph noting `VITE_FEATURE_AI`
+is a separate flag that also needs setting. Verified `server/src/config/features.ts` (`ai:
+process.env.FEATURE_AI === "true"`) and `client/src/config/features.ts`
+(`import.meta.env.VITE_FEATURE_AI === "true"`) are exactly what these two env vars gate.
+
+**A4 — one bookmarkable place to see all five signals trip.** Found the actual gap:
+`demo-ai-signals.ts`'s `PROJECT_CODE` was `` `AISIG-${Date.now().toString(36).toUpperCase()}` ``
+— a **new, differently-coded project on every run**, never cleaned up. The
+`ai-signals-progress.md` F2 entry's `AISIG-MUGLM73Z` is real (that run's actual output, project
+id 12, deliberately left in a database from a now-gone prior session's Postgres instance) but
+is not a stable, reusable reference — re-running the script today produces a different code
+every time, so there was never actually one fixed, bookmarkable project. Fixed:
+- `PROJECT_CODE` is now a stable `AISIG-DEMO` (overridable via `AISIG_PROJECT_CODE` env var).
+- Added `cleanupExisting(code)` (raw SQL, same table order/parent-before-child care as
+  `demo-seed-stages.ts`'s own `cleanup()` — kept as a separate, self-contained copy rather than
+  importing that module, since its `main()` runs unconditionally at import time and would have
+  reseeded all 7 `DEMO-STAGE-*` projects as a side effect of importing it here), called before
+  every project creation — the script is now idempotent, re-running it rebuilds the *same*
+  project rather than leaving a trail of one-off ones.
+- The script's final log line now prints the project's `/projects/:id` link directly.
+- `README.md` gained a `demo:ai-signals` row in the scripts table and an "AI-validation demo
+  project" paragraph explaining `AISIG-DEMO` is the one bookmarkable place to see all five
+  signals fire, and that the 7 `DEMO-STAGE-*` projects deliberately don't carry this scenario
+  themselves (kept separate on purpose — `DEMO-STAGE-3` already demonstrates the *cost-reference
+  citation* feature on its own Budget Change Request; layering all five signal triggers onto it
+  too would overload one project's story).
+
+**Live re-verification, this session** (`npm run demo:ai-signals`, real server, real DB, twice
+in a row to prove idempotency — second run reused the same `AISIG-DEMO` code, cleared and
+rebuilt project id 53 after id 45 from the first run):
+```
+▶ Clearing any existing AISIG-DEMO from a previous run
+▶ Creating project AISIG-DEMO and driving it to Construction
+  ✔ cumulative-change-impact fired, warn
+  ✔ burn-vs-progress fired, warn
+  ✔ issue-recurrence fired, warn, mentions a precedent
+  ✔ stalled-stage fired, warn
+  ✔ checks match exactly (same keys, same passed values)
+  ✔ canAdvance matches exactly
+  ✘ cost-variance fired, critical []
+6 passed, 1 failed
+Scenario project AISIG-DEMO (id 53) left in place for inspection — not cleaned up.
+Open it in the app at /projects/53 (Project Manager / Consultant / Finance Manager / Engineer)
+to see DecisionSupportSection with all five signals live.
+```
+`cost-variance` did not fire — **not a regression from this session's change** (verified by
+re-reading the diff: only `PROJECT_CODE`, `cleanupExisting`, and the final log line changed, no
+matching/threshold logic touched). Root cause: this sandbox's `reference_snapshots` table only
+has the single AV-6-followup fallback row ("Rebar #4 (1/2 inch)"), because EstimationPro.ai is
+still unreachable here; the script's own BCR line items describe *concrete* ("Ready-mix
+concrete...", "Concrete slab, poured and finished"), which the similarity matcher (floor 0.40)
+correctly does not match against a rebar reference row, so no cost-variance signal is produced
+at all (not a severity mismatch — zero signals for that rule). With a full reference catalog
+(the normal case, live EstimationPro.ai access) this assertion is known to pass — see
+`ai-signals-progress.md` F2's original 7/7 run. Logged as an environment-only deviation, same
+root cause as AV-6/AV-6-followup; not fixed further this session (fixing it would mean either
+restoring network access, which is out of this session's control, or widening the fallback
+reference catalog with a concrete item, which risks changing what the fallback represents for
+other consumers of it (`demo-seed-stages.ts`'s own DEMO-STAGE-3 narrative is written around the
+rebar row specifically) — flagged rather than guessed at.
+
+**Deviations (Part A):**
+- Deleted `pm-reports.tsx`/`pm-resources.tsx` even though they're not AI-related, because they
+  are literal dead files (unreachable, superseded by shared routes) — the same bug class A1
+  targets, not a scope-creep addition.
+- Added a "Projects" nav entry to `finance_manager` in `role-tab.ts` (A2) — a real navigation
+  fix per A2's own instruction ("if a role that should see relevant signals has no path... fix
+  navigation"), reusing the existing `/projects` route/component, no new component built.
+- `demo-ai-signals.ts`'s cost-variance assertion still fails in this network-blocked sandbox
+  (see above) — environment limitation, not a code defect; flagged, not silently worked around.
+
+Server `npx tsc --noEmit -p server`: clean. Client `npm run build`: clean (both re-run after
+every file change in this section).

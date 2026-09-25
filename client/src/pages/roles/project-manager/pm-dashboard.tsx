@@ -12,7 +12,6 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { ComingSoonCard } from "@/components/refine-ui/views/coming-soon-card";
 import { WaitingOnYouCard } from "@/features/lifecycle/components/WaitingOnYouCard";
-import { FEATURES } from "@/config/features";
 import { KpiStrip } from "@/components/ui/kpi-strip";
 import { Progress } from "@/components/ui/progress";
 import { useRoleConfig } from "@/hooks/use-role-config";
@@ -186,16 +185,11 @@ export default function DashboardPage() {
           </CardContent>
         </Card>
 
-        {/* K1: cross-project gate checks + workflow stages waiting on this PM */}
+        {/* K1/ai-signals E3: cross-project gate checks + advisory signals
+            waiting on this PM — this already IS the AI-insights summary
+            (Sparkles-badged "signal" items), so no separate placeholder
+            card is needed in this slot. */}
         <WaitingOnYouCard />
-
-        {/* AI Insights — placeholder, hidden behind FEATURES.aiPlaceholders (see config/features.ts) */}
-        {FEATURES.aiPlaceholders && (
-          <ComingSoonCard
-            title="AI insights"
-            description="Portfolio-wide AI recommendations aren't wired to a backend yet. This panel will surface schedule, budget, and risk suggestions once that's built."
-          />
-        )}
       </section>
 
       {/* ── Bottom row — approvals + activity, neither backed yet ── */}

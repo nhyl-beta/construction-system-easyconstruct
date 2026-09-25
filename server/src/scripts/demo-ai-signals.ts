@@ -24,7 +24,15 @@ import { NEXT_PHASE, isSequencedPhase, type SequencedPhase } from "../lifecycle/
 
 const BASE = process.env.SMOKE_BASE_URL ?? "http://localhost:8000/api";
 const PASSWORD = "Demo@12345";
-const PROJECT_CODE = `AISIG-${Date.now().toString(36).toUpperCase()}`;
+// A4 (docs/ai-signals-progress.md F2 originally left this as a
+// timestamp-suffixed code, e.g. AISIG-MUGLM73Z, generated fresh on every
+// run and never cleaned up — a new, differently-coded "permanent artifact"
+// each time, which is not actually bookmarkable. Fixed to a single stable
+// code (overridable via AISIG_PROJECT_CODE) plus the cleanupExisting() call
+// below, so this script is idempotent like demo-seed-stages.ts: re-running
+// it always rebuilds the *same* project, and its code can be linked to
+// directly (see README's "Demo data" section).
+const PROJECT_CODE = process.env.AISIG_PROJECT_CODE ?? "AISIG-DEMO";
 const CONTRACT_VALUE = 1_000_000;
 
 const pool = new pg.Pool({ connectionString: process.env.DATABASE_URL });
@@ -84,6 +92,58 @@ function step(label: string) {
   console.log(`\n▶ ${label}`);
 }
 
+// A4: raw-SQL teardown for one project code, same table order (children
+// before parents) as demo-seed-stages.ts's own `cleanup()` — kept as a
+// separate, self-contained copy rather than importing that module, since
+// its main() runs unconditionally at import time (it would reseed all 7
+// DEMO-STAGE-* projects as an unwanted side effect of importing it here).
+async function cleanupExisting(code: string) {
+  await pool.query("DELETE FROM proposals WHERE project_code = $1", [code]);
+  await pool.query("DELETE FROM workflows WHERE project_code = $1", [code]);
+  await pool.query("DELETE FROM milestones WHERE project_code = $1", [code]);
+  await pool.query("DELETE FROM tasks WHERE project_code = $1", [code]);
+  await pool.query("DELETE FROM issues WHERE project_code = $1", [code]);
+  await pool.query("DELETE FROM requirements WHERE project = $1", [code]);
+  await pool.query("DELETE FROM documents WHERE project = $1", [code]);
+  await pool.query("DELETE FROM engineering_reports WHERE project = $1", [code]);
+  await pool.query("DELETE FROM blueprints WHERE project_code = $1", [code]);
+  await pool.query(
+    "DELETE FROM design_reviews WHERE design_id IN (SELECT id FROM designs WHERE project_code = $1)",
+    [code],
+  );
+  await pool.query(
+    "DELETE FROM design_revisions WHERE design_id IN (SELECT id FROM designs WHERE project_code = $1)",
+    [code],
+  );
+  await pool.query(
+    "DELETE FROM architect_documents WHERE design_id IN (SELECT id FROM designs WHERE project_code = $1)",
+    [code],
+  );
+  await pool.query("DELETE FROM designs WHERE project_code = $1", [code]);
+  for (const t of [
+    "budget_adjustments",
+    "budget_allocations",
+    "budget_approval_steps",
+    "budget_comments",
+    "budget_documents",
+    "budget_history",
+  ]) {
+    await pool.query(
+      `DELETE FROM ${t} WHERE budget_id IN (SELECT id FROM budgets WHERE project = $1)`,
+      [code],
+    );
+  }
+  await pool.query("DELETE FROM budgets WHERE project = $1", [code]);
+  await pool.query("DELETE FROM expenses WHERE project = $1", [code]);
+  await pool.query("DELETE FROM payroll_batches WHERE project_code = $1", [code]);
+  await pool.query("DELETE FROM attendance WHERE project_code = $1", [code]);
+  await pool.query("DELETE FROM project_members WHERE project_code = $1", [code]);
+  await pool.query("DELETE FROM project_phase_history WHERE project_code = $1", [code]);
+  await pool.query("DELETE FROM notifications WHERE project_code = $1", [code]);
+  await pool.query("DELETE FROM audit_logs WHERE project_code = $1", [code]);
+  await pool.query("DELETE FROM projects WHERE code = $1", [code]);
+}
+
 let docCounter = 0;
 function shortDocId(): string {
   docCounter += 1;
@@ -111,6 +171,9 @@ async function main() {
     engineer: byEmail("engineer@easyconstruct.demo"),
     site: byEmail("site@easyconstruct.demo"),
   };
+
+  step(`Clearing any existing ${PROJECT_CODE} from a previous run`);
+  await cleanupExisting(PROJECT_CODE);
 
   step(`Creating project ${PROJECT_CODE} and driving it to Construction`);
   const project = await api<{ id: number; code: string }>("/projects", t.pm, {
@@ -257,6 +320,7 @@ async function main() {
 
   console.log(`\n${passed} passed, ${failed} failed`);
   console.log(`\nScenario project ${PROJECT_CODE} (id ${projectId}) left in place for inspection — not cleaned up.`);
+  console.log(`Open it in the app at /projects/${projectId} (Project Manager / Consultant / Finance Manager / Engineer) to see DecisionSupportSection with all five signals live.`);
   await pool.end();
   process.exitCode = failed > 0 ? 1 : 0;
 }
