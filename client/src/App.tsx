@@ -100,6 +100,7 @@ import EmployeeCreatePage from "@/features/employees/pages/EmployeeCreatePage";
 import ProjectCreatePage from "@/features/projects/pages/ProjectCreatePage";
 import ProjectDetailPage from "@/features/projects/pages/ProjectDetailPage";
 import SharedReports from "./pages/roles/shared/shared-reports";
+import SharedBlueprintReviews from "./pages/roles/shared/shared-blueprint-reviews";
 import SharedResources from "./pages/roles/shared/shared-resources";
 
 import "./App.css";
@@ -162,6 +163,11 @@ function App() {
                       dashboard instead of a dead AI surface. */}
                   <Route path="/ai-insights" element={<Navigate to="/dashboard" replace />} />
                   <Route path="/reports" element={<SharedReports />} />
+                  {/* Part B item 8: real decide action for gate D3, role-gated
+                      server-side (consultant/project-manager/admin); every
+                      other authenticated role that reaches it sees the same
+                      list read-only, same convention as /reports above. */}
+                  <Route path="/blueprint-reviews" element={<SharedBlueprintReviews />} />
                   <Route path="/resources" element={<SharedResources />} />
 
                   {/* ── Project Manager Routes ── */}

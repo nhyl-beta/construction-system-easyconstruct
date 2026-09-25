@@ -40,6 +40,11 @@ export interface CreateBlueprintInput {
 
 export interface UpdateBlueprintInput extends Partial<CreateBlueprintInput> {}
 
+export interface DecideBlueprintInput {
+  id: number;
+  approval: "Approved" | "Rejected" | "Revision Required";
+}
+
 export interface BlueprintFilters {
   folder?: string;
   search?: string;

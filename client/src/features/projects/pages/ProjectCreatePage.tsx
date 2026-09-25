@@ -15,6 +15,7 @@ import { ProjectRepository } from "@/features/projects/repositories/project.repo
 import { ProjectMemberRepository, type ProjectMemberRole } from "@/features/project-members/repositories/project-member.repository";
 import { MilestoneRepository } from "@/features/milestones/repositories/milestone.repository";
 import { LocationMapPicker } from "@/components/maps/location-map-picker";
+import { useGeocodeSearch, type GeocodeSuggestion } from "@/components/maps/use-geocode-search";
 import { useAuth } from "@/auth/auth-context";
 import { useUsersByRole } from "@/features/users/hooks/use-users-by-role";
 import { Flag, Info, MapPin, Trash2, UserCheck } from "lucide-react";
@@ -275,6 +276,13 @@ function StepProjectInfo({
     value: ProjectFormData[K],
   ) => void;
 }) {
+  // Part B item 6: the free-text Location input wasn't wired to the map at
+  // all — typing an address did nothing until the pin was dragged by hand.
+  // Debounced Nominatim forward geocoding now backs it with a suggestion
+  // list; picking one both fills the text field and moves the pin.
+  const geocode = useGeocodeSearch();
+  const [showSuggestions, setShowSuggestions] = useState(false);
+
   return (
     <div className="space-y-6">
       <div>
@@ -359,10 +367,54 @@ function StepProjectInfo({
             <Input
               placeholder="Enter project location"
               value={data.location}
-              onChange={(e) => set("location", e.target.value)}
+              onChange={(e) => {
+                const value = e.target.value;
+                set("location", value);
+                geocode.setQuery(value);
+                setShowSuggestions(true);
+              }}
+              onFocus={() => setShowSuggestions(true)}
+              onBlur={() => {
+                // Delay so a click on a suggestion registers before the
+                // list unmounts.
+                setTimeout(() => setShowSuggestions(false), 150);
+              }}
               className="rounded-xl pl-9"
+              autoComplete="off"
             />
+            {showSuggestions && (geocode.loading || geocode.suggestions.length > 0 || geocode.error) && (
+              <div className="absolute z-10 mt-1 w-full overflow-hidden rounded-xl border bg-popover shadow-md">
+                {geocode.loading && (
+                  <div className="px-3 py-2 text-xs text-muted-foreground">Searching…</div>
+                )}
+                {!geocode.loading && geocode.error && (
+                  <div className="px-3 py-2 text-xs text-destructive">{geocode.error}</div>
+                )}
+                {!geocode.loading &&
+                  geocode.suggestions.map((s: GeocodeSuggestion, i: number) => (
+                    <button
+                      key={`${s.latitude}-${s.longitude}-${i}`}
+                      type="button"
+                      className="block w-full truncate px-3 py-2 text-left text-xs hover:bg-accent"
+                      onMouseDown={(e) => e.preventDefault()}
+                      onClick={() => {
+                        set("location", s.displayName);
+                        set("siteLatitude", s.latitude);
+                        set("siteLongitude", s.longitude);
+                        geocode.setQuery(s.displayName);
+                        geocode.clearSuggestions();
+                        setShowSuggestions(false);
+                      }}
+                    >
+                      {s.displayName}
+                    </button>
+                  ))}
+              </div>
+            )}
           </div>
+          <p className="text-[11px] text-muted-foreground">
+            Start typing an address to search — selecting a result moves the map pin below.
+          </p>
         </div>
 
         {/* Map pin sets siteLatitude/siteLongitude, and the geofence radius

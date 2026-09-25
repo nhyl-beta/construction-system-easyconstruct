@@ -52,6 +52,26 @@ export const useBlueprintsController = () => {
     }
   };
 
+  const [deciding, setDeciding] = useState(false);
+  const [decideError, setDecideError] = useState<string | null>(null);
+  // Part B item 8: the role-gated decision action (server:
+  // POST /blueprints/:id/decide) — separate from `create` above and from
+  // any generic-PATCH edit, since only Consultant/PM/Admin may call it.
+  const decide = async (id: number, approval: "Approved" | "Rejected" | "Revision Required"): Promise<boolean> => {
+    setDeciding(true);
+    setDecideError(null);
+    try {
+      await apiClient.post(`/blueprints/${id}/decide`, { approval });
+      await load();
+      return true;
+    } catch (err) {
+      setDecideError(err instanceof Error ? err.message : "Failed to record the decision.");
+      return false;
+    } finally {
+      setDeciding(false);
+    }
+  };
+
   const folders = useMemo(() => Array.from(new Set(blueprints.map((b) => b.folder))), [blueprints]);
   const favorites = useMemo(() => blueprints.filter((b) => b.favorite), [blueprints]);
 
@@ -69,5 +89,8 @@ export const useBlueprintsController = () => {
     creating,
     createError,
     create,
+    deciding,
+    decideError,
+    decide,
   };
 };

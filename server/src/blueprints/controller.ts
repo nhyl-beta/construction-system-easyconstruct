@@ -29,6 +29,12 @@ export const update = async (req: Request, res: Response, next: NextFunction) =>
   try { res.json(formatSuccess(await service.update(Number(req.params.id), req.body), MSG.blueprints.updated)); }
   catch (err) { next(err); }
 };
+export const decide = async (req: Request, res: Response, next: NextFunction) => {
+  try {
+    const data = await service.decide({ id: Number(req.params.id), approval: req.body.approval });
+    res.json(formatSuccess(data, MSG.blueprints.updated));
+  } catch (err) { next(err); }
+};
 export const remove = async (req: Request, res: Response, next: NextFunction) => {
   try { res.json(formatSuccess(await service.remove(Number(req.params.id)), MSG.blueprints.deleted)); }
   catch (err) { next(err); }

@@ -19,3 +19,7 @@ export const createBlueprintSchema = z.object({
   designId: z.number().int().nullable().optional(),
 });
 export const updateBlueprintSchema = createBlueprintSchema.partial();
+
+export const decideBlueprintSchema = z.object({
+  approval: z.enum(["Approved", "Rejected", "Revision Required"]),
+});

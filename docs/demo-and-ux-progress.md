@@ -206,14 +206,158 @@ action for a PM to click — fixed in Part B, item 4/9.
 
 ### Part B — 9 UI/UX issues
 
-- [ ] 1. Consultant Design Approval buttons — affordance (Q2)
-- [ ] 2. PM Create-Project map z-index overlap (Q3)
-- [ ] 3. Finance Approvals pending-badge (Q4)
-- [ ] 4/9. Final Inspection PM approval affordance/gap (Q5/Q9)
-- [ ] 5. Payroll computation repro + fix (Q6)
-- [ ] 6. Location textbox geocoding (Nominatim)
-- [ ] 7. Notification dropdown pagination (Q1)
-- [ ] 8. Blueprint approval action (real gap)
+- [x] 1. Consultant Design Approval buttons — affordance
+- [x] 2. PM Create-Project map z-index overlap — already fixed upstream (Q3)
+- [x] 3. Finance Approvals pending-badge — already fixed upstream (Q4)
+- [x] 4/9. Final Inspection PM approval affordance/gap — already fixed upstream (Q5)
+- [x] 5. Payroll computation repro + fix — already fixed upstream (Q6), re-verified live in this environment
+- [x] 6. Location textbox geocoding (Nominatim)
+- [x] 7. Notification dropdown pagination — already fixed upstream (Q1)
+- [x] 8. Blueprint approval action (real gap)
+
+## Part B — mid-task discovery: most of this was already fixed upstream
+
+Partway through this session, `origin/dev-ai` had moved (from `0e08327` to `83675df` — a
+fetch/merge mid-session, not something this session caused) and now included
+`9e7fe3fce918` **"fix(ui): Q1-Q6 user-reported UI/UX issues, all live-verified"**, plus AI-signals
+Groups D/E/F. That single commit already fixes exactly the 6 queued issues (Q1-Q6), which map
+directly onto 6 of this list's 9 items:
+
+| This list's item | Queue id | Fixed by | File(s) |
+|---|---|---|---|
+| 7. Notification pagination | Q1 | `9e7fe3f` | `notification-bell.tsx` |
+| 2. Map z-index overlap | Q3 | `9e7fe3f` | `location-map-picker.tsx` (`isolation: isolate`) |
+| 3. Finance pending-badge | Q4 | `9e7fe3f` | `sidebar.tsx`, `header.tsx`, new `useApprovalsPendingCount()` |
+| 4/9. Final Inspection approval | Q5 | `9e7fe3f` | `shared-reports.tsx` rebuilt into a real approve/reject screen |
+| 5. Payroll computation | Q6 | `9e7fe3f` | `seed-demo-accounts.ts` (pay rates), `finance-payroll-review.tsx` |
+
+Merged that history into this branch (`git merge origin/dev-ai`, one trivial `package.json`
+script-list conflict, resolved by keeping both scripts), re-ran the full server test suite
+(84/84 passing) and the demo seed script (still idempotent, still produces the same 7 projects)
+against the merged code, then pushed. Item 1 turned out **not** to be the same file Q2 actually
+fixed (Q2's own fix, also in `9e7fe3f`, is in `consultant-proposals.tsx` — the *proposal*
+review's Approve/Reject; this list's item 1 explicitly names `consultant-design-reviews.tsx`,
+the separate *design review* decide screen E1/E2 built) — its buttons were still tiny (28px,
+`text-xs`) with a blend-into-the-row ghost-variant destructive Reject, so it got its own fix
+below rather than being marked done by inference.
+
+This left only two of the nine genuinely unaddressed: item 6 (geocoding — never in the Q-queue
+at all) and item 8 (blueprint approval — a real backend+UI gap, not in the Q-queue either).
+Both are built fresh in this session, below.
+
+### 1. Consultant Design Approval buttons — affordance fix
+
+**Capability already existed** — `useDesignReviews().decide()` and the server route (E1) both
+worked; this was purely a visibility/affordance problem, the same class Q2 fixed in a
+*different* file. `client/src/pages/roles/consultant/consultant-design-reviews.tsx`: the
+Approve/Request changes/Reject row was three 28px-tall (`h-7 text-xs`) buttons, the last a
+`variant="ghost" text-destructive` Reject that visually blended into the card. Changed to
+full-size buttons (default height, no forced `text-xs`), Reject switched to `variant="destructive"`
+(solid, unmistakably a red button), added a "Decide:" label and a border-top separating the
+action row from the review's own details, and widened the action row's top margin.
+
+### 2/3/4/9/5/7 — already fixed upstream, spot-verified
+
+- **Item 2 (map z-index):** `location-map-picker.tsx`'s wrapper now has `isolation: isolate`,
+  scoping Leaflet's own internal z-index stack (which climbs past 1000) inside a local stacking
+  context instead of competing with the app header's z-index directly — read the diff, matches
+  the "scope it, don't crank the header" instruction in this task exactly.
+- **Item 3 (finance badge):** confirmed `sidebar.tsx` renders a red-dot badge via
+  `useApprovalsPendingCount()` against `GET /workflows/approvals/stats` — the same
+  unread-count-hook pattern `notification-bell.tsx` already used, as instructed.
+- **Item 4/9 (Final Inspection):** confirmed `shared-reports.tsx` is now a real
+  Approve/Reject/Request-revision screen (project-manager/admin decide, matching
+  `engineering-reports/service.ts`'s `assertCanSetStatus`), not a `ComingSoonCard`. This is the
+  same real gap `DEMO-STAGE-4`'s seed step exercises via the underlying API — the fix here is
+  the missing **UI** for that same action, not a second gap.
+- **Item 5 (payroll):** re-verified live in *this* session's own environment (the local DB's
+  employee rows already existed from before the upstream fix merged in, so its own
+  insert-only pay-rate backfill in `seed-demo-accounts.ts` didn't touch them — ran the
+  equivalent one-off `UPDATE employees SET pay_rate=... WHERE role=...` this session, matching
+  the same `PAY_RATE_BY_ROLE` table the fix added). Real end-to-end run,
+  `POST /payroll/generate` → `GET /finance/payroll-review/:id` → `POST .../decide`, actual
+  server output:
+  ```
+  generate: 201 {"lines":[{"empId":"EMP-DEMO-07","hours":40,"overtime":4,
+    "gross":"6900.00","sss":"350.00","philhealth":"250.00","pagibig":"138.00",
+    "withholdingTax":"0.00","deductions":"738.00","net":"6162.00", ...}],
+    "batch":{"grossPayroll":6900,"deductions":738,"netPayroll":6162,"status":"pending"}}
+  review fetch: 200 (same numbers)
+  approve: 200 "Payroll batch decision recorded"
+  ```
+  Real SSS/PhilHealth/Pag-IBIG math (`server/src/payroll/ph-statutory.ts`) computing non-zero
+  values, exactly the fix's own repro (`payRate=0` → gross/net always ₱0) resolved. Test batch
+  deleted afterward.
+- **Item 7 (notifications):** confirmed `notification-bell.tsx` now has Prev/Next pagination
+  (8/page) reading a real page of the notifications list, not client-side slicing of everything.
+
+### 8. Blueprint approval — real gap, fixed
+
+Confirmed the gap exactly as described: `server/src/blueprints/routes.ts`'s `PATCH /:id` had
+**no role guard at all** (any authenticated user could set `approval`), and no client screen
+outside the architect's own `architect-blueprints.tsx` (a create-only gallery, no decide UI)
+ever called it. Gate D3 reads `blueprints.approval="Approved" AND status="Current"` with no real
+way to reach that state except a hand-crafted PATCH.
+
+Built, server:
+- `server/src/blueprints/service.ts`: new `decide()` — validates `approval` is one of
+  Approved/Rejected/Revision Required, also sets `status: "Current"` when approving (D3 needs
+  both), notifies the architect role, calls `refreshProjectProgress` (same pattern as
+  `design-reviews/service.ts decide()`).
+- `server/src/blueprints/routes.ts`: `POST /:id/decide`, `requireRole("consultant",
+  "project-manager", "admin")` — separate from the generic `PATCH` so the architect can still
+  edit their own drawing's metadata without being able to self-approve it.
+- `server/src/validators/blueprint-validator.ts`: `decideBlueprintSchema`.
+
+Built, client:
+- `useBlueprintsController` (`blueprints.controller.ts`): new `decide(id, approval)`.
+- New `client/src/pages/roles/shared/shared-blueprint-reviews.tsx`, mirroring
+  `consultant-design-reviews.tsx`'s Pending/Approved/Rejected tabs — mounted at
+  `/blueprint-reviews` (same "open to any authenticated role, decide gated server-side"
+  convention as `/reports`). Added to Consultant's nav (tabs + sidebar section) as
+  "Blueprint Reviews". Did **not** add a PM-specific nav entry (project-manager doesn't have a
+  dedicated section in `role-tab.ts` the way consultant/admin do) or an Admin nav entry — both
+  can still reach `/blueprint-reviews` directly and the server permits both roles to decide;
+  logged as a deviation rather than guessed at further.
+
+**Live verification** (real server, real roles):
+```
+create (architect):                          201, approval="Pending"
+architect decides own blueprint (expect 403): 403 "Role 'architect' cannot access this resource"
+consultant decides Approved (expect 200):     200, approval="Approved", status="Current"
+architect notified:                           true — "Blueprint approved" / "...was approved."
+invalid approval value (expect 400):          400
+```
+Test blueprint deleted afterward.
+
+### 6. Location textbox geocoding — real gap, fixed
+
+Confirmed the gap: `client/src/features/projects/pages/ProjectCreatePage.tsx`'s Location field
+(inside `StepProjectInfo`) was a plain `<Input>` writing only to `data.location` (free text sent
+to the server as-is) — `LocationMapPicker` right below it was entirely separate, driven only by
+manual pin placement/drag.
+
+Built `client/src/components/maps/use-geocode-search.ts`: a `useGeocodeSearch()` hook —
+debounced 450ms (>400ms as asked), `AbortController`-cancels a stale in-flight request when a
+newer keystroke supersedes it, calls `https://nominatim.openstreetmap.org/search` with
+`format=jsonv2`, a `User-Agent` header per Nominatim's usage policy, and a `requestId` guard so
+a slow response can't clobber newer results. Wired into `ProjectCreatePage.tsx`'s `StepProjectInfo`:
+typing shows a suggestion dropdown under the input; picking a result fills the text field with
+the full matched address **and** sets `siteLatitude`/`siteLongitude`, which `LocationMapPicker`
+picks up via its own props-driven `useEffect` and recenters the pin to (confirmed by reading
+`location-map-picker.tsx`'s second effect, which calls `map.setView` whenever the
+`latitude`/`longitude` props change — no changes needed to that component itself).
+
+Not live-verified against the real Nominatim endpoint from this session — confirmed the same
+proxy blocks it as blocks EstimationPro.ai:
+```
+$ curl -i "https://nominatim.openstreetmap.org/search?format=jsonv2&limit=1&q=Manila"
+curl: (56) CONNECT tunnel failed, response 403
+[agent-proxy] ... nominatim.openstreetmap.org:443 — connect_rejected (organization policy)
+```
+The debounce/abort/request-id logic itself has no network dependency and was verified by
+reading it closely, and `tsc`/the client build are clean with this file included. Logged as a
+deviation, not silently claimed as live-verified.
 
 ## P1 — Gate → row audit table
 
@@ -282,4 +426,12 @@ anything outside this table list.
 
 ## Questions
 
-(none yet)
+- Item 8 (blueprint approval): who owns sign-off, Consultant, PM, or both? No role-responsibility
+  doc was found pinning this down (grepped `docs/` and the README). Went with the same split
+  gate D3's own `ownerRoles: ["architect"]` (the architect chases the approval) implies plus the
+  design-review precedent (architect authors, consultant decides) — server route allows
+  consultant/project-manager/admin to decide, and the new nav entry was only added for
+  Consultant (project-manager has no dedicated top-level nav section in `role-tab.ts` to add it
+  to, and admin's nav wasn't touched either) — both can still reach `/blueprint-reviews`
+  directly and the server permits their decision. If PM should have equal nav-level
+  discoverability, that's a follow-up.

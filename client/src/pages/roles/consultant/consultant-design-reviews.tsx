@@ -52,15 +52,26 @@ export default function ConsultantDesignReviews() {
                     <span>Due {r.dueDate ?? "—"}</span>
                   </div>
                   {c.tab === "pending" && (
-                    <div className="mt-2 flex gap-2">
-                      <Button size="sm" className="h-7 rounded-lg text-xs" onClick={() => c.decide(r.id, "Approved")}>
-                        <Check className="h-3 w-3" /> Approve
+                    // Part B item 1: these were 28px-tall, low-contrast
+                    // buttons (a ghost-variant destructive Reject blended
+                    // into the row entirely) — a real action a consultant
+                    // couldn't tell was clickable. Full-size, clearly
+                    // hierarchical buttons with a "Decide:" label instead.
+                    <div className="mt-3 flex flex-wrap items-center gap-2 border-t pt-3">
+                      <span className="mr-1 text-xs font-medium text-muted-foreground">Decide:</span>
+                      <Button size="sm" className="rounded-lg" onClick={() => c.decide(r.id, "Approved")}>
+                        <Check className="h-4 w-4" /> Approve
                       </Button>
-                      <Button size="sm" variant="outline" className="h-7 rounded-lg text-xs" onClick={() => c.decide(r.id, "Changes Requested")}>
-                        <Send className="h-3 w-3" /> Request changes
+                      <Button size="sm" variant="outline" className="rounded-lg" onClick={() => c.decide(r.id, "Changes Requested")}>
+                        <Send className="h-4 w-4" /> Request changes
                       </Button>
-                      <Button size="sm" variant="ghost" className="h-7 rounded-lg text-xs text-destructive" onClick={() => c.decide(r.id, "Rejected")}>
-                        <X className="h-3 w-3" /> Reject
+                      <Button
+                        size="sm"
+                        variant="destructive"
+                        className="rounded-lg"
+                        onClick={() => c.decide(r.id, "Rejected")}
+                      >
+                        <X className="h-4 w-4" /> Reject
                       </Button>
                     </div>
                   )}
