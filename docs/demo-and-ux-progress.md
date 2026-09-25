@@ -1,6 +1,15 @@
 # Demo seed data + queued UI/UX fixes — progress
 
-Branch: `dev-ai`, started at HEAD `0e08327`.
+Branch: `dev-ai`, started at HEAD `0e08327`. Part A commit: `8781183`. Merge of
+`origin/dev-ai` (which had moved ahead mid-session — see the Part B section below): `641df06`.
+Part B commit: `1e8d6c0`. Follow-up (self-contained AI reference fallback): `29ef68b`.
+
+**Acceptance status**: all of Part A (7 stage projects + idempotency + gate dump + P9) and all
+9 of Part B's reported issues are done — 6 already fixed by a commit that landed on `dev-ai`
+mid-session (cross-referenced, spot-verified live, not silently claimed), 3 built fresh in this
+session (item 1's affordance fix, item 6 geocoding, item 8 blueprint approval). Server
+`npx tsc --noEmit` and `npm test` (84/84) and the client `npm run build` are all clean as of
+`29ef68b`. `FEATURES.aiPlaceholders`'s surface table was not touched anywhere in this session.
 
 At the start of every session: read this file and continue from the first unticked item.
 
