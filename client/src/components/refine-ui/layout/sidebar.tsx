@@ -23,6 +23,7 @@ import { useMenu, useParsed, type TreeMenuItem } from "@refinedev/core";
 import { ListIcon } from "lucide-react";
 import { useNavigate } from "react-router";
 import { useApprovalsPendingCount } from "@/features/workflows/hooks/useWorkflows";
+import { isNavRouteActive } from "@/lib/nav-active";
 // ── Helpers ──────────────────────────────────────────────────────────────────
 
 const SECTION_ORDER = [
@@ -89,12 +90,8 @@ export function Sidebar() {
 
   const sections = groupMenuItems(menuItems, identity.role);
 
-  const isActive = (route: string) => {
-    if (!pathname) return false;
-    return (
-      pathname === route || (route !== "/" && pathname.startsWith(route + "/"))
-    );
-  };
+  // C1/C2: shared with header.tsx's `isTabActive` — same rule, one place.
+  const isActive = (route: string) => isNavRouteActive(pathname, route);
 
   return (
     <ShadcnSidebar

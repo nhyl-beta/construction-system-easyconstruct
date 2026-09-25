@@ -709,3 +709,73 @@ on both sides, `npm run db:seed`, `npm run demo:seed`), using Playwright (Chromi
 
 Server `npx tsc --noEmit -p server`: clean. Client `npm run build`: clean. `npm test` (server):
 84/84 pass.
+
+### Part C — navbar/sidebar active-state sync
+
+**Finding a real disagreement first.** Confirmed `header.tsx`'s `isTabActive` and
+`sidebar.tsx`'s `isActive` were byte-identical logic
+(`pathname === route || pathname.startsWith(route + "/")`) — so on their own they can't
+disagree about a shared route; the drift risk was two independent copies of one rule (exactly
+what the prompt names). More important: `sidebar.tsx` does **not** read `role-tab.ts`'s own
+`sections` field at all — it renders from `useMenu()` (refine's resource menu, built from
+`providers/resources.ts` filtered by `config/role-resources.ts`'s `ROLE_RESOURCE_ACCESS`), a
+completely different, dynamic list from `role-tab.ts`'s static `tabs` array that `header.tsx`
+reads. (`role-tab.ts`'s `sections` field is itself dead — grepped, nothing reads it outside its
+own file; flagged in Deviations, not touched, out of scope for this pass.) That means the
+header's tab set and the sidebar's actual item set were never the same list to begin with, so
+they can genuinely disagree on which "page" is active whenever a sidebar item's route isn't
+nested under any header tab's route.
+
+Found the concrete case: architect's sidebar (`providers/resources.ts`, `Workspace` group) has
+always listed **Blueprints** as a first-class item (`list: "/blueprints"`, same group as
+Designs/Proposals), but architect's `role-tab.ts` `tabs` only had Projects/Designs/Proposals —
+no tab's route nests `/blueprints`. Live-reproduced: navigated an architect session straight to
+`/blueprints` — sidebar correctly highlighted "Blueprints", **no header tab highlighted at
+all**. A user scanning the header after clicking a sidebar link would see nothing telling them
+which section they're in.
+
+**Fix:**
+- `client/src/lib/nav-active.ts` (new): the one `isNavRouteActive(pathname, route)`, imported by
+  both `header.tsx` and `sidebar.tsx` in place of their own copies — a future edit to the match
+  rule now has exactly one place to happen, removing the duplication that let them drift.
+- `client/src/config/role-tab.ts`: added a "Blueprints" tab to the architect config (real
+  navigation fix for the concrete case found, not a workaround — Blueprints is a full
+  approve/reject workflow with its own page, same standing as Designs/Proposals).
+
+Other sidebar items with no matching header tab exist across other roles too (e.g. architect's
+own Revisions/Reviews/Documentation, admin's various `/admin/*` settings pages, human-resources'
+`/workforce-reports`) — audited via a script cross-referencing every role's `tabs` routes
+against every sidebar route reachable for that role. These read as **intentional**, not
+instances of the same bug: every role has more sidebar entries than header tabs by a wide
+margin, consistently across the whole app (tabs = a handful of primary daily actions, sidebar =
+full nav) — Blueprints was the one case where a page as central as Designs/Proposals had been
+left out of the tab row while its siblings were in it. Not fixed further; listed here as a
+documented decision per the task's own instruction, not a silent gap. If a specific one of these
+should also get a tab, that's a follow-up per-role product call, not a bug fix.
+
+**Live-verified, 3 roles, both direct URL load and in-app navigation** (Playwright, DOM
+snapshot of which header-nav `<button>` carries the active style class and which sidebar
+`[data-sidebar="menu-button"]` carries `data-active="true"`):
+```
+architect /blueprints (direct URL):        header=["Blueprints"]  sidebar=["Blueprints"]
+pm /projects (direct URL):                 header=["Projects"]    sidebar=["Projects"]
+consultant /consultant/designs (direct URL): header=["Designs"]     sidebar=["Designs"]
+architect Blueprints (in-app sidebar click, not URL): landed on /blueprints,
+  header=["Blueprints"]  sidebar=["Blueprints"]
+```
+All four agree in both directions and both navigation methods — the one confirmed gap
+(architect/Blueprints) is fixed; the general-purpose fix (shared `isNavRouteActive`) removes the
+underlying duplication risk for every other role/route pair.
+
+**Deviations (Part C):**
+- `role-tab.ts`'s `sections` field is dead code (nothing reads it — `sidebar.tsx` uses
+  `useMenu()`/`resources.ts` instead). Not removed in this pass — out of scope for Part C, and
+  removing a field with this much per-role content is a larger, separate cleanup; flagged rather
+  than silently left implying it's live data.
+- Did not add tabs for every other sidebar-only page (Revisions, Reviews, Documentation, the
+  various admin/IT-designer settings pages, etc.) — judged as the app's consistent, intentional
+  tabs-are-a-subset convention rather than the same bug, per the reasoning above. If wrong,
+  that's a per-role product decision, not a technical fix, and is called out here rather than
+  guessed at.
+
+Server `npx tsc --noEmit -p server`: clean. Client `npm run build`: clean.

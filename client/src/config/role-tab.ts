@@ -396,6 +396,12 @@ export const ROLE_CONFIGS: Record<string, RoleConfig> = {
       { label: "Projects", icon: FolderKanban, route: "/projects" },
       { label: "Designs", icon: Ruler, route: "/designs" },
       { label: "Proposals", icon: FileText, route: "/proposals" },
+      // C1: the real sidebar (providers/resources.ts, not this file's own
+      // unused `sections` field — see Deviations) has always listed
+      // Blueprints as a first-class Workspace item alongside Designs, but
+      // no header tab's route nests "/blueprints", so navigating there
+      // highlighted it in the sidebar and nothing at all in the header.
+      { label: "Blueprints", icon: NotepadTextDashed, route: "/blueprints" },
     ],
 
     sections: [

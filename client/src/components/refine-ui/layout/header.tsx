@@ -25,6 +25,7 @@ import { useState } from "react";
 import { LogOutIcon, Search } from "lucide-react";
 import { NotificationBell } from "@/components/notifications/notification-bell";
 import { Link, useNavigate } from "react-router";
+import { isNavRouteActive } from "@/lib/nav-active";
 
 export const Header = () => {
   const { isMobile } = useSidebar();
@@ -49,12 +50,10 @@ function DesktopHeader() {
 
   const ActionIcon = config.primaryAction.icon;
 
-  const isTabActive = (route: string) => {
-    if (!pathname) return false;
-    return (
-      pathname === route || (route !== "/" && pathname.startsWith(route + "/"))
-    );
-  };
+  // C1/C2: was its own independent copy of this exact match rule — same
+  // logic as sidebar.tsx's `isActive`, but a second place to edit, which is
+  // how the two drifted. Now both import the same `isNavRouteActive`.
+  const isTabActive = (route: string) => isNavRouteActive(pathname, route);
 
   return (
     <div className="sticky top-0 z-40 border-b bg-background/80 backdrop-blur-md">
