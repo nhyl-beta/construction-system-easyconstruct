@@ -916,3 +916,40 @@ Server `npx tsc --noEmit -p server` and client `npm run build`: both clean.
 
 Server `npx tsc --noEmit -p server` and client `npm run build`: both clean.
 
+
+### Part D — app-wide audit for "disabled on a real backend" / fake-AI stubs
+
+**D1/D2 — method.** Grepped every `client/src/pages/roles/*/*.tsx` for a literal, unconditional
+`disabled` (no `={...}` expression — those are real loading/permission-derived disables, out of
+scope per the task's own instruction) and for every remaining `ComingSoonCard` usage. Cross-checked
+each against `server/src/*/service.ts`/`routes.ts` for a matching verb, same method as C2.
+
+**D3 — results table** (every row gets a recorded decision):
+
+| Element | File | Claimed status | Real backend? | Action |
+|---|---|---|---|---|
+| "Request review" quick action | `architect-dashboard.tsx` | disabled, "Send a design to consultants" | **Yes** — `POST /design-reviews` (`designs/design-reviews/service.ts create()`) | **Wired up** (Part C2) |
+| "Comment thread" quick action | `architect-dashboard.tsx` | disabled, ambiguous "Open active review discussions" | No — grepped `server/src`, only per-decision comment fields exist, no general thread table | **Left as genuinely unbuilt**, relabeled honestly (Part C2) |
+| "Generate options / AI design variations" | `architect-dashboard.tsx` | disabled, "AI design variations" | N/A — fake-AI stub, never real | **Removed as scope-creep placeholder** (Part C2) |
+| "New transaction" | `finance-dashboard.tsx` | disabled, tooltip explains no distinct transaction type | Confirmed: no `cash-flow`/`transactions` route exists (`cash_flow_entries` table has zero server routes) | **Left as-is** — already honestly labeled from a prior round, not a fake claim |
+| "Awaiting your approval" | `pm-dashboard.tsx` | `ComingSoonCard`, "No approvals backend exists yet" | **Yes** — `GET /workflows/approvals(/stats)` | **Wired up** (Part C1) |
+| "Activity & advisories" | `pm-dashboard.tsx` | `ComingSoonCard`, "site advisories aren't backed by any table" | Advisories: **yes** (the 5 signal rules, already shown by `WaitingOnYouCard` above it). Activity feed: **no** (grepped, no feed/log endpoint besides admin-only Audit Trail) | **Split**: advisories claim removed (redundant with `WaitingOnYouCard`); activity feed kept honest, relabeled (Part C1) |
+| "Workforce snapshot" | `admin-dashboard.tsx` | `ComingSoonCard`, "no cross-project attendance/workforce endpoint" | **Yes** — `GET /employees` + `GET /attendance` were already unfiltered | **Wired up** (Part C3) |
+| `hrAIInsights`/"AI HR assistant" card | `hr-dashboard.tsx` | gated behind `FEATURES.aiPlaceholders` (permanently false) | N/A — fake-AI stub (`mock-data.ts`) | **Left off** — correctly gated already, not resurrected |
+| "AI suggestions" tab | `pm-workflows.tsx` | gated behind `FEATURES.aiPlaceholders` | N/A — fake-AI stub, "Not yet connected" | **Left off** — correctly gated already |
+| "AI" anomaly column/card | `finance-expenses.tsx` | gated behind `FEATURES.aiPlaceholders`, keyed off `expense.anomalyScore` (nothing ever writes it) | N/A — fake-AI stub | **Left off** — correctly gated already |
+| "Infrastructure health" card | `it-designer-dashboard.tsx` | `ComingSoonCard`, "not recorded anywhere" | Confirmed — no uptime/backup table exists | **Left as-is** — already honest, non-AI |
+| "Resources & Tools" | `shared-resources.tsx` | `ComingSoonCard` | Confirmed — no resources table exists | **Left as-is** — already honest, non-AI |
+| Header "AI · {primaryAi}" badge | `header.tsx` | gated behind `FEATURES.aiPlaceholders` | N/A — static per-role string, computes nothing | **Left off** — correctly gated already |
+| "Generate with AI" hint | `multi-step-page.tsx` | gated behind `FEATURES.aiPlaceholders` | N/A — static hint, no backend call | **Left off** — correctly gated already |
+
+No hardcoded `disabled` (as opposed to `disabled={someCondition}`) was found anywhere in
+`client/src/pages/roles/*/*.tsx` outside the two rows above (architect's Comment thread, once
+fixed to Generate options being removed, and finance-dashboard's New transaction) — every other
+`disabled` in the codebase is conditional on a real loading/permission/validation state.
+**Conclusion: C2's "Request review" was the one real instance of "disabled button on a working
+endpoint" in the app; every fake-AI-flavored surface was already correctly hidden behind
+`FEATURES.aiPlaceholders` from prior rounds, none resurrected here.**
+
+Server `npx tsc --noEmit -p server` and client `npm run build`: both clean.
+
