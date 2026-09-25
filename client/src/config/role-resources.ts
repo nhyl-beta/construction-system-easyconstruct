@@ -1,6 +1,7 @@
 export const ROLE_RESOURCE_ACCESS: Record<string, string[]> = {
   admin: [
     "dashboard",
+    "ai-validation-reference",
     "admin-projects",
     "admin-workflows",
     "admin-documents",
@@ -14,6 +15,7 @@ export const ROLE_RESOURCE_ACCESS: Record<string, string[]> = {
   ],
   owner: [
     "dashboard",
+    "ai-validation-reference",
     "owner-portfolio",
     "owner-proposals",
     "owner-audit-trail",
@@ -23,6 +25,7 @@ export const ROLE_RESOURCE_ACCESS: Record<string, string[]> = {
   ],
   it_designer: [
     "dashboard",
+    "ai-validation-reference",
     "it-designer-users",
     "it-designer-proposals",
     // Absorbed from the legacy platform-admin role, since renamed IT-Designer.
@@ -38,6 +41,7 @@ export const ROLE_RESOURCE_ACCESS: Record<string, string[]> = {
   ],
   project_manager: [
     "dashboard",
+    "ai-validation-reference",
     "projects",
     "workflows",
     "approvals",
@@ -48,6 +52,7 @@ export const ROLE_RESOURCE_ACCESS: Record<string, string[]> = {
   ],
   human_resources: [
     "dashboard",
+    "ai-validation-reference",
     "employees",
     "attendance",
     "payroll",
@@ -57,6 +62,7 @@ export const ROLE_RESOURCE_ACCESS: Record<string, string[]> = {
   ],
   finance_manager: [
     "dashboard",
+    "ai-validation-reference",
     "budget",
     "payroll-review",
     "expenses",
@@ -66,6 +72,7 @@ export const ROLE_RESOURCE_ACCESS: Record<string, string[]> = {
   ],
   architect: [
     "dashboard",
+    "ai-validation-reference",
     "architect-projects",
     "designs",
     "proposals",
@@ -79,15 +86,17 @@ export const ROLE_RESOURCE_ACCESS: Record<string, string[]> = {
   ],
   engineer: [
     "dashboard",
+    "ai-validation-reference",
     "progress",
     "requirements",
     "approvals",
     "issues",
     "projects",
   ],
-  site_personnel: ["dashboard", "attendance", "tasks", "requirements", "documents", "issues"],
+  site_personnel: ["dashboard", "ai-validation-reference", "attendance", "tasks", "requirements", "documents", "issues"],
   consultant: [
     "dashboard",
+    "ai-validation-reference",
     // Consultant's review screen, not the Architect authoring page the
     // generic "proposals" resource points at. Now also carries the workflow
     // decisions that used to need the separate "approvals" resource (see

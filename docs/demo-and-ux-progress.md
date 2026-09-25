@@ -830,11 +830,17 @@ clean before any edit.
   route is `/projects/:id` (numeric id), and this script's cleanup-then-rebuild idempotency
   (A6) means the numeric id shifts on every re-run (confirmed: DEMO-STAGE-3 was id 25 before this
   round's re-run, id 57 after). The project *code* is the stable identifier (bookmarkable via
-  `GET /projects?code=DEMO-STAGE-3` or the search box), not the URL. A truly ID-stable route
-  would need either code-based routing (`/projects/code/:code`) or a full rewrite of the seed
-  script into a check-before-create upsert at every one of its ~15 API steps (proposal, design,
-  budget, milestone, task, blueprint, etc.) rather than delete+rebuild — judged out of scope for
-  this pass; flagged here as a real product gap rather than silently claimed as fixed.
+  `GET /projects?code=DEMO-STAGE-3` or the search box), not the URL.
+
+  **Correction, found while building Part B**: `/projects/:projectId` is *already*
+  code-tolerant — `ProjectRepository.getById(idOrCode)` (`client/src/features/projects/
+  repositories/project.repository.ts`) tries the numeric-id endpoint only when the param is
+  all-digits, and falls back to a `?search=` + exact-code match otherwise. So
+  `/projects/DEMO-STAGE-3` (or `/projects/AISIG-DEMO`) **is** a real, stable, bookmarkable URL
+  today — confirmed live: `curl .../api/projects?search=DEMO-STAGE-3` returns the project, and the
+  route resolves it the same way `ProjectDetailPage.tsx` does. The numeric-id URL a card's own
+  "Open" link produces still shifts on re-seed, but a hand-typed or documented `/projects/<CODE>`
+  link does not. Retracting the "would need a rewrite" claim above — no further work was needed.
 - **[x] A6 — re-runnable, no duplicates.** Ran twice in a row this round; both times exactly 7
   `DEMO-STAGE-*` rows (see table below) — unchanged from prior rounds' verification, re-confirmed
   live.
@@ -1044,3 +1050,48 @@ touched no signal/gate logic). Client `npm run build`: clean.
   after Parts A/C/D/E — a follow-up session should pick it up next, sourcing content live from
   `server/src/config/signals.ts` (`SIGNAL_THRESHOLDS`, `SIMILARITY_FLOOR`, cache TTL), the
   proposal validator, and `cost.ts`/`matcher.ts`, per the original spec's B1-B4.
+
+## Round 4 follow-up — Part B built (AI Validation Reference page)
+
+After Part E, revisited Part B with the remaining time budget instead of leaving it fully
+skipped.
+
+- **[x] B1 — route + nav.** New `server/src/ai-validation/routes.ts` `GET /ai-validation/config`
+  (open to any authenticated role — unlike the existing admin-only `/references-status`/
+  `/refresh-references` on the same router, registered *before* that router's
+  `requireRole("admin")` middleware so it isn't caught by it) returns
+  `SIGNAL_THRESHOLDS`/`SIMILARITY_FLOOR`/`REFERENCE_CACHE_TTL_MS` (imported live from
+  `server/src/config/signals.ts`, not copied) plus the real cached-item count/freshness. New
+  client route `/ai-validation-reference` (`App.tsx`, gated behind `FEATURES.ai`, not
+  `aiPlaceholders` — its content is entirely real), added to `providers/resources.ts` as a
+  genuinely new resource (`ai-validation-reference`, distinct name, distinct route — the old
+  `ai-insights` entry stays exactly as dead/hidden as before, never resurrected) and to every
+  role's array in `config/role-resources.ts` (10 roles, right after `"dashboard"`) so every role
+  can find it.
+- **[x] B2/B3 — content.** `client/src/pages/roles/shared/ai-validation-reference.tsx` fetches the
+  config live and renders: (1) the proposal completeness check (real logic read from
+  `proposals/validation.ts`, title/project/description/amount rules, links to `DEMO-STAGE-0`);
+  (2) the cost-comparison engine (Dice-coefficient matching, the four real verdicts, the live
+  similarity floor and cache-TTL values, links to `DEMO-STAGE-3`); (3) all five signal rules, each
+  with its real warn/critical thresholds read from the API response (not hardcoded), its
+  lifecycle stage, and a link to the `AISIG-DEMO` scenario. Each rule states its demo project in
+  one line, per B3.
+- **[x] B4 — verified live**, not assumed: Playwright, logged in as PM, loaded
+  `/ai-validation-reference` and confirmed by real DOM text that the page shows `0.4` (similarity
+  floor) and `7 days` (cache TTL) — matching `SIMILARITY_FLOOR = 0.40`/`REFERENCE_CACHE_TTL_MS = 7
+  * 24h` in `signals.ts` exactly — then clicked the real "DEMO · 4 Construction" link and
+  confirmed it actually navigated to `/projects/64` (a real project detail page, not a dead link).
+  **Real finding made building this**: `/projects/:projectId` already accepts a project *code* as
+  well as a numeric id (`ProjectRepository.getById` falls back to a `?search=` + exact-code match)
+  — confirmed live via `curl .../api/projects?search=DEMO-STAGE-3`. This means Part A5's
+  bookmarkable-route concern (numeric ids shift on re-seed) has a real fix already available:
+  linking by code (`/projects/DEMO-STAGE-3`) instead of by numeric id is stable across re-seeds.
+  Corrected A5's note above rather than leaving the earlier, now-inaccurate claim standing.
+
+Server `npx tsc --noEmit -p server`: clean. Client `npm run build`: clean.
+
+## Round 4 final acceptance status (corrected)
+
+All five parts (A-E) are now built and live-verified in this round — see each section above for
+evidence. `FEATURES.aiPlaceholders`'s surface table was not touched; nothing fake-AI was
+resurrected (Part D's audit confirms every existing fake-AI surface stayed correctly gated).

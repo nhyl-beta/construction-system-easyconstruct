@@ -294,6 +294,14 @@ const allResources: ResourceProps[] = [
     list: "/ai-insights",
     meta: { label: "AI Insights", group: "Intelligence" },
   },
+  // Part B: a genuinely new route, distinct from the dead "ai-insights"
+  // entry above (never resurrected) — a real reference page generated from
+  // live config/code, not hand-typed prose.
+  {
+    name: "ai-validation-reference",
+    list: "/ai-validation-reference",
+    meta: { label: "AI Validation Reference", group: "Intelligence" },
+  },
   {
     name: "reports",
     list: "/reports",
@@ -309,6 +317,8 @@ const allResources: ResourceProps[] = [
 // "ai-insights" points at a placeholder route (App.tsx redirects it to
 // /dashboard) — drop it from the nav entirely rather than leaving a link
 // that goes nowhere useful. See config/features.ts's aiPlaceholders.
-export const resources: ResourceProps[] = FEATURES.aiPlaceholders
-  ? allResources
-  : allResources.filter((r) => r.name !== "ai-insights");
+export const resources: ResourceProps[] = allResources.filter((r) => {
+  if (r.name === "ai-insights") return FEATURES.aiPlaceholders;
+  if (r.name === "ai-validation-reference") return FEATURES.ai;
+  return true;
+});

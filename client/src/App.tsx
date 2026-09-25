@@ -101,6 +101,8 @@ import ProjectCreatePage from "@/features/projects/pages/ProjectCreatePage";
 import ProjectDetailPage from "@/features/projects/pages/ProjectDetailPage";
 import SharedReports from "./pages/roles/shared/shared-reports";
 import SharedBlueprintReviews from "./pages/roles/shared/shared-blueprint-reviews";
+import AiValidationReferencePage from "./pages/roles/shared/ai-validation-reference";
+import { FEATURES } from "./config/features";
 import SharedResources from "./pages/roles/shared/shared-resources";
 
 import "./App.css";
@@ -162,6 +164,13 @@ function App() {
                       config/features.ts. A stale link/bookmark lands on the
                       dashboard instead of a dead AI surface. */}
                   <Route path="/ai-insights" element={<Navigate to="/dashboard" replace />} />
+                  {/* Part B: a genuinely new route (never the resurrected
+                      "AI Insights" one above), gated behind FEATURES.ai —
+                      not aiPlaceholders, since its content is entirely real. */}
+                  <Route
+                    path="/ai-validation-reference"
+                    element={FEATURES.ai ? <AiValidationReferencePage /> : <Navigate to="/dashboard" replace />}
+                  />
                   <Route path="/reports" element={<SharedReports />} />
                   {/* Part B item 8: real decide action for gate D3, role-gated
                       server-side (consultant/project-manager/admin); every

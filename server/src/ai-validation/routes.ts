@@ -12,9 +12,45 @@ import { db } from "../db/connection.js";
 import { referenceSnapshots } from "../db/schema/ai-validation.js";
 import { desc, count } from "drizzle-orm";
 import { fetchTrades, fetchCostsForTrade } from "./reference-client.js";
+import { SIGNAL_THRESHOLDS, SIMILARITY_FLOOR, REFERENCE_CACHE_TTL_MS } from "../config/signals.js";
+import { FEATURES } from "../config/features.js";
 
 const router = Router();
 router.use(authenticate);
+
+// Part B: the in-app "AI Validation Reference" page needs these real
+// constants at render time, not hand-copied prose that goes stale. Open to
+// any authenticated role (unlike the admin-only refresh/status routes
+// below) — this is read-only config plus a public-safe count/timestamp,
+// the same shape every role's Decision Support section already implies.
+router.get("/config", async (_req, res, next) => {
+  try {
+    const [totalRow] = await db.select({ value: count() }).from(referenceSnapshots);
+    const [newest] = await db
+      .select({ fetchedAt: referenceSnapshots.fetchedAt })
+      .from(referenceSnapshots)
+      .orderBy(desc(referenceSnapshots.fetchedAt))
+      .limit(1);
+    res.json(
+      formatSuccess(
+        {
+          aiEnabled: FEATURES.ai,
+          signalThresholds: SIGNAL_THRESHOLDS,
+          similarityFloor: SIMILARITY_FLOOR,
+          referenceCacheTtlMs: REFERENCE_CACHE_TTL_MS,
+          referenceCatalog: {
+            totalItems: totalRow?.value ?? 0,
+            lastFetchedAt: newest?.fetchedAt?.toISOString() ?? null,
+          },
+        },
+        "AI validation configuration retrieved",
+      ),
+    );
+  } catch (err) {
+    next(err);
+  }
+});
+
 router.use(requireRole("admin"));
 
 router.get("/references-status", async (_req, res, next) => {
