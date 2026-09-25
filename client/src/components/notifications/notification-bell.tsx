@@ -90,7 +90,15 @@ export function NotificationBell() {
           )}
         </div>
 
-        <ScrollArea className="max-h-80">
+        {/* Radix's Viewport sizes itself via height:100%, which only
+            resolves against a containing block with a *definite* height —
+            max-height alone doesn't count (CSS spec). With max-h-80 here,
+            the viewport fell back to auto/content height, silently
+            overflowed past this box, and pushed the pagination row (the
+            next sibling, laid out against this box's nominal edge) into
+            the middle of the still-rendering item list. h-80 gives it a
+            definite height so the overflow actually clips/scrolls. */}
+        <ScrollArea className="h-80">
           {loading && (
             <p className="px-4 py-6 text-sm text-muted-foreground">Loading…</p>
           )}
