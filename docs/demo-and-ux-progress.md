@@ -624,3 +624,88 @@ rebar row specifically) — flagged rather than guessed at.
 
 Server `npx tsc --noEmit -p server`: clean. Client `npm run build`: clean (both re-run after
 every file change in this section).
+
+### Part B — punch list round 3
+
+Live-verified end to end this session against the local Postgres/server/client (`npm run dev`
+on both sides, `npm run db:seed`, `npm run demo:seed`), using Playwright (Chromium at
+`/opt/pw-browsers/chromium-1194`, run via a script copied to
+`/opt/node22/lib/node_modules/` so Node's resolver finds the global `playwright` install).
+
+- **[x] B1 — required-field markers.** Read the actual validation: client `handleSubmit`
+  requires `title`/`project`/a picked file; server `createDocumentSchema`
+  (`server/src/validators/document-validators.ts`) requires `title`/`project`/`type` (type has a
+  UI default so it's always populated); `POST /documents/upload`'s controller 400s with "Please
+  select a file to upload" if `req.file` is missing. So Title, Project and File are the three
+  actually-required fields. Matched the app's existing asterisk convention (`architect-design-create.tsx`:
+  `<Label>Text <span className="text-destructive">*</span></Label>`) on all three in
+  `client/src/components/documents/upload-document-dialog.tsx`. Live-verified — dialog now reads
+  "Title *", "Project *", "File *" (screenshotted via Playwright, text dump captured).
+- **[x] B2 — render `gates.ts`'s `.link` on failing checks.** `ProjectLifecyclePanel.tsx`'s check
+  list never rendered `check.link` even though every gate in `gates.ts` (all phases, not just
+  Design) carries one. Added a "Go to {route}" `<Link>` under each **failing** check, same
+  text/style as `DecisionSupportSection`'s existing signal "Go to" links, shown only to a viewer
+  whose role is in that check's own `ownerRoles` (or admin) — reusing the field that was already
+  there, no new link style. Live-verified on the `AISIG-DEMO` project (id 53) as
+  project-manager: K2 ("All milestones closed", `ownerRoles: [project-manager]`) showed "Go to
+  projects/AISIG-DEMO"; K3 ("No open issues", owner includes project-manager) showed "Go to
+  issues"; K1 (`ownerRoles: [site-personnel]` only) and K4 (`ownerRoles: [finance-manager]`
+  only) correctly showed **no** gate-level link for this PM viewer, confirming the role scoping
+  actually works (not just present-but-unconditional).
+- **[x] B3 — design-review list order.** `server/src/designs/design-reviews/repository.ts`'s
+  `findAll()` had **no `ORDER BY` at all** (confirmed by reading it — not "already
+  newest-first", the prompt's assumption to verify was wrong) — Postgres returned rows in
+  whatever order the planner picked, in practice oldest-first. Added
+  `.orderBy(desc(designReviews.submittedAt))` (this table's `createdAt` equivalent — set once on
+  insert via `defaultNow()`) to both the filtered and unfiltered query paths. Live-verified via
+  `GET /design-reviews`: 7 seeded reviews with distinct `submittedAt` timestamps a few seconds
+  apart now return in `REV-AISIG-DEMO` (newest) → `REV-DEMO-STAGE-1` (oldest) order.
+- **[x] B4 — Budget Change Request line-item editor redesign.** Relabeled every field (Category,
+  Description, Current amount, Requested amount — was placeholder-text-only), added a live
+  computed "Change" field per line (`requested − current`, ₱-formatted via the existing
+  `formatCurrency()`, red for an increase / green for a decrease, "—" until both amounts are
+  entered), and grouped Quantity/Unit/the `FEATURES.ai` cost-comparison hint into their own
+  bordered block under each line item's own card instead of reading as a second, disconnected
+  row. Data shape/validation untouched (`DraftLineItem`, `updateLineItem`,
+  `completedLineItems`, the submit payload) — confirmed by diff: only JSX/layout changed inside
+  the `showLineItems` block. Live-verified as engineer (`/approvals` → "Request budget change" —
+  note: this is the actual reachable entry point; `/workflows` has no such button for engineer,
+  see Deviations) — typed 50000/75000 into Current/Requested and the Change field updated live
+  to "+₱25,000.00" in red, screenshotted (`/tmp/b4-dialog.png`, described: dialog shows "COST
+  CHANGES" header, one "Change 1" card with Category/Description on one row, Current
+  amount/Requested amount/Change on the next, all clearly labeled).
+- **[x] B5 — Final Inspection approval, re-verified live (not rebuilt).** Confirmed
+  `shared-reports.tsx` is a real, reachable approve/reject screen. **Found and fixed a real
+  regression while verifying**: this session's `client/.env` (written per the environment setup
+  note, following this same README's own documented example) had
+  `VITE_API_BASE=http://localhost:8000/api`, and `client/src/services/api.client.ts`'s
+  `apiUrl()` unconditionally appends `/api` itself — so every request went to
+  `/api/api/engineering-reports` and 404'd, which is exactly what `/reports` showed live
+  ("API error 404: ... Cannot GET /api/api/engineering-reports"). This is a **README bug**, not
+  a `shared-reports.tsx` bug — fixed `README.md`'s example to `VITE_API_BASE=http://localhost:8000`
+  (no `/api` suffix) with an explanation, fixed this session's own `client/.env` the same way,
+  and confirmed the page loads correctly afterward. With that fixed: seeded one throwaway
+  `Submitted` Final Inspection report on `DEMO-STAGE-4` via direct SQL (all 3 existing Final
+  Inspection rows in this fresh DB were already `Approved`, from `demo:seed` driving those
+  projects all the way through Closeout — nothing to click Approve on otherwise), logged in as
+  project-manager, saw it in the Pending tab with working Approve/Request revision/Reject
+  buttons, clicked Approve, and confirmed via direct SQL the row's `status` flipped to
+  `Approved` and it moved out of the Pending list in the UI. Test row deleted afterward.
+
+**Deviations (Part B):**
+- B5's real finding was a `README.md` env-var documentation bug (wrong `VITE_API_BASE` example
+  causing a double `/api/api/` prefix), not anything in `shared-reports.tsx` itself — fixed the
+  doc and this session's own `.env`, not any application code.
+- B4: engineer's own `WorkflowInitiationActions`/`BUDGET_CHANGE_ACTION` launcher
+  (`workflow-initiation-actions.tsx`) is mounted via `ApprovalQueuePanel`, which is only
+  embedded on the shared `/approvals` route (`pm-approvals.tsx`) — not on any engineer-specific
+  page, and `/workflows` (the page an engineer's own sidebar nav actually calls "Workflows" —
+  wait, checked: engineer's nav doesn't have a "Workflows" tab at all, only "Approvals", which
+  is where this lives) is PM/Admin's own page with a *different* "New workflow" flow (full
+  template picker, not role-scoped launcher buttons). Not a bug to fix under B4 (out of scope —
+  B4 is markup-only on an already-reachable dialog), but noted here since it's exactly the kind
+  of "is this dialog actually reachable" question this pass cares about; confirmed reachable via
+  `/approvals`, just not where a first guess ("Workflows" page) would look.
+
+Server `npx tsc --noEmit -p server`: clean. Client `npm run build`: clean. `npm test` (server):
+84/84 pass.

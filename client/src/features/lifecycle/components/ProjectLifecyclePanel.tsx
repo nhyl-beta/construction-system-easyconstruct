@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { Link } from "react-router";
 import { CheckCircle2, Clock, History, XCircle } from "lucide-react";
 
 import { Badge } from "@/components/ui/badge";
@@ -261,6 +262,23 @@ export function ProjectLifecyclePanel({ projectId }: { projectId: string | numbe
                       {check.detail && (
                         <p className="mt-0.5 text-xs text-muted-foreground">{check.detail}</p>
                       )}
+                      {/* B2: gates.ts has always carried a .link per check
+                          ("/designs", "/blueprints", ...) that nothing ever
+                          rendered — a failing check gave no indication of
+                          where to go fix it. Same "Go to {route}" link/text
+                          style as DecisionSupportSection's signal rows, and
+                          only shown to a viewer who can actually act on it
+                          (this check's own ownerRoles, or admin). */}
+                      {!check.passed &&
+                        check.link &&
+                        (isAdmin || (user?.role && check.ownerRoles.includes(user.role))) && (
+                          <Link
+                            to={check.link}
+                            className="mt-1 inline-block text-xs font-medium text-primary hover:underline"
+                          >
+                            Go to {check.link.replace(/^\//, "")}
+                          </Link>
+                        )}
                     </div>
                   </li>
                 ))}

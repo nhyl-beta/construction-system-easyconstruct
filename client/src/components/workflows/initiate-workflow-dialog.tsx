@@ -36,6 +36,7 @@ import {
 import { Textarea } from "@/components/ui/textarea";
 import { ProjectPicker } from "@/components/shared/project-picker";
 import { FEATURES } from "@/config/features";
+import { formatCurrency } from "@/lib/format-currency";
 import {
   useWorkflowInitiation,
   type InitiateWorkflowInput,
@@ -335,102 +336,156 @@ export function InitiateWorkflowDialog({
                 </Button>
               </div>
 
-              {lineItems.map((item, index) => (
-                <div key={index} className="rounded-lg bg-muted/30 p-2">
-                  <div className="grid grid-cols-1 gap-2 md:grid-cols-[minmax(0,9rem)_minmax(0,1fr)_7rem_7rem_2rem]">
-                    <Select
-                      value={item.category}
-                      onValueChange={(v) =>
-                        updateLineItem(index, { category: v as WorkflowLineItemCategory })
-                      }
-                      disabled={submitting}
-                    >
-                      <SelectTrigger className="h-9">
-                        <SelectValue />
-                      </SelectTrigger>
-                      <SelectContent>
-                        {LINE_ITEM_CATEGORIES.map((c) => (
-                          <SelectItem key={c.value} value={c.value}>
-                            {c.label}
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-                    <Input
-                      className="h-9"
-                      value={item.description}
-                      onChange={(e) => updateLineItem(index, { description: e.target.value })}
-                      placeholder="What is changing"
-                      disabled={submitting}
-                    />
-                    <Input
-                      className="h-9"
-                      type="number"
-                      min="0"
-                      value={item.currentAmount}
-                      onChange={(e) => updateLineItem(index, { currentAmount: e.target.value })}
-                      placeholder="Current"
-                      disabled={submitting}
-                    />
-                    <Input
-                      className="h-9"
-                      type="number"
-                      min="0"
-                      value={item.requestedAmount}
-                      onChange={(e) => updateLineItem(index, { requestedAmount: e.target.value })}
-                      placeholder="Requested"
-                      disabled={submitting}
-                    />
-                    <Button
-                      type="button"
-                      size="icon"
-                      variant="ghost"
-                      className="h-9 w-9 rounded-lg text-destructive hover:text-destructive"
-                      title="Remove this change"
-                      disabled={submitting || lineItems.length === 1}
-                      onClick={() =>
-                        setLineItems((prev) => prev.filter((_, i) => i !== index))
-                      }
-                    >
-                      <Trash2 className="h-3.5 w-3.5" />
-                    </Button>
-                  </div>
+              {/* B4: was unlabeled stacked inputs (placeholder text only,
+                  no visible current→requested delta, no currency symbol,
+                  quantity/unit/AI-hint reading as a disconnected second
+                  row) — relabeled and grouped into one card per line item,
+                  with a live computed change shown as the user types.
+                  Data shape/validation below (DraftLineItem, submit,
+                  completedLineItems) is unchanged. */}
+              {lineItems.map((item, index) => {
+                const current = Number(item.currentAmount) || 0;
+                const requested = Number(item.requestedAmount) || 0;
+                const hasBothAmounts = item.currentAmount.trim() !== "" && item.requestedAmount.trim() !== "";
+                const delta = requested - current;
+                const deltaSign = delta > 0 ? "+" : delta < 0 ? "−" : "";
+                const deltaClass =
+                  delta > 0 ? "text-destructive" : delta < 0 ? "text-success" : "text-muted-foreground";
 
-                  <div className="mt-2 grid grid-cols-2 gap-2 md:grid-cols-[7rem_9rem_1fr]">
-                    <Input
-                      className="h-9"
-                      type="number"
-                      min="0"
-                      step="any"
-                      value={item.quantity}
-                      onChange={(e) => updateLineItem(index, { quantity: e.target.value })}
-                      placeholder="Quantity"
-                      disabled={submitting}
-                    />
-                    <Select
-                      value={item.unit}
-                      onValueChange={(v) => updateLineItem(index, { unit: v })}
-                      disabled={submitting}
-                    >
-                      <SelectTrigger className="h-9">
-                        <SelectValue placeholder="Unit" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        {LINE_ITEM_UNITS.map((u) => (
-                          <SelectItem key={u.value} value={u.value}>
-                            {u.label}
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-                    {FEATURES.ai && (
-                      <p className="col-span-2 self-center text-xs text-muted-foreground md:col-span-1">
-                        Add quantity and unit to compare against market cost.
-                      </p>
-                    )}
+                return (
+                  <div key={index} className="space-y-2 rounded-lg border border-border/60 bg-muted/30 p-3">
+                    <div className="flex items-center justify-between">
+                      <span className="text-xs font-medium text-muted-foreground">
+                        Change {index + 1}
+                      </span>
+                      <Button
+                        type="button"
+                        size="icon"
+                        variant="ghost"
+                        className="h-7 w-7 rounded-lg text-destructive hover:text-destructive"
+                        title="Remove this change"
+                        disabled={submitting || lineItems.length === 1}
+                        onClick={() =>
+                          setLineItems((prev) => prev.filter((_, i) => i !== index))
+                        }
+                      >
+                        <Trash2 className="h-3.5 w-3.5" />
+                      </Button>
+                    </div>
+
+                    <div className="grid grid-cols-1 gap-2 md:grid-cols-[minmax(0,9rem)_minmax(0,1fr)]">
+                      <div className="grid gap-1">
+                        <Label className="text-[11px] text-muted-foreground">Category</Label>
+                        <Select
+                          value={item.category}
+                          onValueChange={(v) =>
+                            updateLineItem(index, { category: v as WorkflowLineItemCategory })
+                          }
+                          disabled={submitting}
+                        >
+                          <SelectTrigger className="h-9">
+                            <SelectValue />
+                          </SelectTrigger>
+                          <SelectContent>
+                            {LINE_ITEM_CATEGORIES.map((c) => (
+                              <SelectItem key={c.value} value={c.value}>
+                                {c.label}
+                              </SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+                      </div>
+                      <div className="grid gap-1">
+                        <Label className="text-[11px] text-muted-foreground">Description</Label>
+                        <Input
+                          className="h-9"
+                          value={item.description}
+                          onChange={(e) => updateLineItem(index, { description: e.target.value })}
+                          placeholder="What is changing"
+                          disabled={submitting}
+                        />
+                      </div>
+                    </div>
+
+                    <div className="grid grid-cols-2 gap-2 md:grid-cols-3">
+                      <div className="grid gap-1">
+                        <Label className="text-[11px] text-muted-foreground">Current amount</Label>
+                        <Input
+                          className="h-9"
+                          type="number"
+                          min="0"
+                          value={item.currentAmount}
+                          onChange={(e) => updateLineItem(index, { currentAmount: e.target.value })}
+                          placeholder="0.00"
+                          disabled={submitting}
+                        />
+                      </div>
+                      <div className="grid gap-1">
+                        <Label className="text-[11px] text-muted-foreground">Requested amount</Label>
+                        <Input
+                          className="h-9"
+                          type="number"
+                          min="0"
+                          value={item.requestedAmount}
+                          onChange={(e) => updateLineItem(index, { requestedAmount: e.target.value })}
+                          placeholder="0.00"
+                          disabled={submitting}
+                        />
+                      </div>
+                      <div className="col-span-2 grid gap-1 md:col-span-1">
+                        <Label className="text-[11px] text-muted-foreground">Change</Label>
+                        <div
+                          className={`flex h-9 items-center rounded-md border border-border/60 bg-background px-3 text-sm font-medium ${deltaClass}`}
+                        >
+                          {hasBothAmounts ? `${deltaSign}${formatCurrency(Math.abs(delta))}` : "—"}
+                        </div>
+                      </div>
+                    </div>
+
+                    {/* Quantity/unit/AI-hint grouped with this line item —
+                        was reading as a disconnected second row below. */}
+                    <div className="grid grid-cols-2 gap-2 rounded-md border border-border/40 bg-background/60 p-2 md:grid-cols-[7rem_9rem_1fr]">
+                      <div className="grid gap-1">
+                        <Label className="text-[11px] text-muted-foreground">Quantity</Label>
+                        <Input
+                          className="h-9"
+                          type="number"
+                          min="0"
+                          step="any"
+                          value={item.quantity}
+                          onChange={(e) => updateLineItem(index, { quantity: e.target.value })}
+                          placeholder="e.g. 500"
+                          disabled={submitting}
+                        />
+                      </div>
+                      <div className="grid gap-1">
+                        <Label className="text-[11px] text-muted-foreground">Unit</Label>
+                        <Select
+                          value={item.unit}
+                          onValueChange={(v) => updateLineItem(index, { unit: v })}
+                          disabled={submitting}
+                        >
+                          <SelectTrigger className="h-9">
+                            <SelectValue placeholder="Unit" />
+                          </SelectTrigger>
+                          <SelectContent>
+                            {LINE_ITEM_UNITS.map((u) => (
+                              <SelectItem key={u.value} value={u.value}>
+                                {u.label}
+                              </SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+                      </div>
+                      {FEATURES.ai && (
+                        <p className="col-span-2 self-center text-xs text-muted-foreground md:col-span-1">
+                          Add quantity and unit to compare against market cost.
+                        </p>
+                      )}
+                    </div>
                   </div>
-                </div>
-              ))}
+                );
+              })}
             </div>
           )}
 

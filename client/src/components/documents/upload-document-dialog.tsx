@@ -112,7 +112,9 @@ export function UploadDocumentDialog({
 
         <div className="grid gap-4 py-2">
           <div className="grid gap-1.5">
-            <Label htmlFor="doc-title">Title</Label>
+            <Label htmlFor="doc-title">
+              Title <span className="text-destructive">*</span>
+            </Label>
 
             <Input
               id="doc-title"
@@ -123,7 +125,9 @@ export function UploadDocumentDialog({
           </div>
 
           <div className="grid gap-1.5">
-            <Label>Project</Label>
+            <Label>
+              Project <span className="text-destructive">*</span>
+            </Label>
 
             {/* Was a free-text field: a typo or case mismatch here produced a
                 `project` value that matched no real project code, which then
@@ -159,7 +163,9 @@ export function UploadDocumentDialog({
           </div>
 
           <div className="grid gap-1.5">
-            <Label htmlFor="doc-file">File</Label>
+            <Label htmlFor="doc-file">
+              File <span className="text-destructive">*</span>
+            </Label>
 
             <Input
               id="doc-file"

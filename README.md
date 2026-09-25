@@ -56,7 +56,7 @@ BLOB_READ_WRITE_TOKEN=
 FEATURE_AI=true
 ```
 
-The client reads `VITE_API_BASE` to decide whether to talk to the real API or use mock data; set it in a `.env` file inside `client/` (e.g. `VITE_API_BASE=http://localhost:8000/api`) once the server is running. It also needs its own `VITE_FEATURE_AI=true` (separate flag, separate `.env`, same gate) to show the same AI-validation surfaces client-side — the server-side `FEATURE_AI` alone does not turn on the UI.
+The client reads `VITE_API_BASE` to decide whether to talk to the real API or use mock data; set it in a `.env` file inside `client/` (e.g. `VITE_API_BASE=http://localhost:8000` — **no `/api` suffix**: `client/src/services/api.client.ts`'s `apiUrl()` always appends `/api` itself, so a value ending in `/api` here produces a double `/api/api/...` and every request 404s) once the server is running. It also needs its own `VITE_FEATURE_AI=true` (separate flag, separate `.env`, same gate) to show the same AI-validation surfaces client-side — the server-side `FEATURE_AI` alone does not turn on the UI.
 
 ### 3. Set up the database
 
