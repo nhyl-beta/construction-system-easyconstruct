@@ -644,7 +644,7 @@ export default function ConsultantProposalsPage() {
                     htmlFor="consultant-review-comment"
                     className="mb-2 block text-sm font-medium"
                   >
-                    Review Comment
+                    Review Comment <span className="text-destructive">*</span>
                   </label>
 
                   <Textarea
@@ -660,17 +660,22 @@ export default function ConsultantProposalsPage() {
                   />
 
                   <p className="mt-2 text-xs text-muted-foreground">
-                    Explain what should be approved,
-                    revised, or rejected.
+                    Required — explain what should be approved,
+                    revised, or rejected. The decision buttons below
+                    unlock once this is filled in.
                   </p>
 
                 </div>
 
                 {/* Decision Buttons */}
 
-                {/* A decision that failed used to surface only through an
-                    alert(), or not at all — which read as "the buttons are
-                    broken". */}
+                {/* Q2: these used to stay clickable with an empty comment,
+                    so a Consultant could click Approve, confirm in the
+                    dialog, and only then see an error telling them a
+                    comment was required all along — reading as "nothing
+                    happens when I click approve". Disabling them up front,
+                    with the label above explaining why, catches this
+                    before the confirm round-trip instead of after. */}
                 {actionError && (
                   <p
                     role="alert"
@@ -688,7 +693,8 @@ export default function ConsultantProposalsPage() {
                         key={decision.status}
                         type="button"
                         variant={decision.variant}
-                        disabled={reviewing}
+                        disabled={reviewing || !comment.trim()}
+                        title={!comment.trim() ? "Enter a review comment first" : undefined}
                         onClick={() => setPendingDecision(decision.status)}
                         className="gap-2"
                       >

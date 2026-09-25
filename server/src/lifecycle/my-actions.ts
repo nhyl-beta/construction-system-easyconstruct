@@ -24,14 +24,19 @@ import * as repo from "./repository.js";
 import { evaluateGate } from "./gates.js";
 import { isSequencedPhase, type SequencedPhase } from "./phases.js";
 import { PROJECT_MEMBER_ROLES } from "../db/schema/project-members.js";
+import { evaluateSignals } from "../signals/index.js";
+import { FEATURES } from "../config/features.js";
 
 export interface MyActionItem {
   projectCode: string;
   projectName: string;
-  kind: "gate" | "workflow";
+  kind: "gate" | "workflow" | "signal";
   title: string;
   detail: string;
   link: string;
+  /** ai-signals E3: only present on kind "signal" — lets the card style it
+   * distinctly from a gate/workflow item. */
+  severity?: "warn" | "critical";
 }
 
 const TERMINAL_PHASES = new Set(["Archived", "Cancelled", "Completed"]);
@@ -60,6 +65,7 @@ export const getMyActions = async (actor: {
   // scope, narrowed below to only the gate checks that role actually owns.
 
   const gateItems: MyActionItem[] = [];
+  const signalItems: MyActionItem[] = [];
   for (const project of relevant) {
     if (!isSequencedPhase(project.status)) continue;
     const snapshot = await repo.loadSnapshot(project.code);
@@ -76,6 +82,25 @@ export const getMyActions = async (actor: {
         link: check.link || `/projects/${encodeURIComponent(project.code)}`,
       });
     }
+
+    // ai-signals E3: only warn/critical rise to "waiting on you" — info
+    // signals are advisory-only even by decision-support standards and stay
+    // on the project's own Decision Support section (E2).
+    if (FEATURES.ai) {
+      const signals = evaluateSignals(snapshot);
+      for (const signal of signals) {
+        if (signal.severity === "info" || !signal.ownerRoles.includes(actor.role)) continue;
+        signalItems.push({
+          projectCode: project.code,
+          projectName: project.name,
+          kind: "signal",
+          title: signal.label,
+          detail: signal.detail,
+          link: signal.link || `/projects/${encodeURIComponent(project.code)}`,
+          severity: signal.severity as "warn" | "critical",
+        });
+      }
+    }
   }
 
   // Cross-project by construction — same "admin can decide any stage"
@@ -91,7 +116,7 @@ export const getMyActions = async (actor: {
     link: "/workflows",
   }));
 
-  return [...gateItems, ...workflowItems];
+  return [...gateItems, ...signalItems, ...workflowItems];
 };
 
 const router = Router();

@@ -20,6 +20,8 @@ import { Progress } from "@/components/ui/progress";
 import { useRoleConfig } from "@/hooks/use-role-config";
 import { useAdminDashboardController } from "@/features/dashboard/controllers/admin-dashboard.controller";
 import { WaitingOnYouCard } from "@/features/lifecycle/components/WaitingOnYouCard";
+import { RefreshReferencesCard } from "@/features/lifecycle/components/RefreshReferencesCard";
+import { FEATURES } from "@/config/features";
 import { formatDue } from "@/features/projects/lib/project-format";
 import { useNavigate } from "react-router";
 
@@ -109,6 +111,9 @@ export default function AdminDashboardPage() {
 
       {/* K1: admin can decide any workflow stage (EC-003) — cross-project */}
       <WaitingOnYouCard />
+
+      {/* ai-signals E6: nice-to-have manual refresh, admin only */}
+      {FEATURES.ai && <RefreshReferencesCard />}
 
       {/* ── Main grid — projects table + activity feed ── */}
       <section className="grid grid-cols-1 gap-6 xl:grid-cols-3">

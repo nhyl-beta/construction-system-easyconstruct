@@ -30,8 +30,18 @@ export interface UpdateIssueStatusInput {
   resolutionNotes?: string;
 }
 
+export interface IssuePrecedent {
+  issueCode: string;
+  title: string;
+  resolutionNotes: string;
+  updatedAt: string | null;
+}
+
 export const issuesRepository = {
   listMine: (): Promise<{ data: IssueRecord[] }> => apiClient.get("/issues"),
+  /** ai-signals E5: [] whenever FEATURES.ai is off server-side. */
+  precedentsByCategory: (category: string): Promise<{ data: IssuePrecedent[] }> =>
+    apiClient.get(`/issues/precedents/${encodeURIComponent(category)}`),
   list: (filters?: { projectCode?: string; status?: string }): Promise<{ data: IssueRecord[] }> => {
     const params = new URLSearchParams();
     if (filters?.projectCode) params.set("projectCode", filters.projectCode);

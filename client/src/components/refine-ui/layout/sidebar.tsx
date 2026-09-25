@@ -22,6 +22,7 @@ import { SignOutButton } from "@/components/ui/auth/sign-out-button";
 import { useMenu, useParsed, type TreeMenuItem } from "@refinedev/core";
 import { ListIcon } from "lucide-react";
 import { useNavigate } from "react-router";
+import { useApprovalsPendingCount } from "@/features/workflows/hooks/useWorkflows";
 // ── Helpers ──────────────────────────────────────────────────────────────────
 
 const SECTION_ORDER = [
@@ -59,6 +60,21 @@ function groupMenuItems(items: TreeMenuItem[], role: string) {
 function getIcon(item: TreeMenuItem) {
   const Mapped = RESOURCE_ICONS[item.name];
   return Mapped ?? ListIcon;
+}
+
+// Q4: a red dot with the pending count on the "Approvals" nav entry — every
+// role that has that entry shares the same "approvals" resource, so this
+// isn't finance-specific even though that's the report it came from.
+// A separate component (not inlined in the item.map below) so the
+// pending-count fetch only happens for roles that actually render this item.
+function ApprovalsBadge() {
+  const pending = useApprovalsPendingCount();
+  if (pending === 0) return null;
+  return (
+    <span className="ml-auto flex h-4 min-w-4 items-center justify-center rounded-full bg-destructive px-1 text-[10px] font-medium tabular-nums text-destructive-foreground group-data-[collapsible=icon]:hidden">
+      {pending > 9 ? "9+" : pending}
+    </span>
+  );
 }
 
 // ── Main Sidebar ──────────────────────────────────────────────────────────────
@@ -125,9 +141,14 @@ export function Sidebar() {
                         })}
                       >
                         <Icon className="h-4 w-4 shrink-0" />
-                        <span>
+                        {/* Explicit truncate: this span used to rely on the
+                            component's own `[&>span:last-child]:truncate`
+                            rule, which now targets the badge span below
+                            instead once one is present. */}
+                        <span className="min-w-0 truncate">
                           {item.meta?.label ?? item.label ?? item.name}
                         </span>
+                        {item.name === "approvals" && <ApprovalsBadge />}
                       </SidebarMenuButton>
                     </SidebarMenuItem>
                   );

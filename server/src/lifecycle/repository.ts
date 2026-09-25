@@ -8,7 +8,7 @@
 // whichever filter option each one happens to support. The snapshot is a
 // plain object, so gates.ts's checks stay pure functions, testable with no
 // database at all (see lifecycle/gates.test.ts).
-import { eq, inArray } from "drizzle-orm";
+import { and, desc, eq, inArray, isNotNull } from "drizzle-orm";
 import { db } from "../db/connection.js";
 import { projects } from "../db/schema/projects.js";
 import { projectMembers } from "../db/schema/project-members.js";
@@ -28,6 +28,7 @@ import { engineeringReports } from "../db/schema/engineering-reports.js";
 import { payrollBatches } from "../db/schema/finance.js";
 import { projectPhaseHistory } from "../db/schema/project-phase-history.js";
 import { workflowTemplates } from "../db/schema/workflows.js";
+import { validationResults } from "../db/schema/ai-validation.js";
 
 // Gate X4 needs to know which workflows were raised from the "Project
 // Closeout" template (H3) without gates.ts — a pure-function module — ever
@@ -113,6 +114,61 @@ export const loadSnapshot = async (projectCode: string) => {
     .from(workflowTemplates)
     .where(eq(workflowTemplates.name, CLOSEOUT_TEMPLATE_NAME));
 
+  // ai-signals D2: decision-support-only fields, read by signals/*.ts, never
+  // by gates.ts. validationResults is scoped to this project (the column
+  // already carries it); issuePrecedents deliberately is NOT — it draws on
+  // resolved issues from every project, but exposes only the fields safe to
+  // show across a project boundary (never another project's commercial data).
+  const projectValidationResults = await db
+    .select()
+    .from(validationResults)
+    .where(eq(validationResults.projectCode, projectCode));
+
+  const openIssueCategories = Array.from(
+    new Set(
+      projectIssues
+        .filter((i) => i.status === "Submitted" || i.status === "Under Review")
+        .map((i) => i.category),
+    ),
+  );
+  let issuePrecedents: {
+    issueCode: string;
+    title: string;
+    category: string;
+    resolutionNotes: string;
+    updatedAt: Date | null;
+  }[] = [];
+  if (openIssueCategories.length > 0) {
+    const resolvedWithNotes = await db
+      .select({
+        issueCode: issues.issueCode,
+        title: issues.title,
+        category: issues.category,
+        resolutionNotes: issues.resolutionNotes,
+        updatedAt: issues.updatedAt,
+      })
+      .from(issues)
+      .where(
+        and(
+          eq(issues.status, "Resolved"),
+          inArray(issues.category, openIssueCategories),
+          isNotNull(issues.resolutionNotes),
+        ),
+      )
+      .orderBy(desc(issues.updatedAt));
+
+    const byCategory = new Map<string, typeof issuePrecedents>();
+    for (const row of resolvedWithNotes) {
+      if (!row.resolutionNotes || row.resolutionNotes.trim() === "") continue;
+      const list = byCategory.get(row.category) ?? [];
+      if (list.length < 3) {
+        list.push({ ...row, resolutionNotes: row.resolutionNotes });
+        byCategory.set(row.category, list);
+      }
+    }
+    issuePrecedents = Array.from(byCategory.values()).flat();
+  }
+
   return {
     project,
     members,
@@ -135,6 +191,8 @@ export const loadSnapshot = async (projectCode: string) => {
     phaseHistory,
     staffedEmployees,
     closeoutTemplateId: closeoutTemplate?.id ?? null,
+    validationResults: projectValidationResults,
+    issuePrecedents,
   };
 };
 

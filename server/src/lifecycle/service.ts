@@ -21,6 +21,8 @@ import {
   type ProjectPhase,
   type SequencedPhase,
 } from "./phases.js";
+import { evaluateSignals, type Signal } from "../signals/index.js";
+import { FEATURES } from "../config/features.js";
 
 export interface LifecycleActor {
   id: number;
@@ -73,6 +75,10 @@ export interface LifecycleView {
   history: Awaited<ReturnType<typeof repo.findPhaseHistory>>;
   /** D6: a rejected proposal in Proposal phase offers "Mark bid lost" (→ /cancel). */
   hasRejectedProposal?: boolean;
+  /** ai-signals E1: present only when FEATURES.ai is on — omitted entirely
+   * (not an empty array) when the flag is off, so the client can tell "no
+   * advisories" apart from "decision support isn't enabled". */
+  signals?: Signal[];
 }
 
 export const getLifecycleView = async (projectCode: string): Promise<LifecycleView> => {
@@ -118,6 +124,16 @@ export const getLifecycleView = async (projectCode: string): Promise<LifecycleVi
     view.hasRejectedProposal = snapshot.proposals.some(
       (p) => p.workflowId != null && snapshot.proposalWorkflows.some((w) => w.id === p.workflowId && w.status === "rejected"),
     );
+  }
+
+  // ai-signals E1: evaluateSignals itself returns [] when FEATURES.ai is
+  // off, but the view must OMIT the key in that case (not send an empty
+  // array) — the client tells "flag off" apart from "flag on, nothing to
+  // report" by whether this key exists at all. See boundary.test.ts: this
+  // is the one sanctioned import of ../signals in this file, and it only
+  // appends a field here — it cannot affect canAdvance or checks above.
+  if (FEATURES.ai) {
+    view.signals = evaluateSignals(snapshot);
   }
 
   return view;

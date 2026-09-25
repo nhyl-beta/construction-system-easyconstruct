@@ -28,6 +28,8 @@ import { useProjectLifecycle } from "../hooks/useProjectLifecycle";
 import { SEQUENCED_PHASES } from "../types/lifecycle.types";
 import { formatRelativeTime } from "@/lib/format-relative-time";
 import { CloseoutSummaryCard } from "./CloseoutSummaryCard";
+import { DecisionSupportSection } from "./DecisionSupportSection";
+import { FEATURES } from "@/config/features";
 
 const TONE_CLASS: Record<string, string> = {
   Proposal: "border-border text-foreground",
@@ -267,6 +269,10 @@ export function ProjectLifecyclePanel({ projectId }: { projectId: string | numbe
           )}
         </>
       )}
+
+      {/* ai-signals E2: beneath the gate checklist, visibly separate from
+          it — its own card, never inside the checks list above. */}
+      {FEATURES.ai && view.signals && <DecisionSupportSection signals={view.signals} />}
 
       {/* H6/K2: everything Closeout cares about (documents, budgets, payroll,
           the closeout workflow) in one place, rather than four screens —

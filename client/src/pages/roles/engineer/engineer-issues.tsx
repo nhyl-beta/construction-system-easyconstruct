@@ -1,5 +1,7 @@
-import { useMemo, useState } from "react";
-import { AlertTriangle, CheckCircle2, Clock, ShieldAlert } from "lucide-react";
+import { useEffect, useMemo, useState } from "react";
+import { AlertTriangle, CheckCircle2, Clock, ShieldAlert, Sparkles } from "lucide-react";
+import { FEATURES } from "@/config/features";
+import { issuesRepository, type IssuePrecedent } from "@/features/issues/repositories/issues.repository";
 
 import { PageContainer } from "@/components/refine-ui/views/page-container";
 import { PageHeader } from "@/components/refine-ui/views/page-header";
@@ -27,13 +29,19 @@ const STATUS_OPTIONS: UpdateIssueStatusInput["status"][] = [
   "Rejected",
 ];
 
+function trim(text: string, max: number): string {
+  return text.length > max ? `${text.slice(0, max - 1)}…` : text;
+}
+
 function IssueRow({
   issue,
   updating,
+  precedents,
   onUpdate,
 }: {
   issue: IssueRecord;
   updating: boolean;
+  precedents: IssuePrecedent[];
   onUpdate: (status: UpdateIssueStatusInput["status"], resolutionNotes?: string) => void;
 }) {
   const [nextStatus, setNextStatus] = useState<UpdateIssueStatusInput["status"]>(
@@ -94,12 +102,66 @@ function IssueRow({
       {issue.status === "Resolved" && issue.siteContext && (
         <p className="text-xs text-muted-foreground">Location: {issue.siteContext}</p>
       )}
+
+      {/* ai-signals E5: an open issue whose category has a resolved
+          precedent elsewhere — decision support only, never changes what
+          status this issue can be moved to. */}
+      {FEATURES.ai &&
+        (issue.status === "Submitted" || issue.status === "Under Review") &&
+        precedents.length > 0 && (
+          <div className="rounded-lg border border-ai/20 bg-ai-soft/30 p-2.5 text-xs">
+            <p className="flex items-center gap-1.5 font-medium text-foreground">
+              <Sparkles className="h-3 w-3 text-ai" />
+              Resolved before
+            </p>
+            <ul className="mt-1 space-y-1 text-muted-foreground">
+              {precedents.slice(0, 2).map((p) => (
+                <li key={p.issueCode}>
+                  "{p.title}"{p.updatedAt ? ` (${p.updatedAt.slice(0, 10)})` : ""}: {trim(p.resolutionNotes, 160)}
+                </li>
+              ))}
+            </ul>
+          </div>
+        )}
     </div>
   );
 }
 
 export default function IssuesPage() {
   const { issues, loading, error, updating, updateStatus } = useIssues();
+  const [precedentsByCategory, setPrecedentsByCategory] = useState<Record<string, IssuePrecedent[]>>({});
+
+  const openCategories = useMemo(
+    () =>
+      Array.from(
+        new Set(
+          issues
+            .filter((i) => i.status === "Submitted" || i.status === "Under Review")
+            .map((i) => i.category),
+        ),
+      ),
+    [issues],
+  );
+
+  useEffect(() => {
+    if (!FEATURES.ai || openCategories.length === 0) return;
+    let cancelled = false;
+    void Promise.all(
+      openCategories.map(async (category) => {
+        const res = await issuesRepository.precedentsByCategory(category);
+        return [category, res.data] as const;
+      }),
+    ).then((entries) => {
+      if (cancelled) return;
+      setPrecedentsByCategory(Object.fromEntries(entries));
+    });
+    return () => {
+      cancelled = true;
+    };
+    // openCategories is derived from `issues` each render — comparing its
+    // contents (not identity) avoids re-fetching every unrelated update.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [openCategories.join(",")]);
 
   const openCount = useMemo(
     () => issues.filter((i) => i.status === "Submitted").length,
@@ -151,6 +213,7 @@ export default function IssuesPage() {
                     key={issue.id}
                     issue={issue}
                     updating={updating === issue.id}
+                    precedents={precedentsByCategory[issue.category] ?? []}
                     onUpdate={(status, resolutionNotes) => updateStatus(issue.id, { status, resolutionNotes })}
                   />
                 ))}

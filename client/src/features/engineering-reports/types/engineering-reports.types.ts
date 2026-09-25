@@ -45,6 +45,7 @@ export const ISSUE_REPORT_TYPES: EngineeringReportType[] = [
 
 export interface EngineeringReport {
   id: string; // human-readable report code, e.g. "SR-2218"
+  dbId: number; // numeric primary key — PATCH /engineering-reports/:id needs this, not the code
   title: string;
   type: EngineeringReportType;
   project: string;

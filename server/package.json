@@ -15,7 +15,8 @@
     "db:crud": "tsx src/crud-example.ts",
     "db:backfill-employee-links": "tsx src/scripts/backfill-employee-user-links.ts",
     "ai:seed-references": "tsx src/scripts/seed-reference-data.ts",
-    "demo:seed": "tsx src/scripts/demo-seed-stages.ts"
+    "demo:seed": "tsx src/scripts/demo-seed-stages.ts",
+    "demo:ai-signals": "tsx src/scripts/demo-ai-signals.ts"
   },
   "keywords": [],
   "author": "",

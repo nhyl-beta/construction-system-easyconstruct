@@ -16,8 +16,10 @@ import { FileText, Paperclip, StickyNote } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { FilePreviewDialog } from "@/components/shared/file-preview-dialog";
+import { ReferenceBasisBadge } from "./reference-basis-badge";
 import { formatCurrency } from "@/lib/format-currency";
 import { formatRelativeTime } from "@/lib/format-relative-time";
+import { FEATURES } from "@/config/features";
 import type {
   WorkflowAttachment,
   WorkflowLineItem,
@@ -59,6 +61,7 @@ export function WorkflowLineItemsTable({
             <th className="px-3 py-2 text-right">Current</th>
             <th className="px-3 py-2 text-right">Requested</th>
             <th className="px-3 py-2 text-right">Difference</th>
+            {FEATURES.ai && <th className="px-3 py-2">Market cost</th>}
           </tr>
         </thead>
         <tbody>
@@ -86,6 +89,11 @@ export function WorkflowLineItemsTable({
                   {delta > 0 ? "+" : ""}
                   {formatCurrency(delta, currency)}
                 </td>
+                {FEATURES.ai && (
+                  <td className="px-3 py-2.5">
+                    {item.validation && <ReferenceBasisBadge validation={item.validation} />}
+                  </td>
+                )}
               </tr>
             );
           })}
@@ -109,6 +117,7 @@ export function WorkflowLineItemsTable({
               {totalDelta > 0 ? "+" : ""}
               {formatCurrency(totalDelta, currency)}
             </td>
+            {FEATURES.ai && <td className="px-3 py-2.5" />}
           </tr>
         </tfoot>
       </table>

@@ -61,6 +61,8 @@ function emptySnapshot(status = "Proposal"): LifecycleSnapshot {
     phaseHistory: [],
     staffedEmployees: [],
     closeoutTemplateId: null,
+    validationResults: [],
+    issuePrecedents: [],
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
   } as any;
 }

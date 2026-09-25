@@ -7,6 +7,21 @@ import { assertProjectWritable, refreshProjectProgress } from "../lifecycle/serv
 import * as notificationsService from "../notifications/service.js";
 import * as repo from "./repository.js";
 import type { CreateIssueInput, IssueFilters } from "./types.js";
+import { FEATURES } from "../config/features.js";
+
+// ai-signals E5: decision support, read-only, never gates issue status.
+export interface IssuePrecedent {
+  issueCode: string;
+  title: string;
+  resolutionNotes: string;
+  updatedAt: Date | null;
+}
+
+export const getPrecedentsByCategory = async (category: string): Promise<IssuePrecedent[]> => {
+  if (!FEATURES.ai) return [];
+  const rows = await repo.findResolvedPrecedentsByCategory(category);
+  return rows.filter((r): r is IssuePrecedent => !!r.resolutionNotes?.trim());
+};
 
 export const getAll = async (filters: IssueFilters) => repo.findAll(filters);
 

@@ -5,7 +5,7 @@
 // (features/notifications + GET /api/notifications), it was simply never
 // connected to the one place every role looks.
 import { useState } from "react";
-import { Bell } from "lucide-react";
+import { Bell, ChevronLeft, ChevronRight } from "lucide-react";
 import { useNavigate } from "react-router";
 
 import { Button } from "@/components/ui/button";
@@ -19,13 +19,26 @@ import { useNotifications } from "@/features/notifications/hooks/useNotification
 import type { Notification } from "@/features/notifications/types/notification.types";
 import { formatRelativeTime } from "@/lib/format-relative-time";
 
+// Q1: with enough notifications the list scrolled forever inside a tiny
+// popover with no sense of how much further there was to go — paged in
+// fixed slices instead, entirely client-side (the list is already fetched
+// in full by useNotifications).
+const PAGE_SIZE = 8;
+
 export function NotificationBell() {
   const { notifications, loading, error, marking, markRead, reload } =
     useNotifications();
   const navigate = useNavigate();
   const [open, setOpen] = useState(false);
+  const [page, setPage] = useState(0);
 
   const unread = notifications.filter((n) => !n.isRead);
+  const pageCount = Math.max(1, Math.ceil(notifications.length / PAGE_SIZE));
+  const currentPage = Math.min(page, pageCount - 1);
+  const pageItems = notifications.slice(
+    currentPage * PAGE_SIZE,
+    currentPage * PAGE_SIZE + PAGE_SIZE,
+  );
 
   // J3: mark read (if not already) and navigate to the notification's own
   // link — previously the button disabled itself once read, so a read
@@ -42,7 +55,10 @@ export function NotificationBell() {
       onOpenChange={(nextOpen) => {
         setOpen(nextOpen);
         // Refetch on open so the list is current without polling.
-        if (nextOpen) void reload();
+        if (nextOpen) {
+          setPage(0);
+          void reload();
+        }
       }}
     >
       <PopoverTrigger asChild>
@@ -90,7 +106,7 @@ export function NotificationBell() {
           )}
           {!loading &&
             !error &&
-            notifications.map((n) => (
+            pageItems.map((n) => (
               <button
                 key={n.id}
                 type="button"
@@ -120,6 +136,36 @@ export function NotificationBell() {
               </button>
             ))}
         </ScrollArea>
+
+        {!loading && !error && pageCount > 1 && (
+          <div className="flex items-center justify-between border-t border-border/70 px-3 py-2">
+            <Button
+              type="button"
+              variant="ghost"
+              size="icon"
+              className="h-7 w-7 rounded-lg"
+              disabled={currentPage === 0}
+              onClick={() => setPage((p) => Math.max(0, p - 1))}
+              aria-label="Previous page"
+            >
+              <ChevronLeft className="h-3.5 w-3.5" />
+            </Button>
+            <span className="text-[11px] text-muted-foreground">
+              Page {currentPage + 1} of {pageCount}
+            </span>
+            <Button
+              type="button"
+              variant="ghost"
+              size="icon"
+              className="h-7 w-7 rounded-lg"
+              disabled={currentPage >= pageCount - 1}
+              onClick={() => setPage((p) => Math.min(pageCount - 1, p + 1))}
+              aria-label="Next page"
+            >
+              <ChevronRight className="h-3.5 w-3.5" />
+            </Button>
+          </div>
+        )}
       </PopoverContent>
     </Popover>
   );

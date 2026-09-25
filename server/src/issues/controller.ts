@@ -26,6 +26,16 @@ export const getAll = async (req: AuthedRequest, res: Response, next: NextFuncti
   }
 };
 
+// ai-signals E5
+export const getPrecedents = async (req: AuthedRequest, res: Response, next: NextFunction) => {
+  try {
+    const data = await service.getPrecedentsByCategory(req.params.category as string);
+    res.json(formatSuccess(data, "Issue precedents retrieved"));
+  } catch (err) {
+    next(err);
+  }
+};
+
 export const getById = async (req: AuthedRequest, res: Response, next: NextFunction) => {
   try {
     const data = await service.getById(Number(req.params.id));
