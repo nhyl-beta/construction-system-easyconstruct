@@ -89,6 +89,25 @@ Server-side `FEATURES.ai` sites (both real, unchanged): `proposals/service.ts` `
 - [x] **D10** `lifecycle/boundary.test.ts` — reads the actual source of `gates.ts` (asserts zero imports from `../signals`/`../ai-validation`) and `service.ts` (asserts at most one such import, and only `evaluateSignals` from `../signals/index.js`). Written now, before Group E adds that one import, so it locks in the boundary from the start rather than retrofitting it.
   - Commit: `09f012b`.
 
+### E. Surfaces
+
+- [x] **E1** `LifecycleView.signals` added in `getLifecycleView` — present only when `FEATURES.ai` is on (the key is entirely omitted otherwise, not an empty array). Verified with curl against a live dev server: `FEATURE_AI` unset → `'signals' in data` is `false`; `FEATURE_AI=true` → `true`, `[]` for a quiet project.
+- [x] **E2** `DecisionSupportSection.tsx` renders beneath the gate checklist in `ProjectLifecyclePanel`, its own card (border/background, "AI" badge, "Rule-based advisories — they never block approval." subtitle per S-8), severity chip + label + detail + citation + "Go to" link per signal, "No advisories for this phase." when empty. Nothing in it can call advance/decide.
+- [x] **E3** `my-actions.ts` adds `kind: "signal"` items (warn/critical only — info stays on the project's own Decision Support section) filtered to the actor's `ownerRoles`, flag-gated. `WaitingOnYouCard` renders them with a `Sparkles` icon and an "AI" badge, visually distinct from gate (⚠) and workflow items.
+- [x] **E4** `ReferenceBasisBadge` (verdict + variance, full `basisSummary` in a popover) added to `WorkflowLineItemsTable` (`workflow-submission-panel.tsx`), flag-gated column.
+- [x] **E5** Engineer issues screen: an open issue whose category has a resolved precedent shows "Resolved before" with up to 2 precedent notes. **Chose the small dedicated endpoint** (`GET /api/issues/precedents/:category`, gated by `FEATURES.ai` in `issues/service.ts`) over reusing the lifecycle view's signals — the issues screen lists issues across every project the engineer can see, so filtering lifecycle-view signals would mean one `/lifecycle` call per distinct project represented, while a category-keyed endpoint is one call per open category regardless of how many projects those issues span. Less code, said here per the checklist's instruction.
+- [x] **E6** 🟢 `POST /api/ai-validation/refresh-references` + `GET /api/ai-validation/references-status` (admin only), a `RefreshReferencesCard` on the admin dashboard showing cached-item count and last-refresh time with a manual refresh button.
+  - Commit: `<pending>`.
+
+**Live verification (checkpoint 4 evidence, all against a real running dev server with `FEATURE_AI=true`, cleaned up after):**
+- **E1**: curl-confirmed the `signals` key's presence/absence both ways (above).
+- **E2**: flipped `DEMO-01` to Construction, loaded `/projects/DEMO-01` as PM — saw "No advisories for this phase." Then bumped one budget's `planned` to ₱5.5M against a ₱4.5M contract value and reloaded: real signal rendered — *"Approved changes total +22.2% over contract value"*, detail *"Budget planned ₱5,500,000 against a contract value of ₱4,500,000 — a difference of ₱1,000,000."*, **Critical** chip, "Go to budget" link — while the K1-K4 gate checks above it and `canAdvance` were completely unaffected.
+- **E3**: same scenario, PM's dashboard "Waiting on you" card showed the identical signal with an "AI" badge, alongside (not replacing) gate/workflow items.
+- **E4**: created a real Budget Change Request (`WF-1021`) with a matchable line ("Concrete slab, poured and finished", 100 sqft) and a no-quantity line. Finance Impact Review rendered *"Above typical (+32.8%)"* and *"No comparable reference"* badges respectively, plus the C8 "Re-check market cost" button.
+- **E5**: created a real open Safety issue on `DEMO-01`; the engineer issues screen showed *"Resolved before"* citing the actual resolved "TEST-ISSUE" precedent and its note.
+- **E6**: admin dashboard's "Cost reference catalog" card correctly read *"411 cached items · last refreshed 14h ago"* — the real count from the Group B seed.
+- All test data (workflow, issue, budget bump, phase flips) was cleaned up / reverted afterward; both `.env` files restored to flag-off.
+
 ## Deviations
 
 - **AV-1 (A2):** EstimationPro.ai's actual response shape differs in two small, non-blocking ways from the prompt's assumed shape: (1) `multiplier` and `regionallyAdjusted`/`location` are fields on the **trade-level response**, not per catalog item — every item in one `/costs?trade=X` call shares the same multiplier, so `reference_snapshots.region_multiplier` is populated once per fetched batch, not computed per item; (2) items carry two extra fields not in the original spec (`lastVerified`, `regionallyAdjusted`) — harmless, will be preserved in `raw_payload` (jsonb) but not given dedicated columns. Neither difference blocks Group B; not stopping at checkpoint 1 over this.
@@ -96,6 +115,8 @@ Server-side `FEATURES.ai` sites (both real, unchanged): `proposals/service.ts` `
 - **AV-3 (A3):** `providers/resources.ts`'s `resources` export changed from a plain array literal to a filtered one (`allResources` + a conditional `.filter`), the minimal change to stop the nav from linking to a route that only redirects away. No other resource entries were touched.
 - **AV-4 (B1/B5):** `reference_snapshots.description` was originally `varchar(255)` per the spec's implied shape; live data broke that (some EstimationPro.ai descriptions exceed 500 characters). Changed to `text`, no length cap — these are read-only cached catalog values, not free-form user input needing a bound.
 - **AV-5 (C8):** implemented the 🟡 should-have C8 (revalidate endpoint + button) during Group C rather than deferring it, since the service it calls (`validateWorkflowLineItems`) already existed from C4 and the marginal cost was small — noted here since the checklist's own priority marking suggested it was optional.
+- **AV-6 (E5):** chose the small dedicated `/issues/precedents/:category` endpoint over reusing the lifecycle view's signals, for the reason given in the E5 checklist note above (fewer calls given the issues screen spans multiple projects).
+- **AV-7 (E6):** implemented the 🟢 nice-to-have E6 as well, since it was a thin wrapper over `reference-client.ts` (already built) and useful for the live verification itself (confirmed the seeded 411-item count from the actual admin UI).
 
 ## Queued UI/UX fixes (user-reported, out of scope for AI-signals — pick up after Group L/Checkpoint 4)
 

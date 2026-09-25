@@ -2,12 +2,27 @@
 // the workflow approval queue are both single-project or per-call-site;
 // this is the one place a role sees everything at once, mirroring
 // GET /api/lifecycle/my-actions.
-import { AlertCircle, ChevronRight, ClipboardCheck } from "lucide-react";
+import { AlertCircle, ChevronRight, ClipboardCheck, Sparkles } from "lucide-react";
 import { useNavigate } from "react-router";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { useMyActions } from "../hooks/useMyActions";
+import type { MyActionItem } from "../types/my-actions.types";
+
+// ai-signals E3: a "signal" item is decision support, not a gate/workflow
+// blocker — the icon and tone make that distinction visible at a glance
+// even before reading the text.
+function actionIcon(a: MyActionItem) {
+  if (a.kind === "signal") {
+    return (
+      <Sparkles
+        className={`mt-0.5 h-3.5 w-3.5 shrink-0 ${a.severity === "critical" ? "text-destructive" : "text-ai"}`}
+      />
+    );
+  }
+  return <AlertCircle className="mt-0.5 h-3.5 w-3.5 shrink-0 text-warning" />;
+}
 
 export function WaitingOnYouCard() {
   const { actions, loading } = useMyActions();
@@ -41,9 +56,16 @@ export function WaitingOnYouCard() {
               onClick={() => navigate(a.link)}
               className="flex w-full items-start gap-2.5 rounded-lg px-2 py-2 text-left hover:bg-muted/50"
             >
-              <AlertCircle className="mt-0.5 h-3.5 w-3.5 shrink-0 text-warning" />
+              {actionIcon(a)}
               <span className="min-w-0 flex-1">
-                <span className="block text-sm font-medium leading-tight">{a.title}</span>
+                <span className="flex items-center gap-1.5">
+                  <span className="block text-sm font-medium leading-tight">{a.title}</span>
+                  {a.kind === "signal" && (
+                    <Badge variant="outline" className="rounded-full border-ai/30 text-[9px] text-ai">
+                      AI
+                    </Badge>
+                  )}
+                </span>
                 <span className="mt-0.5 block text-xs text-muted-foreground">
                   {a.projectName} · {a.detail}
                 </span>

@@ -9,6 +9,8 @@ const router = Router();
 router.use(authenticate);
 
 router.get("/", controller.getAll);
+// ai-signals E5: before "/:id", or Express matches "precedents" as an id.
+router.get("/precedents/:category", controller.getPrecedents);
 router.get("/:id", controller.getById);
 router.post(
   "/",

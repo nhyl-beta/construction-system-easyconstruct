@@ -45,6 +45,30 @@ export interface PhaseHistoryEntry {
   createdAt: string | null;
 }
 
+// ai-signals E1/E2: decision support, never a gate. See config/features.ts —
+// present on LifecycleView only when the server's FEATURES.ai is on.
+export type Severity = "info" | "warn" | "critical";
+
+export interface SignalSource {
+  source: string;
+  itemName: string;
+  sourceUrl: string | null;
+  fetchedAt: string;
+  fxRate?: number;
+  fxAsOf?: string;
+}
+
+export interface Signal {
+  key: string;
+  rule: string;
+  label: string;
+  ownerRoles: string[];
+  severity: Severity;
+  detail: string;
+  link?: string;
+  sources?: SignalSource[];
+}
+
 export interface LifecycleView {
   phase: ProjectPhase;
   progress: number;
@@ -56,6 +80,7 @@ export interface LifecycleView {
   constructionTasks?: { done: number; total: number };
   history: PhaseHistoryEntry[];
   hasRejectedProposal?: boolean;
+  signals?: Signal[];
 }
 
 // H6

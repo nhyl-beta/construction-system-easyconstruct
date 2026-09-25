@@ -40,6 +40,7 @@ import projectMemberRoutes from "./project-members/routes.js";
 import workflowRoutes from "./workflows/routes.js";
 import milestoneRoutes from "./milestones/routes.js";
 import myActionsRoutes from "./lifecycle/my-actions.js";
+import aiValidationRoutes from "./ai-validation/routes.js";
 
 import uploadRoutes from "./uploads/routes.js";
 
@@ -114,6 +115,8 @@ app.use("/api/milestones", milestoneRoutes);
 // mount, not nested under /api/projects/:id/lifecycle, since it spans every
 // project the caller is relevant to rather than one.
 app.use("/api/lifecycle", myActionsRoutes);
+// ai-signals E6: admin-only manual refresh of the cached cost catalog.
+app.use("/api/ai-validation", aiValidationRoutes);
 app.use("/api/uploads", uploadRoutes);
 
 

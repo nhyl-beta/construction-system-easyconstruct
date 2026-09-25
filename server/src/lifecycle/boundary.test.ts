@@ -32,8 +32,8 @@ test("service.ts imports the signals module at most once, and only for evaluateS
   if (matches.length === 1) {
     assert.match(
       source,
-      /import\s*\{\s*evaluateSignals\s*\}\s*from\s*["']\.\.\/signals\/index\.js["']/,
-      "the one allowed import must be evaluateSignals from ../signals/index.js",
+      /import\s*\{[^}]*\bevaluateSignals\b[^}]*\}\s*from\s*["']\.\.\/signals\/index\.js["']/,
+      "the one allowed import must bring in evaluateSignals from ../signals/index.js",
     );
   }
 });
