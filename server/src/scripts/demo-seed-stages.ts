@@ -25,15 +25,19 @@
 //   - `npm run dev` running against DATABASE_URL (a live server, same as L5)
 //   - `npm run db:seed` already applied (demo accounts + workflow templates)
 //   - ideally `npm run ai:seed-references` already applied so DEMO-STAGE-3's
-//     Budget Change Request line items match a real, broad catalog — see
-//     demo-and-ux-progress.md's AV-6 deviation if that command can't reach
-//     EstimationPro.ai from this environment; a fallback reference_snapshots
-//     row is still required for the matcher to have anything to match.
+//     Budget Change Request line items match a real, broad catalog. If that
+//     hasn't been run (or this environment can't reach EstimationPro.ai at
+//     all — see demo-and-ux-progress.md's AV-6 deviation), this script seeds
+//     one `reference_snapshots` fallback row itself (see ensureFallback
+//     ReferenceRow below) so the matcher always has something real to match
+//     against — the same low/typical/high values ai-validation/cost.test.ts
+//     already uses for its own worked trace, not invented numbers.
 //
 // Run with: npx tsx src/scripts/demo-seed-stages.ts
 import "dotenv/config";
 import { db } from "../db/connection.js";
 import { sql } from "drizzle-orm";
+import { referenceSnapshots } from "../db/schema/ai-validation.js";
 
 const BASE = process.env.SMOKE_BASE_URL ?? "http://localhost:8000/api";
 const PASSWORD = "Demo@12345";
@@ -168,6 +172,38 @@ async function cleanup(codes: readonly string[]) {
   await db.execute(sql`DELETE FROM notifications WHERE project_code IN (${list()})`);
   await db.execute(sql`DELETE FROM audit_logs WHERE project_code IN (${list()})`);
   await db.execute(sql`DELETE FROM projects WHERE code IN (${list()})`);
+}
+
+// If `npm run ai:seed-references` hasn't been run (or can't reach
+// EstimationPro.ai — see demo-and-ux-progress.md AV-6), DEMO-STAGE-3's
+// Budget Change Request would have nothing to match against and every line
+// would be a "no-match". Upserts one row on the same
+// (source, source_item_id) conflict key seed-reference-data.ts uses, so a
+// later real fetch just overwrites it — this never shadows real data.
+async function ensureFallbackReferenceRow() {
+  const [existing] = await db.select().from(referenceSnapshots).limit(1);
+  if (existing) return;
+  console.log(
+    "  (no reference_snapshots rows found — seeding one fallback row so the matcher has something real to compare against; run `npm run ai:seed-references` for the full catalog)",
+  );
+  await db
+    .insert(referenceSnapshots)
+    .values({
+      source: "estimationpro",
+      sourceItemId: "rebar-4-half-inch",
+      trade: "concrete",
+      description: "Rebar #4 (1/2 inch)",
+      unit: "lf",
+      lowUsd: "80",
+      typicalUsd: "100",
+      highUsd: "120",
+      regionMultiplier: "1",
+      volatility: "medium",
+      currency: "USD",
+      sourceUrl: "https://estimationpro.ai/api/v1/costs?trade=concrete",
+      rawPayload: { seeded: "demo-seed-stages fallback — see demo-and-ux-progress.md AV-6" },
+    })
+    .onConflictDoNothing();
 }
 
 function step(label: string) {
@@ -532,6 +568,7 @@ async function advance(projectId: number, t: Tokens) {
 async function main() {
   console.log("Cleaning up any existing DEMO-STAGE-* rows (idempotent re-run)...");
   await cleanup(STAGE_CODES);
+  await ensureFallbackReferenceRow();
 
   console.log("Logging in every role...");
   const t: Tokens = {

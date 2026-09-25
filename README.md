@@ -105,6 +105,8 @@ npm run dev:server   # Express API with hot reload (tsx watch), default http://l
 | `npm run db:migrate` | Applies migrations to the database |
 | `npm run db:seed` | Seeds demo roles, employees, and user accounts |
 | `npm run db:backfill-employee-links` | Backfills employee ↔ user links |
+| `npm run ai:seed-references` | Pulls the EstimationPro.ai cost-reference catalog (idempotent upsert) |
+| `npm run demo:seed` | Creates `DEMO-STAGE-0`..`6`, one demo project per lifecycle phase, via real API calls against a running `npm run dev` server. Idempotent — deletes and rebuilds its own rows on every run. Run `ai:seed-references` first for a full cost-reference catalog (falls back to a single seeded reference row otherwise — see `server/src/scripts/demo-seed-stages.ts`'s header comment). |
 
 **`client/`**
 

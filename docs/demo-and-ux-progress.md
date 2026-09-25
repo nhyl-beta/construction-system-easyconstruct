@@ -395,6 +395,14 @@ anything outside this table list.
 
 ## Deviations
 
+- **AV-6-followup:** made this fully self-contained rather than a one-off manual SQL insert —
+  `demo-seed-stages.ts` now has its own `ensureFallbackReferenceRow()`, called every run before
+  the 7 projects are built: if `reference_snapshots` is empty, it upserts the same fallback row
+  (same `(source, source_item_id)` conflict key `seed-reference-data.ts` uses, so a later real
+  `ai:seed-references` run just overwrites it) and logs that it did so. Verified by deleting
+  every `reference_snapshots`/`validation_results` row and re-running the script from a
+  genuinely empty catalog — it reseeded the fallback row itself and produced the identical
+  Budget Change Request output shown above, no manual SQL required.
 - **AV-6 (P5):** `npm run ai:seed-references` cannot reach EstimationPro.ai from this sandbox
   (outbound proxy returns 403 on `CONNECT estimationpro.ai:443`, confirmed via
   `curl -i https://estimationpro.ai/api/v1/trades` and the proxy's own `/__agentproxy/status`,
