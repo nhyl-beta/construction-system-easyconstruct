@@ -97,7 +97,7 @@ Server-side `FEATURES.ai` sites (both real, unchanged): `proposals/service.ts` `
 - [x] **E4** `ReferenceBasisBadge` (verdict + variance, full `basisSummary` in a popover) added to `WorkflowLineItemsTable` (`workflow-submission-panel.tsx`), flag-gated column.
 - [x] **E5** Engineer issues screen: an open issue whose category has a resolved precedent shows "Resolved before" with up to 2 precedent notes. **Chose the small dedicated endpoint** (`GET /api/issues/precedents/:category`, gated by `FEATURES.ai` in `issues/service.ts`) over reusing the lifecycle view's signals — the issues screen lists issues across every project the engineer can see, so filtering lifecycle-view signals would mean one `/lifecycle` call per distinct project represented, while a category-keyed endpoint is one call per open category regardless of how many projects those issues span. Less code, said here per the checklist's instruction.
 - [x] **E6** 🟢 `POST /api/ai-validation/refresh-references` + `GET /api/ai-validation/references-status` (admin only), a `RefreshReferencesCard` on the admin dashboard showing cached-item count and last-refresh time with a manual refresh button.
-  - Commit: `<pending>`.
+  - Commit: `c75b9d9`.
 
 **Live verification (checkpoint 4 evidence, all against a real running dev server with `FEATURE_AI=true`, cleaned up after):**
 - **E1**: curl-confirmed the `signals` key's presence/absence both ways (above).
