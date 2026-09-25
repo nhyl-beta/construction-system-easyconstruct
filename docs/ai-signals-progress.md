@@ -108,6 +108,31 @@ Server-side `FEATURES.ai` sites (both real, unchanged): `proposals/service.ts` `
 - **E6**: admin dashboard's "Cost reference catalog" card correctly read *"411 cached items · last refreshed 14h ago"* — the real count from the Group B seed.
 - All test data (workflow, issue, budget bump, phase flips) was cleaned up / reverted afterward; both `.env` files restored to flag-off.
 
+### F. Verification
+
+- [x] **F1** Flag off, nothing changes.
+  - `npm --prefix server test` — 84/84 pass.
+  - `npx tsx src/scripts/demo-full-cycle.ts` against a live flag-off server: ran clean end to end, **identical phase/% table** to the lifecycle work's own baseline (4/10/25/30/95/100/100).
+  - `npx tsx src/scripts/api-smoke-test.ts`: 5/11 assertions failed, but every failure was `Project 2 / TEST_v22 not found` — that scratch project no longer exists in the database (deleted outside this work; confirmed the projects table only has 3 rows, none numbered 2 or coded `TEST_v22`). Not a regression from this work: none of the ai-signals changes touch that project, and the 401-only assertions (which don't depend on it) all still passed.
+  - Browser check (flag off): admin dashboard, HR dashboard, a project detail page, and Finance Impact Review's expanded line-item table — no "AI" badge, no "Decision support" section, no "Market cost" column, no header AI badge. `GET .../lifecycle` confirmed to omit `signals` via curl.
+- [x] **F2** `server/src/scripts/demo-ai-signals.ts` (`npm run demo:ai-signals`) — drives a fresh project to Construction, then deliberately trips all five rules: a Budget Change Request with a within-range line, a wildly above-typical line (+165%), and a no-quantity line; a second approved budget line pushing planned to 15% over contract; 1-of-4 tasks completed against a large approved expense (burn far ahead of completion); 3 Material issues (one resolved with a note); the Budget Change Request's current stage backdated 50 hours via direct SQL. **All 7 assertions passed on the first run**: all five rules fired at their expected severity (cost-variance critical, the other four warn, issue-recurrence citing its precedent), and — the core guarantee — the live API's `checks`/`canAdvance` were asserted **byte-for-byte identical** to an independent, direct call to `evaluateGate`/the canAdvance formula (bypassing the HTTP layer and `FEATURES.ai` entirely). Scenario project `AISIG-MUGLM73Z` (id 12) deliberately left in the database as a permanent artifact, per the same convention `demo-full-cycle.ts`'s output project used.
+- [x] **F3** Field Guide's "how you'll know it works" checklist:
+
+  | Item | Verified by |
+  |---|---|
+  | Flag off leaves no AI wording and the lifecycle demo still runs | F1: browser sweep + identical `demo-full-cycle.ts` phase table |
+  | Flag on shows a separate advisory section | E2 live check: "Decision support" card, visually separate, own heading/divider |
+  | A Proposal-phase project gets no burn signal | D9 unit test (`burn-vs-progress.test`: "a Proposal-phase project yields no burn signal") |
+  | A quiet project gets no signals | D9 unit test + E2 live check ("No advisories for this phase.") |
+  | Every signal states its numbers | D9's "every emitted signal has a non-empty detail containing a digit" test, plus every live E2-E5 signal shown above has real numbers in its detail |
+  | "asdf 123" gives no-match with no range | C2's `matcher.test.ts` ("nonsense input returns null (below the 0.40 floor)") and C3's `cost.test.ts` no-match cases assert no `₱` appears |
+  | Approving a budget change moves the cumulative signal | F2, live: approving a second budget line pushed `cumulative-change-impact` from absent to firing at warn |
+  | One broken rule doesn't silence the others | D9 unit test ("a throwing rule loses only itself") |
+  | Every rule has a test | `signals.test.ts` has a dedicated `describe` block per rule (5) plus cross-cutting tests |
+  | The flag changes what is shown, never what can be approved | F2's strongest evidence: the live server's `checks`/`canAdvance` (flag on, mid-anomaly) matched a direct, independent call to the pure gate functions exactly — not just "looked the same," provably the same computation |
+
+  - Commit: `<pending>`.
+
 ## Deviations
 
 - **AV-1 (A2):** EstimationPro.ai's actual response shape differs in two small, non-blocking ways from the prompt's assumed shape: (1) `multiplier` and `regionallyAdjusted`/`location` are fields on the **trade-level response**, not per catalog item — every item in one `/costs?trade=X` call shares the same multiplier, so `reference_snapshots.region_multiplier` is populated once per fetched batch, not computed per item; (2) items carry two extra fields not in the original spec (`lastVerified`, `regionallyAdjusted`) — harmless, will be preserved in `raw_payload` (jsonb) but not given dedicated columns. Neither difference blocks Group B; not stopping at checkpoint 1 over this.
@@ -117,6 +142,8 @@ Server-side `FEATURES.ai` sites (both real, unchanged): `proposals/service.ts` `
 - **AV-5 (C8):** implemented the 🟡 should-have C8 (revalidate endpoint + button) during Group C rather than deferring it, since the service it calls (`validateWorkflowLineItems`) already existed from C4 and the marginal cost was small — noted here since the checklist's own priority marking suggested it was optional.
 - **AV-6 (E5):** chose the small dedicated `/issues/precedents/:category` endpoint over reusing the lifecycle view's signals, for the reason given in the E5 checklist note above (fewer calls given the issues screen spans multiple projects).
 - **AV-7 (E6):** implemented the 🟢 nice-to-have E6 as well, since it was a thin wrapper over `reference-client.ts` (already built) and useful for the live verification itself (confirmed the seeded 411-item count from the actual admin UI).
+- **AV-8 (process):** the spec's checkpoints are after Groups A, C, D, and F only — Groups B and E don't have a dedicated stop. The Group E completion message in this session was mislabeled "Checkpoint 4"; it should have simply continued into Group F without pausing. No work was lost or skipped — noted here purely as a labeling correction, since the real Checkpoint 4 (final) is this one, after Group F.
+- **AV-9 (F1):** `api-smoke-test.ts`'s failures (5 of 11 assertions) are caused entirely by its hardcoded scratch project (`TEST_v22`, id 2) having been deleted from the database at some point outside this work — confirmed via `SELECT * FROM projects`, which shows only 3 unrelated rows. This is environment drift, not a regression: none of the ai-signals changes touch that project or that script's code paths, and the assertions that don't depend on it (both 401 checks) still passed. Recreating that scratch project was judged out of scope for this task.
 
 ## Queued UI/UX fixes (user-reported, out of scope for AI-signals — pick up after Group L/Checkpoint 4)
 
