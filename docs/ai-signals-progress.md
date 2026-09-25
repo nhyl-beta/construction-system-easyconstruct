@@ -75,6 +75,20 @@ Server-side `FEATURES.ai` sites (both real, unchanged): `proposals/service.ts` `
   - `workflows.aiNote` on the created workflow: `"2 of 3 line(s) compared to EstimationPro.ai: 2 above typical (+95328.6%); 1 no-match (line has no quantity)."`
   - Test workflow and its validation_results rows deleted afterward (cascade), `DEMO-01` restored to `Archived`, dev server stopped.
 
+### D. Signal layer
+
+- [x] **D1** `server/src/signals/types.ts`: `Signal`, `SignalSource`, `SignalContext`, `SignalRule` per spec 4.1 — `Signal` deliberately mirrors `GateCheck` minus `passed`.
+- [x] **D2** `lifecycle/repository.ts loadSnapshot` gained `validationResults` (this project's rows from `validation_results`, scoped by the column that's already there) and `issuePrecedents` (up to 3 most-recent `Resolved` issues with non-empty `resolutionNotes`, per open category, from **any** project — only `issueCode`/`title`/`category`/`resolutionNotes`/`updatedAt` selected, never another project's commercial data). Both fields added to `emptySnapshot()` in `gates.test.ts` and `progress.test.ts`.
+- [x] **D3** `signals/cost-variance.ts` — reads `validationResults` already on the snapshot (no DB/network access of its own); fires only for `above-typical`/`below-typical` verdicts on workflows that are `active` or finished within 30 days; `within-range`/`no-match` raise nothing (they only show on the line-item badge, per S-7/E4).
+- [x] **D4** `signals/cumulative-change-impact.ts`.
+- [x] **D5** `signals/burn-vs-progress.ts` — deliberately uses task completion (`s.tasks`), not `projects.progress`, as the completion side, since progress includes the Construction band's 30% offset.
+- [x] **D6** `signals/issue-recurrence.ts` — recurrence (warn/critical) and precedent (info) in one rule file, since they share the same per-category grouping; never restates K3 (adds *specific category* + *duration/precedent*, not just "issues exist").
+- [x] **D7** `signals/stalled-stage.ts` — adds *duration* on top of K4's "workflow exists"; a `revision-required` stage is attributed to the workflow's own stage-1 role (the initiator who must fix it), not the reviewer who sent it back.
+- [x] **D8** `signals/index.ts`: `runSignals` (pure, testable, per-rule `try/catch` so one broken rule doesn't silence the others, sorts critical→warn→info) and `evaluateSignals` (flag-gated, `[]` when `FEATURES.ai` is off).
+- [x] **D9** `signals/signals.test.ts` — 26 tests: every rule's warn/critical thresholds and silence conditions, the Field Guide's exact numbers (₱5.32M/₱4.50M → +18.2% warn; 68%/40% → 28-point warn), phase filtering (a Proposal-phase project gets no burn signal), a quiet project yielding `[]`, rule isolation (a throwing rule loses only itself), severity sorting, every signal's `detail` containing a digit, and the flag returning `[]` when off. **All 84 passed on the first run** — no bugs found in this group (unlike B/C, where live seeding and unit tests each caught a real bug).
+- [x] **D10** `lifecycle/boundary.test.ts` — reads the actual source of `gates.ts` (asserts zero imports from `../signals`/`../ai-validation`) and `service.ts` (asserts at most one such import, and only `evaluateSignals` from `../signals/index.js`). Written now, before Group E adds that one import, so it locks in the boundary from the start rather than retrofitting it.
+  - Commit: `<pending>`.
+
 ## Deviations
 
 - **AV-1 (A2):** EstimationPro.ai's actual response shape differs in two small, non-blocking ways from the prompt's assumed shape: (1) `multiplier` and `regionallyAdjusted`/`location` are fields on the **trade-level response**, not per catalog item — every item in one `/costs?trade=X` call shares the same multiplier, so `reference_snapshots.region_multiplier` is populated once per fetched batch, not computed per item; (2) items carry two extra fields not in the original spec (`lastVerified`, `regionallyAdjusted`) — harmless, will be preserved in `raw_payload` (jsonb) but not given dedicated columns. Neither difference blocks Group B; not stopping at checkpoint 1 over this.

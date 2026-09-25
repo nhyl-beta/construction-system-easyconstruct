@@ -59,6 +59,10 @@ function emptySnapshot(): LifecycleSnapshot {
     phaseHistory: [],
     staffedEmployees: [],
     closeoutTemplateId: null,
+    // ai-signals D2: decision-support-only fields — gates.ts never reads
+    // them, kept here only so the snapshot shape stays complete.
+    validationResults: [],
+    issuePrecedents: [],
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
   } as any;
 }
