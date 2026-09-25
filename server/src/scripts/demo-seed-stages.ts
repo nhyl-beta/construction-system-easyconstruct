@@ -62,6 +62,26 @@ const TARGET_PHASE = [
   "Archived",
 ] as const;
 
+// A1: human-readable display names, "DEMO · N <Phase>", 1-indexed so they
+// read naturally ("DEMO · 1 Proposal" .. "DEMO · 7 Archived"). Project
+// `name` has no character restriction beyond `min(2)` (see
+// project-validator.ts createProjectSchema) so the middle-dot is safe.
+// Codes are deliberately left as the existing DEMO-STAGE-0..6 rather than
+// renamed to DEMO-S1..7 — those codes are already referenced by
+// demo-ai-signals.ts's comments, README.md, and this file's own prior
+// progress-doc entries; renaming them would be pure churn with no
+// functional benefit now that the *name* (not the code) is what a human
+// reads in the UI. See docs/demo-and-ux-progress.md A1 for this decision.
+const DISPLAY_NAME = [
+  "DEMO · 1 Proposal",
+  "DEMO · 2 Design",
+  "DEMO · 3 Pre-Construction",
+  "DEMO · 4 Construction",
+  "DEMO · 5 Closeout",
+  "DEMO · 6 Completed",
+  "DEMO · 7 Archived",
+] as const;
+
 interface Tokens {
   pm: string;
   architect: string;
@@ -599,7 +619,22 @@ async function main() {
 
     const project = await api<{ id: number; code: string }>("/projects", t.pm, {
       method: "POST",
-      body: { name: `Demo ${target}`, code, pm: "Miguel Santos", due: "2027-06-30", client: "Demo Client" },
+      body: {
+        name: DISPLAY_NAME[i]!,
+        code,
+        pm: "Miguel Santos",
+        due: "2027-06-30",
+        client: "Demo Client",
+        // A4: the Construction-stage project is the one that also carries a
+        // real Budget Change Request through validateWorkflowLineItems() —
+        // point at the separate AISIG-DEMO scenario (all five signal rules)
+        // right in the description so "see everything AI-validation does"
+        // is reachable from either bookmarkable project.
+        description:
+          code === "DEMO-STAGE-3"
+            ? "Demonstrates the real cost-comparison engine (EstimationPro.ai citations on a Budget Change Request). For the five decision-support signal rules firing together, see the AISIG-DEMO project."
+            : undefined,
+      },
     });
     step(`Created project ${code} (id ${project.id})`);
     await staffProject(code, t, ids);

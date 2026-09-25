@@ -785,3 +785,84 @@ underlying duplication risk for every other role/route pair.
   guessed at.
 
 Server `npx tsc --noEmit -p server`: clean. Client `npm run build`: clean.
+
+## Round 4 (2026-09-25) — named demo projects, AI reference page, dashboard fixes, HR realism
+
+Branch: `dev-ai`, started at HEAD `d37d93c`. Environment: fresh worktree, no `.env`/deps —
+provisioned the same local Postgres 16 dev database convention as prior rounds; this time the
+`easyconstruct` database and its full seeded state (schema, 50 users/employees, the 8 existing
+demo projects) were **already present** from an earlier session sharing this container image, so
+no re-seed from empty was needed — confirmed live via `\dt` (all tables present) and
+`SELECT count(*) FROM projects` (8: the 7 `DEMO-STAGE-*` + `AISIG-DEMO`) before touching anything.
+`server/.env`/`client/.env` written fresh (gitignored), `npx tsc --noEmit -p server` confirmed
+clean before any edit.
+
+### Part A — Named per-stage demo projects
+
+- **[x] A1 — display names.** `createProjectSchema.name` has no character restriction beyond
+  `min(2)` (`server/src/validators/project-validator.ts`) — a middle dot is fine. **Decision on
+  codes** (documented per the task's own instruction): kept `DEMO-STAGE-0`..`6` rather than
+  renaming to `DEMO-S1`..`7`. Renaming would touch `demo-ai-signals.ts` (comment references),
+  `README.md`, and this doc's own history for zero functional gain — the *name*, not the code, is
+  what a person actually reads in the UI, and the name is now fixed. `demo-seed-stages.ts` gained
+  a `DISPLAY_NAME` array; projects are created with `name: "DEMO · 1 Proposal"` ...
+  `"DEMO · 7 Archived"`. Verified live via `SELECT code, name FROM projects WHERE code LIKE
+  'DEMO-STAGE-%'` — see table below.
+- **[x] A2 — gate audit.** Already fully documented in the P1 table above (`gates.ts` +
+  `repository.ts loadSnapshot()`), re-confirmed correct by re-running the script and the real
+  gate-check dump (below) — every check for the current phase and all earlier phases still reads
+  `passed: true` except Construction's intentionally-failing K1/K2/K4. Construction's progress
+  (59%) is `computeProgress`'s real `30 + 65*(4/9)` task-ratio formula, not hardcoded — confirmed
+  by counting the actual `tasks` rows (9 total, 4 Completed) via SQL.
+- **[x] A3 — Construction BCR re-verified.** Re-ran the script end to end against the current
+  schema; the real `validateWorkflowLineItems()` output is byte-identical to the previous round's
+  recorded trace (within-range +5.4%, above-typical +954.5%, no-match "line has no quantity") —
+  see the script output below. No schema drift broke it.
+- **[x] A4 — link to AISIG-DEMO.** `DEMO-STAGE-3`'s `description` field now reads: "Demonstrates
+  the real cost-comparison engine (EstimationPro.ai citations on a Budget Change Request). For
+  the five decision-support signal rules firing together, see the AISIG-DEMO project." — a real,
+  persisted column (`projects.description`), visible on the project detail page.
+- **[x] A5 — findability.** The existing project list search (`ProjectService.queryProjects`,
+  used by `pm-projects.tsx`/`owner-portfolio.tsx`/`admin-projects.tsx` via
+  `useProjectsController`) already filters by `name`/`code` substring, case-insensitive — typing
+  "DEMO" already surfaces all 7 (confirmed by reading `project.service.ts`'s `queryProjects`, no
+  code change needed). **Deviation, documented rather than silently left**: the bookmarkable
+  route is `/projects/:id` (numeric id), and this script's cleanup-then-rebuild idempotency
+  (A6) means the numeric id shifts on every re-run (confirmed: DEMO-STAGE-3 was id 25 before this
+  round's re-run, id 57 after). The project *code* is the stable identifier (bookmarkable via
+  `GET /projects?code=DEMO-STAGE-3` or the search box), not the URL. A truly ID-stable route
+  would need either code-based routing (`/projects/code/:code`) or a full rewrite of the seed
+  script into a check-before-create upsert at every one of its ~15 API steps (proposal, design,
+  budget, milestone, task, blueprint, etc.) rather than delete+rebuild — judged out of scope for
+  this pass; flagged here as a real product gap rather than silently claimed as fixed.
+- **[x] A6 — re-runnable, no duplicates.** Ran twice in a row this round; both times exactly 7
+  `DEMO-STAGE-*` rows (see table below) — unchanged from prior rounds' verification, re-confirmed
+  live.
+- **[x] A7 — verification.** Real gate-check dump against the live server, all 7 projects, plus
+  the archived-project write-rejection check:
+
+  ```
+  DEMO-STAGE-0 (DEMO · 1 Proposal) phase=Proposal progress=8%
+    P1..P5 passed=true (all 5)
+  DEMO-STAGE-1 (DEMO · 2 Design) phase=Design progress=25%
+    D1..D3 passed=true (all 3)
+  DEMO-STAGE-2 (DEMO · 3 Pre-Construction) phase=Pre-Construction progress=29%
+    C1..C5 passed=true (all 5)
+  DEMO-STAGE-3 (DEMO · 4 Construction) phase=Construction progress=59%
+    K1 passed=false  All tasks completed
+    K2 passed=false  All milestones closed
+    K3 passed=true   No open issues
+    K4 passed=false  No active workflows
+  DEMO-STAGE-4 (DEMO · 5 Closeout) phase=Closeout progress=99%
+    X1..X4 passed=true (all 4)
+  DEMO-STAGE-5 (DEMO · 6 Completed) phase=Completed progress=100%  (no gates)
+  DEMO-STAGE-6 (DEMO · 7 Archived) phase=Archived progress=100%  (no gates)
+
+  PATCH /projects/<DEMO-STAGE-6 id> {client:"Should be rejected"} (as PM)
+    -> 409 {"success":false,"message":"Project is Archived — changes are locked","code":"CONFLICT"}
+  ```
+
+  Real DB row check (`SELECT code, name, status FROM projects WHERE code LIKE 'DEMO-STAGE-%'`),
+  both before and after a second re-run — 7 rows both times, names as above.
+
+Server `npx tsc --noEmit -p server` and client `npm run build`: both clean.
