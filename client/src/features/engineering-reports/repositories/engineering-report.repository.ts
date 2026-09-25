@@ -30,6 +30,7 @@ interface BackendEngineeringReport {
 function normalizeReport(raw: BackendEngineeringReport): EngineeringReport {
   return {
     id: raw.reportId,
+    dbId: raw.id,
     title: raw.title,
     type: raw.type as EngineeringReport["type"],
     project: raw.project,
@@ -73,6 +74,16 @@ export const EngineeringReportRepository = {
   async create(payload: CreateEngineeringReportInput): Promise<EngineeringReport> {
     const raw = await unwrap<BackendEngineeringReport>(
       apiClient.post("/engineering-reports", payload),
+    );
+    return normalizeReport(raw);
+  },
+
+  // Q5: server/src/engineering-reports/routes.ts restricts this to
+  // engineer/admin/project-manager — an engineer reviewing their own
+  // submission is a service-layer 403, not something this method guards.
+  async updateStatus(dbId: number, status: EngineeringReport["status"]): Promise<EngineeringReport> {
+    const raw = await unwrap<BackendEngineeringReport>(
+      apiClient.patch(`/engineering-reports/${dbId}`, { status }),
     );
     return normalizeReport(raw);
   },

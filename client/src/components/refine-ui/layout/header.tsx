@@ -13,6 +13,7 @@ import { Input } from "@/components/ui/input";
 import { Separator } from "@/components/ui/separator";
 import { SidebarTrigger, useSidebar } from "@/components/ui/sidebar";
 import { useRoleConfig } from "@/hooks/use-role-config";
+import { useApprovalsPendingCount } from "@/features/workflows/hooks/useWorkflows";
 import { ConfirmDialog } from "@/components/ui/confirm-dialog";
 import { useAuth } from "@/auth/auth-context";
 import { cn } from "@/lib/utils";
@@ -34,6 +35,11 @@ function DesktopHeader() {
   const { pathname } = useParsed();
   const navigate = useNavigate();
   const { identity, config } = useRoleConfig();
+  // Q4: a badge on this bar's own "Approvals" tab. The header renders for
+  // every role, so the count is always fetched (cheap — see the hook's own
+  // comment on why that's safe for a role with no approvable stage), but
+  // only shown below on roles whose tab bar actually has an Approvals tab.
+  const approvalsPending = useApprovalsPendingCount();
 
   const today = new Date().toLocaleDateString("en-US", {
     weekday: "long",
@@ -130,6 +136,11 @@ function DesktopHeader() {
             >
               <TabIcon className="h-3.5 w-3.5" />
               {tab.label}
+              {tab.route === "/approvals" && approvalsPending > 0 && (
+                <span className="flex h-4 min-w-4 items-center justify-center rounded-full bg-destructive px-1 text-[10px] font-medium tabular-nums text-destructive-foreground">
+                  {approvalsPending > 9 ? "9+" : approvalsPending}
+                </span>
+              )}
             </button>
           );
         })}

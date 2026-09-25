@@ -223,6 +223,33 @@ export function useActiveWorkflows() {
  * =========================================================
  */
 
+// Q4: a small, sidebar-scoped count — every role that has an "Approvals"
+// nav entry (PM, Consultant, Engineer, Finance, HR, Architect) shares the
+// same resource, so this lives here rather than being finance-specific.
+// GET /workflows/approvals/stats needs only authentication (no requireRole),
+// and is already scoped server-side to the caller's own role, so this is
+// safe to call from the generic Sidebar regardless of which role is signed
+// in — a role with no approvable stage just gets 0 back.
+export function useApprovalsPendingCount(): number {
+  const [pending, setPending] = useState(0);
+
+  useEffect(() => {
+    let cancelled = false;
+    WorkflowRepository.getApprovalStats()
+      .then((stats) => {
+        if (!cancelled) setPending(stats.pending);
+      })
+      .catch(() => {
+        // Sidebar badge is a convenience, not a critical read — stay at 0.
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
+  return pending;
+}
+
 export function useApprovals(scope: ApprovalScope) {
   type ApprovalItems = Awaited<
     ReturnType<typeof WorkflowRepository.listApprovals>

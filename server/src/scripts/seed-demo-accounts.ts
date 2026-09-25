@@ -44,6 +44,26 @@ const ROLE_DEFS = [
   { role: "site-personnel", label: "Site Personnel", employeeRole: "Construction Worker", department: "Field Operations" },
 ] as const;
 
+// Q6: every demo employee was seeded with payRate defaulting to 0 (its
+// column default — see server/src/db/schema/employees.ts), so any payroll
+// batch generated against them computed gross/deductions/net as ₱0 no
+// matter how many hours were entered — from Finance's payroll review
+// screen, every batch looked identically uncomputed. Rough PHP figures,
+// keyed by the same `employeeRole` string every account already carries.
+const PAY_RATE_BY_ROLE: Record<string, { payRate: string; rateType: "Hourly" | "Daily" | "Monthly" }> = {
+  Admin: { payRate: "45000", rateType: "Monthly" },
+  "Project Manager": { payRate: "65000", rateType: "Monthly" },
+  "HR Officer": { payRate: "35000", rateType: "Monthly" },
+  "Finance Manager": { payRate: "55000", rateType: "Monthly" },
+  Architect: { payRate: "50000", rateType: "Monthly" },
+  "Site Engineer": { payRate: "45000", rateType: "Monthly" },
+  "Construction Worker": { payRate: "150", rateType: "Hourly" },
+  Consultant: { payRate: "800", rateType: "Hourly" },
+  Owner: { payRate: "0", rateType: "Monthly" }, // not on payroll
+  "IT Designer": { payRate: "48000", rateType: "Monthly" },
+};
+const DEFAULT_PAY_RATE = { payRate: "30000", rateType: "Monthly" as const };
+
 const ORDINAL_NAME = ["One", "Two", "Three", "Four"] as const;
 
 // 4 accounts per role, email "<role-slug-without-hyphens><n>@easyconstruct.demo"
@@ -244,6 +264,7 @@ async function main() {
         continue;
       }
 
+      const pay = PAY_RATE_BY_ROLE[account.employeeRole] ?? DEFAULT_PAY_RATE;
       await tx.insert(employees).values({
         employeeId: `EMP-DEMO-${String(index + 1).padStart(2, "0")}`,
         name: account.name,
@@ -254,6 +275,8 @@ async function main() {
         hiredOn: new Date().toISOString().slice(0, 10),
         email: account.email,
         userId: user.id,
+        payRate: pay.payRate,
+        rateType: pay.rateType,
       });
       createdEmployees++;
       console.log(`created employee: ${account.email}`);

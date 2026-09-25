@@ -165,7 +165,13 @@ export function LocationMapPicker({
 
   return (
     <div className={className}>
-      <div className="overflow-hidden rounded-xl border border-border">
+      {/* Q3: Leaflet's own CSS sets z-index up to 1000 on its zoom control
+          and panes, which escaped above the app's sticky header once the
+          page scrolled the map under it. `isolation: isolate` gives this
+          wrapper its own stacking context, so nothing inside — regardless
+          of Leaflet's internal z-index values — can ever paint above
+          content outside this box. */}
+      <div className="relative overflow-hidden rounded-xl border border-border" style={{ isolation: "isolate" }}>
         <div ref={containerRef} style={{ height: "280px", width: "100%" }} />
       </div>
       <p className="mt-1.5 text-xs text-muted-foreground">

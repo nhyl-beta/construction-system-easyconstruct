@@ -5,8 +5,10 @@ import {
   listPayrollReview,
   type PayrollReviewBatch,
 } from "@/features/finance/apis/payroll-review-api";
+import { useAuth } from "@/auth/auth-context";
 
 export default function FinancePayrollReviewPage() {
+  const { user } = useAuth();
   const [batches, setBatches] = useState<PayrollReviewBatch[]>([]);
   const [selectedBatch, setSelectedBatch] =
     useState<PayrollReviewBatch | null>(null);
@@ -48,7 +50,7 @@ export default function FinancePayrollReviewPage() {
 
       const updated = await decidePayrollReview(selectedBatch.id, {
         decision,
-        reviewedBy: "Finance Manager",
+        reviewedBy: user?.name ?? "Finance Manager",
         comment: comment.trim() || undefined,
       });
 
