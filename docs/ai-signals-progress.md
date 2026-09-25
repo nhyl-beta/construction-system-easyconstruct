@@ -1,6 +1,6 @@
 # AI-Validation decision-support layer — progress
 
-Branch: `feature/ai-signals`, created from `feature/project-lifecycle` @ `2946adc` (lifecycle work, groups A-L, complete).
+Branch: `dev-ai` (created as `feature/ai-signals` off `feature/project-lifecycle` @ `2946adc`; renamed to `dev-ai` outside this work, now tracks `origin/dev-ai` — same commit history, name only).
 
 At the start of every session: read this file and continue from the first unticked item.
 
@@ -87,7 +87,7 @@ Server-side `FEATURES.ai` sites (both real, unchanged): `proposals/service.ts` `
 - [x] **D8** `signals/index.ts`: `runSignals` (pure, testable, per-rule `try/catch` so one broken rule doesn't silence the others, sorts critical→warn→info) and `evaluateSignals` (flag-gated, `[]` when `FEATURES.ai` is off).
 - [x] **D9** `signals/signals.test.ts` — 26 tests: every rule's warn/critical thresholds and silence conditions, the Field Guide's exact numbers (₱5.32M/₱4.50M → +18.2% warn; 68%/40% → 28-point warn), phase filtering (a Proposal-phase project gets no burn signal), a quiet project yielding `[]`, rule isolation (a throwing rule loses only itself), severity sorting, every signal's `detail` containing a digit, and the flag returning `[]` when off. **All 84 passed on the first run** — no bugs found in this group (unlike B/C, where live seeding and unit tests each caught a real bug).
 - [x] **D10** `lifecycle/boundary.test.ts` — reads the actual source of `gates.ts` (asserts zero imports from `../signals`/`../ai-validation`) and `service.ts` (asserts at most one such import, and only `evaluateSignals` from `../signals/index.js`). Written now, before Group E adds that one import, so it locks in the boundary from the start rather than retrofitting it.
-  - Commit: `<pending>`.
+  - Commit: `09f012b`.
 
 ## Deviations
 
