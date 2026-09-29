@@ -10,6 +10,7 @@ export const findAll = async (filters: DocumentFilters = {}) => {
   if (filters.project) conditions.push(eq(documents.project, filters.project));
   if (filters.type && filters.type !== "all") conditions.push(eq(documents.type, filters.type));
   if (filters.projectCodes) conditions.push(inArray(documents.project, filters.projectCodes));
+  if (filters.stage) conditions.push(eq(documents.stage, filters.stage));
 
   return conditions.length
     ? await db.select().from(documents).where(and(...conditions))

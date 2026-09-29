@@ -10,6 +10,8 @@ export interface DocumentRecord {
   size: string | null;
   uploadedBy?: string;
   fileUrl: string | null;
+  // H1: which lifecycle stage (e.g. "Design") this document belongs to.
+  stage?: string | null;
   createdAt: string | null;
 }
 
@@ -20,6 +22,7 @@ export interface CreateDocumentInput {
   type: string;
   version?: string;
   fileUrl?: string;
+  stage?: string;
 }
 
 export interface UploadDocumentInput {
@@ -27,17 +30,20 @@ export interface UploadDocumentInput {
   project: string;
   type: string;
   title?: string;
+  stage?: string;
 }
 
 export const documentsRepository = {
   listByProject: (
     project?: string,
-  ): Promise<{ data: DocumentRecord[] }> =>
-    apiClient.get(
-      project
-        ? `/documents?project=${encodeURIComponent(project)}`
-        : "/documents",
-    ),
+    opts: { stage?: string } = {},
+  ): Promise<{ data: DocumentRecord[] }> => {
+    const params = new URLSearchParams();
+    if (project) params.set("project", project);
+    if (opts.stage) params.set("stage", opts.stage);
+    const qs = params.toString();
+    return apiClient.get(`/documents${qs ? `?${qs}` : ""}`);
+  },
 
   upload: async (
     input: UploadDocumentInput,
@@ -50,6 +56,9 @@ export const documentsRepository = {
 
     if (input.title?.trim()) {
       formData.append("title", input.title.trim());
+    }
+    if (input.stage) {
+      formData.append("stage", input.stage);
     }
 
     return apiClient.postFormData(

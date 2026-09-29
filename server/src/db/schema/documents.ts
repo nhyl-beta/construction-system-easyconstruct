@@ -10,6 +10,11 @@ export const documents = pgTable("documents", {
   size: varchar("size", { length: 20 }),
   uploadedBy: varchar("uploaded_by", { length: 100 }).notNull(),
   fileUrl: varchar("file_url", { length: 500 }),
+  // H1: which lifecycle stage (server/src/lifecycle/phases.ts PROJECT_PHASES,
+  // e.g. "Design") this document belongs to. Nullable so every document that
+  // predates this column, or was never filed against a specific stage,
+  // keeps working unfiltered.
+  stage: varchar("stage", { length: 50 }),
   createdAt: timestamp("created_at").defaultNow(),
   updatedAt: timestamp("updated_at").defaultNow(),
 });

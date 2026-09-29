@@ -19,12 +19,13 @@ import { MilestonesPanel } from "@/features/milestones/components/MilestonesPane
 import { LocationMapPicker } from "@/components/maps/location-map-picker";
 import { useProjectDesigns } from "@/features/designs/hooks/useProjectDesigns";
 import { StatusBadge } from "@/components/ui/status-badge";
+import { documentsRepository, type DocumentRecord } from "@/features/documents/repositories/documents.repository";
 import { ProjectLifecyclePanel } from "@/features/lifecycle/components/ProjectLifecyclePanel";
 import { RequirementsPanel } from "@/features/requirements/components/RequirementsPanel";
 import type { ProjectMemberRole } from "@/features/project-members/repositories/project-member.repository";
 import { useUsersByRole } from "@/features/users/hooks/use-users-by-role";
-import { ArrowLeft, HardHat, Loader2, PencilRuler, Trash2, UserPlus, X } from "lucide-react";
-import { useEffect, useMemo, useState } from "react";
+import { ArrowLeft, FileText, HardHat, Loader2, PencilRuler, Trash2, Upload, UserPlus, X } from "lucide-react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { Link, useNavigate, useParams } from "react-router";
 import { useAuth } from "@/auth/auth-context";
 
@@ -380,6 +381,15 @@ export default function ProjectDetailPage() {
         <LinkedDesignsPanel projectCode={project.code} />
       </div>
 
+      {/* H1: the Design stage's own assigned-engineer + files view, distinct
+          from LinkedDesignsPanel (design records) — this is stage-scoped
+          documents (the generic documents module, filtered to stage=Design)
+          plus a read-only reflection of the Engineers panel above, so both
+          facts of "who owns Design and what they've filed" are in one place. */}
+      <div className="max-w-4xl">
+        <DesignStageSection projectCode={project.code} canManage={canEdit} />
+      </div>
+
       <div className="max-w-4xl">
         {/* F1: matches requirements/service.ts assertCanSetStatus exactly —
             project-manager or admin, not the broader PROJECT_EDITORS set
@@ -545,6 +555,137 @@ function LinkedDesignsPanel({ projectCode }: { projectCode: string }) {
           ))}
         </ul>
       )}
+    </div>
+  );
+}
+
+/** H1: Design stage — the assigned engineer(s) (read-only reflection of the
+ * Engineers TeamMemberPanel above, which is the actual source of truth via
+ * project_members) plus documents filed specifically against stage="Design". */
+function DesignStageSection({
+  projectCode,
+  canManage,
+}: {
+  projectCode: string;
+  canManage: boolean;
+}) {
+  const { members: engineers, loading: engineersLoading } = useProjectMembers(projectCode, "engineer");
+
+  const [docs, setDocs] = useState<DocumentRecord[]>([]);
+  const [docsLoading, setDocsLoading] = useState(true);
+  const [docsError, setDocsError] = useState<string | null>(null);
+  const [uploading, setUploading] = useState(false);
+  const fileInputRef = useRef<HTMLInputElement>(null);
+
+  const loadDocs = () => {
+    setDocsLoading(true);
+    setDocsError(null);
+    documentsRepository
+      .listByProject(projectCode, { stage: "Design" })
+      .then((res) => setDocs(res.data))
+      .catch((err: unknown) => setDocsError(err instanceof Error ? err.message : "Failed to load documents"))
+      .finally(() => setDocsLoading(false));
+  };
+
+  useEffect(() => {
+    loadDocs();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [projectCode]);
+
+  const handleFileSelected = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    e.target.value = "";
+    if (!file) return;
+    setUploading(true);
+    setDocsError(null);
+    try {
+      await documentsRepository.upload({ file, project: projectCode, type: "Design", stage: "Design" });
+      loadDocs();
+    } catch (err) {
+      setDocsError(err instanceof Error ? err.message : "Failed to upload document");
+    } finally {
+      setUploading(false);
+    }
+  };
+
+  return (
+    <div className="space-y-4 rounded-2xl border border-border bg-card p-6">
+      <div>
+        <h2 className="flex items-center gap-2 text-base font-semibold">
+          <PencilRuler className="h-4 w-4 text-muted-foreground" />
+          Design stage
+        </h2>
+        <p className="mt-1 text-sm text-muted-foreground">
+          Assigned engineer(s) and files filed specifically against the Design stage.
+        </p>
+      </div>
+
+      <div>
+        <p className="text-xs font-medium text-muted-foreground">Assigned engineer(s)</p>
+        {engineersLoading ? (
+          <p className="mt-1 text-sm text-muted-foreground">Loading…</p>
+        ) : engineers.length === 0 ? (
+          <p className="mt-1 text-sm text-muted-foreground">
+            No engineer staffed yet — add one in the Engineers panel above.
+          </p>
+        ) : (
+          <p className="mt-1 text-sm">{engineers.map((m) => m.userName).join(", ")}</p>
+        )}
+      </div>
+
+      <div>
+        <div className="flex items-center justify-between">
+          <p className="text-xs font-medium text-muted-foreground">Design stage files</p>
+          {canManage && (
+            <>
+              <input
+                ref={fileInputRef}
+                type="file"
+                className="hidden"
+                onChange={handleFileSelected}
+              />
+              <Button
+                size="sm"
+                variant="outline"
+                className="h-7 rounded-lg text-xs"
+                disabled={uploading}
+                onClick={() => fileInputRef.current?.click()}
+              >
+                <Upload className="h-3.5 w-3.5" /> {uploading ? "Uploading…" : "Upload"}
+              </Button>
+            </>
+          )}
+        </div>
+
+        {docsError && <p className="mt-2 text-sm text-destructive">{docsError}</p>}
+
+        {docsLoading ? (
+          <p className="mt-2 text-sm text-muted-foreground">Loading…</p>
+        ) : docs.length === 0 ? (
+          <p className="mt-2 text-sm text-muted-foreground">No files filed against the Design stage yet.</p>
+        ) : (
+          <ul className="mt-2 space-y-2">
+            {docs.map((d) => (
+              <li key={d.id} className="flex items-center justify-between rounded-xl border border-border px-4 py-2 text-sm">
+                <span className="flex min-w-0 items-center gap-2">
+                  <FileText className="h-3.5 w-3.5 shrink-0 text-muted-foreground" />
+                  <span className="truncate">{d.title}</span>
+                </span>
+                {d.fileUrl && (
+                  <a
+                    href={d.fileUrl}
+                    target="_blank"
+                    rel="noreferrer"
+                    className="shrink-0 text-xs text-primary hover:underline"
+                  >
+                    Download
+                  </a>
+                )}
+              </li>
+            ))}
+          </ul>
+        )}
+      </div>
     </div>
   );
 }

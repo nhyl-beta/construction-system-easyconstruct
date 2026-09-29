@@ -9,6 +9,7 @@ export interface DocumentRecord {
   size: string | null;
   uploadedBy: string;
   fileUrl: string | null;
+  stage: string | null;
   createdAt: Date | null;
   updatedAt: Date | null;
 }
@@ -22,6 +23,7 @@ export interface CreateDocumentInput {
   size?: string;
   uploadedBy: string;
   fileUrl?: string;
+  stage?: string;
 }
 
 export interface UploadDocumentInput {
@@ -31,10 +33,12 @@ export interface UploadDocumentInput {
   type: string;
   version?: string;
   uploadedBy: string;
+  stage?: string;
 }
 
 export interface DocumentFilters {
   project?: string;
   type?: string;
   projectCodes?: string[];
+  stage?: string;
 }

@@ -23,6 +23,7 @@ export const getAll = async (
     const data = await service.getAll({
       project: req.query.project as string,
       type: req.query.type as string,
+      stage: req.query.stage as string,
       projectCodes,
     });
 
@@ -113,6 +114,8 @@ export const upload = async (
       });
     }
 
+    const stage = String(req.body.stage ?? "").trim() || undefined;
+
     const data = await service.upload({
       file: req.file,
       title,
@@ -120,6 +123,7 @@ export const upload = async (
       type,
       version,
       uploadedBy: req.authUser!.email,
+      stage,
     });
 
     return res

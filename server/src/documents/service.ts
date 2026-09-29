@@ -34,6 +34,7 @@ export const upload = async ({
   type,
   version,
   uploadedBy,
+  stage,
 }: {
   file: Express.Multer.File;
   title: string;
@@ -41,6 +42,7 @@ export const upload = async ({
   type: string;
   version?: string;
   uploadedBy: string;
+  stage?: string;
 }) => {
   await assertProjectWritable(project);
 
@@ -70,6 +72,7 @@ export const upload = async ({
     size,
     uploadedBy,
     fileUrl,
+    stage,
   });
   await refreshProjectProgress(project);
   return created;

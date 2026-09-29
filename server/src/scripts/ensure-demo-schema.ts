@@ -467,6 +467,11 @@ async function main() {
     -- in at all — every comment Finance typed was silently discarded.
     ALTER TABLE payroll_batches
       ADD COLUMN IF NOT EXISTS review_note text;
+
+    -- H1: Design stage documents — nullable so existing documents (none of
+    -- which were ever filed against a stage) keep working unfiltered.
+    ALTER TABLE documents
+      ADD COLUMN IF NOT EXISTS stage varchar(50);
   `);
 
   console.log("Demo schema tables and compatibility columns are ready.");
