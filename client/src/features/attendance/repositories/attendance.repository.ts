@@ -26,6 +26,9 @@ export interface ClockInInput {
   longitude?: number;
   photoUrl?: string;
   logDate: string;
+  // E1: offline queue support — see server/src/db/schema/attendance.ts.
+  clientRequestId?: string;
+  validatedOffline?: boolean;
 }
 
 export const attendanceRepository = {

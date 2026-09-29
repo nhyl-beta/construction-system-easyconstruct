@@ -1,5 +1,6 @@
 // server/src/db/schema/attendance.ts 
 import {
+  boolean,
   date,
   integer,
   numeric,
@@ -31,6 +32,20 @@ export const attendance = pgTable("attendance", {
   remarks: text("remarks"),
   logDate: date("log_date").notNull(),
   createdAt: timestamp("created_at").defaultNow(),
+  // E1: a client-generated UUID an offline-queued clock-in/out carries so a
+  // retried sync (the device coming back online more than once before the
+  // server ack is confirmed) never creates a duplicate attendance record.
+  // Nullable + unique. A plain UNIQUE constraint on Postgres treats every
+  // NULL as distinct from every other NULL, so online submissions (which
+  // never set this) never collide with each other — only two equal,
+  // non-null client-generated ids would conflict, which is exactly the
+  // idempotent-replay case this column exists for.
+  clientRequestId: varchar("client_request_id", { length: 64 }).unique(),
+  // True when the geofence Inside/Outside check above was computed on the
+  // device against cached site coordinates while offline, not derived fresh
+  // server-side — lets HR/PM tell an offline-validated entry apart from a
+  // normally-verified one for review.
+  validatedOffline: boolean("validated_offline").notNull().default(false),
 });
 
 export type Attendance = typeof attendance.$inferSelect;

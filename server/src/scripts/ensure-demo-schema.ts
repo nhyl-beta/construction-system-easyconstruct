@@ -441,6 +441,26 @@ async function main() {
     CREATE UNIQUE INDEX IF NOT EXISTS users_single_active_owner_idx
       ON users (role)
       WHERE role = 'owner' AND is_active = true;
+
+    -- E1: offline geofence photocapture — a client-generated idempotency key
+    -- so a queued clock-in/out replayed after connectivity returns (possibly
+    -- more than once, before the device is sure the first sync landed) never
+    -- creates a duplicate attendance record, plus a flag for whether the
+    -- geofence check ran on-device against cached coordinates instead of
+    -- fresh server-side data.
+    ALTER TABLE attendance
+      ADD COLUMN IF NOT EXISTS client_request_id varchar(64),
+      ADD COLUMN IF NOT EXISTS validated_offline boolean NOT NULL DEFAULT false;
+
+    -- A plain (non-partial) unique index: Postgres never treats two NULLs as
+    -- a duplicate under a plain UNIQUE constraint, so online submissions
+    -- (which never set this column) don't collide with each other — and a
+    -- plain index (unlike a partial one) is a valid ON CONFLICT arbiter for
+    -- attendance/repository.ts's onConflictDoNothing() with no WHERE clause
+    -- of its own needed on the insert.
+    DROP INDEX IF EXISTS attendance_client_request_id_idx;
+    CREATE UNIQUE INDEX IF NOT EXISTS attendance_client_request_id_unique_idx
+      ON attendance (client_request_id);
   `);
 
   console.log("Demo schema tables and compatibility columns are ready.");

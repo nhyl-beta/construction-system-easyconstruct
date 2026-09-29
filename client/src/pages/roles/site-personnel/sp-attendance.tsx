@@ -1,6 +1,6 @@
 // client/src/pages/roles/site-personnel/sp-attendance.tsx — NEW
 import { useEffect, useMemo, useRef, useState } from "react";
-import { Camera, MapPin, CheckCircle2, AlertTriangle, Clock } from "lucide-react";
+import { Camera, MapPin, CheckCircle2, AlertTriangle, Clock, WifiOff, RefreshCw } from "lucide-react";
 import { PageContainer } from "@/components/refine-ui/views/page-container";
 import { PageHeader } from "@/components/refine-ui/views/page-header";
 import { PageContent } from "@/components/refine-ui/views/page-content";
@@ -14,6 +14,58 @@ import { useUploadFile} from "@/features/uploads/hooks/use-upload-file";
 import { useMyEmployee } from "@/features/employees/hooks/use-my-employee";
 import { useProjects } from "@/features/projects/hooks/useProjects";
 import { ProjectMemberRepository } from "@/features/project-members/repositories/project-member.repository";
+import { useOfflineAttendanceSync } from "@/features/attendance/offline/useOfflineSync";
+import { enqueueAttendance } from "@/features/attendance/offline/queue";
+
+interface CachedSiteGeofence {
+  siteLatitude: number;
+  siteLongitude: number;
+  geofenceRadiusM: number;
+}
+
+const GEOFENCE_CACHE_KEY = "easyconstruct_site_geofence_cache";
+
+function cacheGeofences(projects: { code: string; siteLatitude?: number | null; siteLongitude?: number | null; geofenceRadiusM?: number | null }[]) {
+  const cache: Record<string, CachedSiteGeofence> = {};
+  for (const p of projects) {
+    if (p.siteLatitude != null && p.siteLongitude != null) {
+      cache[p.code] = {
+        siteLatitude: p.siteLatitude,
+        siteLongitude: p.siteLongitude,
+        geofenceRadiusM: p.geofenceRadiusM ?? 300,
+      };
+    }
+  }
+  try {
+    localStorage.setItem(GEOFENCE_CACHE_KEY, JSON.stringify(cache));
+  } catch {
+    // storage full/unavailable — offline geofence check just won't have
+    // cached coordinates for this project; the entry still queues, flagged
+    // Unverified, for server-side review once synced.
+  }
+}
+
+function getCachedGeofence(projectCode: string): CachedSiteGeofence | null {
+  try {
+    const raw = localStorage.getItem(GEOFENCE_CACHE_KEY);
+    if (!raw) return null;
+    const cache = JSON.parse(raw) as Record<string, CachedSiteGeofence>;
+    return cache[projectCode] ?? null;
+  } catch {
+    return null;
+  }
+}
+
+function distanceMeters(lat1: number, lon1: number, lat2: number, lon2: number): number {
+  const R = 6371000;
+  const toRad = (d: number) => (d * Math.PI) / 180;
+  const dLat = toRad(lat2 - lat1);
+  const dLon = toRad(lon2 - lon1);
+  const a =
+    Math.sin(dLat / 2) ** 2 +
+    Math.cos(toRad(lat1)) * Math.cos(toRad(lat2)) * Math.sin(dLon / 2) ** 2;
+  return R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+}
 
 
 
@@ -60,10 +112,21 @@ export default function SPAttendancePage() {
   );
   const [projectCode, setProjectCode] = useState("");
 
+  // E1: cache each staffed project's geofence coordinates whenever they're
+  // freshly fetched online, so a clock-in attempted while offline can still
+  // run the Inside/Outside check against the last-known site location.
+  useEffect(() => {
+    if (staffedProjects.length > 0) cacheGeofences(staffedProjects);
+  }, [staffedProjects]);
+
+  const { isOnline, pendingCount, syncing, lastSyncError, retrySync } = useOfflineAttendanceSync();
+
   const {uploadDataUrl, uploading: uploadingPhoto} = useUploadFile();
   const [geoState, setGeoState] = useState<GeoState>("idle");
   const [coords, setCoords] = useState<{ lat: number; lng: number } | null>(null);
   const [photoDataUrl, setPhotoDataUrl] = useState<string | null>(null);
+  const [photoFile, setPhotoFile] = useState<File | null>(null);
+  const [queuedMessage, setQueuedMessage] = useState<string | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   const requestLocation = () => {
@@ -85,6 +148,7 @@ export default function SPAttendancePage() {
   const handlePhotoSelected = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
+    setPhotoFile(file);
     const reader = new FileReader();
     reader.onload = () => setPhotoDataUrl(reader.result as string);
     reader.readAsDataURL(file);
@@ -92,26 +156,100 @@ export default function SPAttendancePage() {
 
   const canSubmit = geoState === "granted" && !!photoDataUrl && !!projectCode && !submitting;
 
+  // E1: try the network path first; if it fails (offline, or a request that
+  // errors mid-flight), fall back to queuing the entry locally instead of
+  // just showing an error and losing the clock-in attempt. Offline is
+  // checked up front too, so a known-offline device skips straight to
+  // queuing instead of waiting out a request that can only time out.
   const handleSubmit = async () => {
-    if (!coords || !photoDataUrl || !projectCode) return;
-    const [, mimeMatch] = /^data:([^;]+);base64,/.exec(photoDataUrl) ?? [];
-    const photoUrl = await uploadDataUrl(`attendance-${Date.now()}.jpg`, mimeMatch ?? "image/jpeg", photoDataUrl);
-    await clockIn({
-      site: "Assigned Site",
-      projectCode,
-      latitude: coords.lat,
-      longitude: coords.lng,
-      photoUrl,
-    });
-    setPhotoDataUrl(null);
-    setGeoState("idle");
-    setCoords(null);
+    if (!coords || !photoDataUrl || !photoFile || !projectCode || !employeeId) return;
+
+    const cached = getCachedGeofence(projectCode);
+    const offlineGeofence: "Inside" | "Outside" | "Unverified" = cached
+      ? distanceMeters(coords.lat, coords.lng, cached.siteLatitude, cached.siteLongitude) <= cached.geofenceRadiusM
+        ? "Inside"
+        : "Outside"
+      : "Unverified";
+
+    const queueOffline = async () => {
+      await enqueueAttendance({
+        employeeId,
+        site: "Assigned Site",
+        projectCode,
+        clockIn: new Date().toTimeString().slice(0, 5),
+        logDate: new Date().toISOString().slice(0, 10),
+        latitude: coords.lat,
+        longitude: coords.lng,
+        geofence: offlineGeofence,
+        photo: photoFile,
+        photoType: photoFile.type || "image/jpeg",
+      });
+      setQueuedMessage("Queued — will sync automatically once you're back online.");
+      setPhotoDataUrl(null);
+      setPhotoFile(null);
+      setGeoState("idle");
+      setCoords(null);
+    };
+
+    if (!navigator.onLine) {
+      await queueOffline();
+      return;
+    }
+
+    try {
+      const [, mimeMatch] = /^data:([^;]+);base64,/.exec(photoDataUrl) ?? [];
+      const photoUrl = await uploadDataUrl(`attendance-${Date.now()}.jpg`, mimeMatch ?? "image/jpeg", photoDataUrl);
+      await clockIn({
+        site: "Assigned Site",
+        projectCode,
+        latitude: coords.lat,
+        longitude: coords.lng,
+        photoUrl,
+      });
+      setPhotoDataUrl(null);
+      setPhotoFile(null);
+      setGeoState("idle");
+      setCoords(null);
+    } catch {
+      await queueOffline();
+    }
   };
 
   return (
     <PageContainer>
       <PageHeader title="Attendance" description="Geofenced, photo-verified attendance for your assigned site" />
       <PageContent className="p-6 md:p-8 space-y-6">
+        <div className="flex flex-wrap items-center gap-3 rounded-lg border border-border/70 bg-muted/30 px-4 py-2.5 text-sm">
+          <span className={`flex items-center gap-1.5 font-medium ${isOnline ? "text-success" : "text-warning"}`}>
+            {isOnline ? <CheckCircle2 className="h-4 w-4" /> : <WifiOff className="h-4 w-4" />}
+            {isOnline ? "Online" : "Offline"}
+          </span>
+          {pendingCount > 0 && (
+            <>
+              <span className="text-muted-foreground">
+                {pendingCount} attendance record{pendingCount === 1 ? "" : "s"} queued
+              </span>
+              <Button
+                variant="outline"
+                size="sm"
+                className="h-7 rounded-lg text-xs"
+                disabled={!isOnline || syncing}
+                onClick={() => void retrySync()}
+              >
+                <RefreshCw className={`mr-1.5 h-3.5 w-3.5 ${syncing ? "animate-spin" : ""}`} />
+                {syncing ? "Syncing…" : "Retry sync"}
+              </Button>
+            </>
+          )}
+          {lastSyncError && <span className="text-xs text-destructive">{lastSyncError}</span>}
+        </div>
+
+        {queuedMessage && (
+          <div className="rounded-lg border border-warning/40 bg-warning/10 p-4 text-sm text-warning">
+            {queuedMessage}
+          </div>
+        )}
+
         {!employeeLoading && (!employeeId || employeeError) && (
           <div className="rounded-lg border border-warning/40 bg-warning/10 p-4 text-sm text-warning">
             {employeeError ?? "No employee profile is linked to your account yet."}

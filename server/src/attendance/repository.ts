@@ -47,9 +47,30 @@ export const findById = async (id: number) => {
   return row ?? null;
 };
 
+export const findByClientRequestId = async (clientRequestId: string) => {
+  const [row] = await db
+    .select()
+    .from(attendance)
+    .where(eq(attendance.clientRequestId, clientRequestId));
+  return row ?? null;
+};
+
 export const create = async (data: CreateAttendanceInput & { hours?: string }) => {
-  const [created] = await db.insert(attendance).values(data).returning();
-  return created;
+  if (!data.clientRequestId) {
+    const [created] = await db.insert(attendance).values(data).returning();
+    return created;
+  }
+
+  // E1: a second race on the exact same clientRequestId (two sync attempts
+  // in flight at once) falls back to the row the other request just created,
+  // rather than erroring on the partial unique index.
+  const [created] = await db
+    .insert(attendance)
+    .values(data)
+    .onConflictDoNothing({ target: attendance.clientRequestId })
+    .returning();
+  if (created) return created;
+  return findByClientRequestId(data.clientRequestId);
 };
 
 export const update = async (id: number, data: UpdateAttendanceInput & { hours?: string }) => {

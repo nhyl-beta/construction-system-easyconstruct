@@ -21,6 +21,12 @@ export const createAttendanceSchema = z.object({
   attendanceStatus: attendanceStatusEnum.optional(),
   remarks: z.string().max(500).optional(),
   logDate: z.string().min(1, "Date is required"),
+  // E1: offline queue support — see db/schema/attendance.ts. Without these
+  // declared here, the validator silently stripped them from every request
+  // body (zod's default z.object() behavior), so an offline-synced entry's
+  // idempotency key never reached the database at all.
+  clientRequestId: z.string().max(64).optional(),
+  validatedOffline: z.boolean().optional(),
 });
 
 // `status` is the HR verification outcome (Verified | Flagged | Pending), as

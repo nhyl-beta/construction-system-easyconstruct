@@ -25,6 +25,9 @@ export interface CreateAttendanceInput {
   attendanceStatus?: string;
   remarks?: string;
   logDate: string;
+  // E1: offline queue support — see db/schema/attendance.ts.
+  clientRequestId?: string;
+  validatedOffline?: boolean;
 }
 
 export interface UpdateAttendanceInput extends Partial<CreateAttendanceInput> {}

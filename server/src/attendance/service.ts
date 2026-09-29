@@ -149,6 +149,19 @@ export const create = async (
   actor?: { role: string; userId: number },
 ) => {
   // ---------------------------------------------------------
+  // E1: idempotent replay. A queued offline entry may be retried more than
+  // once (the device isn't sure an earlier sync attempt landed before it
+  // dropped offline again) — if this exact clientRequestId already produced
+  // a row, return that row instead of re-running validation, which would
+  // otherwise reject the replay as "already recorded today".
+  // ---------------------------------------------------------
+
+  if (input.clientRequestId) {
+    const existing = await repo.findByClientRequestId(input.clientRequestId);
+    if (existing) return existing;
+  }
+
+  // ---------------------------------------------------------
   // Prevent duplicate attendance for the same employee/day.
   // ---------------------------------------------------------
 
