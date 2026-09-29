@@ -178,7 +178,14 @@ const ORDINAL_NAME = ["One", "Two", "Three", "Four"] as const;
 // (e.g. sitepersonnel1@easyconstruct.demo) — required by the demo seeding spec
 // so every role can be exercised from a predictable, discoverable login set,
 // independent of the hand-named ACCOUNTS above.
-const GENERATED_ACCOUNTS = ROLE_DEFS.flatMap((def) => {
+//
+// B1: "owner" is deliberately excluded here — EasyConstruct allows exactly
+// one master Owner account (users/service.ts assertOwnerSlotAvailable, plus
+// a DB-level partial unique index), and the hand-named owner@easyconstruct.demo
+// in ACCOUNTS above already occupies that single slot. Generating owner1..4
+// on top of it would violate the very constraint this seed data is supposed
+// to be a working example of.
+const GENERATED_ACCOUNTS = ROLE_DEFS.filter((def) => def.role !== "owner").flatMap((def) => {
   const emailSlug = def.role.replace(/-/g, "");
   return ORDINAL_NAME.map((ordinal, i) => ({
     name: `${def.label} ${ordinal}`,

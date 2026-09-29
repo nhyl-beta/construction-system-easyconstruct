@@ -430,6 +430,17 @@ async function main() {
     -- script already created the table with the narrower type.
     ALTER TABLE reference_snapshots
       ALTER COLUMN description TYPE text;
+
+    -- B1: EasyConstruct has exactly one master Owner account. This is the
+    -- DB-level backstop under the service-level check in users/service.ts
+    -- (assertOwnerSlotAvailable/assertNotLastActiveOwner) — a partial unique
+    -- index so any write path that bypasses the service still can't produce
+    -- a second active owner. Deactivated owners are excluded, matching the
+    -- service's own "active" definition, so a demoted/deactivated legacy
+    -- owner row never blocks a new one.
+    CREATE UNIQUE INDEX IF NOT EXISTS users_single_active_owner_idx
+      ON users (role)
+      WHERE role = 'owner' AND is_active = true;
   `);
 
   console.log("Demo schema tables and compatibility columns are ready.");

@@ -35,8 +35,35 @@ const assertRoleExists = async (role: string) => {
   }
 };
 
+// B1: EasyConstruct has exactly one master Owner account. Enforced here
+// (service-level, on every path that can produce a second owner) and again
+// at the DB level (a partial unique index on users.role WHERE role='owner' —
+// see db/ensure-demo-schema.ts) as a belt-and-suspenders guard against any
+// write path that bypasses this service.
+const assertOwnerSlotAvailable = async (excludeUserId?: number) => {
+  const owners = await repo.findAll({ role: "owner" });
+  const activeOthers = owners.filter((u) => u.isActive && u.id !== excludeUserId);
+  if (activeOthers.length > 0) {
+    throw new ValidationError("An owner account already exists — only one master account is allowed");
+  }
+};
+
+// The mirror guard: block removing the only thing that can ever grant this
+// role back, same reasoning as the existing self-deactivation/self-deletion
+// guards below (the account that reverses a lockout can't be the one item
+// disabled).
+const assertNotLastActiveOwner = async (userId: number, role: string) => {
+  if (role !== "owner") return;
+  const owners = await repo.findAll({ role: "owner" });
+  const activeOwners = owners.filter((u) => u.isActive);
+  if (activeOwners.length <= 1 && activeOwners.some((u) => u.id === userId)) {
+    throw new ValidationError("Cannot remove the last owner account");
+  }
+};
+
 export const create = async (input: CreateUserInput) => {
   await assertRoleExists(input.role);
+  if (input.role === "owner") await assertOwnerSlotAvailable();
 
   if (await repo.findByEmail(input.email)) {
     throw new ConflictError(`A user with email ${input.email} already exists`);
@@ -51,9 +78,15 @@ export const create = async (input: CreateUserInput) => {
 };
 
 export const update = async (id: number, input: UpdateUserInput) => {
-  await getById(id);
+  const current = await getById(id);
 
   if (input.role) await assertRoleExists(input.role);
+  if (input.role === "owner" && current.role !== "owner") {
+    await assertOwnerSlotAvailable(id);
+  }
+  if (input.role && input.role !== "owner" && current.role === "owner") {
+    await assertNotLastActiveOwner(id, "owner");
+  }
 
   if (input.email) {
     const owner = await repo.findByEmail(input.email);
@@ -97,7 +130,8 @@ export const setActive = async (
     throw new ValidationError("You cannot deactivate your own account");
   }
 
-  await getById(id);
+  const user = await getById(id);
+  if (!isActive) await assertNotLastActiveOwner(id, user.role);
 
   const updated = await repo.setActive(id, isActive);
   if (!updated) throw new NotFoundError("User", String(id));
