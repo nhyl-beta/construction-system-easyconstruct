@@ -8,6 +8,7 @@ import { Link, useNavigate } from "react-router";
 import { Project } from "../types/project.types";
 import { STATUS_TONE_CLASS, RISK_CLASS } from "../constants/project-status";
 import { formatContractValue, formatDue } from "../lib/project-format";
+import { StageProgressStrip } from "./StageProgressStrip";
 
 export const ProjectsTable: React.FC<{ projects: Project[] }> = ({ projects }) => {
   const navigate = useNavigate();
@@ -21,6 +22,7 @@ export const ProjectsTable: React.FC<{ projects: Project[] }> = ({ projects }) =
               <tr className="border-b border-border/70 bg-muted/40 text-left text-[11px] font-medium uppercase tracking-wider text-muted-foreground">
                 <th className="px-5 py-2.5">Project</th>
                 <th className="px-3 py-2.5">Status</th>
+                <th className="px-3 py-2.5">Stage</th>
                 <th className="px-3 py-2.5">Progress</th>
                 <th className="px-3 py-2.5">Budget</th>
                 <th className="px-3 py-2.5">Workforce</th>
@@ -51,6 +53,9 @@ export const ProjectsTable: React.FC<{ projects: Project[] }> = ({ projects }) =
                   </td>
                   <td className="px-3 py-3.5">
                     <Badge variant="outline" className={`rounded-full px-2.5 py-0.5 text-[11px] font-medium ${STATUS_TONE_CLASS[p.statusTone]}`}>{p.status}</Badge>
+                  </td>
+                  <td className="px-3 py-3.5">
+                    <StageProgressStrip status={p.status} statusTone={p.statusTone} />
                   </td>
                   <td className="px-3 py-3.5">
                     <div className="flex items-center gap-2">
