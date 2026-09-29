@@ -3,8 +3,10 @@ import { Button } from "@/components/ui/button";
 import { SectionCard } from "@/components/ui/section-card";
 import { StatusBadge } from "@/components/ui/status-badge";
 import { useDesignDetail } from "@/features/designs/hooks/useDesignDetail";
-import { ChevronLeft, Trash2 } from "lucide-react";
-import { useState } from "react";
+import { useDesignReviews } from "@/features/design-reviews/hooks/useDesignReviews";
+import { useAuth } from "@/auth/auth-context";
+import { ChevronLeft, Eye, Trash2 } from "lucide-react";
+import { useMemo, useState } from "react";
 import { useNavigate, useParams } from "react-router";
 import { ConfirmDialog } from "@/components/ui/confirm-dialog";
 
@@ -12,7 +14,25 @@ export default function ArchitectDesignDetail() {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
   const c = useDesignDetail(id!);
+  const { user } = useAuth();
+  const { reviews, create: createReview } = useDesignReviews();
   const [confirmDelete, setConfirmDelete] = useState(false);
+  const [requestingReview, setRequestingReview] = useState(false);
+  const [reviewError, setReviewError] = useState<string | null>(null);
+
+  // C2 follow-up: "Request review" previously only existed as a dialog
+  // buried in the Architect Dashboard's Quick Actions, not reachable from
+  // the page a reviewer's D2 gate link ("Go to designs") actually lands on
+  // — a design could sit in Draft indefinitely with no in-context way to
+  // send it for review. `reviews` is the full list (no designId filter on
+  // the API), so it's narrowed here to this one design. Hooks must run
+  // unconditionally on every render, so this has to sit above the
+  // loading/error early returns below rather than after them.
+  const designId = c.design?.id;
+  const pendingReview = useMemo(
+    () => reviews.find((r) => r.designId === designId && (r.status === "Pending" || r.status === "Changes Requested")),
+    [reviews, designId],
+  );
 
   if (c.loading) {
     return (
@@ -45,6 +65,23 @@ export default function ArchitectDesignDetail() {
     if (ok) navigate("/designs");
   };
 
+  const handleRequestReview = async () => {
+    if (!d) return;
+    setRequestingReview(true);
+    setReviewError(null);
+    try {
+      await createReview({
+        code: `REV-${d.code}-${Date.now().toString(36).toUpperCase()}`.slice(0, 20),
+        designId: d.id,
+        requestedBy: user?.name ?? "Architect",
+      });
+    } catch (err) {
+      setReviewError(err instanceof Error ? err.message : "Failed to request review.");
+    } finally {
+      setRequestingReview(false);
+    }
+  };
+
   return (
     <div className="flex-1 space-y-6 p-4 md:p-8">
       <Button
@@ -69,10 +106,26 @@ export default function ArchitectDesignDetail() {
             >
               <Trash2 className="mr-1 h-3.5 w-3.5" /> Delete
             </Button>
+            {d.status !== "Approved" && (
+              <Button
+                size="sm"
+                className="rounded-xl"
+                disabled={requestingReview || !!pendingReview}
+                title={pendingReview ? "A review is already pending for this design" : undefined}
+                onClick={handleRequestReview}
+              >
+                <Eye className="mr-1 h-3.5 w-3.5" />
+                {pendingReview ? "Review pending" : requestingReview ? "Sending…" : "Request review"}
+              </Button>
+            )}
             <StatusBadge status={d.status} />
           </>
         }
       />
+
+      {reviewError && (
+        <p className="text-sm text-destructive">{reviewError}</p>
+      )}
 
       <div className="grid gap-4 lg:grid-cols-3">
         <SectionCard title="Design details" className="lg:col-span-2">
