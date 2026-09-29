@@ -50,6 +50,12 @@ export interface ProcurementOrder {
   status: string;
 }
 
+// Still used by finance-dashboard.tsx's small approvals widget, which reads
+// from the still-not-built /finance/approvals route (see
+// use-finance-dashboard.ts) and Promise.allSettled's it to an empty array —
+// pre-existing, unrelated to G2's fix of the actual Approvals page (which
+// now reuses the workflows backend), left as-is to avoid widening this
+// change into the dashboard.
 export interface Approval {
   id: string;
   kind: string;

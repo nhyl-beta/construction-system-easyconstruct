@@ -191,6 +191,8 @@ export interface ApprovalQueueItem {
   decidedBy: string | null;
   decidedAt: string | null;
   createdAt: string | null;
+  // G2: who raised the underlying workflow — powers the requester filter.
+  requestedBy?: string;
   attachmentCount: number;
   lineItemCount: number;
 }

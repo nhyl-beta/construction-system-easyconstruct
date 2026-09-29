@@ -739,6 +739,8 @@ export const getApprovalQueue = async (
     decidedBy: stage.decidedBy,
     decidedAt: stage.decidedAt,
     createdAt: stage.createdAt,
+    // G2: lets the approvals queue filter by who raised the request.
+    requestedBy: workflow.createdBy,
     attachmentCount: attachmentCounts.get(workflow.id) ?? 0,
     lineItemCount: lineItemCounts.get(workflow.id) ?? 0,
   }));

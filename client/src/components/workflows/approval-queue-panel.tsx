@@ -11,25 +11,37 @@
 // details" action the PM's had — the admin, deciding last, could see the least.
 // One component means a fix to what an approver can see before deciding lands
 // for every role at the same time.
-import { useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import {
   CheckCircle2,
   Clock,
   Eye,
   FileCheck2,
-  Filter,
   ListTree,
   Paperclip,
   PenLine,
+  Search,
   Upload,
+  X,
   XCircle,
 } from "lucide-react";
 
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
+import { Input } from "@/components/ui/input";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Textarea } from "@/components/ui/textarea";
+import { DataTablePagination } from "@/components/refine-ui/data-table/data-table-pagination";
+import { usePagination } from "@/hooks/use-pagination";
+import { useDebouncedValue } from "@/hooks/use-debounced-value";
 import { useAuth } from "@/auth/auth-context";
 import { WorkflowDetailDialog } from "@/components/workflows/workflow-detail-dialog";
 import { WorkflowInitiationActions } from "@/components/workflows/workflow-initiation-actions";
@@ -38,6 +50,8 @@ import { WorkflowRepository } from "@/features/workflows/repositories/workflow.r
 import { WorkflowFormatService } from "@/features/workflows/services/workflow.service";
 import { formatRelativeTime } from "@/lib/format-relative-time";
 import type { ApprovalScope } from "@/features/workflows/types/workflow.types";
+
+const ALL = "all";
 
 // "medium" is text-warning, not text-warning-foreground — that token is dark
 // ink meant for text ON a filled bg-warning chip, not standalone text on a
@@ -91,6 +105,56 @@ export function ApprovalQueuePanel({
     }
   };
   const [detailWorkflowId, setDetailWorkflowId] = useState<number | null>(null);
+
+  // G2: real filters over what useApprovals already fetches for this tab —
+  // same "fetch the tab's full set, filter/paginate client-side" convention
+  // as most other lists in the app (see hooks/use-pagination.ts) — plus real
+  // pagination in place of rendering every item with no page boundary.
+  const [searchInput, setSearchInput] = useState("");
+  const search = useDebouncedValue(searchInput, 300);
+  const [typeFilter, setTypeFilter] = useState<string | null>(null);
+  const [requesterFilter, setRequesterFilter] = useState<string | null>(null);
+  const [dateFrom, setDateFrom] = useState("");
+  const [dateTo, setDateTo] = useState("");
+
+  const typeOptions = useMemo(
+    () => Array.from(new Set(items.map((a) => a.type).filter((t): t is string => !!t))).sort(),
+    [items],
+  );
+  const requesterOptions = useMemo(
+    () => Array.from(new Set(items.map((a) => a.requestedBy).filter((r): r is string => !!r))).sort(),
+    [items],
+  );
+
+  const filteredItems = useMemo(() => {
+    return items.filter((a) => {
+      if (typeFilter && a.type !== typeFilter) return false;
+      if (requesterFilter && a.requestedBy !== requesterFilter) return false;
+      if (dateFrom && (!a.createdAt || a.createdAt.slice(0, 10) < dateFrom)) return false;
+      if (dateTo && (!a.createdAt || a.createdAt.slice(0, 10) > dateTo)) return false;
+      if (search) {
+        const term = search.toLowerCase();
+        const haystack = `${a.workflowCode} ${a.title} ${a.projectCode} ${a.requestedBy ?? ""}`.toLowerCase();
+        if (!haystack.includes(term)) return false;
+      }
+      return true;
+    });
+  }, [items, typeFilter, requesterFilter, dateFrom, dateTo, search]);
+
+  const activeFilters: { key: string; label: string; clear: () => void }[] = [];
+  if (search) activeFilters.push({ key: "search", label: `Search: "${search}"`, clear: () => setSearchInput("") });
+  if (typeFilter) activeFilters.push({ key: "type", label: `Type: ${typeFilter}`, clear: () => setTypeFilter(null) });
+  if (requesterFilter) activeFilters.push({ key: "requester", label: `Requested by: ${requesterFilter}`, clear: () => setRequesterFilter(null) });
+  if (dateFrom) activeFilters.push({ key: "dateFrom", label: `From: ${dateFrom}`, clear: () => setDateFrom("") });
+  if (dateTo) activeFilters.push({ key: "dateTo", label: `To: ${dateTo}`, clear: () => setDateTo("") });
+
+  const pagination = usePagination(filteredItems, 10);
+  // Any filter (or the tab itself) changing resets to page 1 — otherwise a
+  // narrower result set can leave the view stranded on a now-empty page.
+  useEffect(() => {
+    pagination.setCurrentPage(1);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [tab, search, typeFilter, requesterFilter, dateFrom, dateTo]);
 
   // IT Designer's workflow scope is read-only, enforced first on the server
   // (server/src/workflows/routes.ts) — decide/attach would 403 there even if
@@ -147,13 +211,85 @@ export function ApprovalQueuePanel({
             </TabsTrigger>
           </TabsList>
         </Tabs>
-        {/* Filters / bulk-approve have no backend behind them yet — disabled
-            rather than left as dead clickable buttons that silently do
-            nothing. */}
-        <Button variant="outline" size="sm" className="rounded-xl" disabled title="Coming soon">
-          <Filter className="h-4 w-4" /> Filters
-        </Button>
       </div>
+
+      <div className="flex flex-wrap items-center gap-2">
+        <Select value={typeFilter ?? ALL} onValueChange={(v) => setTypeFilter(v === ALL ? null : v)}>
+          <SelectTrigger className="h-9 w-36 rounded-xl text-xs">
+            <SelectValue placeholder="All types" />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value={ALL}>All types</SelectItem>
+            {typeOptions.map((t) => (
+              <SelectItem key={t} value={t}>{t}</SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
+        <Select value={requesterFilter ?? ALL} onValueChange={(v) => setRequesterFilter(v === ALL ? null : v)}>
+          <SelectTrigger className="h-9 w-40 rounded-xl text-xs">
+            <SelectValue placeholder="All requesters" />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value={ALL}>All requesters</SelectItem>
+            {requesterOptions.map((r) => (
+              <SelectItem key={r} value={r}>{r}</SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
+        <Input
+          type="date"
+          aria-label="From date"
+          value={dateFrom}
+          onChange={(e) => setDateFrom(e.target.value)}
+          className="h-9 w-36 rounded-xl text-xs"
+        />
+        <Input
+          type="date"
+          aria-label="To date"
+          value={dateTo}
+          onChange={(e) => setDateTo(e.target.value)}
+          className="h-9 w-36 rounded-xl text-xs"
+        />
+        <div className="relative w-full sm:w-56">
+          <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+          <Input
+            placeholder="Search approvals…"
+            value={searchInput}
+            onChange={(e) => setSearchInput(e.target.value)}
+            className="h-9 rounded-xl bg-muted/40 pl-9"
+          />
+        </div>
+      </div>
+
+      {activeFilters.length > 0 && (
+        <div className="flex flex-wrap items-center gap-2">
+          {activeFilters.map((f) => (
+            <Badge
+              key={f.key}
+              variant="outline"
+              className="flex items-center gap-1 rounded-full border-primary/30 text-[11px] text-primary"
+            >
+              {f.label}
+              <button type="button" onClick={f.clear} aria-label={`Clear ${f.label}`}>
+                <X className="h-3 w-3" />
+              </button>
+            </Badge>
+          ))}
+          <button
+            type="button"
+            onClick={() => {
+              setSearchInput("");
+              setTypeFilter(null);
+              setRequesterFilter(null);
+              setDateFrom("");
+              setDateTo("");
+            }}
+            className="text-[11px] text-muted-foreground underline underline-offset-2"
+          >
+            Clear all
+          </button>
+        </div>
+      )}
 
       {/* A failed decision used to be swallowed into hook state with nothing
           on screen, which reads as "the button does nothing". */}
@@ -182,7 +318,10 @@ export function ApprovalQueuePanel({
             {tab === "pending" ? emptyPendingMessage : "No items here yet."}
           </p>
         )}
-        {items.map((a) => (
+        {!loading && items.length > 0 && filteredItems.length === 0 && (
+          <p className="text-sm text-muted-foreground">No approvals match your filters.</p>
+        )}
+        {pagination.pageItems.map((a) => (
           <Card key={a.stageId} className="rounded-2xl border-border/70 shadow-sm">
             <CardContent className="p-4">
               <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
@@ -362,6 +501,11 @@ export function ApprovalQueuePanel({
             </CardContent>
           </Card>
         ))}
+        {!loading && filteredItems.length > 0 && (
+          <div className="rounded-2xl border border-border/70 px-2 py-2">
+            <DataTablePagination {...pagination} />
+          </div>
+        )}
       </div>
 
       <WorkflowDetailDialog
