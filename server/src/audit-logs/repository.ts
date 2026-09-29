@@ -1,24 +1,71 @@
-import { and, desc, eq, gte, SQL } from "drizzle-orm";
+import { and, count, desc, eq, gte, ilike, lte, or, SQL } from "drizzle-orm";
 import { db } from "../db/connection.js";
 import { auditLogs } from "../db/schema/audit-logs.js";
 import type { AuditLogFilters, CreateAuditLogInput } from "./types.js";
 
-export const findAll = async (filters: AuditLogFilters = {}) => {
-  const conditions: SQL[] = [];
-  if (filters.entityType)
-    conditions.push(eq(auditLogs.entityType, filters.entityType));
-  if (filters.entityId)
-    conditions.push(eq(auditLogs.entityId, filters.entityId));
-  if (filters.projectCode)
-    conditions.push(eq(auditLogs.projectCode, filters.projectCode));
+const DEFAULT_PER_PAGE = 10;
 
-  return conditions.length
-    ? await db
-        .select()
-        .from(auditLogs)
-        .where(and(...conditions))
-        .orderBy(desc(auditLogs.createdAt))
-    : await db.select().from(auditLogs).orderBy(desc(auditLogs.createdAt));
+// D1: shared by findAll/findCount so the page of rows and the total they're
+// paginated against are always built from the exact same WHERE clause.
+const buildConditions = (filters: AuditLogFilters): SQL[] => {
+  const conditions: SQL[] = [];
+  if (filters.entityType) conditions.push(eq(auditLogs.entityType, filters.entityType));
+  if (filters.entityId) conditions.push(eq(auditLogs.entityId, filters.entityId));
+  if (filters.projectCode) conditions.push(eq(auditLogs.projectCode, filters.projectCode));
+  if (filters.actor) conditions.push(eq(auditLogs.actor, filters.actor));
+  if (filters.dateFrom) conditions.push(gte(auditLogs.createdAt, new Date(filters.dateFrom)));
+  if (filters.dateTo) conditions.push(lte(auditLogs.createdAt, new Date(filters.dateTo)));
+  if (filters.search) {
+    const term = `%${filters.search}%`;
+    conditions.push(
+      or(
+        ilike(auditLogs.actor, term),
+        ilike(auditLogs.action, term),
+        ilike(auditLogs.entityType, term),
+        ilike(auditLogs.summary, term),
+      )!,
+    );
+  }
+  return conditions;
+};
+
+export const findAll = async (filters: AuditLogFilters = {}) => {
+  const conditions = buildConditions(filters);
+  const base = db.select().from(auditLogs);
+  const scoped = conditions.length ? base.where(and(...conditions)) : base;
+  const ordered = scoped.orderBy(desc(auditLogs.createdAt));
+
+  // Pagination is opt-in: existing callers (dashboard widgets that count or
+  // filter across the *whole* audit trail, not just one page of it) pass
+  // neither field and keep getting everything, exactly as before D1. Only a
+  // caller that explicitly asks for a page (the admin activity-log screen)
+  // gets a LIMIT/OFFSET query.
+  if (filters.page == null && filters.perPage == null) return ordered;
+
+  const page = filters.page && filters.page > 0 ? filters.page : 1;
+  const perPage = filters.perPage && filters.perPage > 0 ? filters.perPage : DEFAULT_PER_PAGE;
+  return ordered.limit(perPage).offset((page - 1) * perPage);
+};
+
+export const findCount = async (filters: AuditLogFilters = {}) => {
+  const conditions = buildConditions(filters);
+  const base = db.select({ n: count() }).from(auditLogs);
+  const scoped = conditions.length ? base.where(and(...conditions)) : base;
+  const [row] = await scoped;
+  return row?.n ?? 0;
+};
+
+/** Distinct facet values for filter dropdowns — independent of the current
+ * page/filter so options never disappear as the user narrows the list. */
+export const findFacets = async () => {
+  const [entityTypeRows, actorRows] = await Promise.all([
+    db.selectDistinct({ entityType: auditLogs.entityType }).from(auditLogs),
+    db.selectDistinct({ actor: auditLogs.actor }).from(auditLogs),
+  ]);
+  return {
+    entityTypes: entityTypeRows.map((r) => r.entityType).sort(),
+    actors: actorRows.map((r) => r.actor).sort(),
+  };
 };
 
 export const create = async (data: CreateAuditLogInput) => {

@@ -15,6 +15,23 @@ export interface AuditLogsQuery {
   entityType?: string;
   entityId?: string;
   projectCode?: string;
+  // D1: server-side search/filter/pagination.
+  search?: string;
+  actor?: string;
+  dateFrom?: string;
+  dateTo?: string;
+  page?: number;
+  perPage?: number;
+}
+
+export interface AuditLogsResult {
+  data: AuditLog[];
+  total: number;
+}
+
+export interface AuditLogFacets {
+  entityTypes: string[];
+  actors: string[];
 }
 
 /** GET /api/audit-logs/security-overview */

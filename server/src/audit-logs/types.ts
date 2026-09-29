@@ -22,4 +22,16 @@ export interface AuditLogFilters {
   entityType?: string;
   entityId?: string;
   projectCode?: string;
+  // D1: server-side search/filter/pagination for the admin activity log.
+  search?: string;
+  actor?: string;
+  dateFrom?: string;
+  dateTo?: string;
+  page?: number;
+  perPage?: number;
+}
+
+export interface AuditLogFacets {
+  entityTypes: string[];
+  actors: string[];
 }

@@ -3,9 +3,20 @@ import { AuditLogRepository } from "../repositories/audit-log.repository";
 import type { AuditLog, AuditLogsQuery } from "../types/audit-log.types";
 
 export function useAuditLogs(query: AuditLogsQuery = {}) {
-  const { entityType, entityId } = query;
+  const {
+    entityType,
+    entityId,
+    projectCode,
+    search,
+    actor,
+    dateFrom,
+    dateTo,
+    page,
+    perPage,
+  } = query;
 
   const [logs, setLogs] = useState<AuditLog[]>([]);
+  const [total, setTotal] = useState(0);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<Error | null>(null);
 
@@ -14,8 +25,19 @@ export function useAuditLogs(query: AuditLogsQuery = {}) {
     setError(null);
 
     try {
-      const result = await AuditLogRepository.list({ entityType, entityId });
-      setLogs(result);
+      const result = await AuditLogRepository.list({
+        entityType,
+        entityId,
+        projectCode,
+        search,
+        actor,
+        dateFrom,
+        dateTo,
+        page,
+        perPage,
+      });
+      setLogs(result.data);
+      setTotal(result.total);
     } catch (err) {
       setError(
         err instanceof Error ? err : new Error("Failed to load activity logs."),
@@ -23,11 +45,12 @@ export function useAuditLogs(query: AuditLogsQuery = {}) {
     } finally {
       setLoading(false);
     }
-  }, [entityType, entityId]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [entityType, entityId, projectCode, search, actor, dateFrom, dateTo, page, perPage]);
 
   useEffect(() => {
     void reload();
   }, [reload]);
 
-  return { logs, loading, error, reload } as const;
+  return { logs, total, loading, error, reload } as const;
 }

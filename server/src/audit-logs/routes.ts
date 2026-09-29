@@ -9,6 +9,7 @@ const router = Router();
 router.use(authenticate, requireRole("admin", "owner", "it-designer"));
 // Must precede nothing else here, but keep it above any future '/:id'.
 router.get('/security-overview', controller.getSecurityOverview);
+router.get('/facets', controller.getFacets);
 router.get('/', controller.getAll);
 
 export default router;

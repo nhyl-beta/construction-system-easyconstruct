@@ -1,7 +1,12 @@
 import * as repo from "./repository.js";
 import type { AuditLogFilters, CreateAuditLogInput } from "./types.js";
 
-export const getAll = async (filters: AuditLogFilters) => repo.findAll(filters);
+export const getAll = async (filters: AuditLogFilters) => {
+  const [data, total] = await Promise.all([repo.findAll(filters), repo.findCount(filters)]);
+  return { data, total };
+};
+
+export const getFacets = async () => repo.findFacets();
 
 // Called directly by other domain services — no HTTP loopback.
 export const create = async (input: CreateAuditLogInput) => repo.create(input);

@@ -1,7 +1,8 @@
 import { apiClient } from "@/services/api.client";
 import type {
-  AuditLog,
+  AuditLogFacets,
   AuditLogsQuery,
+  AuditLogsResult,
   SecurityOverview,
 } from "../types/audit-log.types";
 
@@ -13,13 +14,23 @@ async function unwrap<T>(promise: Promise<any>): Promise<T> {
 }
 
 export const AuditLogRepository = {
-  async list(query: AuditLogsQuery = {}): Promise<AuditLog[]> {
+  async list(query: AuditLogsQuery = {}): Promise<AuditLogsResult> {
     const params = new URLSearchParams();
     if (query.entityType) params.set("entityType", query.entityType);
     if (query.entityId) params.set("entityId", query.entityId);
     if (query.projectCode) params.set("projectCode", query.projectCode);
+    if (query.search) params.set("search", query.search);
+    if (query.actor) params.set("actor", query.actor);
+    if (query.dateFrom) params.set("dateFrom", query.dateFrom);
+    if (query.dateTo) params.set("dateTo", query.dateTo);
+    if (query.page) params.set("page", String(query.page));
+    if (query.perPage) params.set("perPage", String(query.perPage));
     const qs = params.toString();
-    return unwrap<AuditLog[]>(apiClient.get(`/audit-logs${qs ? `?${qs}` : ""}`));
+    return unwrap<AuditLogsResult>(apiClient.get(`/audit-logs${qs ? `?${qs}` : ""}`));
+  },
+
+  async facets(): Promise<AuditLogFacets> {
+    return unwrap<AuditLogFacets>(apiClient.get("/audit-logs/facets"));
   },
 
   // Live sign-in activity: who currently holds a valid token (derived from

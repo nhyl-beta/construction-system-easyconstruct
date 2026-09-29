@@ -1,5 +1,5 @@
-import { useMemo, useState } from "react";
-import { Search, ShieldCheck } from "lucide-react";
+import { useEffect, useState } from "react";
+import { Search, ShieldCheck, X } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
 import {
@@ -13,8 +13,10 @@ import { PageContainer } from "@/components/refine-ui/views/page-container";
 import { PageHeader } from "@/components/refine-ui/views/page-header";
 import { PageContent } from "@/components/refine-ui/views/page-content";
 import { DataTablePagination } from "@/components/refine-ui/data-table/data-table-pagination";
-import { usePagination } from "@/hooks/use-pagination";
 import { useAuditLogs } from "@/features/audit-logs/hooks/useAuditLogs";
+import { AuditLogRepository } from "@/features/audit-logs/repositories/audit-log.repository";
+import type { AuditLogFacets } from "@/features/audit-logs/types/audit-log.types";
+import { useDebouncedValue } from "@/hooks/use-debounced-value";
 import { formatRelativeTime } from "@/lib/format-relative-time";
 
 const ACTION_TONE: Record<string, string> = {
@@ -25,40 +27,61 @@ const ACTION_TONE: Record<string, string> = {
   updated: "bg-warning/15 text-warning border-warning/30",
 };
 
+const PAGE_SIZE = 10;
+const ALL = "all";
+
 export default function AdminActivityLogsPage() {
-  const { logs, loading, error, reload } = useAuditLogs();
-  const [search, setSearch] = useState("");
+  const [searchInput, setSearchInput] = useState("");
+  const search = useDebouncedValue(searchInput, 300);
   const [entityType, setEntityType] = useState<string | null>(null);
-  // K3: filter by project code — audit_logs.project_code is nullable
-  // (many entries, e.g. auth/user admin, have no single project).
-  const [projectCode, setProjectCode] = useState<string | null>(null);
+  const [actor, setActor] = useState<string | null>(null);
+  const [dateFrom, setDateFrom] = useState("");
+  const [dateTo, setDateTo] = useState("");
+  const [page, setPage] = useState(1);
+  const [pageSize, setPageSize] = useState(PAGE_SIZE);
 
-  const entityTypes = useMemo(() => {
-    const set = new Set<string>();
-    for (const log of logs) set.add(log.entityType);
-    return Array.from(set);
-  }, [logs]);
+  const [facets, setFacets] = useState<AuditLogFacets>({ entityTypes: [], actors: [] });
 
-  const projectCodes = useMemo(() => {
-    const set = new Set<string>();
-    for (const log of logs) if (log.projectCode) set.add(log.projectCode);
-    return Array.from(set).sort();
-  }, [logs]);
+  useEffect(() => {
+    AuditLogRepository.facets()
+      .then(setFacets)
+      .catch(() => {
+        // filter dropdowns just stay empty — the list itself still works
+      });
+  }, []);
 
-  const filtered = useMemo(() => {
-    return logs.filter((log) => {
-      if (entityType && log.entityType !== entityType) return false;
-      if (projectCode && log.projectCode !== projectCode) return false;
-      if (search) {
-        const term = search.toLowerCase();
-        const haystack = `${log.actor} ${log.action} ${log.entityType} ${log.entityId} ${log.summary ?? ""}`.toLowerCase();
-        if (!haystack.includes(term)) return false;
-      }
-      return true;
-    });
-  }, [logs, entityType, search]);
+  // D1: every filter change resets to page 1 — otherwise a narrower result
+  // set can leave the user stranded on a now-nonexistent page.
+  useEffect(() => {
+    setPage(1);
+  }, [search, entityType, actor, dateFrom, dateTo]);
 
-  const pagination = usePagination(filtered, 10);
+  const { logs, total, loading, error, reload } = useAuditLogs({
+    search: search || undefined,
+    entityType: entityType ?? undefined,
+    actor: actor ?? undefined,
+    dateFrom: dateFrom || undefined,
+    dateTo: dateTo || undefined,
+    page,
+    perPage: pageSize,
+  });
+
+  const pageCount = Math.max(1, Math.ceil(total / pageSize));
+
+  const activeFilters: { key: string; label: string; clear: () => void }[] = [];
+  if (search) activeFilters.push({ key: "search", label: `Search: "${search}"`, clear: () => setSearchInput("") });
+  if (entityType) activeFilters.push({ key: "entityType", label: `Module: ${entityType}`, clear: () => setEntityType(null) });
+  if (actor) activeFilters.push({ key: "actor", label: `User: ${actor}`, clear: () => setActor(null) });
+  if (dateFrom) activeFilters.push({ key: "dateFrom", label: `From: ${dateFrom}`, clear: () => setDateFrom("") });
+  if (dateTo) activeFilters.push({ key: "dateTo", label: `To: ${dateTo}`, clear: () => setDateTo("") });
+
+  const clearAll = () => {
+    setSearchInput("");
+    setEntityType(null);
+    setActor(null);
+    setDateFrom("");
+    setDateTo("");
+  };
 
   return (
     <PageContainer>
@@ -67,16 +90,16 @@ export default function AdminActivityLogsPage() {
         description="System-wide audit trail of create, approve, reject, and delete actions across every module."
       />
       <PageContent className="p-6 md:p-8">
-        <div className="mb-4 flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
+        <div className="mb-3 flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
           <div className="flex flex-wrap gap-2">
             <Badge
               variant="outline"
               className={`cursor-pointer rounded-full text-[11px] ${entityType === null ? "border-primary text-primary" : ""}`}
               onClick={() => setEntityType(null)}
             >
-              All ({logs.length})
+              All modules
             </Badge>
-            {entityTypes.map((type) => (
+            {facets.entityTypes.map((type) => (
               <Badge
                 key={type}
                 variant="outline"
@@ -87,31 +110,65 @@ export default function AdminActivityLogsPage() {
               </Badge>
             ))}
           </div>
-          <div className="flex items-center gap-2">
-            <Select value={projectCode ?? "all"} onValueChange={(v) => setProjectCode(v === "all" ? null : v)}>
-              <SelectTrigger className="h-9 w-44 rounded-xl text-xs">
-                <SelectValue placeholder="All projects" />
+          <div className="flex flex-wrap items-center gap-2">
+            <Select value={actor ?? ALL} onValueChange={(v) => setActor(v === ALL ? null : v)}>
+              <SelectTrigger className="h-9 w-40 rounded-xl text-xs">
+                <SelectValue placeholder="All users" />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="all">All projects</SelectItem>
-                {projectCodes.map((code) => (
-                  <SelectItem key={code} value={code}>
-                    {code}
+                <SelectItem value={ALL}>All users</SelectItem>
+                {facets.actors.map((a) => (
+                  <SelectItem key={a} value={a}>
+                    {a}
                   </SelectItem>
                 ))}
               </SelectContent>
             </Select>
+            <Input
+              type="date"
+              aria-label="From date"
+              value={dateFrom}
+              onChange={(e) => setDateFrom(e.target.value)}
+              className="h-9 w-36 rounded-xl text-xs"
+            />
+            <Input
+              type="date"
+              aria-label="To date"
+              value={dateTo}
+              onChange={(e) => setDateTo(e.target.value)}
+              className="h-9 w-36 rounded-xl text-xs"
+            />
             <div className="relative w-full md:w-64">
               <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
               <Input
                 placeholder="Search activity…"
-                value={search}
-                onChange={(e) => setSearch(e.target.value)}
+                value={searchInput}
+                onChange={(e) => setSearchInput(e.target.value)}
                 className="h-9 rounded-xl border-border bg-muted/40 pl-9"
               />
             </div>
           </div>
         </div>
+
+        {activeFilters.length > 0 && (
+          <div className="mb-4 flex flex-wrap items-center gap-2">
+            {activeFilters.map((f) => (
+              <Badge
+                key={f.key}
+                variant="outline"
+                className="flex items-center gap-1 rounded-full border-primary/30 text-[11px] text-primary"
+              >
+                {f.label}
+                <button type="button" onClick={f.clear} aria-label={`Clear ${f.label}`}>
+                  <X className="h-3 w-3" />
+                </button>
+              </Badge>
+            ))}
+            <button type="button" onClick={clearAll} className="text-[11px] text-muted-foreground underline underline-offset-2">
+              Clear all
+            </button>
+          </div>
+        )}
 
         {loading && <p className="p-5 text-sm text-muted-foreground">Loading activity…</p>}
         {!loading && error && (
@@ -122,15 +179,15 @@ export default function AdminActivityLogsPage() {
             </button>
           </div>
         )}
-        {!loading && !error && filtered.length === 0 && (
+        {!loading && !error && logs.length === 0 && (
           <div className="flex flex-col items-center justify-center gap-2 rounded-xl border border-dashed border-border bg-muted/50 px-6 py-12 text-center">
             <ShieldCheck className="h-5 w-5 text-muted-foreground" />
             <p className="text-sm text-muted-foreground">
-              {logs.length === 0 ? "No activity recorded yet." : "No activity matches your filters."}
+              {activeFilters.length === 0 ? "No activity recorded yet." : "No activity matches your filters."}
             </p>
           </div>
         )}
-        {!loading && !error && filtered.length > 0 && (
+        {!loading && !error && logs.length > 0 && (
           <div className="overflow-x-auto rounded-xl border border-border/70">
             <table className="w-full text-sm">
               <thead>
@@ -144,7 +201,7 @@ export default function AdminActivityLogsPage() {
                 </tr>
               </thead>
               <tbody>
-                {pagination.pageItems.map((log) => (
+                {logs.map((log) => (
                   <tr key={log.id} className="border-b border-border/60 last:border-0 hover:bg-muted/30">
                     <td className="px-5 py-3.5 font-medium">{log.actor}</td>
                     <td className="px-3 py-3.5">
@@ -167,7 +224,17 @@ export default function AdminActivityLogsPage() {
               </tbody>
             </table>
             <div className="border-t border-border/70 px-2 py-3">
-              <DataTablePagination {...pagination} />
+              <DataTablePagination
+                currentPage={page}
+                pageCount={pageCount}
+                setCurrentPage={setPage}
+                pageSize={pageSize}
+                setPageSize={(size) => {
+                  setPageSize(size);
+                  setPage(1);
+                }}
+                total={total}
+              />
             </div>
           </div>
         )}
