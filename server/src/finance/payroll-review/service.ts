@@ -33,7 +33,7 @@ export const decidePayrollBatch = async (
   input: DecidePayrollBatchInput,
 ) => {
   await getPayrollBatch(id); // throws NotFoundError if missing
-  const decided = await repository.decide(id, input.decision, input.reviewedBy);
+  const decided = await repository.decide(id, input.decision, input.reviewedBy, input.comment);
   // Gate X3 reads whether an approved-since-Closeout batch exists and
   // whether any batch is still pending.
   if (decided?.projectCode) await refreshProjectProgress(decided.projectCode);

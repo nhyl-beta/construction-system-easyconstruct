@@ -17,6 +17,7 @@ export interface PayrollReviewBatch {
   status: PayrollReviewStatus | string;
   reviewedBy?: string | null;
   reviewedAt?: string | null;
+  reviewNote?: string | null;
   createdAt?: string | null;
 }
 

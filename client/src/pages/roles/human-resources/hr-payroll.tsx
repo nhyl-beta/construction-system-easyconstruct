@@ -45,6 +45,15 @@ import { ProjectPicker } from "@/components/shared/project-picker";
 import { downloadCsv } from "@/lib/export-csv";
 import { formatCompactCurrency, formatCurrency } from "@/lib/format-currency";
 import { PayrollPeriodPicker } from "@/components/shared/payroll-period-picker";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+
+const ALL_PERIODS = "all";
 
 // Delegates to the shared peso formatter — this used to hardcode "$".
 function money(n: number) {
@@ -77,6 +86,10 @@ export default function HRPayrollPage() {
   const [hoursInput, setHoursInput] = useState("160");
   const [overtimeInput, setOvertimeInput] = useState("0");
   const [showGenerateForm, setShowGenerateForm] = useState(false);
+  // F1: the period picker above only ever fed the Generate form — the
+  // tracksheet itself always called listPayroll() with no argument, so
+  // picking a period had no effect on what was actually displayed.
+  const [trackFilterPeriod, setTrackFilterPeriod] = useState<string | null>(null);
   // G5: entries pulled from verified attendance for the selected project,
   // keyed by employeeId — takes over from the flat hours/overtime inputs
   // (which still apply to anyone attendance had nothing verified for).
@@ -142,13 +155,13 @@ export default function HRPayrollPage() {
   };
   const [generating, setGenerating] = useState(false);
 
-  const loadPayroll = async () => {
+  const loadPayroll = async (period: string | null = trackFilterPeriod) => {
     setError(null);
 
     try {
       const [payrollLines, payrollBatches, availableEmployees] =
         await Promise.all([
-          listPayroll(),
+          listPayroll(period ?? undefined),
           listPayrollBatches(),
           listEmployees({ status: "Active" }),
         ]);
@@ -172,6 +185,16 @@ export default function HRPayrollPage() {
   useEffect(() => {
     void loadPayroll();
   }, []);
+
+  const trackPeriods = useMemo(
+    () => Array.from(new Set(batches.map((b) => b.period))).sort().reverse(),
+    [batches],
+  );
+
+  const handleTrackFilterChange = (period: string | null) => {
+    setTrackFilterPeriod(period);
+    void loadPayroll(period);
+  };
 
   const currentBatch = useMemo(
     () =>
@@ -453,11 +476,27 @@ export default function HRPayrollPage() {
 
       <div className="grid grid-cols-1 gap-4 xl:grid-cols-3">
         <Card className="rounded-2xl xl:col-span-2">
-          <CardHeader>
-            <CardTitle className="text-base">Tracksheet</CardTitle>
-            <p className="text-xs text-muted-foreground">
-              {period} · {rows.length} employees · {totalHours.toLocaleString()} hours logged
-            </p>
+          <CardHeader className="flex flex-row items-start justify-between gap-3 space-y-0">
+            <div>
+              <CardTitle className="text-base">Tracksheet</CardTitle>
+              <p className="text-xs text-muted-foreground">
+                {period} · {rows.length} employees · {totalHours.toLocaleString()} hours logged
+              </p>
+            </div>
+            <Select
+              value={trackFilterPeriod ?? ALL_PERIODS}
+              onValueChange={(v) => handleTrackFilterChange(v === ALL_PERIODS ? null : v)}
+            >
+              <SelectTrigger className="h-9 w-40 rounded-xl text-xs">
+                <SelectValue placeholder="All periods" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value={ALL_PERIODS}>All periods</SelectItem>
+                {trackPeriods.map((p) => (
+                  <SelectItem key={p} value={p}>{p}</SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
           </CardHeader>
           <CardContent className="px-0">
             <Table>
@@ -569,7 +608,7 @@ export default function HRPayrollPage() {
             <div className="rounded-xl border bg-muted/30 p-4">
               <div className="text-xs text-muted-foreground">Total payable</div>
               <div className="mt-1 text-2xl font-semibold tracking-tight">
-                ${totals.net.toLocaleString()}
+                {formatCurrency(totals.net)}
               </div>
             </div>
             <div className="space-y-3">

@@ -415,5 +415,10 @@ export const payrollBatches = pgTable("payroll_batches", {
 
   reviewedAt: timestamp("reviewed_at"),
 
+  // G1: Finance's review comment (optional on approve) / rejection reason
+  // (required on reject, enforced client-side) — was accepted by the API
+  // (DecidePayrollBatchInput.comment) but never persisted at all before this.
+  reviewNote: text("review_note"),
+
   createdAt: timestamp("created_at").defaultNow().notNull(),
 });

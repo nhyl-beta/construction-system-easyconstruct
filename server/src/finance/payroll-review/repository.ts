@@ -18,6 +18,7 @@ const toDto = (row: typeof payrollBatches.$inferSelect) => ({
   status: row.status,
   reviewedBy: row.reviewedBy,
   reviewedAt: row.reviewedAt,
+  reviewNote: row.reviewNote,
   createdAt: row.createdAt,
 });
 
@@ -69,6 +70,7 @@ export const decide = async (
   id: string,
   decision: "approved" | "rejected",
   reviewedBy: string,
+  reviewNote?: string,
 ) => {
   const [updated] = await db
     .update(payrollBatches)
@@ -76,6 +78,7 @@ export const decide = async (
       status: decision,
       reviewedBy,
       reviewedAt: new Date(),
+      reviewNote: reviewNote ?? null,
     })
     .where(eq(payrollBatches.id, id))
     .returning();

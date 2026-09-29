@@ -461,6 +461,12 @@ async function main() {
     DROP INDEX IF EXISTS attendance_client_request_id_idx;
     CREATE UNIQUE INDEX IF NOT EXISTS attendance_client_request_id_unique_idx
       ON attendance (client_request_id);
+
+    -- G1: Finance's review comment / rejection reason was accepted by the
+    -- decide API (DecidePayrollBatchInput.comment) but had no column to land
+    -- in at all — every comment Finance typed was silently discarded.
+    ALTER TABLE payroll_batches
+      ADD COLUMN IF NOT EXISTS review_note text;
   `);
 
   console.log("Demo schema tables and compatibility columns are ready.");

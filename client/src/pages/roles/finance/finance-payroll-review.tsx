@@ -1,11 +1,24 @@
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 
 import {
   decidePayrollReview,
   listPayrollReview,
   type PayrollReviewBatch,
 } from "@/features/finance/apis/payroll-review-api";
+import { listPayroll, type PayrollLine } from "@/features/hr/payroll-api";
 import { useAuth } from "@/auth/auth-context";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import { DataTablePagination } from "@/components/refine-ui/data-table/data-table-pagination";
+import { usePagination } from "@/hooks/use-pagination";
+import { formatCurrency } from "@/lib/format-currency";
+
+const ALL = "all";
 
 export default function FinancePayrollReviewPage() {
   const { user } = useAuth();
@@ -18,6 +31,18 @@ export default function FinancePayrollReviewPage() {
   const [error, setError] = useState("");
 
   const [comment, setComment] = useState("");
+
+  // G1: per-employee lines for the selected batch's period. payroll lines
+  // aren't linked to a batch id (only a period string — see
+  // server/src/db/schema/payroll.ts), so if more than one batch was ever
+  // generated for the same period, this shows every line for that period,
+  // not strictly this one batch's lines. Flagged rather than silently wrong:
+  // a mismatch between the line count and the batch's own `employees` count
+  // is called out in the UI instead of presented as an exact match.
+  const [batchLines, setBatchLines] = useState<PayrollLine[]>([]);
+  const [linesLoading, setLinesLoading] = useState(false);
+
+  const [periodFilter, setPeriodFilter] = useState<string | null>(null);
 
   async function loadPayroll() {
     try {
@@ -39,10 +64,45 @@ export default function FinancePayrollReviewPage() {
     void loadPayroll();
   }, []);
 
+  useEffect(() => {
+    if (!selectedBatch) {
+      setBatchLines([]);
+      return;
+    }
+    let cancelled = false;
+    setLinesLoading(true);
+    listPayroll(selectedBatch.period)
+      .then((lines) => {
+        if (!cancelled) setBatchLines(lines);
+      })
+      .catch(() => {
+        if (!cancelled) setBatchLines([]);
+      })
+      .finally(() => {
+        if (!cancelled) setLinesLoading(false);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [selectedBatch]);
+
+  const periods = useMemo(
+    () => Array.from(new Set(batches.map((b) => b.period))).sort().reverse(),
+    [batches],
+  );
+
+  const filteredBatches = useMemo(
+    () => (periodFilter ? batches.filter((b) => b.period === periodFilter) : batches),
+    [batches, periodFilter],
+  );
+
+  const pagination = usePagination(filteredBatches, 10);
+
   async function handleDecision(
     decision: "approved" | "rejected",
   ) {
     if (!selectedBatch) return;
+    if (decision === "rejected" && !comment.trim()) return;
 
     try {
       setProcessing(true);
@@ -83,14 +143,28 @@ export default function FinancePayrollReviewPage() {
 
   return (
     <div className="space-y-6 p-6">
-      <div>
-        <h1 className="text-2xl font-semibold">
-          Payroll Review
-        </h1>
+      <div className="flex flex-wrap items-center justify-between gap-3">
+        <div>
+          <h1 className="text-2xl font-semibold">
+            Payroll Review
+          </h1>
 
-        <p className="text-sm text-muted-foreground">
-          Review payroll batches submitted by Human Resources.
-        </p>
+          <p className="text-sm text-muted-foreground">
+            Review payroll batches submitted by Human Resources.
+          </p>
+        </div>
+
+        <Select value={periodFilter ?? ALL} onValueChange={(v) => setPeriodFilter(v === ALL ? null : v)}>
+          <SelectTrigger className="h-9 w-44 rounded-xl text-xs">
+            <SelectValue placeholder="All periods" />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value={ALL}>All periods</SelectItem>
+            {periods.map((p) => (
+              <SelectItem key={p} value={p}>{p}</SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
       </div>
 
       {error && (
@@ -115,7 +189,7 @@ export default function FinancePayrollReviewPage() {
             </div>
 
             <div className="divide-y">
-              {batches.map((batch) => (
+              {pagination.pageItems.map((batch) => (
                 <button
                   key={batch.id}
                   type="button"
@@ -147,6 +221,10 @@ export default function FinancePayrollReviewPage() {
                   </div>
                 </button>
               ))}
+            </div>
+
+            <div className="border-t p-2">
+              <DataTablePagination {...pagination} />
             </div>
           </div>
 
@@ -211,10 +289,7 @@ export default function FinancePayrollReviewPage() {
                       Gross Payroll
                     </p>
                     <p className="text-xl font-semibold">
-                      ₱
-                      {Number(
-                        selectedBatch.grossPayroll,
-                      ).toLocaleString()}
+                      {formatCurrency(Number(selectedBatch.grossPayroll))}
                     </p>
                   </div>
 
@@ -223,10 +298,7 @@ export default function FinancePayrollReviewPage() {
                       Deductions
                     </p>
                     <p className="font-medium">
-                      ₱
-                      {Number(
-                        selectedBatch.deductions,
-                      ).toLocaleString()}
+                      {formatCurrency(Number(selectedBatch.deductions))}
                     </p>
                   </div>
 
@@ -235,10 +307,7 @@ export default function FinancePayrollReviewPage() {
                       Net Payroll
                     </p>
                     <p className="text-xl font-semibold">
-                      ₱
-                      {Number(
-                        selectedBatch.netPayroll,
-                      ).toLocaleString()}
+                      {formatCurrency(Number(selectedBatch.netPayroll))}
                     </p>
                   </div>
 
@@ -250,6 +319,45 @@ export default function FinancePayrollReviewPage() {
                     <span className="inline-flex rounded-full border px-3 py-1 text-sm font-medium">
                       {selectedBatch.status}
                     </span>
+                  </div>
+
+                  {/* G1: per-employee breakdown, matching HR's own tracksheet
+                      instead of only batch-level totals. */}
+                  <div>
+                    <p className="text-xs text-muted-foreground">
+                      Per-employee breakdown
+                    </p>
+                    {linesLoading ? (
+                      <p className="mt-1 text-sm text-muted-foreground">Loading…</p>
+                    ) : batchLines.length === 0 ? (
+                      <p className="mt-1 text-sm text-muted-foreground">No lines found for this period.</p>
+                    ) : (
+                      <div className="mt-2 max-h-64 overflow-y-auto rounded-lg border">
+                        <table className="w-full text-xs">
+                          <thead className="sticky top-0 bg-muted/60">
+                            <tr>
+                              <th className="px-2 py-1.5 text-left">Employee</th>
+                              <th className="px-2 py-1.5 text-right">Hours</th>
+                              <th className="px-2 py-1.5 text-right">Net</th>
+                            </tr>
+                          </thead>
+                          <tbody>
+                            {batchLines.map((line) => (
+                              <tr key={line.id} className="border-t">
+                                <td className="px-2 py-1.5">{line.name}</td>
+                                <td className="px-2 py-1.5 text-right tabular-nums">{line.hours}</td>
+                                <td className="px-2 py-1.5 text-right tabular-nums">{formatCurrency(line.net)}</td>
+                              </tr>
+                            ))}
+                          </tbody>
+                        </table>
+                        {batchLines.length !== selectedBatch.employees && (
+                          <p className="border-t bg-warning/10 px-2 py-1.5 text-[11px] text-warning">
+                            {batchLines.length} line(s) found for period {selectedBatch.period}, batch reports {selectedBatch.employees} — another batch may share this period.
+                          </p>
+                        )}
+                      </div>
+                    )}
                   </div>
 
                   {selectedBatch.reviewedBy && (
@@ -278,6 +386,15 @@ export default function FinancePayrollReviewPage() {
                     </div>
                   )}
 
+                  {selectedBatch.reviewNote && (
+                    <div>
+                      <p className="text-xs text-muted-foreground">
+                        {selectedBatch.status === "rejected" ? "Rejection reason" : "Review note"}
+                      </p>
+                      <p className="text-sm">{selectedBatch.reviewNote}</p>
+                    </div>
+                  )}
+
                   {selectedBatch.status === "pending" && (
                     <>
                       <div>
@@ -285,7 +402,7 @@ export default function FinancePayrollReviewPage() {
                           htmlFor="payroll-comment"
                           className="text-sm font-medium"
                         >
-                          Review Comment
+                          Review comment <span className="font-normal text-muted-foreground">(required to reject)</span>
                         </label>
 
                         <textarea
@@ -294,7 +411,7 @@ export default function FinancePayrollReviewPage() {
                           onChange={(event) =>
                             setComment(event.target.value)
                           }
-                          placeholder="Optional comment..."
+                          placeholder="Optional when approving; required when rejecting"
                           className="mt-2 min-h-24 w-full rounded-md border bg-background p-3 text-sm outline-none focus:ring-2"
                         />
                       </div>
@@ -302,7 +419,8 @@ export default function FinancePayrollReviewPage() {
                       <div className="flex gap-2">
                         <button
                           type="button"
-                          disabled={processing}
+                          disabled={processing || !comment.trim()}
+                          title={!comment.trim() ? "Enter a reason before rejecting" : undefined}
                           onClick={() =>
                             void handleDecision("rejected")
                           }
