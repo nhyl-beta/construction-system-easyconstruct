@@ -308,11 +308,6 @@ const allResources: ResourceProps[] = [
     meta: { label: "Reports", group: "Intelligence" },
   },
   {
-    name: "calendar",
-    list: "/calendar",
-    meta: { label: "Calendar", group: "Intelligence" },
-  },
-  {
     name: "resources",
     list: "/resources",
     meta: { label: "Resources", group: "Intelligence" },

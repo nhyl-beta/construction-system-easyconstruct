@@ -1,12 +1,11 @@
-// client/src/pages/roles/shared/shared-calendar.tsx — NEW (A2)
+// client/src/features/calendar/components/CalendarWidget.tsx
 //
-// One calendar page shared by every role (same convention as
-// shared-reports.tsx), scoped server-side per role (see
-// server/src/calendar/service.ts — same project-scoping rule as
-// lifecycle/my-actions.ts). Shows three event kinds: milestone due dates,
-// workflow submissions, and lifecycle phase transitions ("progress"),
-// distinguished by color with a legend, in a month grid built from
-// date-fns (already a project dependency — no new library).
+// The calendar, embedded at the bottom of every role's dashboard
+// (pages/dashboard/index.tsx) rather than living as its own sidebar page —
+// same data/scoping as before (useCalendarEvents, server/src/calendar), just
+// a different home. Kept as its own component (not inlined into the
+// dashboard router) so the month-grid rendering isn't duplicated if another
+// page ever wants it too.
 import { useMemo, useState } from "react";
 import {
   addMonths,
@@ -22,9 +21,7 @@ import {
 } from "date-fns";
 import { ChevronLeft, ChevronRight, Flag, GitCommitHorizontal, Send } from "lucide-react";
 
-import { PageContainer } from "@/components/refine-ui/views/page-container";
-import { PageHeader } from "@/components/refine-ui/views/page-header";
-import { PageContent } from "@/components/refine-ui/views/page-content";
+import { SectionCard } from "@/components/ui/section-card";
 import { Button } from "@/components/ui/button";
 import { useCalendarEvents } from "@/features/calendar/hooks/useCalendarEvents";
 import type { CalendarEvent, CalendarEventType } from "@/features/calendar/types/calendar.types";
@@ -35,7 +32,7 @@ const EVENT_STYLE: Record<CalendarEventType, { label: string; dot: string; icon:
   progress: { label: "Progress update", dot: "bg-success", icon: GitCommitHorizontal },
 };
 
-export default function SharedCalendarPage() {
+export function CalendarWidget() {
   const { events, loading, error } = useCalendarEvents();
   const [month, setMonth] = useState(() => startOfMonth(new Date()));
 
@@ -56,40 +53,38 @@ export default function SharedCalendarPage() {
   }, [month]);
 
   return (
-    <PageContainer>
-      <PageHeader
-        title="Calendar"
-        description="Milestones, workflow submissions, and progress updates for the projects you're on."
-      />
-      <PageContent className="space-y-4 p-6 md:p-8">
+    <SectionCard
+      title="Calendar"
+      subtitle="Milestones, workflow submissions, and progress updates for the projects you're on."
+      actions={
+        <div className="flex items-center gap-2">
+          <Button variant="outline" size="icon" className="h-8 w-8 rounded-lg" onClick={() => setMonth((m) => subMonths(m, 1))}>
+            <ChevronLeft className="h-4 w-4" />
+          </Button>
+          <span className="min-w-28 text-center text-sm font-medium">{format(month, "MMMM yyyy")}</span>
+          <Button variant="outline" size="icon" className="h-8 w-8 rounded-lg" onClick={() => setMonth((m) => addMonths(m, 1))}>
+            <ChevronRight className="h-4 w-4" />
+          </Button>
+          <Button variant="ghost" size="sm" className="h-8 rounded-lg text-xs" onClick={() => setMonth(startOfMonth(new Date()))}>
+            Today
+          </Button>
+        </div>
+      }
+    >
+      <div className="space-y-4">
         {error && (
           <p role="alert" className="rounded-lg border border-destructive/30 bg-destructive/5 px-3 py-2 text-sm text-destructive">
             {error.message}
           </p>
         )}
 
-        <div className="flex flex-wrap items-center justify-between gap-3">
-          <div className="flex items-center gap-2">
-            <Button variant="outline" size="icon" className="h-8 w-8 rounded-lg" onClick={() => setMonth((m) => subMonths(m, 1))}>
-              <ChevronLeft className="h-4 w-4" />
-            </Button>
-            <span className="min-w-32 text-center text-sm font-medium">{format(month, "MMMM yyyy")}</span>
-            <Button variant="outline" size="icon" className="h-8 w-8 rounded-lg" onClick={() => setMonth((m) => addMonths(m, 1))}>
-              <ChevronRight className="h-4 w-4" />
-            </Button>
-            <Button variant="ghost" size="sm" className="h-8 rounded-lg text-xs" onClick={() => setMonth(startOfMonth(new Date()))}>
-              Today
-            </Button>
-          </div>
-
-          <div className="flex flex-wrap items-center gap-3 text-xs text-muted-foreground">
-            {(Object.keys(EVENT_STYLE) as CalendarEventType[]).map((type) => (
-              <span key={type} className="flex items-center gap-1.5">
-                <span className={`h-2 w-2 rounded-full ${EVENT_STYLE[type].dot}`} />
-                {EVENT_STYLE[type].label}
-              </span>
-            ))}
-          </div>
+        <div className="flex flex-wrap items-center gap-3 text-xs text-muted-foreground">
+          {(Object.keys(EVENT_STYLE) as CalendarEventType[]).map((type) => (
+            <span key={type} className="flex items-center gap-1.5">
+              <span className={`h-2 w-2 rounded-full ${EVENT_STYLE[type].dot}`} />
+              {EVENT_STYLE[type].label}
+            </span>
+          ))}
         </div>
 
         {loading ? (
@@ -143,9 +138,9 @@ export default function SharedCalendarPage() {
             </div>
           </div>
         )}
-      </PageContent>
-    </PageContainer>
+      </div>
+    </SectionCard>
   );
 }
 
-SharedCalendarPage.displayName = "SharedCalendarPage";
+CalendarWidget.displayName = "CalendarWidget";

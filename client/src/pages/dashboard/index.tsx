@@ -1,4 +1,5 @@
 import { useRoleConfig } from "@/hooks/use-role-config";
+import { CalendarWidget } from "@/features/calendar/components/CalendarWidget";
 import HRDashboardPage from "@/pages/roles/human-resources/hr-dashboard";
 import PMDashboardPage from "@/pages/roles/project-manager/pm-dashboard";
 import ArchitectDashboard from "../roles/architect/architect-dashboard";
@@ -46,5 +47,17 @@ export default function DashboardRouter() {
   const { identity } = useRoleConfig();
   const role = identity.role;
   const Dashboard = ROLE_DASHBOARD[role] ?? FallbackDashboard;
-  return <Dashboard />;
+  return (
+    <>
+      <Dashboard />
+      {/* Moved here from its own sidebar page (/calendar) — one calendar,
+          rendered at the bottom of every role's dashboard instead of a
+          separate nav entry. Same padding convention each dashboard's own
+          root div already uses (p-4 md:p-8); no top padding since the
+          dashboard above it already ends with its own bottom spacing. */}
+      <div className="px-4 pb-4 md:px-8 md:pb-8">
+        <CalendarWidget />
+      </div>
+    </>
+  );
 }
