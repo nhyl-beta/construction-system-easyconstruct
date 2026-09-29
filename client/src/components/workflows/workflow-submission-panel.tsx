@@ -52,76 +52,126 @@ export function WorkflowLineItemsTable({
   const totalDelta = totalRequested - totalCurrent;
 
   return (
-    <div className="overflow-x-auto rounded-xl border border-border/70">
-      <table className="w-full text-sm">
-        <thead>
-          <tr className="border-b border-border/70 bg-muted/40 text-left text-[11px] uppercase tracking-wider text-muted-foreground">
-            <th className="px-3 py-2">Category</th>
-            <th className="px-3 py-2">Change</th>
-            <th className="px-3 py-2 text-right">Current</th>
-            <th className="px-3 py-2 text-right">Requested</th>
-            <th className="px-3 py-2 text-right">Difference</th>
-            {FEATURES.ai && <th className="px-3 py-2">Market cost</th>}
-          </tr>
-        </thead>
-        <tbody>
-          {lineItems.map((item) => {
-            const delta = amountOf(item.requestedAmount) - amountOf(item.currentAmount);
-            return (
-              <tr key={item.id} className="border-b border-border/60 last:border-0">
-                <td className="px-3 py-2.5">
-                  <Badge variant="outline" className="rounded-full text-[10px]">
-                    {CATEGORY_LABELS[item.category] ?? item.category}
-                  </Badge>
-                </td>
-                <td className="px-3 py-2.5">{item.description}</td>
-                <td className="px-3 py-2.5 text-right tabular-nums text-muted-foreground">
-                  {formatCurrency(amountOf(item.currentAmount), currency)}
-                </td>
-                <td className="px-3 py-2.5 text-right tabular-nums">
-                  {formatCurrency(amountOf(item.requestedAmount), currency)}
-                </td>
-                <td
-                  className={`px-3 py-2.5 text-right font-medium tabular-nums ${
+    <>
+      {/* G3: the table's natural width (5-6 columns of badges/currency/
+          descriptions) exceeded common dialog/card widths, forcing a
+          horizontal scrollbar even at desktop widths. Below md, a stacked
+          card-per-line-item layout replaces it entirely instead of scrolling;
+          at md and up the table returns, with the description column now
+          wrapping (min-w-0 + break-words) instead of pushing the row wider. */}
+      <div className="space-y-2 md:hidden">
+        {lineItems.map((item) => {
+          const delta = amountOf(item.requestedAmount) - amountOf(item.currentAmount);
+          return (
+            <div key={item.id} className="rounded-xl border border-border/70 p-3 text-sm">
+              <div className="flex items-start justify-between gap-2">
+                <Badge variant="outline" className="rounded-full text-[10px]">
+                  {CATEGORY_LABELS[item.category] ?? item.category}
+                </Badge>
+                <span
+                  className={`shrink-0 text-right font-medium tabular-nums ${
                     delta > 0 ? "text-destructive" : delta < 0 ? "text-success" : ""
                   }`}
                 >
                   {delta > 0 ? "+" : ""}
                   {formatCurrency(delta, currency)}
-                </td>
-                {FEATURES.ai && (
-                  <td className="px-3 py-2.5">
-                    {item.validation && <ReferenceBasisBadge validation={item.validation} />}
-                  </td>
-                )}
-              </tr>
-            );
-          })}
-        </tbody>
-        <tfoot>
-          <tr className="border-t border-border/70 bg-muted/30 font-medium">
-            <td className="px-3 py-2.5" colSpan={2}>
-              Total ({lineItems.length} {lineItems.length === 1 ? "change" : "changes"})
-            </td>
-            <td className="px-3 py-2.5 text-right tabular-nums text-muted-foreground">
-              {formatCurrency(totalCurrent, currency)}
-            </td>
-            <td className="px-3 py-2.5 text-right tabular-nums">
-              {formatCurrency(totalRequested, currency)}
-            </td>
-            <td
-              className={`px-3 py-2.5 text-right tabular-nums ${
-                totalDelta > 0 ? "text-destructive" : totalDelta < 0 ? "text-success" : ""
-              }`}
-            >
+                </span>
+              </div>
+              <p className="mt-2 break-words">{item.description}</p>
+              <div className="mt-2 flex flex-wrap items-center justify-between gap-x-4 gap-y-1 text-xs text-muted-foreground">
+                <span>Current: {formatCurrency(amountOf(item.currentAmount), currency)}</span>
+                <span className="text-foreground">Requested: {formatCurrency(amountOf(item.requestedAmount), currency)}</span>
+              </div>
+              {FEATURES.ai && item.validation && (
+                <div className="mt-2">
+                  <ReferenceBasisBadge validation={item.validation} />
+                </div>
+              )}
+            </div>
+          );
+        })}
+        <div className="rounded-xl border border-border/70 bg-muted/30 p-3 text-sm font-medium">
+          <div className="flex items-center justify-between">
+            <span>Total ({lineItems.length} {lineItems.length === 1 ? "change" : "changes"})</span>
+            <span className={totalDelta > 0 ? "text-destructive" : totalDelta < 0 ? "text-success" : ""}>
               {totalDelta > 0 ? "+" : ""}
               {formatCurrency(totalDelta, currency)}
-            </td>
-            {FEATURES.ai && <td className="px-3 py-2.5" />}
-          </tr>
-        </tfoot>
-      </table>
-    </div>
+            </span>
+          </div>
+        </div>
+      </div>
+
+      <div className="hidden overflow-x-auto rounded-xl border border-border/70 md:block">
+        <table className="w-full text-sm">
+          <thead>
+            <tr className="border-b border-border/70 bg-muted/40 text-left text-[11px] uppercase tracking-wider text-muted-foreground">
+              <th className="px-3 py-2">Category</th>
+              <th className="px-3 py-2">Change</th>
+              <th className="px-3 py-2 text-right">Current</th>
+              <th className="px-3 py-2 text-right">Requested</th>
+              <th className="px-3 py-2 text-right">Difference</th>
+              {FEATURES.ai && <th className="px-3 py-2">Market cost</th>}
+            </tr>
+          </thead>
+          <tbody>
+            {lineItems.map((item) => {
+              const delta = amountOf(item.requestedAmount) - amountOf(item.currentAmount);
+              return (
+                <tr key={item.id} className="border-b border-border/60 last:border-0">
+                  <td className="px-3 py-2.5">
+                    <Badge variant="outline" className="rounded-full text-[10px]">
+                      {CATEGORY_LABELS[item.category] ?? item.category}
+                    </Badge>
+                  </td>
+                  <td className="max-w-64 min-w-0 break-words px-3 py-2.5">{item.description}</td>
+                  <td className="px-3 py-2.5 text-right tabular-nums text-muted-foreground">
+                    {formatCurrency(amountOf(item.currentAmount), currency)}
+                  </td>
+                  <td className="px-3 py-2.5 text-right tabular-nums">
+                    {formatCurrency(amountOf(item.requestedAmount), currency)}
+                  </td>
+                  <td
+                    className={`px-3 py-2.5 text-right font-medium tabular-nums ${
+                      delta > 0 ? "text-destructive" : delta < 0 ? "text-success" : ""
+                    }`}
+                  >
+                    {delta > 0 ? "+" : ""}
+                    {formatCurrency(delta, currency)}
+                  </td>
+                  {FEATURES.ai && (
+                    <td className="px-3 py-2.5">
+                      {item.validation && <ReferenceBasisBadge validation={item.validation} />}
+                    </td>
+                  )}
+                </tr>
+              );
+            })}
+          </tbody>
+          <tfoot>
+            <tr className="border-t border-border/70 bg-muted/30 font-medium">
+              <td className="px-3 py-2.5" colSpan={2}>
+                Total ({lineItems.length} {lineItems.length === 1 ? "change" : "changes"})
+              </td>
+              <td className="px-3 py-2.5 text-right tabular-nums text-muted-foreground">
+                {formatCurrency(totalCurrent, currency)}
+              </td>
+              <td className="px-3 py-2.5 text-right tabular-nums">
+                {formatCurrency(totalRequested, currency)}
+              </td>
+              <td
+                className={`px-3 py-2.5 text-right tabular-nums ${
+                  totalDelta > 0 ? "text-destructive" : totalDelta < 0 ? "text-success" : ""
+                }`}
+              >
+                {totalDelta > 0 ? "+" : ""}
+                {formatCurrency(totalDelta, currency)}
+              </td>
+              {FEATURES.ai && <td className="px-3 py-2.5" />}
+            </tr>
+          </tfoot>
+        </table>
+      </div>
+    </>
   );
 }
 
