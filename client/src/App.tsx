@@ -100,6 +100,7 @@ import EmployeeCreatePage from "@/features/employees/pages/EmployeeCreatePage";
 import ProjectCreatePage from "@/features/projects/pages/ProjectCreatePage";
 import ProjectDetailPage from "@/features/projects/pages/ProjectDetailPage";
 import SharedReports from "./pages/roles/shared/shared-reports";
+import SharedCalendar from "./pages/roles/shared/shared-calendar";
 import SharedBlueprintReviews from "./pages/roles/shared/shared-blueprint-reviews";
 import AiValidationReferencePage from "./pages/roles/shared/ai-validation-reference";
 import { FEATURES } from "./config/features";
@@ -172,6 +173,7 @@ function App() {
                     element={FEATURES.ai ? <AiValidationReferencePage /> : <Navigate to="/dashboard" replace />}
                   />
                   <Route path="/reports" element={<SharedReports />} />
+                  <Route path="/calendar" element={<SharedCalendar />} />
                   {/* Part B item 8: real decide action for gate D3, role-gated
                       server-side (consultant/project-manager/admin); every
                       other authenticated role that reaches it sees the same

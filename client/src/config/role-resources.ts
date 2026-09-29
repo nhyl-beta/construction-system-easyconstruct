@@ -1,6 +1,7 @@
 export const ROLE_RESOURCE_ACCESS: Record<string, string[]> = {
   admin: [
     "dashboard",
+    "calendar",
     "ai-validation-reference",
     "admin-projects",
     "admin-workflows",
@@ -15,6 +16,7 @@ export const ROLE_RESOURCE_ACCESS: Record<string, string[]> = {
   ],
   owner: [
     "dashboard",
+    "calendar",
     "ai-validation-reference",
     "owner-portfolio",
     "owner-proposals",
@@ -25,6 +27,7 @@ export const ROLE_RESOURCE_ACCESS: Record<string, string[]> = {
   ],
   it_designer: [
     "dashboard",
+    "calendar",
     "ai-validation-reference",
     "it-designer-users",
     "it-designer-proposals",
@@ -41,6 +44,7 @@ export const ROLE_RESOURCE_ACCESS: Record<string, string[]> = {
   ],
   project_manager: [
     "dashboard",
+    "calendar",
     "ai-validation-reference",
     "projects",
     "workflows",
@@ -52,6 +56,7 @@ export const ROLE_RESOURCE_ACCESS: Record<string, string[]> = {
   ],
   human_resources: [
     "dashboard",
+    "calendar",
     "ai-validation-reference",
     "employees",
     "attendance",
@@ -62,6 +67,7 @@ export const ROLE_RESOURCE_ACCESS: Record<string, string[]> = {
   ],
   finance_manager: [
     "dashboard",
+    "calendar",
     "ai-validation-reference",
     "budget",
     "payroll-review",
@@ -72,6 +78,7 @@ export const ROLE_RESOURCE_ACCESS: Record<string, string[]> = {
   ],
   architect: [
     "dashboard",
+    "calendar",
     "ai-validation-reference",
     "architect-projects",
     "designs",
@@ -86,6 +93,7 @@ export const ROLE_RESOURCE_ACCESS: Record<string, string[]> = {
   ],
   engineer: [
     "dashboard",
+    "calendar",
     "ai-validation-reference",
     "progress",
     "requirements",
@@ -93,9 +101,10 @@ export const ROLE_RESOURCE_ACCESS: Record<string, string[]> = {
     "issues",
     "projects",
   ],
-  site_personnel: ["dashboard", "ai-validation-reference", "attendance", "tasks", "requirements", "documents", "issues"],
+  site_personnel: ["dashboard", "calendar", "ai-validation-reference", "attendance", "tasks", "requirements", "documents", "issues"],
   consultant: [
     "dashboard",
+    "calendar",
     "ai-validation-reference",
     // Consultant's review screen, not the Architect authoring page the
     // generic "proposals" resource points at. Now also carries the workflow
