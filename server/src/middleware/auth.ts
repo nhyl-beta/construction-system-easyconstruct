@@ -21,8 +21,13 @@ export function authenticate(
   next: NextFunction,
 ) {
   const header = req.headers.authorization;
+  // C1: EventSource (used by the SSE notification stream) cannot set custom
+  // request headers, so its one endpoint passes the token as ?token= instead
+  // — accepted here only as a fallback when no Authorization header is
+  // present, verified through the exact same jwt.verify() call below.
+  const queryToken = typeof req.query.token === "string" ? req.query.token : null;
 
-  if (!header?.startsWith("Bearer ")) {
+  if (!header?.startsWith("Bearer ") && !queryToken) {
     return next(
       new UnauthorizedError(
         "Missing or malformed Authorization header",
@@ -31,7 +36,7 @@ export function authenticate(
   }
 
   try {
-    const token = header.slice(7);
+    const token = header?.startsWith("Bearer ") ? header.slice(7) : queryToken!;
 
     const verified = jwt.verify(token, env.JWT_SECRET);
 

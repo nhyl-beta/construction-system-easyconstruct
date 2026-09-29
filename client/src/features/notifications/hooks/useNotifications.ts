@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useState } from "react";
 import { NotificationRepository } from "../repositories/notification.repository";
+import { useNotificationStream } from "./useNotificationStream";
 import type { Notification, NotificationsQuery } from "../types/notification.types";
 
 export function useNotifications(query: NotificationsQuery = {}) {
@@ -29,6 +30,15 @@ export function useNotifications(query: NotificationsQuery = {}) {
   useEffect(() => {
     void reload();
   }, [reload]);
+
+  // C1: prepend pushed notifications as they arrive instead of waiting for
+  // the next popover-open refetch. Guards against a duplicate in case a
+  // reload() and a push race and both land the same row.
+  useNotificationStream((notification) => {
+    setNotifications((prev) =>
+      prev.some((n) => n.id === notification.id) ? prev : [notification, ...prev],
+    );
+  });
 
   const markRead = useCallback(
     async (id: number) => {

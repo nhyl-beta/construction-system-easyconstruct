@@ -5,6 +5,7 @@ import { authenticate } from "../middleware/auth.js";
 const router = Router();
 router.use(authenticate);
 router.get('/', controller.getAll);
+router.get('/stream', controller.stream_);
 router.post('/', controller.create);
 router.patch('/:id/read', controller.markRead);
 

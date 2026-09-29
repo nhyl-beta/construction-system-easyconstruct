@@ -83,6 +83,17 @@ async function requestFormData(
   return parseResponse(res);
 }
 
+// C1: EventSource can't set an Authorization header, so the one SSE endpoint
+// takes the token as a query param instead (see server middleware/auth.ts).
+export function streamUrl(path: string): string {
+  const token =
+    sessionStorage.getItem("easyconstruct_token") ??
+    localStorage.getItem("easyconstruct_token");
+  const url = new URL(apiUrl(path), window.location.origin);
+  if (token) url.searchParams.set("token", token);
+  return url.toString();
+}
+
 export const apiClient = {
   get: (path: string, opts: RequestInit = {}) =>
     request(path, {

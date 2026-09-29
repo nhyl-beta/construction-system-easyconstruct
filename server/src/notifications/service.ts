@@ -1,6 +1,8 @@
 import * as repo from "./repository.js";
 import * as projectsRepo from "../projects/repository.js";
 import * as projectMemberRepo from "../project-members/repository.js";
+import * as usersRepo from "../users/repository.js";
+import * as stream from "./stream.js";
 import { PROJECT_MEMBER_ROLES } from "../db/schema/project-members.js";
 import type {
   CreateNotificationInput,
@@ -13,8 +15,22 @@ export const getForRecipient = async (
   filters: NotificationFilters,
 ) => repo.findForRecipient(scope, filters);
 
-// Called directly by other domain services (e.g. budget-approval-steps) — no HTTP loopback.
-export const create = async (input: CreateNotificationInput) => repo.create(input);
+// Called directly by other domain services (e.g. budget-approval-steps) — no
+// HTTP loopback. Also the single choke point every domain event already goes
+// through (see notifyProject below), so C1's SSE push lives here rather than
+// needing to touch each of the 12+ call sites individually.
+export const create = async (input: CreateNotificationInput) => {
+  const created = await repo.create(input);
+  if (created) {
+    if (input.recipientUserId != null) {
+      stream.publishToUser(input.recipientUserId, created);
+    } else if (input.recipientRole) {
+      const recipients = await usersRepo.findAll({ role: input.recipientRole });
+      stream.publishToUsers(recipients.map((u) => u.id), created);
+    }
+  }
+  return created;
+};
 
 export const markRead = async (id: number) => repo.markRead(id);
 

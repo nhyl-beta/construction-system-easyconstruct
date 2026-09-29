@@ -5,6 +5,7 @@ import { formatSuccess } from "../utils/response.js";
 import { UnauthorizedError } from "../utils/errors.js";
 import type { AuthedRequest } from "../middleware/auth.js";
 import * as service from "./service.js";
+import * as stream from "./stream.js";
 
 export const getAll = async (req: AuthedRequest, res: Response, next: NextFunction) => {
   try {
@@ -30,5 +31,25 @@ export const markRead = async (req: Request, res: Response, next: NextFunction) 
   try {
     const data = await service.markRead(Number(req.params.id));
     res.json(formatSuccess(data, MSG.notifications.updated));
+  } catch (err) { next(err); }
+};
+
+// C1: pushes new notifications to the caller as they're created, instead of
+// only on the next bell-popover-open refetch. One long-lived connection per
+// tab; the browser's native EventSource handles reconnect on its own.
+export const stream_ = (req: AuthedRequest, res: Response, next: NextFunction) => {
+  try {
+    if (!req.authUser) throw new UnauthorizedError();
+    const userId = req.authUser.id;
+
+    res.writeHead(200, {
+      "Content-Type": "text/event-stream",
+      "Cache-Control": "no-cache",
+      Connection: "keep-alive",
+    });
+    res.write(": connected\n\n");
+
+    stream.subscribe(userId, res);
+    req.on("close", () => stream.unsubscribe(userId, res));
   } catch (err) { next(err); }
 };
