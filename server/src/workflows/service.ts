@@ -31,6 +31,33 @@ import type {
 // items (if any) are non-monetary or out of scope for this pass.
 const COST_COMPARABLE_TEMPLATES = new Set(["Budget Change Request", "Change Order Request"]);
 
+// H3/Q1: the "Project Closeout" preconditions, as a pure function over
+// already-fetched data — no database access — so it's unit-testable the same
+// way lifecycle/gates.ts's pure LifecycleSnapshot checks are (see
+// workflows/closeout-eligibility.test.ts). createWorkflow below is the only
+// caller; it does the actual fetching.
+export const assertCloseoutWorkflowAllowed = (input: {
+  role: string | undefined;
+  project: { code: string; status: string };
+  hasActiveCloseoutWorkflow: boolean;
+}): void => {
+  if (input.role !== "engineer" && input.role !== "admin") {
+    throw new ForbiddenError('Only Engineer (or Admin) may start a "Project Closeout" workflow');
+  }
+  if (input.project.status !== "Closeout") {
+    throw new ConflictError(
+      `Project ${input.project.code} is in "${input.project.status}" — a "Project Closeout" workflow can only be started once it reaches Closeout`,
+    );
+  }
+  // Q1: nothing previously stopped a second "Project Closeout" workflow from
+  // being started for the same project — e.g. after the first one stalls or
+  // is abandoned, a fresh one could be raised on top of it, leaving two
+  // active chains both claiming to be THE closeout for that project.
+  if (input.hasActiveCloseoutWorkflow) {
+    throw new ConflictError('A "Project Closeout" workflow is already in progress for this project');
+  }
+};
+
 // Same ownership rule used for project-engineers (EC-017): admin may manage
 // any workflow; anyone else only the one they created. IT Designer used to
 // be included here — it no longer is, since its workflow scope is read-only
@@ -280,13 +307,17 @@ export const createWorkflow = async (
   // initiator's own stage" assumption below, which requires the initiator's
   // role to actually be the template's first stage's role.
   if (template.name === CLOSEOUT_TEMPLATE_NAME) {
-    if (createdByRole !== "engineer" && createdByRole !== "admin") {
-      throw new ForbiddenError('Only Engineer (or Admin) may start a "Project Closeout" workflow');
-    }
+    // assertProjectWritable above already guarantees this project exists.
     const project = await projectsRepo.findByCode(input.projectCode);
-    if (!project || project.status !== "Closeout") {
-      throw new ConflictError('A "Project Closeout" workflow can only be started once the project is in Closeout');
-    }
+    const existingForProject = await repo.findWorkflowsByProjectCode(input.projectCode);
+    const hasActiveCloseoutWorkflow = existingForProject.some(
+      (w) => w.templateId === template.id && w.status === "active",
+    );
+    assertCloseoutWorkflowAllowed({
+      role: createdByRole,
+      project: { code: project!.code, status: project!.status },
+      hasActiveCloseoutWorkflow,
+    });
   }
 
   const seq = await repo.nextWorkflowSeq();
