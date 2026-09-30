@@ -46,7 +46,17 @@ const TONE_CLASS: Record<string, string> = {
 
 type ReasonAction = "hold" | "cancel" | "override";
 
-export function ProjectLifecyclePanel({ projectId }: { projectId: string | number }) {
+export function ProjectLifecyclePanel({
+  projectId,
+  projectCode,
+}: {
+  projectId: string | number;
+  /** C1: needed by CloseoutSummaryCard's "Start Project Closeout workflow"
+   * action — CreateWorkflowInput keys off the project's code, not its
+   * numeric id, and nothing else this panel already has resolves one to
+   * the other client-side (the id→code lookup happens server-side only). */
+  projectCode?: string;
+}) {
   const { user } = useAuth();
   const isAdmin = user?.role === "admin";
   const isPm = user?.role === "project-manager";
@@ -58,6 +68,7 @@ export function ProjectLifecyclePanel({ projectId }: { projectId: string | numbe
     error,
     acting,
     actionError,
+    reload,
     advance,
     hold,
     resume,
@@ -296,7 +307,7 @@ export function ProjectLifecyclePanel({ projectId }: { projectId: string | numbe
           the closeout workflow) in one place, rather than four screens —
           also shown once Completed, so the record stays visible afterward. */}
       {(view.phase === "Closeout" || view.phase === "Completed") && (
-        <CloseoutSummaryCard projectId={projectId} />
+        <CloseoutSummaryCard projectId={projectId} projectCode={projectCode} onWorkflowStarted={reload} />
       )}
 
       {view.history.length > 0 && (

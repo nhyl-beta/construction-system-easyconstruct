@@ -1,10 +1,16 @@
 // H6: closeout-summary — documents, budgets planned-vs-actual, payroll and
 // the closeout workflow's status, in one place instead of four screens.
-import { useEffect, useState } from "react";
-import { CheckCircle2, XCircle } from "lucide-react";
+import { useCallback, useEffect, useState } from "react";
+import { CheckCircle2, Eye, XCircle } from "lucide-react";
 import { LifecycleRepository } from "../repositories/lifecycle.repository";
 import type { CloseoutSummary } from "../types/lifecycle.types";
 import { formatCompactCurrency } from "@/lib/format-currency";
+import { Button } from "@/components/ui/button";
+import { useAuth } from "@/auth/auth-context";
+import { useWorkflowTemplates } from "@/features/workflows/hooks/useWorkflows";
+import { NewWorkflowDialog } from "@/components/workflows/new-workflow-dialog";
+
+const CLOSEOUT_TEMPLATE_NAME = "Project Closeout";
 
 function DocRow({ label, present }: { label: string; present: boolean }) {
   return (
@@ -19,32 +25,51 @@ function DocRow({ label, present }: { label: string; present: boolean }) {
   );
 }
 
-export function CloseoutSummaryCard({ projectId }: { projectId: string | number }) {
+export function CloseoutSummaryCard({
+  projectId,
+  projectCode,
+  onWorkflowStarted,
+}: {
+  projectId: string | number;
+  /** C1: the project's code (not its numeric id) — CreateWorkflowInput and
+   * the "Project Closeout" eligibility check both key off this. */
+  projectCode?: string;
+  /** C1: lets the parent's own lifecycle view (gate checks, phase stepper)
+   * refresh too — starting the workflow auto-approves the Engineer's own
+   * Final Inspection stage, which can change what the gate checks show. */
+  onWorkflowStarted?: () => void;
+}) {
   const [summary, setSummary] = useState<CloseoutSummary | null>(null);
   const [loading, setLoading] = useState(true);
+  const { user } = useAuth();
+  const { templates, creating, createWorkflow, error, clearError } = useWorkflowTemplates();
+  const [startDialogOpen, setStartDialogOpen] = useState(false);
+
+  const loadSummary = useCallback(() => {
+    setLoading(true);
+    return LifecycleRepository.getCloseoutSummary(projectId)
+      .then((data) => setSummary(data))
+      .catch(() => setSummary(null))
+      .finally(() => setLoading(false));
+  }, [projectId]);
 
   useEffect(() => {
-    let cancelled = false;
-    setLoading(true);
-    LifecycleRepository.getCloseoutSummary(projectId)
-      .then((data) => {
-        if (!cancelled) setSummary(data);
-      })
-      .catch(() => {
-        if (!cancelled) setSummary(null);
-      })
-      .finally(() => {
-        if (!cancelled) setLoading(false);
-      });
-    return () => {
-      cancelled = true;
-    };
-  }, [projectId]);
+    void loadSummary();
+  }, [loadSummary]);
 
   if (loading) {
     return <p className="text-xs text-muted-foreground">Loading closeout summary…</p>;
   }
   if (!summary) return null;
+
+  // C1: the one entry point for actually starting a Project Closeout
+  // workflow — mirrors workflows/service.ts's own rule (Engineer or Admin
+  // only, mirrored client-side in new-workflow-dialog.tsx too) and only
+  // shows once there is genuinely nothing started yet.
+  const canStartCloseout =
+    !!projectCode &&
+    summary.closeoutWorkflow === null &&
+    (user?.role === "engineer" || user?.role === "admin");
 
   return (
     <div className="space-y-3 rounded-xl border border-border/60 bg-muted/20 p-3">
@@ -70,6 +95,18 @@ export function CloseoutSummaryCard({ projectId }: { projectId: string | number 
                 : `awaiting ${summary.closeoutWorkflow.currentStageRoleLabel ?? "next stage"}`
               : "not started"}
           </p>
+          {canStartCloseout && (
+            <Button
+              size="sm"
+              className="mt-1 h-7 rounded-lg text-xs"
+              onClick={() => {
+                clearError();
+                setStartDialogOpen(true);
+              }}
+            >
+              <Eye className="h-3.5 w-3.5" /> Start Project Closeout workflow
+            </Button>
+          )}
         </div>
       </div>
 
@@ -102,6 +139,27 @@ export function CloseoutSummaryCard({ projectId }: { projectId: string | number 
             </tbody>
           </table>
         </div>
+      )}
+
+      {canStartCloseout && (
+        <NewWorkflowDialog
+          open={startDialogOpen}
+          onOpenChange={setStartDialogOpen}
+          templates={templates}
+          creating={creating}
+          error={error}
+          presetTemplateName={CLOSEOUT_TEMPLATE_NAME}
+          presetProjectCode={projectCode}
+          lockPreset
+          onSubmit={async (input) => {
+            const created = await createWorkflow(input);
+            if (created) {
+              await loadSummary();
+              onWorkflowStarted?.();
+            }
+            return created;
+          }}
+        />
       )}
     </div>
   );

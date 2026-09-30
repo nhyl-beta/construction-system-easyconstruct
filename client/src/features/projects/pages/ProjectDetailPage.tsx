@@ -207,7 +207,7 @@ export default function ProjectDetailPage() {
       {message && <div className="rounded-xl border border-success/30 bg-success/10 px-4 py-3 text-sm text-success">{message}</div>}
 
       <div className="max-w-4xl">
-        <ProjectLifecyclePanel projectId={project.id} />
+        <ProjectLifecyclePanel projectId={project.id} projectCode={project.code} />
       </div>
 
       {!canEdit && (
