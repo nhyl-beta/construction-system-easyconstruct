@@ -24,6 +24,7 @@ interface ProjectPickerProps {
   onChange: (code: string) => void;
   placeholder?: string;
   className?: string;
+  disabled?: boolean;
 }
 
 export function ProjectPicker({
@@ -31,11 +32,12 @@ export function ProjectPicker({
   onChange,
   placeholder = "Select a project",
   className,
+  disabled,
 }: ProjectPickerProps) {
   const { projects, loading } = useProjects();
 
   return (
-    <Select value={value || undefined} onValueChange={onChange}>
+    <Select value={value || undefined} onValueChange={onChange} disabled={disabled}>
       <SelectTrigger className={className}>
         <SelectValue placeholder={loading ? "Loading projects…" : placeholder} />
       </SelectTrigger>

@@ -21,7 +21,17 @@ import {
 import { ProjectPicker } from "@/components/shared/project-picker";
 import { UserRepository, type PublicUser } from "@/features/users/repositories/user.repository";
 import { useBudgetsController } from "@/features/finance/budgets/controllers/budget.controllers";
+import { useProjects } from "@/features/projects/hooks/useProjects";
+import { useAuth } from "@/auth/auth-context";
 import type { CreateWorkflowInput, WorkflowTemplate } from "@/features/workflows/types/workflow.types";
+
+// Q1/H3: the one place "Project Closeout" is special-cased on the client —
+// mirrors workflows/service.ts's own rule (only Engineer/Admin, and only
+// once the project is in Closeout) so the dialog can refuse to submit
+// something the server is only going to reject anyway, instead of letting
+// the user find out from a swallowed error.
+const CLOSEOUT_TEMPLATE_NAME = "Project Closeout";
+const CLOSEOUT_ALLOWED_ROLES = new Set(["engineer", "admin"]);
 
 interface NewWorkflowDialogProps {
   open: boolean;
@@ -29,6 +39,18 @@ interface NewWorkflowDialogProps {
   templates: WorkflowTemplate[];
   creating: boolean;
   onSubmit: (input: CreateWorkflowInput) => Promise<unknown>;
+  /** Q1: the create/update error from the caller's own hook state — shown
+   * inline instead of the dialog silently closing on a rejected create. */
+  error?: Error | null;
+  /** C1: pre-select a template by exact name (e.g. from the Closeout
+   * summary card's "Start Project Closeout workflow" action). */
+  presetTemplateName?: string;
+  /** C1: pre-select a project by code, same source as presetTemplateName. */
+  presetProjectCode?: string;
+  /** C1: when true, the Template and Project fields are fixed and cannot be
+   * changed — the dialog was opened for one specific thing, not a blank
+   * "New workflow" form. */
+  lockPreset?: boolean;
 }
 
 export function NewWorkflowDialog({
@@ -37,7 +59,13 @@ export function NewWorkflowDialog({
   templates,
   creating,
   onSubmit,
+  error,
+  presetTemplateName,
+  presetProjectCode,
+  lockPreset,
 }: NewWorkflowDialogProps) {
+  const { user } = useAuth();
+  const { projects } = useProjects();
   const [title, setTitle] = useState("");
   const [projectCode, setProjectCode] = useState("");
   const [templateId, setTemplateId] = useState<string>("");
@@ -53,6 +81,51 @@ export function NewWorkflowDialog({
   const selectedTemplate = useMemo(
     () => templates.find((t) => String(t.id) === templateId) ?? null,
     [templates, templateId],
+  );
+
+  // C1: re-apply the preset every time the dialog opens, not just on first
+  // mount — the same dialog instance is reused for both the general "New
+  // workflow" button and the Closeout summary card's preset action.
+  useEffect(() => {
+    if (!open) return;
+    if (presetProjectCode) setProjectCode(presetProjectCode);
+    if (presetTemplateName) {
+      const match = templates.find((t) => t.name === presetTemplateName);
+      if (match) setTemplateId(String(match.id));
+    }
+  }, [open, presetProjectCode, presetTemplateName, templates]);
+
+  const role = user?.role;
+  const selectedProject = useMemo(
+    () => projects.find((p) => p.code === projectCode) ?? null,
+    [projects, projectCode],
+  );
+  const isCloseoutTemplate = selectedTemplate?.name === CLOSEOUT_TEMPLATE_NAME;
+
+  // Q1/H3: mirrors the server's own two Closeout preconditions exactly, so
+  // the reason shown here always matches what workflows/service.ts would
+  // actually reject with — computed client-side to disable submission
+  // rather than round-tripping to find out.
+  const closeoutBlockReason = useMemo(() => {
+    if (!isCloseoutTemplate) return null;
+    if (!role || !CLOSEOUT_ALLOWED_ROLES.has(role)) {
+      return "Only the Engineer (or Admin) can start a Project Closeout workflow.";
+    }
+    if (selectedProject && selectedProject.status !== "Closeout") {
+      return `This project isn't in the Closeout phase yet (currently "${selectedProject.status}"). Advance it to Closeout first.`;
+    }
+    return null;
+  }, [isCloseoutTemplate, role, selectedProject]);
+
+  // B2: Project Closeout only ever makes sense for Engineer/Admin — hidden
+  // from the template list for every other role rather than left visible
+  // and guaranteed to fail. Never hidden from Admin.
+  const visibleTemplates = useMemo(
+    () =>
+      templates.filter(
+        (t) => t.name !== CLOSEOUT_TEMPLATE_NAME || (role && CLOSEOUT_ALLOWED_ROLES.has(role)),
+      ),
+    [templates, role],
   );
 
   // G4: a Budget Change Request workflow needs to know which budget its
@@ -95,11 +168,11 @@ export function NewWorkflowDialog({
   };
 
   const handleSubmit = async () => {
-    if (!title || !projectCode || !templateId) return;
+    if (!title || !projectCode || !templateId || closeoutBlockReason) return;
     const cleanedAssignments = Object.fromEntries(
       Object.entries(stageAssignments).filter(([, v]) => v.trim().length > 0),
     );
-    await onSubmit({
+    const created = await onSubmit({
       title,
       projectCode,
       templateId: Number(templateId),
@@ -109,8 +182,16 @@ export function NewWorkflowDialog({
       budgetId: isBudgetChangeRequest && budgetId ? Number(budgetId) : undefined,
     });
 
-    reset();
-    onOpenChange(false);
+    // Q1: a rejected create (403/409/etc.) returns a falsy result from the
+    // caller's hook — previously reset()+close ran unconditionally here, so
+    // the dialog looked like it had succeeded no matter what the server
+    // said. Now it only resets and closes on an actual success; on failure
+    // the form stays exactly as the user left it and `error` (passed down
+    // from the caller's hook state) renders below.
+    if (created) {
+      reset();
+      onOpenChange(false);
+    }
   };
 
   return (
@@ -145,6 +226,7 @@ export function NewWorkflowDialog({
               value={projectCode}
               onChange={setProjectCode}
               className="w-full"
+              disabled={lockPreset}
             />
           </div>
 
@@ -156,12 +238,13 @@ export function NewWorkflowDialog({
                 setTemplateId(v);
                 setStageAssignments({});
               }}
+              disabled={lockPreset}
             >
               <SelectTrigger className="w-full">
                 <SelectValue placeholder="Choose a workflow template" />
               </SelectTrigger>
               <SelectContent>
-                {templates.map((t) => (
+                {visibleTemplates.map((t) => (
                   <SelectItem key={t.id} value={String(t.id)}>
                     {t.name}
                   </SelectItem>
@@ -169,6 +252,24 @@ export function NewWorkflowDialog({
               </SelectContent>
             </Select>
           </div>
+
+          {closeoutBlockReason && (
+            <p
+              role="alert"
+              className="rounded-lg border border-warning/30 bg-warning/10 px-3 py-2 text-sm text-warning"
+            >
+              {closeoutBlockReason}
+            </p>
+          )}
+
+          {error && (
+            <p
+              role="alert"
+              className="rounded-lg border border-destructive/30 bg-destructive/5 px-3 py-2 text-sm text-destructive"
+            >
+              {error.message}
+            </p>
+          )}
 
           {isBudgetChangeRequest && (
             <div className="grid gap-1.5">
@@ -265,7 +366,7 @@ export function NewWorkflowDialog({
           </Button>
           <Button
             onClick={handleSubmit}
-            disabled={creating || !title || !projectCode || !templateId}
+            disabled={creating || !title || !projectCode || !templateId || !!closeoutBlockReason}
           >
             {creating ? "Starting…" : "Start workflow"}
           </Button>

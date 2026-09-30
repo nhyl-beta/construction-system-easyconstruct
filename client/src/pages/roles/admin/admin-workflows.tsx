@@ -41,6 +41,7 @@ export default function AdminWorkflowsPage() {
     createWorkflow,
     deletingTemplateId,
     deleteTemplate,
+    clearError,
   } = useWorkflowTemplates();
   const { workflows, loading: workflowsLoading, reload, update, remove } = useActiveWorkflows();
   const [dialogOpen, setDialogOpen] = useState(false);
@@ -63,7 +64,13 @@ export default function AdminWorkflowsPage() {
           </p>
         </div>
         {canManage && (
-          <Button className="rounded-xl" onClick={() => setDialogOpen(true)}>
+          <Button
+            className="rounded-xl"
+            onClick={() => {
+              clearError();
+              setDialogOpen(true);
+            }}
+          >
             <Plus className="h-4 w-4" />
             New workflow
           </Button>
@@ -218,6 +225,7 @@ export default function AdminWorkflowsPage() {
         onOpenChange={setDialogOpen}
         templates={templates}
         creating={creating}
+        error={templatesError}
         onSubmit={async (input) => {
           const created = await createWorkflow(input);
           if (created) await reload();

@@ -128,6 +128,12 @@ export function useWorkflowTemplates() {
     [reload],
   );
 
+  // Q1: lets the New Workflow dialog start with a clean slate each time it
+  // opens, rather than immediately re-showing the previous attempt's error
+  // (which otherwise lingers in this hook's state until the next reload()
+  // or createWorkflow() call).
+  const clearError = useCallback(() => setError(null), []);
+
   return {
     templates,
     loading,
@@ -139,6 +145,7 @@ export function useWorkflowTemplates() {
     createTemplate,
     deletingTemplateId,
     deleteTemplate,
+    clearError,
   } as const;
 }
 
