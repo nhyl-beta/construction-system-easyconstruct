@@ -3,6 +3,8 @@ import { ForbiddenError, NotFoundError } from "../utils/errors.js";
 import * as notificationsService from "../notifications/service.js";
 import { assertProjectWritable, refreshProjectProgress } from "../lifecycle/service.js";
 import * as repo from "./repository.js";
+import * as projectMemberRepo from "../project-members/repository.js";
+import { assertEngineerMayUpdate } from "./permissions.js";
 import * as tasksRepo from "../tasks/repository.js";
 import { resolveDueDateAgainstMilestone } from "../tasks/service.js";
 import type {
@@ -51,8 +53,22 @@ export const create = async (input: CreateMilestoneInput, createdBy: string) => 
   return created;
 };
 
-export const update = async (id: number, input: UpdateMilestoneInput) => {
+export const update = async (
+  id: number,
+  input: UpdateMilestoneInput,
+  actor?: { id: number; role: string },
+) => {
   const existing = await getById(id);
+  // C: an Engineer may only mark an active/at-risk milestone completed, on a
+  // project they are staffed on (milestones/permissions.ts). PM/admin: unchanged.
+  if (actor?.role === "engineer") {
+    const staffed = await projectMemberRepo.findAll({
+      projectCode: existing.projectCode,
+      userId: actor.id,
+      role: "engineer",
+    });
+    assertEngineerMayUpdate(input, existing.status, staffed.length > 0);
+  }
   await assertProjectWritable(existing.projectCode);
   const updated = await repo.update(id, input);
   if (!updated) throw new NotFoundError("Milestone", String(id));
@@ -80,6 +96,15 @@ export const update = async (id: number, input: UpdateMilestoneInput) => {
         }),
       ),
     );
+    // C: the PM who owns the project is told too (the role broadcast above
+    // only reaches owner/admin).
+    if (input.status === "completed" && actor?.role !== "project-manager") {
+      await notificationsService.notifyProject(updated.projectCode, ["project-manager"], {
+        title: "Milestone completed",
+        body: `"${updated.title}" on project ${updated.projectCode} was marked completed.`,
+        link: `/projects/${encodeURIComponent(updated.projectCode)}`,
+      });
+    }
   }
 
   await refreshProjectProgress(updated.projectCode);

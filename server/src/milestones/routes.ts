@@ -25,7 +25,14 @@ router.get("/:id", controller.getById);
 const canManageMilestones = requireRole("project-manager", "admin");
 
 router.post("/", canManageMilestones, validate(createMilestoneSchema), controller.create);
-router.patch("/:id", canManageMilestones, validate(updateMilestoneSchema), controller.update);
+// C: engineer is let through the route only to mark a milestone completed;
+// which fields/statuses/projects is enforced in milestones/service.ts.
+router.patch(
+  "/:id",
+  requireRole("project-manager", "admin", "engineer"),
+  validate(updateMilestoneSchema),
+  controller.update,
+);
 router.delete("/:id", canManageMilestones, controller.remove);
 
 // F4: same guard as milestone writes, plus engineer for linkType='task' —

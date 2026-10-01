@@ -51,7 +51,11 @@ export const create = async (req: AuthedRequest, res: Response, next: NextFuncti
 export const update = async (req: AuthedRequest, res: Response, next: NextFunction) => {
   try {
     const actor = req.authUser?.name ?? req.authUser?.email ?? "unknown";
-    const data = await service.update(Number(req.params.id), req.body);
+    const data = await service.update(
+      Number(req.params.id),
+      req.body,
+      req.authUser ? { id: req.authUser.id, role: req.authUser.role } : undefined,
+    );
     await logAudit({
       entityType: "milestone",
       entityId: String(data.id),

@@ -37,6 +37,11 @@ async function unwrap<T>(promise: Promise<any>): Promise<T> {
 }
 
 export const MilestoneRepository = {
+  /** Every milestone the caller can see (the server scopes PMs to their own projects). */
+  async listAll(): Promise<Milestone[]> {
+    return unwrap<Milestone[]>(apiClient.get("/milestones"));
+  },
+
   async listByProject(projectCode: string): Promise<Milestone[]> {
     return unwrap<Milestone[]>(
       apiClient.get(`/milestones?projectCode=${encodeURIComponent(projectCode)}`),

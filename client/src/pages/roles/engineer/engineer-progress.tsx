@@ -13,6 +13,7 @@ import { EngineeringReportService } from "@/features/engineering-reports/service
 import { useProjectTaskProgress } from "@/features/tasks/hooks/use-project-task-progress";
 import { NewReportDialog, ReportStatusBadge } from "@/pages/roles/shared/shared-engineer";
 import { useAuth } from "@/auth/auth-context";
+import { EngineerMilestonesCard } from "@/features/milestones/components/EngineerMilestonesCard";
 
 export default function ProgressPage() {
   const { user } = useAuth();
@@ -69,6 +70,8 @@ export default function ProgressPage() {
             },
           ]}
         />
+
+        <EngineerMilestonesCard />
 
         <Card className="rounded-2xl border-border/70 shadow-sm">
           <CardHeader className="pb-3">
