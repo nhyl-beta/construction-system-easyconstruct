@@ -1,3 +1,4 @@
+import { FEATURES } from "@/config/features";
 import { useState } from "react";
 import { EXPIRED_NOTICE_KEY } from "@/auth/session";
 import { Link } from "react-router";
@@ -25,7 +26,7 @@ export function LoginForm() {
   const [remember, setRemember] = useState(false);
   // "?tab=1" (from the header's "Add another role") pre-ticks tab-only sign-in.
   const [tabOnly, setTabOnly] = useState(
-    () => new URLSearchParams(window.location.search).get("tab") === "1",
+    () => FEATURES.multiRoleTabs && new URLSearchParams(window.location.search).get("tab") === "1",
   );
   // Set by the AuthProvider when a session ended on its own (expired token,
   // or revoked by a password change) rather than by the user signing out.
@@ -80,7 +81,7 @@ export function LoginForm() {
           className="space-y-4"
           onSubmit={(e) => {
             e.preventDefault();
-            void submit({ email, password, remember, tabOnly });
+            void submit({ email, password, remember, tabOnly: FEATURES.multiRoleTabs && tabOnly });
           }}
         >
           <div className="space-y-2">
@@ -157,6 +158,7 @@ export function LoginForm() {
             </Label>
           </div>
 
+          {FEATURES.multiRoleTabs && (
           <div className="flex items-start gap-2">
             <Checkbox
               id="tab-only"
@@ -168,6 +170,7 @@ export function LoginForm() {
               Sign in on this tab only, so I can use a different role in another tab
             </Label>
           </div>
+          )}
 
           <Button type="submit" className="h-11 w-full" disabled={busy}>
             {status === "loading" ? (

@@ -231,12 +231,14 @@ const UserDropdown = () => {
           <UserAvatar />
         </DropdownMenuTrigger>
         <DropdownMenuContent align="end">
-          <DropdownMenuItem
-            onClick={() => window.open("/login?tab=1", "_blank", "noopener")}
-          >
-            <UserPlusIcon />
-            <span>Sign in as another role (new tab)</span>
-          </DropdownMenuItem>
+          {FEATURES.multiRoleTabs && (
+            <DropdownMenuItem
+              onClick={() => window.open("/login?tab=1", "_blank", "noopener")}
+            >
+              <UserPlusIcon />
+              <span>Sign in as another role (new tab)</span>
+            </DropdownMenuItem>
+          )}
           <DropdownMenuItem onClick={() => setConfirming(true)}>
             <LogOutIcon className={cn("text-destructive")} />
             <span className={cn("text-destructive")}>
