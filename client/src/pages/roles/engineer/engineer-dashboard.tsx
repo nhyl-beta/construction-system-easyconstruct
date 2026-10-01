@@ -1,8 +1,11 @@
+import { useState, type KeyboardEvent } from "react";
+import { Link, useNavigate } from "react-router";
 import {
   AlertTriangle,
   CheckCircle2,
   ClipboardList,
   FolderKanban,
+  ChevronRight,
   ListChecks,
   TrendingUp,
 } from "lucide-react";
@@ -15,7 +18,8 @@ import { KpiStrip } from "@/components/ui/kpi-strip";
 import { Progress } from "@/components/ui/progress";
 
 import { useEngineerDashboardController } from "@/features/dashboard/controllers/engineer-dashboard.controller";
-import { ReportStatusBadge } from "@/pages/roles/shared/shared-engineer";
+import { ReportDetailDialog, ReportStatusBadge } from "@/pages/roles/shared/shared-engineer";
+import type { EngineeringReport } from "@/features/engineering-reports/types/engineering-reports.types";
 import { useAuth } from "@/auth/auth-context";
 import { WaitingOnYouCard } from "@/features/lifecycle/components/WaitingOnYouCard";
 
@@ -23,6 +27,17 @@ export default function EngineerDashboardPage() {
   const { user } = useAuth();
   const firstName = (user?.name ?? "Engineer").split(" ")[0];
   const c = useEngineerDashboardController();
+  const navigate = useNavigate();
+  const [selectedReport, setSelectedReport] = useState<EngineeringReport | null>(null);
+
+  // An anchor already activates on Enter; Space is added so the row behaves
+  // like the button-like link it looks like.
+  const onRowKey = (e: KeyboardEvent<HTMLAnchorElement>, to: string) => {
+    if (e.key === " ") {
+      e.preventDefault();
+      navigate(to);
+    }
+  };
 
   return (
     <PageContainer>
@@ -122,22 +137,35 @@ export default function EngineerDashboardPage() {
                 </div>
               ) : (
                 <div className="divide-y divide-border/60">
-                  {c.assignedProjects.map((p) => (
-                    <div key={p.code} className="flex items-center justify-between gap-4 p-4">
+                  {c.assignedProjects.map((p) => {
+                    const to = `/projects/${encodeURIComponent(p.code)}`;
+                    return (
+                    <Link
+                      key={p.code}
+                      to={to}
+                      role="link"
+                      onKeyDown={(e) => onRowKey(e, to)}
+                      aria-label={`Open project ${p.code} ${p.name}`}
+                      className="group flex items-center justify-between gap-4 p-4 transition-colors hover:bg-muted/40 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-inset"
+                    >
                       <div className="min-w-0">
                         <div className="truncate text-sm font-medium">{p.name}</div>
                         <div className="text-xs text-muted-foreground">
                           {p.code} · PM {p.pm}
                         </div>
                       </div>
-                      <div className="flex w-32 items-center gap-2">
-                        <Progress value={p.progress} className="h-1.5" />
-                        <span className="w-9 text-xs tabular-nums text-muted-foreground">
-                          {p.progress}%
-                        </span>
+                      <div className="flex items-center gap-2">
+                        <div className="flex w-32 items-center gap-2">
+                          <Progress value={p.progress} className="h-1.5" />
+                          <span className="w-9 text-xs tabular-nums text-muted-foreground">
+                            {p.progress}%
+                          </span>
+                        </div>
+                        <ChevronRight className="h-4 w-4 shrink-0 text-muted-foreground transition-transform group-hover:translate-x-0.5" />
                       </div>
-                    </div>
-                  ))}
+                    </Link>
+                    );
+                  })}
                 </div>
               )}
             </CardContent>
@@ -156,7 +184,12 @@ export default function EngineerDashboardPage() {
               ) : (
                 <div className="divide-y divide-border/60">
                   {c.reports.recent.map((r) => (
-                    <div key={r.id} className="space-y-1 p-3.5">
+                    <button
+                      key={r.id}
+                      type="button"
+                      onClick={() => setSelectedReport(r)}
+                      className="block w-full space-y-1 p-3.5 text-left transition-colors hover:bg-muted/40 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-inset"
+                    >
                       <div className="flex items-center justify-between gap-2">
                         <span className="truncate text-xs font-medium">{r.title}</span>
                         <ReportStatusBadge status={r.status} />
@@ -164,7 +197,7 @@ export default function EngineerDashboardPage() {
                       <div className="text-[11px] text-muted-foreground">
                         {r.id} · {r.project} · {r.updatedAgo}
                       </div>
-                    </div>
+                    </button>
                   ))}
                 </div>
               )}
@@ -172,6 +205,7 @@ export default function EngineerDashboardPage() {
           </Card>
         </section>
       </PageContent>
+      <ReportDetailDialog report={selectedReport} onOpenChange={(open) => !open && setSelectedReport(null)} />
     </PageContainer>
   );
 }

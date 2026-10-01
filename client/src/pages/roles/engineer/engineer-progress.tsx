@@ -1,3 +1,4 @@
+import { useState } from "react";
 import { ClipboardList, FileSearch, FolderKanban, ShieldCheck } from "lucide-react";
 
 import { PageContainer } from "@/components/refine-ui/views/page-container";
@@ -11,7 +12,8 @@ import { useEngineeringReports } from "@/features/engineering-reports/hooks/useE
 import { PROGRESS_REPORT_TYPES } from "@/features/engineering-reports/types/engineering-reports.types";
 import { EngineeringReportService } from "@/features/engineering-reports/services/engineering-report.service";
 import { useProjectTaskProgress } from "@/features/tasks/hooks/use-project-task-progress";
-import { NewReportDialog, ReportStatusBadge } from "@/pages/roles/shared/shared-engineer";
+import { NewReportDialog, ReportDetailDialog, ReportStatusBadge } from "@/pages/roles/shared/shared-engineer";
+import type { EngineeringReport } from "@/features/engineering-reports/types/engineering-reports.types";
 import { useAuth } from "@/auth/auth-context";
 import { EngineerMilestonesCard } from "@/features/milestones/components/EngineerMilestonesCard";
 
@@ -19,6 +21,7 @@ export default function ProgressPage() {
   const { user } = useAuth();
   const { reports, loading, createReport } = useEngineeringReports("progress");
   const { byProject, loading: taskProgressLoading } = useProjectTaskProgress();
+  const [selected, setSelected] = useState<EngineeringReport | null>(null);
 
   const openInspections = reports.filter(
     (r) => r.type === "Site Inspection" && r.status !== "Approved",
@@ -129,7 +132,12 @@ export default function ProgressPage() {
             ) : (
               <div className="divide-y divide-border/60">
                 {reports.map((r) => (
-                  <div key={r.id} className="flex items-center justify-between gap-4 p-4">
+                  <button
+                    key={r.id}
+                    type="button"
+                    onClick={() => setSelected(r)}
+                    className="flex w-full items-center justify-between gap-4 p-4 text-left transition-colors hover:bg-muted/40 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-inset"
+                  >
                     <div className="min-w-0">
                       <div className="font-mono text-xs text-muted-foreground">
                         {r.id} · {r.type}
@@ -142,13 +150,14 @@ export default function ProgressPage() {
                       </div>
                     </div>
                     <ReportStatusBadge status={r.status} />
-                  </div>
+                  </button>
                 ))}
               </div>
             )}
           </CardContent>
         </Card>
       </PageContent>
+      <ReportDetailDialog report={selected} onOpenChange={(open) => !open && setSelected(null)} />
     </PageContainer>
   );
 }

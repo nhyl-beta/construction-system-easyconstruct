@@ -23,6 +23,7 @@ import {
 } from "@/components/ui/select";
 import type {
   CreateEngineeringReportInput,
+  EngineeringReport,
   EngineeringReportType,
   ReportPriority,
   ReportStatus,
@@ -67,6 +68,85 @@ export function ReportStatusBadge({ status }: { status: ReportStatus }) {
     >
       {status}
     </Badge>
+  );
+}
+
+const DETAIL_TEXT_FIELDS: { label: string; key: keyof EngineeringReport }[] = [
+  { label: "Description", key: "description" },
+  { label: "Findings", key: "findings" },
+  { label: "Measurements", key: "measurements" },
+  { label: "Observations", key: "observations" },
+  { label: "Recommendations", key: "recommendations" },
+  { label: "Required actions", key: "requiredActions" },
+];
+
+/**
+ * Read-only view of every field of an engineering report. Engineers file
+ * reports but cannot decide them, so there are deliberately no decision
+ * buttons here (the PM decides on the Approvals page).
+ */
+export function ReportDetailDialog({
+  report,
+  onOpenChange,
+}: {
+  report: EngineeringReport | null;
+  onOpenChange: (open: boolean) => void;
+}) {
+  return (
+    <Dialog open={report !== null} onOpenChange={onOpenChange}>
+      <DialogContent className="max-h-[90vh] overflow-y-auto sm:max-w-lg">
+        {report && (
+          <>
+            <DialogHeader>
+              <DialogTitle>{report.title}</DialogTitle>
+              <p className="font-mono text-xs text-muted-foreground">{report.id}</p>
+            </DialogHeader>
+            <dl className="grid grid-cols-2 gap-x-4 gap-y-3 text-sm">
+              <div>
+                <dt className="text-xs text-muted-foreground">Type</dt>
+                <dd>{report.type}</dd>
+              </div>
+              <div>
+                <dt className="text-xs text-muted-foreground">Project</dt>
+                <dd>{report.project}</dd>
+              </div>
+              <div>
+                <dt className="text-xs text-muted-foreground">Location</dt>
+                <dd>{report.location || "—"}</dd>
+              </div>
+              <div>
+                <dt className="text-xs text-muted-foreground">Date</dt>
+                <dd>{report.date || "—"}</dd>
+              </div>
+              <div>
+                <dt className="text-xs text-muted-foreground">Engineer</dt>
+                <dd>{report.engineer}</dd>
+              </div>
+              <div>
+                <dt className="text-xs text-muted-foreground">Priority</dt>
+                <dd><PriorityBadge priority={report.priority} /></dd>
+              </div>
+              <div>
+                <dt className="text-xs text-muted-foreground">Status</dt>
+                <dd><ReportStatusBadge status={report.status} /></dd>
+              </div>
+              <div>
+                <dt className="text-xs text-muted-foreground">Last updated</dt>
+                <dd>{report.updatedAgo}</dd>
+              </div>
+            </dl>
+            <div className="space-y-3">
+              {DETAIL_TEXT_FIELDS.map(({ label, key }) => (
+                <div key={key}>
+                  <div className="text-xs text-muted-foreground">{label}</div>
+                  <p className="whitespace-pre-line text-sm">{(report[key] as string | undefined)?.trim() || "—"}</p>
+                </div>
+              ))}
+            </div>
+          </>
+        )}
+      </DialogContent>
+    </Dialog>
   );
 }
 
