@@ -26,6 +26,8 @@ export const env = {
   MAIL_HOST:         process.env.MAIL_HOST ?? 'smtp.gmail.com',
   MAIL_PORT:         parseInt(process.env.MAIL_PORT ?? '465', 10),
   BLOB_READ_WRITE_TOKEN: process.env.BLOB_READ_WRITE_TOKEN,
+  // Largest file the streaming / direct-to-storage upload paths accept (MB).
+  MAX_UPLOAD_MB: Math.max(1, parseInt(process.env.MAX_UPLOAD_MB ?? "100", 10) || 100),
   // Decision-support cost comparisons (server/src/ai-validation/cost.ts)
   // convert catalog USD prices to PHP with this dated constant rather than a
   // live FX API — S-2. Every stored comparison records both fields so the

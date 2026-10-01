@@ -26,6 +26,7 @@ import { isSequencedPhase, type SequencedPhase } from "./phases.js";
 import { PROJECT_MEMBER_ROLES } from "../db/schema/project-members.js";
 import { evaluateSignals } from "../signals/index.js";
 import { FEATURES } from "../config/features.js";
+import { scopeRowsToAssigned } from "../projects/scope.js";
 
 export interface MyActionItem {
   projectCode: string;
@@ -125,7 +126,11 @@ router.use(authenticate);
 router.get("/my-actions", async (req: AuthedRequest, res, next) => {
   try {
     if (!req.authUser) throw new UnauthorizedError();
-    const data = await getMyActions({ id: req.authUser.id, role: req.authUser.role });
+    const data = await scopeRowsToAssigned(
+      req.authUser,
+      await getMyActions({ id: req.authUser.id, role: req.authUser.role }),
+      (item) => item.projectCode,
+    );
     res.json(formatSuccess(data, "Actions waiting on you retrieved"));
   } catch (err) {
     next(err);

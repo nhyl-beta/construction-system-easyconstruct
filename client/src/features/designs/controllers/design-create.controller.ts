@@ -1,7 +1,8 @@
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useNavigate } from "react-router";
 import { apiClient } from "@/services/api.client";
 import { useAuth } from "@/auth/auth-context";
+import { formatBytes, getMaxUploadBytes, uploadLargeFile } from "@/features/uploads/lib/upload-file";
 
 export interface DesignFileUpload {
   name: string;
@@ -67,15 +68,6 @@ const generateDesignCode = () => {
   return `DSN-${new Date().getFullYear()}-${rand}`;
 };
 
-function readFileAsDataUrl(file: File): Promise<string> {
-  return new Promise((resolve, reject) => {
-    const reader = new FileReader();
-    reader.onload = () => resolve(reader.result as string);
-    reader.onerror = () => reject(reader.error ?? new Error("Failed to read file"));
-    reader.readAsDataURL(file);
-  });
-}
-
 export const useDesignCreateController = () => {
   const navigate = useNavigate();
   const { user } = useAuth();
@@ -89,6 +81,14 @@ export const useDesignCreateController = () => {
   const [error, setError] = useState<string | null>(null);
   const [uploading, setUploading] = useState(false);
   const [uploadError, setUploadError] = useState<string | null>(null);
+  // The file currently uploading and how far along it is (0-100).
+  const [uploadProgress, setUploadProgress] = useState<{ name: string; pct: number } | null>(null);
+  const [maxUploadLabel, setMaxUploadLabel] = useState<string | null>(null);
+  useEffect(() => {
+    getMaxUploadBytes()
+      .then((bytes) => setMaxUploadLabel(formatBytes(bytes)))
+      .catch(() => setMaxUploadLabel(null));
+  }, []);
 
   const set = <K extends keyof DesignFormData>(key: K, value: DesignFormData[K]) =>
     setData((prev) => ({ ...prev, [key]: value }));
@@ -100,26 +100,28 @@ export const useDesignCreateController = () => {
     setUploadError(null);
     try {
       const uploaded: DesignFileUpload[] = [];
+      const failures: string[] = [];
+      // One bad file (too large, wrong type) must not throw away the others.
       for (const file of Array.from(files)) {
-        const dataUrl = await readFileAsDataUrl(file);
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        const res: any = await apiClient.post("/uploads", {
-          filename: file.name,
-          contentType: file.type || "application/octet-stream",
-          dataUrl,
-        });
-        const result = res?.data ?? res;
-        uploaded.push({ name: file.name, url: result.url });
+        setUploadProgress({ name: file.name, pct: 0 });
+        try {
+          const result = await uploadLargeFile(file, (pct) => setUploadProgress({ name: file.name, pct }));
+          uploaded.push({ name: file.name, url: result.url });
+        } catch (err) {
+          failures.push(err instanceof Error ? err.message : `${file.name}: upload failed`);
+        }
       }
-      setData((prev) => ({
-        ...prev,
-        fileUrls: [...prev.fileUrls, ...uploaded],
-        fileCount: prev.fileCount + uploaded.length,
-      }));
-    } catch (err) {
-      setUploadError(err instanceof Error ? err.message : "Failed to upload file(s).");
+      if (uploaded.length > 0) {
+        setData((prev) => ({
+          ...prev,
+          fileUrls: [...prev.fileUrls, ...uploaded],
+          fileCount: prev.fileCount + uploaded.length,
+        }));
+      }
+      if (failures.length > 0) setUploadError(failures.join(" "));
     } finally {
       setUploading(false);
+      setUploadProgress(null);
     }
   };
 
@@ -182,6 +184,8 @@ export const useDesignCreateController = () => {
     uploading,
     uploadError,
     uploadFiles,
+    uploadProgress,
+    maxUploadLabel,
     removeFile,
   };
 };

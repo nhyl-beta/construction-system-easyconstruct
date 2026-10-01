@@ -1,6 +1,7 @@
 import { Request, Response } from "express";
 import type { AuthedRequest } from "../middleware/auth.js";
 import { logAudit } from "../utils/audit.js";
+import { assertAssignedToProject, scopeRowsToAssigned } from "../projects/scope.js";
 
 import {
   proposalService,
@@ -8,11 +9,14 @@ import {
 
 export const proposalController = {
   async getAll(
-    _req: Request,
+    req: Request,
     res: Response,
   ) {
-    const data =
-      await proposalService.getAll();
+    const data = await scopeRowsToAssigned(
+      (req as AuthedRequest).authUser,
+      await proposalService.getAll(),
+      (p) => p.projectCode,
+    );
 
     return res.json({
       success: true,
@@ -28,6 +32,7 @@ export const proposalController = {
 
     const data =
       await proposalService.getById(id);
+    await assertAssignedToProject((req as AuthedRequest).authUser, data.projectCode, "proposals");
 
     return res.json({
       success: true,
@@ -51,6 +56,7 @@ export const proposalController = {
     req: AuthedRequest,
     res: Response,
   ) {
+    await assertAssignedToProject(req.authUser, req.body.projectCode, "proposals");
     const data =
       await proposalService.create(
         req.body,
@@ -75,6 +81,7 @@ export const proposalController = {
     req: AuthedRequest,
     res: Response,
   ) {
+    await assertAssignedToProject(req.authUser, req.body.projectCode, "proposals");
     const data = await proposalService.submit(
       req.body,
       req.authUser?.name ?? req.body.submittedBy ?? "unknown",
@@ -102,6 +109,9 @@ export const proposalController = {
     res: Response,
   ) {
     const id = Number(req.params.id);
+    const auth = (req as AuthedRequest).authUser;
+    await assertAssignedToProject(auth, (await proposalService.getById(id)).projectCode, "proposals");
+    if (req.body.projectCode) await assertAssignedToProject(auth, req.body.projectCode, "proposals");
 
     const data =
       await proposalService.update(
@@ -148,6 +158,11 @@ export const proposalController = {
     res: Response,
   ) {
     const id = Number(req.params.id);
+    await assertAssignedToProject(
+      (req as AuthedRequest).authUser,
+      (await proposalService.getById(id)).projectCode,
+      "proposals",
+    );
 
     const data =
       await proposalService.remove(id);

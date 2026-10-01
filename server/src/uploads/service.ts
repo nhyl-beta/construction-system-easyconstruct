@@ -11,7 +11,7 @@ import type { UploadInput, UploadResult } from "./types.js";
 
 // Same read-only-fs rule as server/src/documents/upload.ts: only os.tmpdir()
 // is writable on Vercel.
-const uploadDirectory = process.env.VERCEL
+export const uploadDirectory = process.env.VERCEL
   ? path.join(os.tmpdir(), "uploads", "generic")
   : path.resolve(process.cwd(), "uploads", "generic");
 
@@ -49,7 +49,7 @@ const ALLOWED_EXTENSIONS = [
   ".xlsx",
 ];
 
-function isAllowedUpload(mime: string, filename: string): boolean {
+export function isAllowedUpload(mime: string, filename: string): boolean {
   if (ALLOWED_PREFIXES.some((prefix) => mime.startsWith(prefix))) return true;
 
   const generic =

@@ -100,6 +100,8 @@ export default function ArchitectDesignCreate() {
           data={c.data}
           uploading={c.uploading}
           uploadError={c.uploadError}
+          uploadProgress={c.uploadProgress}
+          maxUploadLabel={c.maxUploadLabel}
           onUpload={c.uploadFiles}
           onRemove={c.removeFile}
         />
@@ -464,12 +466,16 @@ function StepFiles({
   data,
   uploading,
   uploadError,
+  uploadProgress,
+  maxUploadLabel,
   onUpload,
   onRemove,
 }: {
   data: DesignFormData;
   uploading: boolean;
   uploadError: string | null;
+  uploadProgress: { name: string; pct: number } | null;
+  maxUploadLabel: string | null;
   onUpload: (files: FileList | File[]) => Promise<void>;
   onRemove: (url: string) => void;
 }) {
@@ -478,7 +484,8 @@ function StepFiles({
       <div>
         <h3 className="text-base font-semibold">Files</h3>
         <p className="mt-1 text-sm text-muted-foreground">
-          Upload drawing sheets or supporting files (PDF or image, up to 8MB each).
+          Upload floor plans, drawing sheets or supporting files (PDF, DWG/DXF, Office documents or images
+          {maxUploadLabel ? `, up to ${maxUploadLabel} each` : ""}).
         </p>
       </div>
       <div className="space-y-3">
@@ -488,7 +495,7 @@ function StepFiles({
           <input
             type="file"
             multiple
-            accept="application/pdf,image/*"
+            accept=".pdf,.dwg,.dxf,.rvt,.ifc,.skp,.doc,.docx,.xls,.xlsx,.ppt,.pptx,.png,.jpg,.jpeg,.gif,.webp,.tif,.tiff"
             className="hidden"
             disabled={uploading}
             onChange={(e) => {
@@ -498,7 +505,23 @@ function StepFiles({
           />
         </label>
 
-        {uploadError && <p className="text-xs text-destructive">{uploadError}</p>}
+        {uploadProgress && (
+          <div className="space-y-1" role="status" aria-live="polite">
+            <div className="flex justify-between text-xs text-muted-foreground">
+              <span className="truncate">{uploadProgress.name}</span>
+              <span className="tabular-nums">{uploadProgress.pct}%</span>
+            </div>
+            <div className="h-1.5 overflow-hidden rounded-full bg-muted">
+              <div className="h-full bg-primary transition-all" style={{ width: `${uploadProgress.pct}%` }} />
+            </div>
+          </div>
+        )}
+
+        {uploadError && (
+          <p role="alert" className="text-xs text-destructive">
+            {uploadError}
+          </p>
+        )}
 
         {data.fileUrls.length > 0 && (
           <ul className="space-y-1.5">

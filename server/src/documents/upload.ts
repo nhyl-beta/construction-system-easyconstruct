@@ -1,3 +1,4 @@
+import { maxUploadBytes } from "../uploads/limits.js";
 import multer from "multer";
 import os from "node:os";
 import path from "node:path";
@@ -70,7 +71,7 @@ export const advisoryDocumentUpload = multer({
   storage,
 
   limits: {
-    fileSize: 10 * 1024 * 1024,
+    fileSize: maxUploadBytes(),
   },
 
   fileFilter: (_req, file, cb) => {

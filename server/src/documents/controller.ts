@@ -7,6 +7,7 @@ import { formatSuccess } from "../utils/response.js";
 import { logAudit } from "../utils/audit.js";
 
 import * as service from "./service.js";
+import { assignedCodesFor, isAssignedScoped } from "../projects/scope.js";
 
 import type { AuthedRequest } from "../middleware/auth.js";
 
@@ -19,7 +20,9 @@ export const getAll = async (
     const projectCodes =
       req.authUser?.role === "project-manager"
         ? await service.findProjectCodesForPm(req.authUser.name)
-        : undefined;
+        : isAssignedScoped(req.authUser)
+          ? [...(await assignedCodesFor(req.authUser))]
+          : undefined;
 
     const data = await service.getAll({
       project: req.query.project as string,

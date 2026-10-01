@@ -1,5 +1,9 @@
 import { NextFunction, Response } from "express";
 import { pipeline } from "node:stream/promises";
+import { handleUpload, type HandleUploadBody } from "@vercel/blob/client";
+import { env } from "../config/env.js";
+import { AppError } from "../utils/errors.js";
+import { formatLimit, hasAllowedExtension, maxUploadBytes } from "./limits.js";
 import { ValidationError } from "../utils/errors.js";
 import { HTTP } from "../constants/http-status.js";
 import { formatSuccess } from "../utils/response.js";
@@ -10,6 +14,73 @@ export const upload = async (req: AuthedRequest, res: Response, next: NextFuncti
   try {
     const data = await service.uploadFile(req.body);
     res.status(HTTP.CREATED).json(formatSuccess(data, "File uploaded"));
+  } catch (err) {
+    next(err);
+  }
+};
+
+// GET /api/uploads/config — what the browser needs to pick an upload path:
+// "blob" = upload straight to Vercel Blob with a short-lived token (the only
+// way past the ~4.5 MB request limit of serverless functions), "disk" =
+// multipart stream to this server (local development).
+export const config = (_req: AuthedRequest, res: Response, next: NextFunction) => {
+  try {
+    res.json(
+      formatSuccess(
+        { maxBytes: maxUploadBytes(), mode: env.BLOB_READ_WRITE_TOKEN ? "blob" : "disk" },
+        "Upload configuration",
+      ),
+    );
+  } catch (err) {
+    next(err);
+  }
+};
+
+// POST /api/uploads/stream (multipart, field "file") — streamed to disk.
+export const uploadStreamed = (req: AuthedRequest, res: Response, next: NextFunction) => {
+  try {
+    if (!req.file) throw new ValidationError("Choose a file to upload");
+    res.status(HTTP.CREATED).json(
+      formatSuccess(
+        {
+          url: `/uploads/generic/${req.file.filename}`,
+          filename: req.file.originalname,
+          contentType: req.file.mimetype || "application/octet-stream",
+          sizeBytes: req.file.size,
+        },
+        "File uploaded",
+      ),
+    );
+  } catch (err) {
+    next(err);
+  }
+};
+
+// POST /api/uploads/client-token — issues the short-lived token the browser
+// uses to upload directly to the (private) Blob store. The caller is already
+// authenticated by the router; size and type limits are fixed here so the
+// browser cannot choose its own.
+export const clientToken = async (req: AuthedRequest, res: Response, next: NextFunction) => {
+  try {
+    if (!env.BLOB_READ_WRITE_TOKEN) {
+      throw new AppError(501, "BLOB_NOT_CONFIGURED", "Direct uploads are not configured on this server");
+    }
+    const json = await handleUpload({
+      token: env.BLOB_READ_WRITE_TOKEN,
+      request: req,
+      body: req.body as HandleUploadBody,
+      onBeforeGenerateToken: async (pathname) => {
+        if (!hasAllowedExtension(pathname)) {
+          throw new ValidationError(`Unsupported file type: ${pathname}`);
+        }
+        return {
+          maximumSizeInBytes: maxUploadBytes(),
+          addRandomSuffix: true,
+          tokenPayload: JSON.stringify({ userId: req.authUser?.id ?? null, limit: formatLimit(maxUploadBytes()) }),
+        };
+      },
+    });
+    res.json(json);
   } catch (err) {
     next(err);
   }

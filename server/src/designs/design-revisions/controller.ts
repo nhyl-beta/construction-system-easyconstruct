@@ -4,19 +4,26 @@ import { HTTP } from "../../constants/http-status.js";
 import { MSG } from "../../constants/messages.js";
 import { formatSuccess } from "../../utils/response.js";
 import * as service from "./service.js";
+import type { AuthedRequest } from "../../middleware/auth.js";
+import { assertAssignedToDesign, scopeRowsByDesign } from "../../projects/scope.js";
 
 export const getAll = async (req: Request, res: Response, next: NextFunction) => {
   try {
-    const data = await service.getAll({
-      designId: req.query.designId ? Number(req.query.designId) : undefined,
-      status: req.query.status as string,
-    });
+    const data = await scopeRowsByDesign(
+      (req as AuthedRequest).authUser,
+      await service.getAll({
+        designId: req.query.designId ? Number(req.query.designId) : undefined,
+        status: req.query.status as string,
+      }),
+      (r) => r.designId,
+    );
     res.json(formatSuccess(data, MSG.designRevisions.retrieved));
   } catch (err) { next(err); }
 };
 export const getById = async (req: Request, res: Response, next: NextFunction) => {
   try {
     const data = await service.getById(Number(req.params.id));
+    await assertAssignedToDesign((req as AuthedRequest).authUser, data.designId, "design revisions");
     res.json(formatSuccess(data, MSG.designRevisions.single));
   } catch (err) { next(err); }
 };

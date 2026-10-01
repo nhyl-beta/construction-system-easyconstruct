@@ -4,20 +4,32 @@ import { HTTP } from "../constants/http-status.js";
 import { MSG } from "../constants/messages.js";
 import { formatSuccess } from "../utils/response.js";
 import * as service from "./service.js";
+import type { AuthedRequest } from "../middleware/auth.js";
+import { assertAssignedToDesign, assertAssignedToProject, scopeRowsByDesign } from "../projects/scope.js";
 
 export const getAll = async (req: Request, res: Response, next: NextFunction) => {
   try {
-    const data = await service.getAll({
-      folder: req.query.folder as string,
-      search: req.query.search as string,
-      projectCode: req.query.projectCode as string,
-    });
+    const data = await scopeRowsByDesign(
+      (req as AuthedRequest).authUser,
+      await service.getAll({
+        folder: req.query.folder as string,
+        search: req.query.search as string,
+        projectCode: req.query.projectCode as string,
+      }),
+      (b) => b.designId,
+      (b) => b.projectCode,
+    );
     res.json(formatSuccess(data, MSG.blueprints.retrieved));
   } catch (err) { next(err); }
 };
 export const getById = async (req: Request, res: Response, next: NextFunction) => {
-  try { res.json(formatSuccess(await service.getById(Number(req.params.id)), MSG.blueprints.single)); }
-  catch (err) { next(err); }
+  try {
+    const bp = await service.getById(Number(req.params.id));
+    const auth = (req as AuthedRequest).authUser;
+    if (bp.projectCode) await assertAssignedToProject(auth, bp.projectCode, "blueprints");
+    else await assertAssignedToDesign(auth, bp.designId, "blueprints");
+    res.json(formatSuccess(bp, MSG.blueprints.single));
+  } catch (err) { next(err); }
 };
 export const create = async (req: Request, res: Response, next: NextFunction) => {
   try {
