@@ -115,10 +115,3 @@ export async function findPayroll(period?: string) {
     : db.select().from(payroll).orderBy(desc(payroll.createdAt), payroll.name);
 }
 
-export async function deletePayrollPeriod(period: string) {
-  await db.delete(payroll).where(eq(payroll.period, period));
-}
-
-export async function insertPayroll(data: (typeof payroll.$inferInsert)[]) {
-  return data.length ? db.insert(payroll).values(data).returning() : [];
-}

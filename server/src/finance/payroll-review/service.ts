@@ -1,51 +1,24 @@
 import * as repository from "./repository.js";
-import * as budgetRepo from "../budget/repository.js";
+import * as payrollService from "../../payroll/service.js";
 import { NotFoundError } from "../../utils/errors.js";
-import { refreshProjectProgress } from "../../lifecycle/service.js";
 
-// G5: what an approved batch's labor cost is booked against — every
-// budget seeded for a project's labor spend uses this category name.
-const LABOR_BUDGET_CATEGORY = "Labor";
+import type { PayrollBatchFilters } from "./types.js";
+import type { DecideBatchInput } from "../../payroll/types.js";
 
-import type {
-  PayrollBatchFilters,
-  CreatePayrollBatchInput,
-  DecidePayrollBatchInput,
-} from "./types.js";
-
-export const listPayrollBatches = (filters: PayrollBatchFilters) =>
-  repository.findAll(filters);
+// Finance never sees a batch HR is still drafting.
+export const listPayrollBatches = async (filters: PayrollBatchFilters) =>
+  (await repository.findAll(filters)).filter((b) => b.status !== "draft");
 
 export const getPayrollBatch = async (id: string) => {
   const batch = await repository.findById(id);
-  if (!batch) throw new NotFoundError("Payroll batch", id);
+  if (!batch || batch.status === "draft") throw new NotFoundError("Payroll batch", id);
   return batch;
 };
 
-export const createPayrollBatch = async (input: CreatePayrollBatchInput) => {
-  const created = await repository.create({ status: "pending", ...input });
-  if (created.projectCode) await refreshProjectProgress(created.projectCode);
-  return created;
-};
-
+// The decision itself (status guard, history row, Labor budget booking) is one
+// transaction in the payroll service.
 export const decidePayrollBatch = async (
   id: string,
-  input: DecidePayrollBatchInput,
-) => {
-  await getPayrollBatch(id); // throws NotFoundError if missing
-  const decided = await repository.decide(id, input.decision, input.reviewedBy, input.comment);
-  // Gate X3 reads whether an approved-since-Closeout batch exists and
-  // whether any batch is still pending.
-  if (decided?.projectCode) await refreshProjectProgress(decided.projectCode);
-
-  // G5: an approved batch's gross payroll is this project's Labor spend —
-  // add it to that budget's actual (spent) if one exists for the project.
-  if (decided && input.decision === "approved" && decided.projectCode) {
-    const budget = await budgetRepo.findByProjectAndCategory(decided.projectCode, LABOR_BUDGET_CATEGORY);
-    if (budget) {
-      await budgetRepo.update(budget.id, { spent: budget.spent + Number(decided.grossPayroll) });
-    }
-  }
-
-  return decided;
-};
+  input: DecideBatchInput,
+  actor: payrollService.Actor,
+) => payrollService.decideBatch(id, input, actor);

@@ -1,17 +1,89 @@
-import { desc, eq } from "drizzle-orm";
+import { and, desc, eq, inArray, ne } from "drizzle-orm";
 import { db } from "../db/connection.js";
 import { payrollBatches } from "../db/schema/finance.js";
+import { payrollBatchDecisions } from "../db/schema/payroll.js";
+import type { Db } from "./repository.js";
+
+export type BatchRow = typeof payrollBatches.$inferSelect;
 
 export const findAll = async () => {
   return await db.select().from(payrollBatches).orderBy(desc(payrollBatches.createdAt));
 };
 
-export const findById = async (id: string) => {
-  const [row] = await db.select().from(payrollBatches).where(eq(payrollBatches.id, id));
+export const findById = async (id: string, client: Db = db) => {
+  const [row] = await client.select().from(payrollBatches).where(eq(payrollBatches.id, id));
   return row ?? null;
 };
 
-export const create = async (data: typeof payrollBatches.$inferInsert) => {
-  const [created] = await db.insert(payrollBatches).values(data).returning();
+// Other batches (any status except `excludeId`) for the same project + period.
+export const findSameProjectPeriod = async (
+  projectCode: string,
+  period: string,
+  excludeId?: string,
+) => {
+  const rows = await db
+    .select()
+    .from(payrollBatches)
+    .where(and(eq(payrollBatches.projectCode, projectCode), eq(payrollBatches.period, period)));
+  return excludeId ? rows.filter((r) => r.id !== excludeId) : rows;
+};
+
+export const create = async (data: typeof payrollBatches.$inferInsert, client: Db = db) => {
+  const [created] = await client.insert(payrollBatches).values(data).returning();
   return created;
+};
+
+export const update = async (
+  id: string,
+  data: Partial<typeof payrollBatches.$inferInsert>,
+  client: Db = db,
+) => {
+  const [updated] = await client
+    .update(payrollBatches)
+    .set(data)
+    .where(eq(payrollBatches.id, id))
+    .returning();
+  return updated ?? null;
+};
+
+/**
+ * Compare-and-set a status change: only succeeds while the batch is still in
+ * `from`. This is what makes two concurrent decisions on one batch safe —
+ * exactly one UPDATE matches the row.
+ */
+export const transition = async (
+  id: string,
+  from: string[],
+  data: Partial<typeof payrollBatches.$inferInsert>,
+  client: Db = db,
+) => {
+  const [row] = await client
+    .update(payrollBatches)
+    .set(data)
+    .where(and(eq(payrollBatches.id, id), inArray(payrollBatches.status, from)))
+    .returning();
+  return row ?? null;
+};
+
+export const removeBatch = async (id: string, client: Db = db) => {
+  const [deleted] = await client
+    .delete(payrollBatches)
+    .where(and(eq(payrollBatches.id, id), ne(payrollBatches.status, "approved")))
+    .returning();
+  return deleted ?? null;
+};
+
+export const findDecisions = async (batchId: string) =>
+  db
+    .select()
+    .from(payrollBatchDecisions)
+    .where(eq(payrollBatchDecisions.batchId, batchId))
+    .orderBy(payrollBatchDecisions.round, payrollBatchDecisions.id);
+
+export const insertDecision = async (
+  data: typeof payrollBatchDecisions.$inferInsert,
+  client: Db = db,
+) => {
+  const [row] = await client.insert(payrollBatchDecisions).values(data).returning();
+  return row;
 };

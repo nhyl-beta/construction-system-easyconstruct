@@ -8,41 +8,56 @@ import { ValidationError } from "../utils/errors.js";
 import * as service from "./service.js";
 import type { PayrollFilters } from "./types.js";
 
+const actorOf = (req: AuthedRequest): service.Actor => ({
+  name: req.authUser?.name ?? "unknown",
+  role: req.authUser?.role ?? "",
+});
+
+const idParam = (req: Request) => String(req.params.id);
+
 // ── Tracksheet (per-employee lines) ─────────────────────────────────────────
 
-export const getAll = async (req: Request, res: Response, next: NextFunction) => {
+export const getAll = async (req: AuthedRequest, res: Response, next: NextFunction) => {
   try {
     const filters: PayrollFilters = {
       period: req.query.period as string,
       status: req.query.status as string,
       empId: req.query.empId as string,
+      batchId: req.query.batchId as string,
     };
-    const data = await service.getAll(filters);
+    const data = await service.getAll(filters, actorOf(req));
     res.json(formatSuccess(data, MSG.payroll.retrieved));
   } catch (err) {
     next(err);
   }
 };
 
-export const getById = async (req: Request, res: Response, next: NextFunction) => {
+export const getById = async (req: AuthedRequest, res: Response, next: NextFunction) => {
   try {
-    const data = await service.getById(Number(req.params.id));
+    const data = await service.getById(Number(req.params.id), actorOf(req));
     res.json(formatSuccess(data, MSG.payroll.single));
   } catch (err) {
     next(err);
   }
 };
 
-export const update = async (req: Request, res: Response, next: NextFunction) => {
+export const update = async (req: AuthedRequest, res: Response, next: NextFunction) => {
   try {
     const data = await service.update(Number(req.params.id), req.body);
+    await logAudit({
+      entityType: "payroll_batch",
+      entityId: data.batchId ?? String(data.id),
+      action: "line_updated",
+      actor: actorOf(req).name,
+      summary: `Recomputed payroll line for ${data.empId}`,
+    });
     res.json(formatSuccess(data, MSG.payroll.updated));
   } catch (err) {
     next(err);
   }
 };
 
-export const remove = async (req: Request, res: Response, next: NextFunction) => {
+export const remove = async (req: AuthedRequest, res: Response, next: NextFunction) => {
   try {
     const data = await service.remove(Number(req.params.id));
     res.json(formatSuccess(data, MSG.payroll.deleted));
@@ -67,33 +82,97 @@ export const getAttendanceSummary = async (req: Request, res: Response, next: Ne
   }
 };
 
-// ── Generate (Tracksheet → Gross Labor → Gross Tracking) ────────────────────
+// ── Generate (draft batch with server-computed lines) ───────────────────────
 
 export const generate = async (req: AuthedRequest, res: Response, next: NextFunction) => {
   try {
-    const data = await service.generate(req.body);
+    const data = await service.generate(req.body, actorOf(req));
     await logAudit({
       entityType: "payroll_batch",
       entityId: data.batch.id,
       action: "created",
-      actor: req.authUser?.name ?? "unknown",
+      actor: actorOf(req).name,
       summary: `Generated payroll for ${data.batch.period} (${data.lines.length} employees)`,
       projectCode: data.batch.projectCode ?? undefined,
     });
-    res
-      .status(HTTP.CREATED)
-      .json(formatSuccess(data, "Payroll generated"));
+    res.status(HTTP.CREATED).json(formatSuccess(data, "Payroll generated"));
   } catch (err) {
     next(err);
   }
 };
 
-// ── Gross Tracking (batch rollups) ──────────────────────────────────────────
+// ── Batches ─────────────────────────────────────────────────────────────────
 
-export const listBatches = async (req: Request, res: Response, next: NextFunction) => {
+export const listBatches = async (req: AuthedRequest, res: Response, next: NextFunction) => {
   try {
-    const data = await service.listBatches();
+    const data = await service.listBatches(actorOf(req));
     res.json(formatSuccess(data, MSG.payrollBatches.retrieved));
+  } catch (err) {
+    next(err);
+  }
+};
+
+export const getBatch = async (req: AuthedRequest, res: Response, next: NextFunction) => {
+  try {
+    const data = await service.getBatchDetail(idParam(req), actorOf(req));
+    res.json(formatSuccess(data, MSG.payrollBatches.single));
+  } catch (err) {
+    next(err);
+  }
+};
+
+export const getBatchValidation = async (req: Request, res: Response, next: NextFunction) => {
+  try {
+    res.json(formatSuccess(await service.getBatchValidation(idParam(req)), "Validation complete"));
+  } catch (err) {
+    next(err);
+  }
+};
+
+export const addLine = async (req: Request, res: Response, next: NextFunction) => {
+  try {
+    const data = await service.addLine(idParam(req), req.body);
+    res.status(HTTP.CREATED).json(formatSuccess(data, MSG.payroll.created));
+  } catch (err) {
+    next(err);
+  }
+};
+
+export const submitBatch = async (req: AuthedRequest, res: Response, next: NextFunction) => {
+  try {
+    const data = await service.submitBatch(idParam(req), req.body, actorOf(req));
+    await logAudit({
+      entityType: "payroll_batch",
+      entityId: data.id,
+      action: "submitted",
+      actor: actorOf(req).name,
+      summary: `Payroll batch ${data.id} submitted to Finance (round ${data.round})`,
+      projectCode: data.projectCode ?? undefined,
+    });
+    res.json(formatSuccess(data, "Payroll batch submitted to Finance"));
+  } catch (err) {
+    next(err);
+  }
+};
+
+export const removeBatch = async (req: Request, res: Response, next: NextFunction) => {
+  try {
+    res.json(formatSuccess(await service.removeBatch(idParam(req)), MSG.payrollBatches.deleted));
+  } catch (err) {
+    next(err);
+  }
+};
+
+// ── Contribution reports ────────────────────────────────────────────────────
+
+export const contributionReport = async (req: Request, res: Response, next: NextFunction) => {
+  try {
+    const agency = req.query.agency;
+    const period = req.query.period as string | undefined;
+    if (!service.isAgency(agency))
+      throw new ValidationError("agency must be sss, philhealth or pagibig");
+    if (!period) throw new ValidationError("period is required");
+    res.json(formatSuccess(await service.contributionReport(agency, period), "Contribution report"));
   } catch (err) {
     next(err);
   }

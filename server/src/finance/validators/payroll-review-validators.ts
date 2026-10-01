@@ -1,20 +1,22 @@
 import { z } from "zod";
+import { REJECTION_REASONS } from "../../payroll/types.js";
 
-export const createPayrollBatchSchema = z.object({
-  id: z.string().min(2).max(32),
-  projectCode: z.string().max(50).optional(),
-  period: z.string().min(1).max(32),
-  group: z.string().min(1).max(128),
-  employees: z.number().int().nonnegative(),
-  overtimeHours: z.number().nonnegative().optional(),
-  grossPayroll: z.number().nonnegative(),
-  deductions: z.number().nonnegative().optional(),
-  netPayroll: z.number().nonnegative(),
-  status: z.enum(["pending", "approved", "rejected", "processing"]).optional(),
-});
+// There is intentionally no create schema: batches only come from the payroll
+// generator, never from typed-in totals.
 
-export const decidePayrollBatchSchema = z.object({
-  decision: z.enum(["approved", "rejected"]),
-  reviewedBy: z.string().min(2).max(255),
-  comment: z.string().max(2000).optional(),
-});
+export const decidePayrollBatchSchema = z
+  .object({
+    decision: z.enum(["approved", "rejected"]),
+    reasonCode: z.enum(REJECTION_REASONS).optional(),
+    comment: z.string().max(2000).optional(),
+    // Accepted for backward compatibility; the reviewer is always the
+    // authenticated user, never this value.
+    reviewedBy: z.string().max(255).optional(),
+  })
+  .superRefine((v, ctx) => {
+    if (v.decision !== "rejected") return;
+    if (!v.reasonCode)
+      ctx.addIssue({ code: "custom", path: ["reasonCode"], message: "A rejection reason is required" });
+    else if (v.reasonCode === "other" && !v.comment?.trim())
+      ctx.addIssue({ code: "custom", path: ["comment"], message: "A comment is required when the reason is Other" });
+  });

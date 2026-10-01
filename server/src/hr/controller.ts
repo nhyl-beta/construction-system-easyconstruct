@@ -92,11 +92,6 @@ export const deleteAttendance = async (req: Request, res: Response, next: NextFu
   catch (error) { next(error); }
 };
 
-export const generatePayroll = async (req: Request, res: Response, next: NextFunction) => {
-  try { res.status(HTTP.CREATED).json(formatSuccess(await service.generatePayroll(req.body), "Payroll generated")); }
-  catch (error) { next(error); }
-};
-
 export const listPayroll = async (req: Request, res: Response, next: NextFunction) => {
   try {
     const query = parseQuery(payrollQuerySchema, req.query);

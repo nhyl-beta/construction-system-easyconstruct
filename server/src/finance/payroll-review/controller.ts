@@ -48,38 +48,28 @@ export const getPayrollBatch = async (
   }
 };
 
-export const createPayrollBatch = async (
-  req: Request,
-  res: Response,
-  next: NextFunction,
-) => {
-  try {
-    const batch = await service.createPayrollBatch(req.body);
-
-    return sendSuccess(res, batch, 201, "Payroll batch created");
-  } catch (err) {
-    return next(err);
-  }
-};
-
 export const decidePayrollBatch = async (
   req: AuthedRequest & Request<PayrollBatchParams>,
   res: Response,
   next: NextFunction,
 ) => {
   try {
-    const batch = await service.decidePayrollBatch(
-      req.params.id,
-      req.body,
-    );
+    const actor = {
+      name: req.authUser?.name ?? "unknown",
+      role: req.authUser?.role ?? "",
+    };
+    const { reviewedBy: _ignored, ...input } = req.body;
+    const batch = await service.decidePayrollBatch(req.params.id, input, actor);
 
     await logAudit({
       entityType: "payroll_batch",
       entityId: req.params.id,
       action: req.body.decision,
-      actor: req.authUser?.name ?? req.body.reviewedBy ?? "unknown",
-      summary: `Payroll batch ${req.params.id} ${req.body.decision}`,
-      projectCode: batch?.projectCode ?? undefined,
+      actor: actor.name,
+      summary: `Payroll batch ${req.params.id} ${req.body.decision}${
+        req.body.reasonCode ? ` (${req.body.reasonCode})` : ""
+      }`,
+      projectCode: batch.projectCode ?? undefined,
     });
 
     return sendSuccess(

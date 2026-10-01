@@ -409,7 +409,7 @@ export const payrollBatches = pgTable("payroll_batches", {
 
   status: varchar("status", { length: 32 })
     .notNull()
-    .default("pending"), // pending | approved | rejected | processing
+    .default("pending"), // draft | pending | approved | revision_required
 
   reviewedBy: varchar("reviewed_by", { length: 255 }),
 
@@ -419,6 +419,22 @@ export const payrollBatches = pgTable("payroll_batches", {
   // (required on reject, enforced client-side) — was accepted by the API
   // (DecidePayrollBatchInput.comment) but never persisted at all before this.
   reviewNote: text("review_note"),
+
+  // Submission round: starts at 1, +1 each time HR resubmits after a
+  // rejection. Finance decisions are recorded against it.
+  round: integer("round").notNull().default(1),
+
+  // Total employer labor cost (gross + employer statutory contributions) —
+  // what an approval books against the project's Labor budget.
+  employerCost: numeric("employer_cost", {
+    precision: 14,
+    scale: 2,
+    mode: "number",
+  })
+    .default(0)
+    .notNull(),
+
+  submittedAt: timestamp("submitted_at"),
 
   createdAt: timestamp("created_at").defaultNow().notNull(),
 });

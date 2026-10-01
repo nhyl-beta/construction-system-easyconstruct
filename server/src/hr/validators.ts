@@ -44,12 +44,6 @@ export const attendanceQuerySchema = z.object({
   status: z.enum(["Verified", "Pending", "Flagged"]).optional(),
 });
 
-export const payrollGenerateSchema = z.object({
-  periodStart: dateString,
-  periodEnd: dateString,
-  deductionRate: z.coerce.number().min(0).max(1).optional(),
-});
-
 export const payrollQuerySchema = z.object({
   period: z.string().trim().max(50).optional(),
   periodStart: dateString.optional(),
@@ -66,5 +60,4 @@ export type UpdateEmployeeInput = z.infer<typeof updateEmployeeSchema>;
 export type AttendanceInput = z.infer<typeof attendanceSchema>;
 export type UpdateAttendanceInput = z.infer<typeof updateAttendanceSchema>;
 export type AttendanceQuery = z.infer<typeof attendanceQuerySchema>;
-export type PayrollGenerateInput = z.infer<typeof payrollGenerateSchema>;
 export type PayrollQuery = z.infer<typeof payrollQuerySchema>;
