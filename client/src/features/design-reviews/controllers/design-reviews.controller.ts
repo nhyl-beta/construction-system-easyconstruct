@@ -2,10 +2,14 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { apiClient } from "@/services/api.client";
 import type { DesignReview } from "../types/design-review.types";
+import type { Design } from "@/features/designs/types/design.types";
 
 export const useDesignReviewsController = () => {
   const [reviews, setReviews] = useState<DesignReview[]>([]);
   const [loading, setLoading] = useState(true);
+  // Joined client-side so a review row can show the design's name, project and
+  // files (GET /designs is open to every authenticated role).
+  const [designsById, setDesignsById] = useState<Record<number, Design>>({});
   const [tab, setTab] = useState<"pending" | "approved" | "rejected">("pending");
 
   // Was raw fetch() with no Authorization header — authenticate() has always
@@ -22,6 +26,17 @@ export const useDesignReviewsController = () => {
   }, []);
 
   useEffect(() => { fetchReviews(); }, [fetchReviews]);
+
+  useEffect(() => {
+    apiClient
+      .get("/designs")
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      .then((json: any) => {
+        const rows: Design[] = json?.data ?? [];
+        setDesignsById(Object.fromEntries(rows.map((d) => [d.id, d])));
+      })
+      .catch((err) => console.error(err));
+  }, []);
 
   const decide = async (id: number, decision: "Approved" | "Rejected" | "Changes Requested") => {
     await apiClient.post(`/design-reviews/${id}/decide`, { decision });
@@ -51,5 +66,5 @@ export const useDesignReviewsController = () => {
     return reviews.filter((r) => r.status === "Rejected");
   }, [reviews, tab]);
 
-  return { reviews, filtered, loading, tab, setTab, decide, create };
+  return { reviews, filtered, designsById, loading, tab, setTab, decide, create };
 };

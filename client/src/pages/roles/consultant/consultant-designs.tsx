@@ -19,6 +19,9 @@ import {
 } from "@/components/ui/table";
 import { useDesigns } from "@/features/designs/hooks/useDesigns";
 import { PencilRuler, Search } from "lucide-react";
+import { useState } from "react";
+import { DesignDetailDialog } from "@/features/designs/components/DesignDetailDialog";
+import type { Design } from "@/features/designs/types/design.types";
 
 // Consultant's advisory remit covers the designs behind the proposals they
 // review, but the role had no designs screen at all — the register existed
@@ -26,8 +29,10 @@ import { PencilRuler, Search } from "lucide-react";
 // same /api/designs data (the endpoint is authenticate-only, no role filter)
 // rendered read-only: no create, no row navigation into the editable detail
 // page, and the assigned engineers surfaced since that is the review contact.
+// A row opens a read-only detail dialog (description + attached files).
 export default function ConsultantDesigns() {
   const c = useDesigns();
+  const [selected, setSelected] = useState<Design | null>(null);
 
   return (
     <div className="flex-1 space-y-6 p-4 md:p-8">
@@ -90,7 +95,20 @@ export default function ConsultantDesigns() {
           </TableHeader>
           <TableBody>
             {c.designs.map((d) => (
-              <TableRow key={d.id}>
+              <TableRow
+                key={d.id}
+                tabIndex={0}
+                role="button"
+                aria-label={`Open design ${d.name}`}
+                className="cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                onClick={() => setSelected(d)}
+                onKeyDown={(e) => {
+                  if (e.key === "Enter" || e.key === " ") {
+                    e.preventDefault();
+                    setSelected(d);
+                  }
+                }}
+              >
                 <TableCell>
                   <div className="text-sm font-medium">{d.name}</div>
                   <div className="font-mono text-[11px] text-muted-foreground">
@@ -120,6 +138,8 @@ export default function ConsultantDesigns() {
           </TableBody>
         </Table>
       )}
+
+      <DesignDetailDialog design={selected} onOpenChange={(open) => !open && setSelected(null)} />
     </div>
   );
 }

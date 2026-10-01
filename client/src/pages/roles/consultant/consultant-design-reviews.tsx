@@ -4,6 +4,7 @@ import { Button } from "@/components/ui/button";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import { Check, X, Send } from "lucide-react";
 import { useDesignReviews } from "@/features/design-reviews/hooks/useDesignReviews";
+import { DesignFileLinks } from "@/features/designs/components/DesignFileLinks";
 
 // E1/E2: deciding a design review (Approved/Rejected/Changes Requested) is
 // the Consultant's call, enforced server-side (design-reviews/routes.ts:
@@ -40,9 +41,19 @@ export default function ConsultantDesignReviews() {
                   <div className="flex items-center justify-between">
                     <div>
                       <span className="font-mono text-xs text-muted-foreground">{r.code}</span>
-                      <span className="ml-2 text-sm font-medium">Design #{r.designId}</span>
+                      <span className="ml-2 text-sm font-medium">
+                        {c.designsById[r.designId]?.name ?? `Design #${r.designId}`}
+                      </span>
+                      {c.designsById[r.designId] && (
+                        <span className="ml-2 text-xs text-muted-foreground">
+                          {c.designsById[r.designId]!.projectCode}
+                        </span>
+                      )}
                     </div>
                     <StatusBadge status={r.status} />
+                  </div>
+                  <div className="mt-2">
+                    <DesignFileLinks files={c.designsById[r.designId]?.fileUrls} />
                   </div>
                   <div className="mt-1 flex flex-wrap items-center gap-3 text-[11px] text-muted-foreground">
                     <span>{r.discipline ?? "—"}</span>
