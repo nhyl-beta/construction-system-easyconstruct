@@ -4,7 +4,7 @@ import { Button } from "@/components/ui/button";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import { Check, X, Send } from "lucide-react";
 import { useDesignReviews } from "@/features/design-reviews/hooks/useDesignReviews";
-import { DesignFileLinks } from "@/features/designs/components/DesignFileLinks";
+import { SubmittedFiles, fileTypeLabel } from "@/components/shared/submitted-files";
 
 // E1/E2: deciding a design review (Approved/Rejected/Changes Requested) is
 // the Consultant's call, enforced server-side (design-reviews/routes.ts:
@@ -53,7 +53,16 @@ export default function ConsultantDesignReviews() {
                     <StatusBadge status={r.status} />
                   </div>
                   <div className="mt-2">
-                    <DesignFileLinks files={c.designsById[r.designId]?.fileUrls} />
+                    <SubmittedFiles
+                      compact
+                      emptyText="No files attached to this design."
+                      files={(c.designsById[r.designId]?.fileUrls ?? []).map((f) => ({
+                        key: f.url,
+                        name: f.name,
+                        url: f.url,
+                        meta: fileTypeLabel(f.name),
+                      }))}
+                    />
                   </div>
                   <div className="mt-1 flex flex-wrap items-center gap-3 text-[11px] text-muted-foreground">
                     <span>{r.discipline ?? "—"}</span>

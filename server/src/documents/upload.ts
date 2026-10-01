@@ -37,7 +37,12 @@ const allowedExtensions = new Set([
   ".png",
   ".jpg",
   ".jpeg",
+  // Floor plans / CAD (browsers report these as octet-stream or vendor types).
+  ".dwg",
+  ".dxf",
 ]);
+
+const genericMimeTypes = new Set(["application/octet-stream", "application/acad", "image/vnd.dwg", "application/dxf", ""]);
 
 const storage = multer.diskStorage({
   destination: (_req, _file, cb) => {
@@ -78,12 +83,12 @@ export const advisoryDocumentUpload = multer({
     const extension = path.extname(file.originalname).toLowerCase();
 
     if (
-      !allowedMimeTypes.has(file.mimetype) ||
+      !(allowedMimeTypes.has(file.mimetype) || genericMimeTypes.has(file.mimetype)) ||
       !allowedExtensions.has(extension)
     ) {
       return cb(
         new Error(
-          "Unsupported file type. Please upload PDF, Word, Excel, PowerPoint, PNG, or JPG files.",
+          "Unsupported file type. Please upload PDF, DWG/DXF, Word, Excel, PowerPoint, PNG, or JPG files.",
         ),
       );
     }

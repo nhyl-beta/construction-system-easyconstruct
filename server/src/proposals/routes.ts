@@ -55,6 +55,12 @@ router.get(
   proposalController.getById,
 );
 
+// B1: the files the Architect submitted with this proposal.
+router.get(
+  "/:id/files",
+  proposalController.files,
+);
+
 router.patch(
   "/:id",
   canAuthor,

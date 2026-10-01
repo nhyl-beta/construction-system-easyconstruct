@@ -22,6 +22,8 @@ import {
   type DocumentRecord,
 } from "@/features/documents/repositories/documents.repository";
 import { formatRelativeTime } from "@/lib/format-relative-time";
+import { SubmittedFiles, fileTypeLabel } from "@/components/shared/submitted-files";
+import { useProposalFiles } from "@/features/proposals/hooks/useProposalFiles";
 import type { Proposal } from "@/features/proposals/types/proposal.types";
 
 export function ProposalAttachments({ proposal }: { proposal: Proposal }) {
@@ -29,6 +31,7 @@ export function ProposalAttachments({ proposal }: { proposal: Proposal }) {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [preview, setPreview] = useState<DocumentRecord | null>(null);
+  const submitted = useProposalFiles(proposal.id);
 
   useEffect(() => {
     if (!proposal.projectCode) {
@@ -66,12 +69,34 @@ export function ProposalAttachments({ proposal }: { proposal: Proposal }) {
       <div className="border-b p-6">
         <h2 className="font-semibold">Attached Files</h2>
         <p className="mt-1 text-sm text-muted-foreground">
-          Documents filed against {proposal.projectCode}, the project this
-          proposal is for.
+          What the Architect submitted with this proposal, then other documents
+          filed against {proposal.projectCode}.
         </p>
       </div>
 
+      <div className="space-y-2 border-b p-6">
+        <p className="text-xs font-medium uppercase tracking-wider text-muted-foreground">
+          Submitted with this proposal
+        </p>
+        <SubmittedFiles
+          loading={submitted.loading}
+          error={submitted.error}
+          emptyText="No files were submitted with this proposal."
+          files={submitted.files.map((f) => ({
+            key: f.id,
+            name: f.name,
+            url: f.url,
+            meta: [fileTypeLabel(f.name), f.size, f.uploadedBy, f.filedAt ? formatRelativeTime(f.filedAt) : null]
+              .filter(Boolean)
+              .join(" · "),
+          }))}
+        />
+      </div>
+
       <div className="p-6">
+        <p className="mb-2 text-xs font-medium uppercase tracking-wider text-muted-foreground">
+          Other project documents
+        </p>
         {loading && (
           <p className="text-sm text-muted-foreground">Loading files…</p>
         )}

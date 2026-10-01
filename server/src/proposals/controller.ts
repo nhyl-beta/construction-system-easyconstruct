@@ -40,6 +40,19 @@ export const proposalController = {
     });
   },
 
+  async files(
+    req: Request,
+    res: Response,
+  ) {
+    const { proposal, files } = await proposalService.getFiles(Number(req.params.id));
+    await assertAssignedToProject((req as AuthedRequest).authUser, proposal.projectCode, "proposals");
+
+    return res.json({
+      success: true,
+      data: files,
+    });
+  },
+
   async validate(
     req: Request,
     res: Response,

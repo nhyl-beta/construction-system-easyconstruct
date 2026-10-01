@@ -14,6 +14,17 @@ import {
 
 const DESIGN_APPROVAL_TEMPLATE = "Design Proposal Approval";
 
+export interface SubmittedProposalFile {
+  id: number;
+  name: string;
+  label: string;
+  url: string;
+  size: string | null;
+  uploadedBy: string;
+  stage: string | null;
+  filedAt: Date | null;
+}
+
 export const proposalService = {
   async getAll() {
     return proposalRepository.findAll();
@@ -46,6 +57,31 @@ export const proposalService = {
     if (!changed) return proposal;
     const updated = await proposalRepository.update(id, { aiValidation });
     return updated ?? proposal;
+  },
+
+  /**
+   * B1: the files an Architect submitted with a proposal. They are stored as
+   * "document" attachments on the proposal's Design Proposal Approval workflow
+   * (proposals.workflow_id), NOT as project documents — which is why the
+   * Consultant's review, which listed project documents, never showed them.
+   */
+  async getFiles(id: number) {
+    const proposal = await this.getById(id);
+    if (!proposal.workflowId) return { proposal, files: [] as SubmittedProposalFile[] };
+    const rows = await workflowsRepo.findAttachmentsForWorkflows([proposal.workflowId]);
+    const files = rows
+      .filter(({ attachment }) => attachment.kind === "document" && !!attachment.fileUrl)
+      .map(({ attachment, stageLabel }) => ({
+        id: attachment.id,
+        name: attachment.fileName ?? attachment.label,
+        label: attachment.label,
+        url: attachment.fileUrl as string,
+        size: attachment.fileSize,
+        uploadedBy: attachment.uploadedBy,
+        stage: stageLabel ?? null,
+        filedAt: attachment.createdAt,
+      }));
+    return { proposal, files };
   },
 
   async create(data: any) {
