@@ -69,9 +69,11 @@ describe("structureRequirement", () => {
 
   test("vague wording is rewritten and every rewrite is reported", () => {
     const r = structureRequirement({ text: "Use good quality gravel ASAP" });
-    assert.ok(r.rewrites.some((w) => w.from.toLowerCase() === "good quality"));
+    assert.ok(r.rewrites.some((w) => w.from.toLowerCase() === "good quality gravel"));
     assert.ok(r.rewrites.some((w) => w.from.toLowerCase() === "asap"));
     assert.ok(!/good quality/i.test(r.description));
+    assert.ok(/gravel conforming to applicable project standards/.test(r.description));
+    assert.ok(r.sections.materials.some((c) => /gravel/i.test(c)));
     assert.ok(/approved schedule/.test(r.description));
   });
 

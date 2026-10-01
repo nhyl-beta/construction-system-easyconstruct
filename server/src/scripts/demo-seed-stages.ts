@@ -676,6 +676,8 @@ async function main() {
         name: DISPLAY_NAME[i]!,
         code,
         pm: "Miguel Santos",
+        // createProjectSchema now requires a planned start that is not in the past.
+        plannedStartDate: new Date().toISOString().slice(0, 10),
         due: "2027-06-30",
         client: "Demo Client",
         // A4: the Construction-stage project is the one that also carries a

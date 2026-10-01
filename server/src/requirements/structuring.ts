@@ -50,9 +50,12 @@ const SECTION_ORDER: StructuredSection[] = ["objectives", "materials", "constrai
 
 // --- vague phrase rewrites --------------------------------------------------
 
+const CONFORMING = "conforming to applicable project standards and approved specifications";
+
 const REWRITE_RULES: { pattern: RegExp; to: string }[] = [
-  { pattern: /\bgood quality\b/gi, to: "conforming to applicable project standards and approved specifications" },
-  { pattern: /\bhigh quality\b/gi, to: "conforming to applicable project standards and approved specifications" },
+  // "good quality gravel" -> "gravel conforming to ..." (keeps the noun in front).
+  { pattern: /\b(?:good|high) quality ([a-z][a-z-]*)\b/gi, to: `$1 ${CONFORMING}` },
+  { pattern: /\b(?:good|high) quality\b/gi, to: CONFORMING },
   { pattern: /\bas soon as possible\b/gi, to: "to be completed per the approved schedule" },
   { pattern: /\basap\b/gi, to: "to be completed per the approved schedule" },
   { pattern: /\ba lot of\b/gi, to: "a sufficient quantity of (quantity to be specified)" },
@@ -75,7 +78,8 @@ const MATERIAL =
 const splitClauses = (text: string): string[] =>
   text
     .split(/[\n\r]+|[.;!?]+(?:\s|$)|,\s+(?![^()]*\))|\s+and\s+(?=(?:the|a|an|use|provide|ensure|install)\b)/i)
-    .map((c) => c.replace(/^[\s\-•*\d.)]+/, "").trim())
+    // Only list markers ("- ", "* ", "1. ", "2)") are stripped, never a leading quantity.
+    .map((c) => c.replace(/^\s*(?:[-•*]|\d+[.)])\s+/, "").trim())
     .filter((c) => c.length > 1);
 
 const tidy = (clause: string): string => {
@@ -236,16 +240,22 @@ export const structureRequirement = (input: StructureInput): StructuredRequireme
   const original = (input.text ?? "").trim();
   const rewrites: StructuredRewrite[] = [];
 
-  // Rewrites run on the whole text so every change is listed once, in order.
-  let working = original;
-  for (const rule of REWRITE_RULES) {
-    working = working.replace(rule.pattern, (match) => {
-      if (!rewrites.some((r) => r.from.toLowerCase() === match.toLowerCase())) {
-        rewrites.push({ from: match, to: rule.to });
-      }
-      return rule.to;
-    });
-  }
+  // Rewrites are applied per clause and every change is listed once. Routing
+  // uses the ORIGINAL clause, so a reworded phrase (e.g. "approved schedule")
+  // can never pull a clause into a different section.
+  const rewriteClause = (clause: string): string => {
+    let out = clause;
+    for (const rule of REWRITE_RULES) {
+      out = out.replace(rule.pattern, (match: string, ...groups: unknown[]) => {
+        const to = rule.to.replace(/\$(\d)/g, (_m, n: string) => String(groups[Number(n) - 1] ?? ""));
+        if (!rewrites.some((r) => r.from.toLowerCase() === match.toLowerCase())) {
+          rewrites.push({ from: match, to });
+        }
+        return to;
+      });
+    }
+    return out;
+  };
 
   const sections: Record<StructuredSection, string[]> = {
     objectives: [],
@@ -253,17 +263,21 @@ export const structureRequirement = (input: StructureInput): StructuredRequireme
     constraints: [],
     specifications: [],
   };
-  for (const clause of splitClauses(working)) {
+  const rewrittenClauses: string[] = [];
+  for (const clause of splitClauses(original)) {
     const section = routeClause(clause);
-    const item = tidy(clause);
+    const reworded = rewriteClause(clause);
+    rewrittenClauses.push(reworded);
+    const item = tidy(reworded);
     if (!sections[section].includes(item)) sections[section].push(item);
   }
+  const working = rewrittenClauses.join(" ");
 
   const haystack = [original, input.title ?? "", input.projectType ?? ""].join(" ");
   const template = detectTemplate(haystack);
   // "Already present" is judged against the rewritten text so a suggestion
   // isn't offered for something the engineer did write.
-  const coverage = `${working} ${input.title ?? ""}`;
+  const coverage = `${original} ${working} ${input.title ?? ""}`;
   const suggestions: StructuredSuggestion[] = [];
   for (const el of [...template.elements, ...GENERAL_TEMPLATE.elements, ...COMMON_ELEMENTS]) {
     if (el.present.test(coverage)) continue;
