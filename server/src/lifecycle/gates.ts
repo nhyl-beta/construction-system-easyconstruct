@@ -196,7 +196,7 @@ const c1 = (s: LifecycleSnapshot): GateCheck => {
       ? "Materials and Specifications requirements are approved"
       : unresolved.length > 0
         ? `${unresolved.length} requirement(s) still Draft/Under Review`
-        : "Missing an approved Materials or Specifications requirement",
+        : `No approved ${REQUIREMENT_GATE_CATEGORIES.filter((category) => !approvedByCategory(category)).join(" or ")} requirement yet (both a Materials and a Specifications requirement must be approved)`,
     link: "/requirements",
   };
 };
