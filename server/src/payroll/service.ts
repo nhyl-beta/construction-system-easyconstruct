@@ -1,68 +1,215 @@
-import { NotFoundError, ValidationError } from "../utils/errors.js";
+import { and, desc, eq, sql } from "drizzle-orm";
+import { db } from "../db/connection.js";
+import { budgets } from "../db/schema/finance.js";
+import { payroll } from "../db/schema/payroll.js";
+import { AppError, ConflictError, NotFoundError, ValidationError } from "../utils/errors.js";
 import * as employeesRepo from "../employees/repository.js";
 import * as attendanceRepo from "../attendance/repository.js";
+import * as notifications from "../notifications/service.js";
+import { refreshProjectProgress } from "../lifecycle/service.js";
 import * as repo from "./repository.js";
 import * as batchRepo from "./batch-repository.js";
-import { computeStatutoryDeductions } from "./ph-statutory.js";
-import type {
-  GeneratePayrollInput,
-  PayrollEntryInput,
-  PayrollFilters,
-  UpdatePayrollLineInput,
+import { computeLine, getRules, periodEndDate, round2, type PayrollRules } from "./engine.js";
+import { validateBatchLines } from "./validation.js";
+import {
+  EDITABLE_BATCH_STATUSES,
+  REJECTION_REASONS,
+  type DecideBatchInput,
+  type GeneratePayrollInput,
+  type PayrollEntryInput,
+  type PayrollFilters,
+  type UpdatePayrollLineInput,
+  type ValidationIssue,
 } from "./types.js";
 
-// ─────────────────────────────────────────────────────────────────────────────
-// Gross Labor formula (documented per HR module build brief §16):
-//
-//   Gross Labor = (Regular Hours × Hourly Rate) + (Overtime Hours × Hourly Rate × 1.5)
-//
-// Employees are paid Monthly, Daily, or Hourly (employees.rateType), so pay
-// rates are first normalized to an hourly-equivalent rate:
-//   - Hourly: used as-is
-//   - Daily:  payRate ÷ 8   (assumes an 8-hour standard shift)
-//   - Monthly: payRate ÷ (22 × 8)  (assumes ~22 working days/month)
-//
-// Deductions are the four Philippine statutory withholdings — SSS, PhilHealth,
-// Pag-IBIG and BIR withholding tax — each computed on its own base from the
-// published schedules in ./ph-statutory.ts, stored in its own column, and
-// summed into `deductions`. Net = Gross − Deductions.
-//
-// This replaced a flat 12% of gross that stood in for all four at once: it
-// under-withheld low earners (who owe no income tax but do owe contributions)
-// and over-withheld high earners (whose SSS/PhilHealth/Pag-IBIG are all
-// capped), so no line on a payslip could be explained to the employee.
-//
-// A payroll period here is one calendar month (the period picker derives
-// periods as "YYYY-MM" from the attendance table), which is also the basis
-// every one of these schedules is published on — hence periodsPerMonth = 1.
-// ─────────────────────────────────────────────────────────────────────────────
+// Gross Labor = regular hours × hourly rate + overtime hours × hourly rate ×
+// overtime multiplier + adjustments, then the engine (./engine.ts) derives the
+// four employee deductions, the employer contributions and net. Nothing in
+// this module computes or accepts a statutory amount — see engine.ts.
 
 const STANDARD_HOURS_PER_DAY = 8;
-const WORKING_DAYS_PER_MONTH = 22;
-const OVERTIME_MULTIPLIER = 1.5;
-const PAYROLL_PERIODS_PER_MONTH = 1;
 
-function toHourlyRate(payRate: number, rateType: string): number {
-  switch (rateType) {
-    case "Hourly":
-      return payRate;
-    case "Daily":
-      return payRate / STANDARD_HOURS_PER_DAY;
-    case "Monthly":
-    default:
-      return payRate / (WORKING_DAYS_PER_MONTH * STANDARD_HOURS_PER_DAY);
-  }
+// What an approved batch's cost is booked against — every budget seeded for a
+// project's labor spend uses this category name.
+const LABOR_BUDGET_CATEGORY = "Labor";
+
+type Tx = Parameters<Parameters<typeof db.transaction>[0]>[0];
+type EmployeeRow = NonNullable<Awaited<ReturnType<typeof employeesRepo.findByEmployeeId>>>;
+type LineRow = typeof payroll.$inferSelect;
+type BatchRow = batchRepo.BatchRow;
+
+export interface Actor {
+  name: string;
+  role: string;
 }
 
-export const getAll = async (filters: PayrollFilters) => repo.findAll(filters);
+const SYSTEM_ACTOR: Actor = { name: "system", role: "admin" };
 
-export const getById = async (id: number) => {
+// ── Line construction (single path for generate / edit) ─────────────────────
+
+const lineFields = (
+  employee: EmployeeRow,
+  entry: { hours: number; overtime: number; adjustments: number },
+  rules: PayrollRules,
+) => {
+  const c = computeLine(
+    {
+      payRate: Number(employee.payRate),
+      rateType: employee.rateType,
+      regularHours: entry.hours,
+      overtimeHours: entry.overtime,
+      adjustments: entry.adjustments,
+    },
+    rules,
+  );
+  return {
+    hours: entry.hours,
+    overtime: entry.overtime,
+    adjustments: entry.adjustments.toFixed(2),
+    gross: c.gross.toFixed(2),
+    sss: c.sss.toFixed(2),
+    philhealth: c.philhealth.toFixed(2),
+    pagibig: c.pagibig.toFixed(2),
+    withholdingTax: c.withholdingTax.toFixed(2),
+    deductions: c.deductions.toFixed(2),
+    net: c.net.toFixed(2),
+    employerSss: c.employerSss.toFixed(2),
+    employerEc: c.employerEc.toFixed(2),
+    employerPhilhealth: c.employerPhilhealth.toFixed(2),
+    employerPagibig: c.employerPagibig.toFixed(2),
+    employerCost: c.employerCost.toFixed(2),
+    rateVersions: { ...c.versions },
+  };
+};
+
+const sumLines = (lines: LineRow[]) => {
+  const sum = (pick: (l: LineRow) => string) =>
+    round2(lines.reduce((acc, l) => acc + Number(pick(l)), 0));
+  return {
+    employees: lines.length,
+    overtimeHours: round2(lines.reduce((acc, l) => acc + Number(l.overtime), 0)),
+    gross: sum((l) => l.gross),
+    sss: sum((l) => l.sss),
+    philhealth: sum((l) => l.philhealth),
+    pagibig: sum((l) => l.pagibig),
+    withholdingTax: sum((l) => l.withholdingTax),
+    deductions: sum((l) => l.deductions),
+    net: sum((l) => l.net),
+    employerSss: sum((l) => l.employerSss),
+    employerEc: sum((l) => l.employerEc),
+    employerPhilhealth: sum((l) => l.employerPhilhealth),
+    employerPagibig: sum((l) => l.employerPagibig),
+    employerCost: sum((l) => l.employerCost),
+  };
+};
+
+const syncBatchTotals = async (batchId: string, tx: Tx) => {
+  const lines = await repo.findByBatch(batchId, tx);
+  const t = sumLines(lines);
+  await batchRepo.update(
+    batchId,
+    {
+      employees: t.employees,
+      overtimeHours: t.overtimeHours,
+      grossPayroll: t.gross,
+      deductions: t.deductions,
+      netPayroll: t.net,
+      employerCost: t.employerCost,
+    },
+    tx,
+  );
+  return t;
+};
+
+// ── Reads ───────────────────────────────────────────────────────────────────
+
+// Finance never sees a batch HR is still building — nor its lines.
+const draftBatchIds = async (actor: Actor): Promise<Set<string>> =>
+  actor.role.replace(/_/g, "-") === "finance-manager"
+    ? new Set((await batchRepo.findAll()).filter((b) => b.status === "draft").map((b) => b.id))
+    : new Set();
+
+export const getAll = async (filters: PayrollFilters, actor: Actor = SYSTEM_ACTOR) => {
+  const [rows, hidden] = await Promise.all([repo.findAll(filters), draftBatchIds(actor)]);
+  return rows.filter((l) => !l.batchId || !hidden.has(l.batchId));
+};
+
+export const getById = async (id: number, actor: Actor = SYSTEM_ACTOR) => {
   const line = await repo.findById(id);
-  if (!line) throw new NotFoundError("Payroll line", String(id));
+  if (!line || (line.batchId && (await draftBatchIds(actor)).has(line.batchId)))
+    throw new NotFoundError("Payroll line", String(id));
   return line;
 };
 
-export const listBatches = async () => batchRepo.findAll();
+const hiddenFromRole = (batch: BatchRow, actor: Actor) =>
+  batch.status === "draft" && actor.role.replace(/_/g, "-") === "finance-manager";
+
+export const listBatches = async (actor: Actor = SYSTEM_ACTOR) => {
+  const rows = await batchRepo.findAll();
+  return rows.filter((b) => !hiddenFromRole(b, actor));
+};
+
+const loadBatch = async (id: string, actor: Actor = SYSTEM_ACTOR): Promise<BatchRow> => {
+  const batch = await batchRepo.findById(id);
+  if (!batch || hiddenFromRole(batch, actor)) throw new NotFoundError("Payroll batch", id);
+  return batch;
+};
+
+const employeesFor = async (lines: LineRow[]) => {
+  const map = new Map<string, EmployeeRow>();
+  for (const l of lines) {
+    if (map.has(l.empId)) continue;
+    const e = await employeesRepo.findByEmployeeId(l.empId);
+    if (e) map.set(l.empId, e);
+  }
+  return map;
+};
+
+export const validateBatch = async (batch: BatchRow, lines: LineRow[]) => {
+  const employees = await employeesFor(lines);
+  const duplicates = batch.projectCode
+    ? (await batchRepo.findSameProjectPeriod(batch.projectCode, batch.period, batch.id)).map(
+        (b) => b.id,
+      )
+    : [];
+  return validateBatchLines(
+    lines.map((l) => ({
+      empId: l.empId,
+      name: l.name,
+      hours: Number(l.hours),
+      overtime: Number(l.overtime),
+      net: Number(l.net),
+      rateVersions: l.rateVersions,
+    })),
+    new Map(
+      [...employees].map(([k, e]) => [k, { status: e.status, payRate: Number(e.payRate) }]),
+    ),
+    getRules(periodEndDate(batch.period)),
+    duplicates,
+  );
+};
+
+export const getBatchDetail = async (id: string, actor: Actor = SYSTEM_ACTOR) => {
+  const batch = await loadBatch(id, actor);
+  const [lines, decisions] = await Promise.all([repo.findByBatch(id), batchRepo.findDecisions(id)]);
+  const rules = getRules(periodEndDate(batch.period));
+  return {
+    batch,
+    lines,
+    decisions,
+    totals: sumLines(lines),
+    rateVersions: rules.versions,
+    needsVerification: rules.needsVerification,
+    validation: EDITABLE_BATCH_STATUSES.includes(batch.status)
+      ? await validateBatch(batch, lines)
+      : ([] as ValidationIssue[]),
+  };
+};
+
+export const getBatchValidation = async (id: string) => {
+  const batch = await loadBatch(id);
+  return validateBatch(batch, await repo.findByBatch(id));
+};
 
 // G5: verified attendance for a project/date range, summed to hours worked
 // per employee and split into regular/overtime past the standard shift — a
@@ -89,95 +236,426 @@ export const getAttendanceSummary = async (
 
   return Array.from(byEmployee.entries()).map(([employeeId, totals]) => ({
     employeeId,
-    hoursWorked: Number(totals.hoursWorked.toFixed(1)),
-    overtimeHours: Number(totals.overtimeHours.toFixed(1)),
+    hoursWorked: Number(totals.hoursWorked.toFixed(2)),
+    overtimeHours: Number(totals.overtimeHours.toFixed(2)),
   }));
 };
 
-export const generate = async (input: GeneratePayrollInput) => {
+export interface ExcludedWorker {
+  employeeId: string;
+  name: string;
+  status: string;
+  reason: string;
+}
+
+// Step 2 of the HR wizard: what verified attendance supports paying, what is
+// left out (unverified entries, workers who cannot be paid) and why.
+export const getAttendanceReadiness = async (
+  projectCode: string,
+  dateFrom?: string,
+  dateTo?: string,
+) => {
+  const [summary, all] = await Promise.all([
+    getAttendanceSummary(projectCode, dateFrom, dateTo),
+    attendanceRepo.findForProject({ projectCode, dateFrom, dateTo }),
+  ]);
+
+  const unverified = all.filter((r) => r.status !== "Verified");
+  const employeeIds = [...new Set(all.map((r) => r.employeeId))];
+  const excluded: ExcludedWorker[] = [];
+  const eligible = new Set<string>();
+
+  for (const employeeId of employeeIds) {
+    const e = await employeesRepo.findByEmployeeId(employeeId);
+    if (!e) {
+      excluded.push({ employeeId, name: employeeId, status: "Unknown", reason: "Not in the employee roster" });
+    } else if (e.status !== "Active") {
+      excluded.push({
+        employeeId,
+        name: e.name,
+        status: e.status,
+        reason: `Status is ${e.status}; only Active workers can be paid`,
+      });
+    } else if (!(Number(e.payRate) > 0)) {
+      excluded.push({
+        employeeId,
+        name: e.name,
+        status: e.status,
+        reason: "No pay rate set; HR must approve the worker and set a rate",
+      });
+    } else {
+      eligible.add(employeeId);
+    }
+  }
+
+  return {
+    entries: summary.filter((s) => eligible.has(s.employeeId)),
+    unverifiedCount: unverified.length,
+    excludedWorkers: excluded,
+  };
+};
+
+// ── Generate (creates a draft batch with computed lines) ────────────────────
+
+export const generate = async (input: GeneratePayrollInput, actor: Actor = SYSTEM_ACTOR) => {
   if (!input.entries?.length)
     throw new ValidationError("At least one employee entry is required to generate payroll");
 
-  const createdLines = [];
-  let totalGross = 0;
-  let totalNet = 0;
-  let totalOvertimeHours = 0;
-
-  for (const entry of input.entries) {
-    const employee = await employeesRepo.findByEmployeeId(entry.employeeId);
-    if (!employee) throw new NotFoundError("Employee", entry.employeeId);
-
-    const hourlyRate = toHourlyRate(Number(employee.payRate), employee.rateType);
-    const regularHours = entry.hoursWorked;
-    const overtimeHours = entry.overtimeHours ?? 0;
-    const adjustments = entry.adjustments ?? 0;
-
-    const grossLabor =
-      regularHours * hourlyRate + overtimeHours * hourlyRate * OVERTIME_MULTIPLIER;
-    const gross = grossLabor + adjustments;
-    const statutory = computeStatutoryDeductions(gross, PAYROLL_PERIODS_PER_MONTH);
-    const deductions = statutory.total;
-    const net = Number((gross - deductions).toFixed(2));
-
-    const line = await repo.create({
-      empId: employee.employeeId,
-      name: employee.name,
-      initials: employee.initials,
-      role: employee.role,
-      hours: Math.round(regularHours),
-      overtime: Math.round(overtimeHours),
-      gross: gross.toFixed(2),
-      sss: statutory.sss.toFixed(2),
-      philhealth: statutory.philhealth.toFixed(2),
-      pagibig: statutory.pagibig.toFixed(2),
-      withholdingTax: statutory.withholdingTax.toFixed(2),
-      deductions: deductions.toFixed(2),
-      net: net.toFixed(2),
-      status: "Pending",
-      period: input.period,
-    });
-
-    createdLines.push(line);
-    totalGross += gross;
-    totalNet += net;
-    totalOvertimeHours += overtimeHours;
+  const seen = new Set<string>();
+  for (const e of input.entries) {
+    if (seen.has(e.employeeId))
+      throw new ValidationError(`Employee ${e.employeeId} appears more than once`);
+    seen.add(e.employeeId);
   }
 
-  // Gross Tracking rollup for this run — written to the same payroll_batches
-  // table Finance's payroll-review module reads, so HR-generated runs are
-  // immediately visible to Finance for approval.
-  const batch = await batchRepo.create({
-    id: `PAY-${Date.now()}`,
-    projectCode: input.projectCode,
-    period: input.period,
-    group: input.group ?? "All departments",
-    employees: createdLines.length,
-    overtimeHours: totalOvertimeHours,
-    grossPayroll: Number(totalGross.toFixed(2)),
-    deductions: Number((totalGross - totalNet).toFixed(2)),
-    netPayroll: Number(totalNet.toFixed(2)),
-    status: "pending",
-  });
-  if (!batch) throw new Error("Failed to create payroll batch");
+  const employees: EmployeeRow[] = [];
+  for (const e of input.entries) {
+    const employee = await employeesRepo.findByEmployeeId(e.employeeId);
+    if (!employee) throw new NotFoundError("Employee", e.employeeId);
+    employees.push(employee);
+  }
 
-  return { lines: createdLines, batch };
+  const rules = getRules(periodEndDate(input.period));
+  const batchId = `PAY-${Date.now()}`;
+
+  await db.transaction(async (tx) => {
+    await batchRepo.create(
+      {
+        id: batchId,
+        projectCode: input.projectCode ?? null,
+        period: input.period,
+        group: input.group ?? "All departments",
+        employees: 0,
+        overtimeHours: 0,
+        grossPayroll: 0,
+        deductions: 0,
+        netPayroll: 0,
+        employerCost: 0,
+        status: "draft",
+      },
+      tx,
+    );
+    for (const [i, entry] of input.entries.entries()) {
+      const employee = employees[i]!;
+      await repo.create(
+        {
+          batchId,
+          empId: employee.employeeId,
+          name: employee.name,
+          initials: employee.initials,
+          role: employee.role,
+          status: "Pending",
+          period: input.period,
+          ...lineFields(
+            employee,
+            {
+              hours: entry.hoursWorked,
+              overtime: entry.overtimeHours ?? 0,
+              adjustments: entry.adjustments ?? 0,
+            },
+            rules,
+          ),
+        },
+        tx,
+      );
+    }
+    await syncBatchTotals(batchId, tx);
+  });
+
+  if (input.submit) {
+    await submitBatch(batchId, { confirmDuplicate: input.confirmDuplicate }, actor);
+  }
+
+  const batch = await batchRepo.findById(batchId);
+  if (!batch) throw new Error("Failed to create payroll batch");
+  return { lines: await repo.findByBatch(batchId), batch };
+};
+
+// ── Line edits (HR only, draft / revision_required batches) ─────────────────
+
+const editableLine = async (id: number) => {
+  const line = await getById(id);
+  if (!line.batchId)
+    throw new ConflictError("This payroll line pre-dates batches and can no longer be edited");
+  const batch = await loadBatch(line.batchId);
+  assertEditable(batch);
+  return { line, batch };
+};
+
+const assertEditable = (batch: BatchRow) => {
+  if (!EDITABLE_BATCH_STATUSES.includes(batch.status))
+    throw new ConflictError(
+      batch.status === "approved"
+        ? `Batch ${batch.id} is approved and locked`
+        : `Batch ${batch.id} is ${batch.status}; lines can only change while it is a draft or needs revision`,
+    );
 };
 
 export const update = async (id: number, input: UpdatePayrollLineInput) => {
-  await getById(id);
-  const patch: Record<string, unknown> = { ...input };
-  if (input.gross != null) patch.gross = input.gross.toFixed(2);
-  if (input.deductions != null) patch.deductions = input.deductions.toFixed(2);
-  if (input.net != null) patch.net = input.net.toFixed(2);
+  const { line, batch } = await editableLine(id);
+  const employee = await employeesRepo.findByEmployeeId(line.empId);
+  if (!employee) throw new NotFoundError("Employee", line.empId);
 
-  const updated = await repo.update(id, patch);
-  if (!updated) throw new NotFoundError("Payroll line", String(id));
-  return updated;
+  const rules = getRules(periodEndDate(batch.period));
+  const fields = lineFields(
+    employee,
+    {
+      hours: input.hours ?? Number(line.hours),
+      overtime: input.overtime ?? Number(line.overtime),
+      adjustments: input.adjustments ?? Number(line.adjustments),
+    },
+    rules,
+  );
+
+  return db.transaction(async (tx) => {
+    const updated = await repo.update(id, fields, tx);
+    if (!updated) throw new NotFoundError("Payroll line", String(id));
+    await syncBatchTotals(batch.id, tx);
+    return updated;
+  });
+};
+
+export const addLine = async (batchId: string, entry: PayrollEntryInput) => {
+  const batch = await loadBatch(batchId);
+  assertEditable(batch);
+  const employee = await employeesRepo.findByEmployeeId(entry.employeeId);
+  if (!employee) throw new NotFoundError("Employee", entry.employeeId);
+  const existing = await repo.findByBatch(batchId);
+  if (existing.some((l) => l.empId === entry.employeeId))
+    throw new ConflictError(`Employee ${entry.employeeId} is already in batch ${batchId}`);
+
+  const rules = getRules(periodEndDate(batch.period));
+  return db.transaction(async (tx) => {
+    const created = await repo.create(
+      {
+        batchId,
+        empId: employee.employeeId,
+        name: employee.name,
+        initials: employee.initials,
+        role: employee.role,
+        status: "Pending",
+        period: batch.period,
+        ...lineFields(
+          employee,
+          {
+            hours: entry.hoursWorked,
+            overtime: entry.overtimeHours ?? 0,
+            adjustments: entry.adjustments ?? 0,
+          },
+          rules,
+        ),
+      },
+      tx,
+    );
+    await syncBatchTotals(batchId, tx);
+    return created;
+  });
 };
 
 export const remove = async (id: number) => {
-  await getById(id);
-  const deleted = await repo.remove(id);
-  if (!deleted) throw new NotFoundError("Payroll line", String(id));
-  return deleted;
+  const { batch } = await editableLine(id);
+  return db.transaction(async (tx) => {
+    const deleted = await repo.remove(id, tx);
+    if (!deleted) throw new NotFoundError("Payroll line", String(id));
+    await syncBatchTotals(batch.id, tx);
+    return deleted;
+  });
+};
+
+export const removeBatch = async (id: string) => {
+  const batch = await loadBatch(id);
+  if (batch.status !== "draft")
+    throw new ConflictError("Only a draft batch can be discarded");
+  await db.transaction(async (tx) => {
+    await tx.delete(payroll).where(eq(payroll.batchId, id));
+    await batchRepo.removeBatch(id, tx);
+  });
+  return batch;
+};
+
+// ── Submit to Finance ───────────────────────────────────────────────────────
+
+export const submitBatch = async (
+  id: string,
+  opts: { confirmDuplicate?: boolean } = {},
+  actor: Actor = SYSTEM_ACTOR,
+) => {
+  const batch = await loadBatch(id);
+  assertEditable(batch);
+
+  const lines = await repo.findByBatch(id);
+  const issues = await validateBatch(batch, lines);
+
+  const errors = issues.filter((i) => i.severity === "error");
+  if (errors.length)
+    throw new AppError(
+      400,
+      "VALIDATION_ERROR",
+      `Batch cannot be submitted: ${errors.map((e) => e.message).join(" ")}`,
+      { issues },
+    );
+
+  if (issues.some((i) => i.code === "duplicate_batch") && !opts.confirmDuplicate)
+    throw new AppError(
+      409,
+      "DUPLICATE_BATCH",
+      "Another batch exists for this project and period. Confirm to submit anyway.",
+      { issues },
+    );
+
+  const resubmission = batch.status === "revision_required";
+  const submitted = await batchRepo.transition(id, [...EDITABLE_BATCH_STATUSES], {
+    status: "pending",
+    round: resubmission ? batch.round + 1 : batch.round,
+    submittedAt: new Date(),
+    reviewedBy: null,
+    reviewedAt: null,
+    reviewNote: null,
+  });
+  if (!submitted) throw new ConflictError(`Batch ${id} was changed by someone else; reload it`);
+
+  if (submitted.projectCode) await refreshProjectProgress(submitted.projectCode);
+  await notifications.create({
+    recipientRole: "finance-manager",
+    projectCode: submitted.projectCode ?? undefined,
+    title: resubmission ? "Payroll batch resubmitted" : "Payroll batch awaiting review",
+    body: `${submitted.id} (${submitted.period}, ${submitted.employees} employees) was submitted by ${actor.name}.`,
+    link: "/payroll-review",
+  });
+  return submitted;
+};
+
+// ── Finance decision ────────────────────────────────────────────────────────
+
+export const decideBatch = async (id: string, input: DecideBatchInput, actor: Actor) => {
+  if (input.decision === "rejected") {
+    if (!input.reasonCode || !REJECTION_REASONS.includes(input.reasonCode))
+      throw new ValidationError("A rejection reason is required");
+    if (input.reasonCode === "other" && !input.comment?.trim())
+      throw new ValidationError("A comment is required when the reason is Other");
+  }
+
+  const decided = await db.transaction(async (tx) => {
+    const current = await batchRepo.findById(id, tx);
+    if (!current || current.status === "draft") throw new NotFoundError("Payroll batch", id);
+
+    const next = input.decision === "approved" ? "approved" : "revision_required";
+    const updated = await batchRepo.transition(
+      id,
+      ["pending"],
+      {
+        status: next,
+        reviewedBy: actor.name,
+        reviewedAt: new Date(),
+        reviewNote: input.comment?.trim() || null,
+      },
+      tx,
+    );
+    // Not pending any more: already decided this round (or never submitted).
+    if (!updated)
+      throw new ConflictError(
+        `Batch ${id} is ${current.status}; it can only be decided while pending`,
+      );
+
+    await batchRepo.insertDecision(
+      {
+        batchId: id,
+        round: updated.round,
+        action: input.decision,
+        reasonCode: input.decision === "rejected" ? input.reasonCode! : null,
+        comment: input.comment?.trim() || null,
+        decidedBy: actor.name,
+      },
+      tx,
+    );
+
+    if (input.decision === "approved" && updated.projectCode) {
+      // Book the batch's total employer cost against the project's Labor
+      // budget — gross alone would omit the employer's statutory share.
+      // Legacy batches created before employer cost existed fall back to gross.
+      const amount = updated.employerCost > 0 ? updated.employerCost : updated.grossPayroll;
+      const [budget] = await tx
+        .select()
+        .from(budgets)
+        .where(
+          and(eq(budgets.project, updated.projectCode), eq(budgets.category, LABOR_BUDGET_CATEGORY)),
+        )
+        .orderBy(desc(budgets.createdAt))
+        .limit(1);
+      if (budget) {
+        await tx
+          .update(budgets)
+          .set({ actual: sql`${budgets.actual} + ${amount}`, updatedAt: new Date() })
+          .where(eq(budgets.id, budget.id));
+      }
+      await tx.update(payroll).set({ status: "Completed" }).where(eq(payroll.batchId, id));
+    }
+
+    return updated;
+  });
+
+  // Gate X3 reads whether an approved-since-Closeout batch exists and
+  // whether any batch is still pending.
+  if (decided.projectCode) await refreshProjectProgress(decided.projectCode);
+
+  await notifications.create({
+    recipientRole: "human-resources",
+    projectCode: decided.projectCode ?? undefined,
+    title: input.decision === "approved" ? "Payroll batch approved" : "Payroll batch needs revision",
+    body:
+      input.decision === "approved"
+        ? `${decided.id} (${decided.period}) was approved by ${actor.name}.`
+        : `${decided.id} (${decided.period}) was sent back: ${input.reasonCode}${
+            input.comment ? ` — ${input.comment}` : ""
+          }`,
+    link: "/payroll",
+  });
+
+  return decided;
+};
+
+// ── Reports ─────────────────────────────────────────────────────────────────
+
+const AGENCIES = ["sss", "philhealth", "pagibig"] as const;
+export type Agency = (typeof AGENCIES)[number];
+export const isAgency = (v: unknown): v is Agency => AGENCIES.includes(v as Agency);
+
+// Employee share + employer share per employee for one agency and period,
+// across approved batches only (a liability exists once Finance approves).
+export const contributionReport = async (agency: Agency, period: string) => {
+  const batches = (await batchRepo.findAll()).filter(
+    (b) => b.status === "approved" && b.period === period,
+  );
+  const rows: Array<{
+    batchId: string;
+    projectCode: string | null;
+    empId: string;
+    name: string;
+    period: string;
+    employeeShare: number;
+    employerShare: number;
+    ec?: number;
+    rateVersion: string;
+  }> = [];
+
+  for (const b of batches) {
+    for (const l of await repo.findByBatch(b.id)) {
+      const employeeShare = Number(agency === "sss" ? l.sss : agency === "philhealth" ? l.philhealth : l.pagibig);
+      const employerShare = Number(
+        agency === "sss" ? l.employerSss : agency === "philhealth" ? l.employerPhilhealth : l.employerPagibig,
+      );
+      rows.push({
+        batchId: b.id,
+        projectCode: b.projectCode,
+        empId: l.empId,
+        name: l.name,
+        period: l.period,
+        employeeShare,
+        employerShare,
+        ...(agency === "sss" ? { ec: Number(l.employerEc) } : {}),
+        rateVersion: l.rateVersions?.[agency] ?? "",
+      });
+    }
+  }
+  return rows;
 };

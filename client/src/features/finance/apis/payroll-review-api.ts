@@ -1,8 +1,7 @@
 export type PayrollReviewStatus =
   | "pending"
   | "approved"
-  | "rejected"
-  | "processing";
+  | "revision_required";
 
 export interface PayrollReviewBatch {
   id: string;
@@ -18,14 +17,18 @@ export interface PayrollReviewBatch {
   reviewedBy?: string | null;
   reviewedAt?: string | null;
   reviewNote?: string | null;
+  round?: number;
+  employerCost?: number | string;
+  submittedAt?: string | null;
   createdAt?: string | null;
 }
 
 export type PayrollReviewDecision = "approved" | "rejected";
 
+// The reviewer is the signed-in user, taken from the session on the server.
 export interface DecidePayrollReviewPayload {
   decision: PayrollReviewDecision;
-  reviewedBy: string;
+  reasonCode?: string;
   comment?: string;
 }
 

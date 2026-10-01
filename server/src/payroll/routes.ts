@@ -4,29 +4,45 @@ import { validate } from "../middleware/validate.js";
 import { authenticate, requireRole } from "../middleware/auth.js";
 import {
   generatePayrollSchema,
+  payrollEntrySchema,
+  submitBatchSchema,
   updatePayrollLineSchema,
 } from "../validators/payroll-validators.js";
 
 const router = Router();
 
 router.use(authenticate);
-router.use(requireRole("human-resources", "finance-manager", "admin", "it-designer"));
+
+// Finance reads payroll but never changes a line; HR (plus admin and
+// it-designer) builds and edits it.
+const canRead = requireRole("human-resources", "finance-manager", "admin", "it-designer");
+const canWrite = requireRole("human-resources", "admin", "it-designer");
 
 // Tracksheet
-router.get("/", controller.getAll);
+router.get("/", canRead, controller.getAll);
 
 // G5: prefill for Generate — verified attendance summed per employee. Must
 // come before "/:id" or Express would match "attendance-summary" as an id.
-router.get("/attendance-summary", controller.getAttendanceSummary);
+router.get("/attendance-summary", canWrite, controller.getAttendanceSummary);
 
-// Generate → Gross Labor + Gross Tracking batch
-router.post("/generate", validate(generatePayrollSchema), controller.generate);
+router.get("/attendance-readiness", canWrite, controller.getAttendanceReadiness);
 
-// Gross Tracking — same reason, must come before "/:id".
-router.get("/batches/all", controller.listBatches);
+// Generate → draft batch with server-computed lines
+router.post("/generate", canWrite, validate(generatePayrollSchema), controller.generate);
 
-router.get("/:id", controller.getById);
-router.patch("/:id", validate(updatePayrollLineSchema), controller.update);
-router.delete("/:id", controller.remove);
+// Batches — all before "/:id".
+router.get("/batches/all", canRead, controller.listBatches);
+router.get("/batches/:id", canRead, controller.getBatch);
+router.get("/batches/:id/validation", canWrite, controller.getBatchValidation);
+router.post("/batches/:id/lines", canWrite, validate(payrollEntrySchema), controller.addLine);
+router.post("/batches/:id/submit", canWrite, validate(submitBatchSchema), controller.submitBatch);
+router.delete("/batches/:id", canWrite, controller.removeBatch);
+
+// Contribution reports per agency and period (employee + employer share)
+router.get("/reports/contributions", canRead, controller.contributionReport);
+
+router.get("/:id", canRead, controller.getById);
+router.patch("/:id", canWrite, validate(updatePayrollLineSchema), controller.update);
+router.delete("/:id", canWrite, controller.remove);
 
 export default router;

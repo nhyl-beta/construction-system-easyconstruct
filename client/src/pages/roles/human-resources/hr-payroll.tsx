@@ -2,8 +2,6 @@
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Progress } from "@/components/ui/progress";
-import { Separator } from "@/components/ui/separator";
 import {
   Table,
   TableBody,
@@ -14,37 +12,25 @@ import {
 } from "@/components/ui/table";
 import { DataTablePagination } from "@/components/refine-ui/data-table/data-table-pagination";
 import { usePagination } from "@/hooks/use-pagination";
-import {
-  Checkpoint,
-  KpiMini,
-  PageHeader,
-  StatusBadge,
-} from "@/pages/roles/shared/shared-hr";
+import { KpiMini, PageHeader, StatusBadge } from "@/pages/roles/shared/shared-hr";
 import { useEffect, useMemo, useState } from "react";
 import {
-  generatePayroll,
-  getAttendanceSummary,
+  getContributionReport,
   listPayroll,
   listPayrollBatches,
-  type GeneratePayrollEntry,
+  reasonLabel,
+  getBatchDetail,
+  type Agency,
+  type BatchDecision,
   type PayrollBatch,
   type PayrollLine,
 } from "@/features/hr/payroll-api";
-import { listEmployees } from "@/features/hr/hr-api";
-import type { Employee } from "@/features/hr/types";
-import {
-  AlertTriangle,
-  ArrowUpRight,
-  CheckCircle2,
-  Clock,
-  Download,
-  RefreshCw,
-  Wallet,
-} from "lucide-react";
-import { ProjectPicker } from "@/components/shared/project-picker";
+import { BatchStatusPill } from "@/features/hr/components/batch-status-pill";
+import { PayrollWizard } from "@/features/hr/components/payroll-wizard";
+import { PayslipDialog } from "@/features/hr/components/payslip-dialog";
+import { AlertTriangle, ArrowUpRight, Building2, CheckCircle2, Download, FileText, RefreshCw, Wallet } from "lucide-react";
 import { downloadCsv } from "@/lib/export-csv";
 import { formatCompactCurrency, formatCurrency } from "@/lib/format-currency";
-import { PayrollPeriodPicker } from "@/components/shared/payroll-period-picker";
 import {
   Select,
   SelectContent,
@@ -55,127 +41,49 @@ import {
 
 const ALL_PERIODS = "all";
 
-// Delegates to the shared peso formatter — this used to hardcode "$".
-function money(n: number) {
-  return formatCompactCurrency(n);
-}
-
-function batchStatusLabel(status: string) {
-  switch (status) {
-    case "approved":
-      return "Approved by Finance";
-    case "rejected":
-      return "Rejected by Finance";
-    case "processing":
-      return "Processing";
-    default:
-      return "Pending Finance Review";
-  }
-}
+const AGENCIES: Array<{ key: Agency; label: string }> = [
+  { key: "sss", label: "SSS" },
+  { key: "philhealth", label: "PhilHealth" },
+  { key: "pagibig", label: "Pag-IBIG" },
+];
 
 export default function HRPayrollPage() {
   const [rows, setRows] = useState<PayrollLine[]>([]);
   const [batches, setBatches] = useState<PayrollBatch[]>([]);
-  const [employees, setEmployees] = useState<Employee[]>([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [periodInput, setPeriodInput] = useState("");
-  const [groupInput, setGroupInput] = useState("All departments");
-  const [projectCodeInput, setProjectCodeInput] = useState("");
-  const [hoursInput, setHoursInput] = useState("160");
-  const [overtimeInput, setOvertimeInput] = useState("0");
-  const [showGenerateForm, setShowGenerateForm] = useState(false);
-  // F1: the period picker above only ever fed the Generate form — the
-  // tracksheet itself always called listPayroll() with no argument, so
-  // picking a period had no effect on what was actually displayed.
+  const [wizardOpen, setWizardOpen] = useState(false);
+  const [resumeBatchId, setResumeBatchId] = useState<string | null>(null);
+  const [payslipLine, setPayslipLine] = useState<PayrollLine | null>(null);
+  const [lastRejection, setLastRejection] = useState<Record<string, BatchDecision | undefined>>({});
+  // F1: the filter drives what the tracksheet below actually displays.
   const [trackFilterPeriod, setTrackFilterPeriod] = useState<string | null>(null);
-  // G5: entries pulled from verified attendance for the selected project,
-  // keyed by employeeId — takes over from the flat hours/overtime inputs
-  // (which still apply to anyone attendance had nothing verified for).
-  const [attendanceEntries, setAttendanceEntries] = useState<Map<string, GeneratePayrollEntry> | null>(null);
-  const [loadingAttendance, setLoadingAttendance] = useState(false);
-
-  const handlePrefillFromAttendance = async () => {
-    if (!projectCodeInput.trim()) return;
-    setLoadingAttendance(true);
-    setError(null);
-    try {
-      const entries = await getAttendanceSummary(projectCodeInput.trim());
-      setAttendanceEntries(new Map(entries.map((e) => [e.employeeId, e])));
-    } catch (prefillError) {
-      setError(
-        prefillError instanceof Error
-          ? prefillError.message
-          : "Failed to load verified attendance for this project.",
-      );
-    } finally {
-      setLoadingAttendance(false);
-    }
-  };
-
-  // The Export button was rendered with no handler at all — clicking it did
-  // nothing. Exports the tracksheet currently on screen.
-  const handleExportCsv = () => {
-    downloadCsv(
-      "payroll-tracksheet",
-      [
-        "Employee ID",
-        "Name",
-        "Role",
-        "Period",
-        "Hours",
-        "Overtime",
-        "Gross",
-        "SSS",
-        "PhilHealth",
-        "Pag-IBIG",
-        "Withholding Tax",
-        "Deductions",
-        "Net",
-        "Status",
-      ],
-      rows.map((r) => [
-        r.empId,
-        r.name,
-        r.role,
-        r.period,
-        r.hours,
-        r.overtime,
-        r.gross,
-        r.sss,
-        r.philhealth,
-        r.pagibig,
-        r.withholdingTax,
-        r.deductions,
-        r.net,
-        r.status,
-      ]),
-    );
-  };
-  const [generating, setGenerating] = useState(false);
 
   const loadPayroll = async (period: string | null = trackFilterPeriod) => {
     setError(null);
-
     try {
-      const [payrollLines, payrollBatches, availableEmployees] =
-        await Promise.all([
-          listPayroll(period ?? undefined),
-          listPayrollBatches(),
-          listEmployees({ status: "Active" }),
-        ]);
-
+      const [payrollLines, payrollBatches] = await Promise.all([
+        listPayroll(period ?? undefined),
+        listPayrollBatches(),
+      ]);
       setRows(payrollLines);
       setBatches(payrollBatches);
-      setEmployees(availableEmployees);
+
+      // For each batch Finance sent back, fetch why — shown at the top.
+      const revisions = payrollBatches.filter((b) => b.status === "revision_required");
+      const details = await Promise.all(revisions.map((b) => getBatchDetail(b.id)));
+      setLastRejection(
+        Object.fromEntries(
+          details.map((d) => [
+            d.batch.id,
+            [...d.decisions].reverse().find((x) => x.action === "rejected"),
+          ]),
+        ),
+      );
     } catch (loadError) {
       console.error(loadError);
-      setError(
-        loadError instanceof Error
-          ? loadError.message
-          : "Failed to load payroll data.",
-      );
+      setError(loadError instanceof Error ? loadError.message : "Failed to load payroll data.");
     } finally {
       setLoading(false);
       setRefreshing(false);
@@ -184,6 +92,7 @@ export default function HRPayrollPage() {
 
   useEffect(() => {
     void loadPayroll();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   const trackPeriods = useMemo(
@@ -191,93 +100,70 @@ export default function HRPayrollPage() {
     [batches],
   );
 
+  const revisionBatches = batches.filter((b) => b.status === "revision_required");
+  const awaitingApproval = batches.filter((b) => b.status === "pending").length;
+
+  const openWizard = (batchId: string | null) => {
+    setResumeBatchId(batchId);
+    setWizardOpen(true);
+  };
+
   const handleTrackFilterChange = (period: string | null) => {
     setTrackFilterPeriod(period);
     void loadPayroll(period);
   };
 
-  const currentBatch = useMemo(
-    () =>
-      [...batches].sort((a, b) => {
-        const aTime = a.createdAt
-          ? new Date(a.createdAt).getTime()
-          : 0;
-        const bTime = b.createdAt
-          ? new Date(b.createdAt).getTime()
-          : 0;
-        return bTime - aTime || b.id.localeCompare(a.id);
-      })[0] ?? null,
-    [batches],
-  );
+  const handleExportCsv = () => {
+    downloadCsv(
+      "payroll-tracksheet",
+      [
+        "Employee ID", "Name", "Role", "Period", "Hours", "Overtime", "Adjustments", "Gross",
+        "SSS", "PhilHealth", "Pag-IBIG", "Withholding Tax", "Deductions", "Net",
+        "Employer SSS", "Employer EC", "Employer PhilHealth", "Employer Pag-IBIG", "Employer cost", "Status",
+      ],
+      rows.map((r) => [
+        r.empId, r.name, r.role, r.period, r.hours, r.overtime, r.adjustments, r.gross,
+        r.sss, r.philhealth, r.pagibig, r.withholdingTax, r.deductions, r.net,
+        r.employerSss, r.employerEc, r.employerPhilhealth, r.employerPagibig, r.employerCost, r.status,
+      ]),
+    );
+  };
 
-  async function refreshStatus() {
-    setRefreshing(true);
-    await loadPayroll();
-  }
-
-  async function handleGeneratePayroll() {
-    if (!periodInput.trim() || employees.length === 0) {
-      setError(
-        employees.length === 0
-          ? "No active employees are available for payroll generation."
-          : "Enter a payroll period before generating.",
-      );
-      return;
-    }
-
-    setGenerating(true);
-    setError(null);
-
+  // Liabilities per agency for one approved period. The system only reports
+  // them; it does not remit anything to SSS, PhilHealth, Pag-IBIG or BIR.
+  const handleExportContributions = async (agency: Agency, label: string) => {
+    if (!trackFilterPeriod) return;
     try {
-      await generatePayroll({
-        period: periodInput.trim(),
-        group: groupInput.trim() || "All departments",
-        projectCode: projectCodeInput.trim() || undefined,
-        entries: employees.map((employee) => {
-          const attended = attendanceEntries?.get(employee.id);
-          return attended
-            ? { employeeId: employee.id, hoursWorked: attended.hoursWorked, overtimeHours: attended.overtimeHours ?? 0 }
-            : {
-                employeeId: employee.id,
-                hoursWorked: Number(hoursInput) || 0,
-                overtimeHours: Number(overtimeInput) || 0,
-              };
-        }),
-      });
-
-      setShowGenerateForm(false);
-      setAttendanceEntries(null);
-      await loadPayroll();
-    } catch (generationError) {
-      console.error(generationError);
-      setError(
-        generationError instanceof Error
-          ? generationError.message
-          : "Failed to generate payroll.",
+      const report = await getContributionReport(agency, trackFilterPeriod);
+      downloadCsv(
+        `${agency}-contributions-${trackFilterPeriod}`,
+        [
+          "Batch", "Project", "Employee ID", "Name", "Period",
+          `${label} employee share`, `${label} employer share`,
+          ...(agency === "sss" ? ["EC (employer)"] : []), "Rate version",
+        ],
+        report.map((r) => [
+          r.batchId, r.projectCode ?? "", r.empId, r.name, r.period, r.employeeShare, r.employerShare,
+          ...(agency === "sss" ? [r.ec ?? 0] : []), r.rateVersion,
+        ]),
       );
-    } finally {
-      setGenerating(false);
+    } catch (e) {
+      setError(e instanceof Error ? e.message : "Failed to export the contribution report.");
     }
-  }
+  };
 
-  const totals = useMemo(() => {
-    const gross = rows.reduce((s, r) => s + r.gross, 0);
-    const net = rows.reduce((s, r) => s + r.net, 0);
-    // Overtime cost isolated at the same effective rate implied by gross vs.
-    // regular hours would require the hourly rate per row; as a simple proxy
-    // we show overtime hours × (gross ÷ total hours) as an approximate cost.
-    const totalHours = rows.reduce((s, r) => s + r.hours + r.overtime, 0) || 1;
-    const avgRate = gross / totalHours;
-    const overtimeHours = rows.reduce((s, r) => s + r.overtime, 0);
-    const overtimeCost = overtimeHours * avgRate * 1.5;
-    return { gross, net, overtimeCost };
-  }, [rows]);
+  const totals = useMemo(
+    () => ({
+      gross: rows.reduce((s, r) => s + r.gross, 0),
+      net: rows.reduce((s, r) => s + r.net, 0),
+      employerCost: rows.reduce((s, r) => s + r.employerCost, 0),
+    }),
+    [rows],
+  );
 
   const pagination = usePagination(rows, 10);
   const period = rows[0]?.period ?? "Current period";
   const totalHours = rows.reduce((s, r) => s + r.hours, 0);
-  const awaitingApproval =
-    currentBatch?.status === "pending" ? 1 : 0;
 
   return (
     <div className="flex-1 space-y-6 p-4 md:p-6">
@@ -290,14 +176,13 @@ export default function HRPayrollPage() {
               size="sm"
               variant="outline"
               className="rounded-xl"
-              onClick={() => void refreshStatus()}
+              onClick={() => {
+                setRefreshing(true);
+                void loadPayroll();
+              }}
               disabled={loading || refreshing}
             >
-              <RefreshCw
-                className={`h-4 w-4 ${
-                  refreshing ? "animate-spin" : ""
-                }`}
-              />
+              <RefreshCw className={`h-4 w-4 ${refreshing ? "animate-spin" : ""}`} />
               {refreshing ? "Refreshing…" : "Refresh Status"}
             </Button>
             <Button
@@ -310,13 +195,7 @@ export default function HRPayrollPage() {
             >
               <Download className="h-4 w-4" /> Export
             </Button>
-            <Button
-              size="sm"
-              className="rounded-xl"
-              onClick={() =>
-                setShowGenerateForm((visible) => !visible)
-              }
-            >
+            <Button size="sm" className="rounded-xl" onClick={() => openWizard(null)}>
               Generate Payroll <ArrowUpRight className="h-4 w-4" />
             </Button>
           </>
@@ -329,160 +208,118 @@ export default function HRPayrollPage() {
         </div>
       )}
 
-      {showGenerateForm && (
-        <Card className="rounded-2xl">
-          <CardHeader>
-            <CardTitle className="text-base">
-              Generate Payroll Batch
-            </CardTitle>
-            <p className="text-xs text-muted-foreground">
-              This creates payroll lines and a pending batch for Finance review.
-            </p>
-          </CardHeader>
-          <CardContent className="grid gap-4 md:grid-cols-5">
-            <PayrollPeriodPicker
-              value={periodInput}
-              onChange={setPeriodInput}
-              className="h-9 rounded-md border bg-background px-3 text-sm"
-            />
-            <input
-              className="h-9 rounded-md border bg-background px-3 text-sm"
-              placeholder="Group"
-              value={groupInput}
-              onChange={(event) =>
-                setGroupInput(event.target.value)
-              }
-            />
-            <ProjectPicker
-              value={projectCodeInput}
-              onChange={(code) => {
-                setProjectCodeInput(code);
-                setAttendanceEntries(null);
-              }}
-              placeholder="Project code"
-              className="h-9 rounded-md border bg-background px-3 text-sm"
-            />
-            <input
-              className="h-9 rounded-md border bg-background px-3 text-sm"
-              type="number"
-              min="0"
-              placeholder="Hours"
-              value={hoursInput}
-              onChange={(event) =>
-                setHoursInput(event.target.value)
-              }
-            />
-            <input
-              className="h-9 rounded-md border bg-background px-3 text-sm"
-              type="number"
-              min="0"
-              placeholder="Overtime"
-              value={overtimeInput}
-              onChange={(event) =>
-                setOvertimeInput(event.target.value)
-              }
-            />
-            <div className="flex flex-wrap items-center gap-2 md:col-span-5">
-              <Button
-                variant="outline"
-                onClick={() => void handlePrefillFromAttendance()}
-                disabled={!projectCodeInput.trim() || loadingAttendance}
-                title={!projectCodeInput.trim() ? "Select a project first" : "Prefill hours from verified attendance"}
-              >
-                {loadingAttendance ? "Loading attendance…" : "Prefill from attendance"}
-              </Button>
-              {attendanceEntries && (
-                <span className="text-xs text-muted-foreground">
-                  {attendanceEntries.size} employee(s) with verified attendance — the rest fall back to the hours/overtime fields above.
-                </span>
-              )}
-              <Button
-                onClick={() => void handleGeneratePayroll()}
-                disabled={generating}
-              >
-                {generating ? "Generating…" : "Create Pending Batch"}
-              </Button>
-              <Button
-                variant="ghost"
-                onClick={() => setShowGenerateForm(false)}
-                disabled={generating}
-              >
-                Cancel
-              </Button>
+      {revisionBatches.map((b) => {
+        const why = lastRejection[b.id];
+        return (
+          <div
+            key={b.id}
+            className="flex flex-col gap-3 rounded-2xl border border-destructive/30 bg-destructive/10 p-4 md:flex-row md:items-center md:justify-between"
+          >
+            <div className="text-sm">
+              <div className="font-semibold">
+                Finance sent {b.id} ({b.period}) back for revision
+              </div>
+              <div className="mt-1">
+                Reason: <span className="font-medium">{reasonLabel(why?.reasonCode ?? "") || "Not recorded"}</span>
+                {why?.comment ? ` — ${why.comment}` : ""}
+              </div>
             </div>
-          </CardContent>
-        </Card>
+            <Button size="sm" className="rounded-xl" onClick={() => openWizard(b.id)}>
+              Fix and resubmit
+            </Button>
+          </div>
+        );
+      })}
+
+      {wizardOpen && (
+        <PayrollWizard
+          key={resumeBatchId ?? "new"}
+          resumeBatchId={resumeBatchId}
+          onClose={() => setWizardOpen(false)}
+          onChanged={() => void loadPayroll()}
+        />
       )}
 
       <div className="grid grid-cols-2 gap-3 md:grid-cols-4">
-        <KpiMini
-          label="Gross labor (period)"
-          value={money(totals.gross)}
-          tone="info"
-          icon={Wallet}
-        />
-        <KpiMini
-          label="Net payable"
-          value={money(totals.net)}
-          tone="success"
-          icon={CheckCircle2}
-        />
-        <KpiMini
-          label="Overtime cost"
-          value={money(totals.overtimeCost)}
-          tone="warning"
-          icon={Clock}
-        />
-        <KpiMini
-          label="Awaiting approval"
-          value={String(awaitingApproval)}
-          tone="warning"
-          icon={AlertTriangle}
-        />
+        <KpiMini label="Gross labor (period)" value={formatCompactCurrency(totals.gross)} tone="info" icon={Wallet} />
+        <KpiMini label="Net payable" value={formatCompactCurrency(totals.net)} tone="success" icon={CheckCircle2} />
+        <KpiMini label="Employer cost" value={formatCompactCurrency(totals.employerCost)} tone="warning" icon={Building2} />
+        <KpiMini label="Awaiting Finance" value={String(awaitingApproval)} tone="warning" icon={AlertTriangle} />
       </div>
 
-      {currentBatch && (
-        <Card className="rounded-2xl">
-          <CardContent className="flex flex-col gap-4 p-5 md:flex-row md:items-center md:justify-between">
-            <div>
-              <p className="text-xs text-muted-foreground">
-                Payroll Batch {currentBatch.id}
-              </p>
-              <h2 className="mt-1 text-lg font-semibold">
-                {batchStatusLabel(currentBatch.status)}
-              </h2>
-              <p className="mt-1 text-sm text-muted-foreground">
-                {currentBatch.status === "pending"
-                  ? "This payroll batch has been generated by HR and is currently waiting for Finance Manager review."
-                  : currentBatch.status === "approved"
-                    ? "Finance has approved this payroll batch. The payroll is ready to proceed to the next processing stage."
-                    : currentBatch.status === "rejected"
-                      ? "Finance rejected this payroll batch. Review the payroll information and submit a corrected batch."
-                      : "This payroll batch is being processed."}
-              </p>
-              {currentBatch.reviewedBy && (
-                <p className="mt-2 text-xs text-muted-foreground">
-                  Reviewed by {currentBatch.reviewedBy}
-                  {currentBatch.reviewedAt
-                    ? ` · ${new Date(currentBatch.reviewedAt).toLocaleString()}`
-                    : ""}
-                </p>
+      <Card className="rounded-2xl">
+        <CardHeader>
+          <CardTitle className="text-base">Batches</CardTitle>
+        </CardHeader>
+        <CardContent className="px-0">
+          <Table>
+            <TableHeader>
+              <TableRow>
+                <TableHead>Batch</TableHead>
+                <TableHead>Project</TableHead>
+                <TableHead>Period</TableHead>
+                <TableHead className="text-right">Employees</TableHead>
+                <TableHead className="text-right">Net</TableHead>
+                <TableHead>Round</TableHead>
+                <TableHead>Status</TableHead>
+                <TableHead />
+              </TableRow>
+            </TableHeader>
+            <TableBody>
+              {batches.length === 0 && (
+                <TableRow>
+                  <TableCell colSpan={8} className="py-6 text-center text-sm text-muted-foreground">
+                    No batches yet.
+                  </TableCell>
+                </TableRow>
               )}
-            </div>
-            <StatusBadge status={batchStatusLabel(currentBatch.status)} />
-          </CardContent>
-        </Card>
-      )}
+              {batches.slice(0, 8).map((b) => (
+                <TableRow key={b.id}>
+                  <TableCell className="font-mono text-xs">{b.id}</TableCell>
+                  <TableCell className="text-sm">{b.projectCode ?? "—"}</TableCell>
+                  <TableCell className="text-sm">{b.period}</TableCell>
+                  <TableCell className="text-right tabular-nums">{b.employees}</TableCell>
+                  <TableCell className="text-right tabular-nums">{formatCurrency(b.netPayroll)}</TableCell>
+                  <TableCell className="text-sm">{b.round}</TableCell>
+                  <TableCell>
+                    <BatchStatusPill status={b.status} />
+                  </TableCell>
+                  <TableCell className="text-right">
+                    {(b.status === "draft" || b.status === "revision_required") && (
+                      <Button size="sm" variant="outline" className="rounded-xl" onClick={() => openWizard(b.id)}>
+                        {b.status === "draft" ? "Continue" : "Fix and resubmit"}
+                      </Button>
+                    )}
+                  </TableCell>
+                </TableRow>
+              ))}
+            </TableBody>
+          </Table>
+        </CardContent>
+      </Card>
 
-      <div className="grid grid-cols-1 gap-4 xl:grid-cols-3">
-        <Card className="rounded-2xl xl:col-span-2">
-          <CardHeader className="flex flex-row items-start justify-between gap-3 space-y-0">
-            <div>
-              <CardTitle className="text-base">Tracksheet</CardTitle>
-              <p className="text-xs text-muted-foreground">
-                {period} · {rows.length} employees · {totalHours.toLocaleString()} hours logged
-              </p>
-            </div>
+      <Card className="rounded-2xl">
+        <CardHeader className="flex flex-row flex-wrap items-start justify-between gap-3 space-y-0">
+          <div>
+            <CardTitle className="text-base">Tracksheet</CardTitle>
+            <p className="text-xs text-muted-foreground">
+              {period} · {rows.length} employees · {totalHours.toLocaleString()} hours logged
+            </p>
+          </div>
+          <div className="flex flex-wrap items-center gap-2">
+            {AGENCIES.map((a) => (
+              <Button
+                key={a.key}
+                size="sm"
+                variant="outline"
+                className="rounded-xl text-xs"
+                disabled={!trackFilterPeriod}
+                title={trackFilterPeriod ? `Export ${a.label} contribution report` : "Choose a period to export a contribution report"}
+                onClick={() => void handleExportContributions(a.key, a.label)}
+              >
+                <FileText className="h-3.5 w-3.5" /> {a.label}
+              </Button>
+            ))}
             <Select
               value={trackFilterPeriod ?? ALL_PERIODS}
               onValueChange={(v) => handleTrackFilterChange(v === ALL_PERIODS ? null : v)}
@@ -493,164 +330,94 @@ export default function HRPayrollPage() {
               <SelectContent>
                 <SelectItem value={ALL_PERIODS}>All periods</SelectItem>
                 {trackPeriods.map((p) => (
-                  <SelectItem key={p} value={p}>{p}</SelectItem>
+                  <SelectItem key={p} value={p}>
+                    {p}
+                  </SelectItem>
                 ))}
               </SelectContent>
             </Select>
-          </CardHeader>
-          <CardContent className="px-0">
-            <Table>
-              <TableHeader>
+          </div>
+        </CardHeader>
+        <CardContent className="px-0">
+          <Table>
+            <TableHeader>
+              <TableRow>
+                <TableHead>Employee</TableHead>
+                <TableHead>Role</TableHead>
+                <TableHead className="text-right">Hours</TableHead>
+                <TableHead className="text-right">OT</TableHead>
+                <TableHead className="text-right">Gross</TableHead>
+                <TableHead className="text-right">SSS</TableHead>
+                <TableHead className="text-right">PhilHealth</TableHead>
+                <TableHead className="text-right">Pag-IBIG</TableHead>
+                <TableHead className="text-right">W/Tax</TableHead>
+                <TableHead className="text-right">Deductions</TableHead>
+                <TableHead className="text-right">Net</TableHead>
+                <TableHead>Status</TableHead>
+                <TableHead />
+              </TableRow>
+            </TableHeader>
+            <TableBody>
+              {loading && (
                 <TableRow>
-                  <TableHead>Employee</TableHead>
-                  <TableHead>Role</TableHead>
-                  <TableHead className="text-right">Hours</TableHead>
-                  <TableHead className="text-right">OT</TableHead>
-                  <TableHead className="text-right">Gross</TableHead>
-                  {/* Philippine statutory withholdings, each on its own base
-                      — the single "Deductions" figure was a flat 12% of gross
-                      standing in for all four, which could not be explained to
-                      an employee looking at their payslip. */}
-                  <TableHead className="text-right">SSS</TableHead>
-                  <TableHead className="text-right">PhilHealth</TableHead>
-                  <TableHead className="text-right">Pag-IBIG</TableHead>
-                  <TableHead className="text-right">W/Tax</TableHead>
-                  <TableHead className="text-right">Deductions</TableHead>
-                  <TableHead className="text-right">Net</TableHead>
-                  <TableHead>Status</TableHead>
+                  <TableCell colSpan={13} className="py-8 text-center text-sm text-muted-foreground">
+                    Loading payroll…
+                  </TableCell>
                 </TableRow>
-              </TableHeader>
-              <TableBody>
-                {loading && (
-                  <TableRow>
-                    <TableCell colSpan={12} className="py-8 text-center text-sm text-muted-foreground">
-                      Loading payroll…
-                    </TableCell>
-                  </TableRow>
-                )}
-                {!loading && rows.length === 0 && (
-                  <TableRow>
-                    <TableCell colSpan={12} className="py-8 text-center text-sm text-muted-foreground">
-                      No payroll generated yet for this period.
-                    </TableCell>
-                  </TableRow>
-                )}
-                {pagination.pageItems.map((p) => (
-                  <TableRow key={p.id} className="hover:bg-muted/40">
-                    <TableCell>
-                      <div className="flex items-center gap-2">
-                        <Avatar className="h-7 w-7">
-                          <AvatarFallback className="bg-primary-soft text-[10px] font-semibold text-primary">
-                            {p.initials}
-                          </AvatarFallback>
-                        </Avatar>
-                        <div>
-                          <div className="text-sm font-medium">{p.name}</div>
-                          <div className="font-mono text-[10px] text-muted-foreground">
-                            {p.empId}
-                          </div>
-                        </div>
+              )}
+              {!loading && rows.length === 0 && (
+                <TableRow>
+                  <TableCell colSpan={13} className="py-8 text-center text-sm text-muted-foreground">
+                    No payroll generated yet for this period.
+                  </TableCell>
+                </TableRow>
+              )}
+              {pagination.pageItems.map((p) => (
+                <TableRow key={p.id} className="hover:bg-muted/40">
+                  <TableCell>
+                    <div className="flex items-center gap-2">
+                      <Avatar className="h-7 w-7">
+                        <AvatarFallback className="bg-primary-soft text-[10px] font-semibold text-primary">
+                          {p.initials}
+                        </AvatarFallback>
+                      </Avatar>
+                      <div>
+                        <div className="text-sm font-medium">{p.name}</div>
+                        <div className="font-mono text-[10px] text-muted-foreground">{p.empId}</div>
                       </div>
-                    </TableCell>
-                    <TableCell className="text-sm text-muted-foreground">
-                      {p.role}
-                    </TableCell>
-                    <TableCell className="text-right text-sm">
-                      {p.hours}
-                    </TableCell>
-                    <TableCell className="text-right text-sm">
-                      {p.overtime}
-                    </TableCell>
-                    <TableCell className="text-right text-sm tabular-nums">
-                      {formatCurrency(p.gross)}
-                    </TableCell>
-                    <TableCell className="text-right text-sm tabular-nums text-muted-foreground">
-                      {formatCurrency(p.sss)}
-                    </TableCell>
-                    <TableCell className="text-right text-sm tabular-nums text-muted-foreground">
-                      {formatCurrency(p.philhealth)}
-                    </TableCell>
-                    <TableCell className="text-right text-sm tabular-nums text-muted-foreground">
-                      {formatCurrency(p.pagibig)}
-                    </TableCell>
-                    <TableCell className="text-right text-sm tabular-nums text-muted-foreground">
-                      {formatCurrency(p.withholdingTax)}
-                    </TableCell>
-                    <TableCell className="text-right text-sm tabular-nums text-muted-foreground">
-                      −{formatCurrency(p.deductions)}
-                    </TableCell>
-                    <TableCell className="text-right text-sm font-semibold tabular-nums">
-                      {formatCurrency(p.net)}
-                    </TableCell>
-                    <TableCell>
-                      <StatusBadge status={p.status} />
-                    </TableCell>
-                  </TableRow>
-                ))}
-              </TableBody>
-            </Table>
-            {rows.length > 0 && (
-              <div className="px-4 pt-3">
-                <DataTablePagination {...pagination} />
-              </div>
-            )}
-          </CardContent>
-        </Card>
-
-        <Card className="rounded-2xl">
-          <CardHeader>
-            <CardTitle className="text-base">Period summary</CardTitle>
-            <p className="text-xs text-muted-foreground">
-              Distribution & checkpoints
-            </p>
-          </CardHeader>
-          <CardContent className="space-y-4">
-            <div className="rounded-xl border bg-muted/30 p-4">
-              <div className="text-xs text-muted-foreground">Total payable</div>
-              <div className="mt-1 text-2xl font-semibold tracking-tight">
-                {formatCurrency(totals.net)}
-              </div>
-            </div>
-            <div className="space-y-3">
-              {[
-                {
-                  label: "Base wages",
-                  value: totals.gross ? Math.round(((totals.gross - totals.overtimeCost) / totals.gross) * 100) : 0,
-                  amount: money(totals.gross - totals.overtimeCost),
-                },
-                {
-                  label: "Overtime",
-                  value: totals.gross ? Math.round((totals.overtimeCost / totals.gross) * 100) : 0,
-                  amount: money(totals.overtimeCost),
-                },
-                {
-                  label: "Deductions",
-                  value: totals.gross ? Math.round(((totals.gross - totals.net) / totals.gross) * 100) : 0,
-                  amount: money(totals.gross - totals.net),
-                },
-              ].map((s) => (
-                <div key={s.label}>
-                  <div className="flex items-center justify-between text-xs">
-                    <span>{s.label}</span>
-                    <span className="text-muted-foreground">{s.amount}</span>
-                  </div>
-                  <Progress value={s.value} className="mt-1 h-1.5" />
-                </div>
+                    </div>
+                  </TableCell>
+                  <TableCell className="text-sm text-muted-foreground">{p.role}</TableCell>
+                  <TableCell className="text-right text-sm">{p.hours}</TableCell>
+                  <TableCell className="text-right text-sm">{p.overtime}</TableCell>
+                  <TableCell className="text-right text-sm tabular-nums">{formatCurrency(p.gross)}</TableCell>
+                  <TableCell className="text-right text-sm tabular-nums text-muted-foreground">{formatCurrency(p.sss)}</TableCell>
+                  <TableCell className="text-right text-sm tabular-nums text-muted-foreground">{formatCurrency(p.philhealth)}</TableCell>
+                  <TableCell className="text-right text-sm tabular-nums text-muted-foreground">{formatCurrency(p.pagibig)}</TableCell>
+                  <TableCell className="text-right text-sm tabular-nums text-muted-foreground">{formatCurrency(p.withholdingTax)}</TableCell>
+                  <TableCell className="text-right text-sm tabular-nums text-muted-foreground">−{formatCurrency(p.deductions)}</TableCell>
+                  <TableCell className="text-right text-sm font-semibold tabular-nums">{formatCurrency(p.net)}</TableCell>
+                  <TableCell>
+                    <StatusBadge status={p.status} />
+                  </TableCell>
+                  <TableCell>
+                    <Button size="sm" variant="ghost" className="text-xs" onClick={() => setPayslipLine(p)}>
+                      Payslip
+                    </Button>
+                  </TableCell>
+                </TableRow>
               ))}
+            </TableBody>
+          </Table>
+          {rows.length > 0 && (
+            <div className="px-4 pt-3">
+              <DataTablePagination {...pagination} />
             </div>
-            <Separator />
-            <div className="space-y-2 text-xs">
-              <Checkpoint label="Attendance reconciled" done />
-              <Checkpoint label="Gross labor verified" done={rows.length > 0} />
-              <Checkpoint
-                label="Manager approvals"
-                done={currentBatch?.status === "approved"}
-              />
-              <Checkpoint label="Disbursement initiated" />
-            </div>
-          </CardContent>
-        </Card>
-      </div>
+          )}
+        </CardContent>
+      </Card>
+
+      <PayslipDialog line={payslipLine} onClose={() => setPayslipLine(null)} />
     </div>
   );
 }

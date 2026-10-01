@@ -5,8 +5,16 @@ import {
   listPayrollReview,
   type PayrollReviewBatch,
 } from "@/features/finance/apis/payroll-review-api";
-import { listPayroll, type PayrollLine } from "@/features/hr/payroll-api";
-import { useAuth } from "@/auth/auth-context";
+import {
+  getBatchDetail,
+  reasonLabel,
+  REJECTION_REASONS,
+  type BatchDetail,
+  type PayrollLine,
+} from "@/features/hr/payroll-api";
+import { BatchStatusPill } from "@/features/hr/components/batch-status-pill";
+import { PayslipDialog } from "@/features/hr/components/payslip-dialog";
+import { ConfirmDialog } from "@/components/ui/confirm-dialog";
 import {
   Select,
   SelectContent,
@@ -20,38 +28,36 @@ import { formatCurrency } from "@/lib/format-currency";
 
 const ALL = "all";
 
+function Figure({ label, value, strong }: { label: string; value: string; strong?: boolean }) {
+  return (
+    <div className="flex items-center justify-between py-0.5 text-sm">
+      <span className="text-muted-foreground">{label}</span>
+      <span className={`tabular-nums ${strong ? "font-semibold" : ""}`}>{value}</span>
+    </div>
+  );
+}
+
 export default function FinancePayrollReviewPage() {
-  const { user } = useAuth();
   const [batches, setBatches] = useState<PayrollReviewBatch[]>([]);
-  const [selectedBatch, setSelectedBatch] =
-    useState<PayrollReviewBatch | null>(null);
+  const [selectedId, setSelectedId] = useState<string | null>(null);
+  const [detail, setDetail] = useState<BatchDetail | null>(null);
+  const [detailLoading, setDetailLoading] = useState(false);
 
   const [loading, setLoading] = useState(true);
   const [processing, setProcessing] = useState(false);
   const [error, setError] = useState("");
 
-  const [comment, setComment] = useState("");
-
-  // G1: per-employee lines for the selected batch's period. payroll lines
-  // aren't linked to a batch id (only a period string — see
-  // server/src/db/schema/payroll.ts), so if more than one batch was ever
-  // generated for the same period, this shows every line for that period,
-  // not strictly this one batch's lines. Flagged rather than silently wrong:
-  // a mismatch between the line count and the batch's own `employees` count
-  // is called out in the UI instead of presented as an exact match.
-  const [batchLines, setBatchLines] = useState<PayrollLine[]>([]);
-  const [linesLoading, setLinesLoading] = useState(false);
-
   const [periodFilter, setPeriodFilter] = useState<string | null>(null);
+  const [reasonCode, setReasonCode] = useState("");
+  const [comment, setComment] = useState("");
+  const [confirming, setConfirming] = useState<"approved" | "rejected" | null>(null);
+  const [payslipLine, setPayslipLine] = useState<PayrollLine | null>(null);
 
-  async function loadPayroll() {
+  async function loadBatches() {
     try {
       setLoading(true);
       setError("");
-
-      const data = await listPayrollReview();
-
-      setBatches(data);
+      setBatches(await listPayrollReview());
     } catch (err) {
       console.error(err);
       setError("Failed to load payroll batches.");
@@ -61,70 +67,70 @@ export default function FinancePayrollReviewPage() {
   }
 
   useEffect(() => {
-    void loadPayroll();
+    void loadBatches();
   }, []);
 
   useEffect(() => {
-    if (!selectedBatch) {
-      setBatchLines([]);
+    if (!selectedId) {
+      setDetail(null);
       return;
     }
     let cancelled = false;
-    setLinesLoading(true);
-    listPayroll(selectedBatch.period)
-      .then((lines) => {
-        if (!cancelled) setBatchLines(lines);
+    setDetailLoading(true);
+    getBatchDetail(selectedId)
+      .then((d) => {
+        if (!cancelled) setDetail(d);
       })
       .catch(() => {
-        if (!cancelled) setBatchLines([]);
+        if (!cancelled) setDetail(null);
       })
       .finally(() => {
-        if (!cancelled) setLinesLoading(false);
+        if (!cancelled) setDetailLoading(false);
       });
     return () => {
       cancelled = true;
     };
-  }, [selectedBatch]);
+  }, [selectedId]);
 
   const periods = useMemo(
     () => Array.from(new Set(batches.map((b) => b.period))).sort().reverse(),
     [batches],
   );
-
   const filteredBatches = useMemo(
     () => (periodFilter ? batches.filter((b) => b.period === periodFilter) : batches),
     [batches, periodFilter],
   );
-
   const pagination = usePagination(filteredBatches, 10);
+  const linePagination = usePagination(detail?.lines ?? [], 8);
 
-  async function handleDecision(
-    decision: "approved" | "rejected",
-  ) {
-    if (!selectedBatch) return;
-    if (decision === "rejected" && !comment.trim()) return;
+  const batch = detail?.batch ?? null;
+  const t = detail?.totals;
+  const pending = batch?.status === "pending";
+  // Reject needs a reason, and a comment when the reason is Other.
+  const rejectReady = reasonCode !== "" && (reasonCode !== "other" || comment.trim() !== "");
 
+  async function handleDecision(decision: "approved" | "rejected") {
+    if (!batch) return;
     try {
       setProcessing(true);
       setError("");
-
-      const updated = await decidePayrollReview(selectedBatch.id, {
+      await decidePayrollReview(batch.id, {
         decision,
-        reviewedBy: user?.name ?? "Finance Manager",
+        reasonCode: decision === "rejected" ? reasonCode : undefined,
         comment: comment.trim() || undefined,
       });
-
-      setBatches((current) =>
-        current.map((batch) =>
-          batch.id === updated.id ? updated : batch,
-        ),
-      );
-
-      setSelectedBatch(updated);
+      setConfirming(null);
+      setReasonCode("");
       setComment("");
+      await loadBatches();
+      setDetail(await getBatchDetail(batch.id));
     } catch (err) {
-      console.error(err);
-      setError("Failed to update payroll decision.");
+      // A stale tab deciding an already-decided batch gets the server's 409
+      // text here; reload so the buttons disable.
+      setConfirming(null);
+      setError(err instanceof Error ? err.message : "Failed to update payroll decision.");
+      await loadBatches();
+      setDetail(await getBatchDetail(batch.id).catch(() => detail));
     } finally {
       setProcessing(false);
     }
@@ -134,9 +140,7 @@ export default function FinancePayrollReviewPage() {
     return (
       <div className="p-6">
         <h1 className="text-2xl font-semibold">Payroll Review</h1>
-        <p className="mt-2 text-muted-foreground">
-          Loading payroll batches...
-        </p>
+        <p className="mt-2 text-muted-foreground">Loading payroll batches...</p>
       </div>
     );
   }
@@ -145,13 +149,8 @@ export default function FinancePayrollReviewPage() {
     <div className="space-y-6 p-6">
       <div className="flex flex-wrap items-center justify-between gap-3">
         <div>
-          <h1 className="text-2xl font-semibold">
-            Payroll Review
-          </h1>
-
-          <p className="text-sm text-muted-foreground">
-            Review payroll batches submitted by Human Resources.
-          </p>
+          <h1 className="text-2xl font-semibold">Payroll Review</h1>
+          <p className="text-sm text-muted-foreground">Review payroll batches submitted by Human Resources.</p>
         </div>
 
         <Select value={periodFilter ?? ALL} onValueChange={(v) => setPeriodFilter(v === ALL ? null : v)}>
@@ -161,297 +160,267 @@ export default function FinancePayrollReviewPage() {
           <SelectContent>
             <SelectItem value={ALL}>All periods</SelectItem>
             {periods.map((p) => (
-              <SelectItem key={p} value={p}>{p}</SelectItem>
+              <SelectItem key={p} value={p}>
+                {p}
+              </SelectItem>
             ))}
           </SelectContent>
         </Select>
       </div>
 
       {error && (
-        <div className="rounded-md border border-red-300 bg-red-50 p-3 text-sm text-red-700">
-          {error}
-        </div>
+        <div className="rounded-md border border-red-300 bg-red-50 p-3 text-sm text-red-700">{error}</div>
       )}
 
       {batches.length === 0 ? (
         <div className="rounded-lg border p-6">
-          <p className="text-muted-foreground">
-            No payroll batches are currently available for review.
-          </p>
+          <p className="text-muted-foreground">No payroll batches are currently available for review.</p>
         </div>
       ) : (
-        <div className="grid gap-6 lg:grid-cols-[1fr_420px]">
+        <div className="grid gap-6 lg:grid-cols-[1fr_480px]">
           <div className="rounded-lg border">
             <div className="border-b p-4">
-              <h2 className="font-semibold">
-                Payroll Batches
-              </h2>
+              <h2 className="font-semibold">Payroll Batches</h2>
             </div>
-
             <div className="divide-y">
-              {pagination.pageItems.map((batch) => (
+              {pagination.pageItems.map((b) => (
                 <button
-                  key={batch.id}
+                  key={b.id}
                   type="button"
-                  onClick={() => setSelectedBatch(batch)}
-                  className={`w-full p-4 text-left transition hover:bg-muted ${
-                    selectedBatch?.id === batch.id
-                      ? "bg-muted"
-                      : ""
-                  }`}
+                  onClick={() => setSelectedId(b.id)}
+                  className={`w-full p-4 text-left transition hover:bg-muted ${selectedId === b.id ? "bg-muted" : ""}`}
                 >
                   <div className="flex items-center justify-between gap-4">
                     <div>
-                      <p className="font-medium">
-                        {batch.id}
-                      </p>
-
+                      <p className="font-medium">{b.id}</p>
                       <p className="text-sm text-muted-foreground">
-                        {batch.period}
+                        {b.period} · {b.projectCode ?? "All projects"}
                       </p>
-
-                      <p className="text-sm text-muted-foreground">
-                        {batch.group}
-                      </p>
+                      <p className="text-sm text-muted-foreground">{b.group}</p>
                     </div>
-
-                    <span className="rounded-full border px-3 py-1 text-xs font-medium">
-                      {batch.status}
-                    </span>
+                    <BatchStatusPill status={b.status} />
                   </div>
                 </button>
               ))}
             </div>
-
             <div className="border-t p-2">
               <DataTablePagination {...pagination} />
             </div>
           </div>
 
           <div className="rounded-lg border">
-            {!selectedBatch ? (
+            {!selectedId ? (
               <div className="p-6">
-                <p className="text-sm text-muted-foreground">
-                  Select a payroll batch to review.
-                </p>
+                <p className="text-sm text-muted-foreground">Select a payroll batch to review.</p>
+              </div>
+            ) : detailLoading || !batch || !t || !detail ? (
+              <div className="p-6">
+                <p className="text-sm text-muted-foreground">Loading batch…</p>
               </div>
             ) : (
               <>
-                <div className="border-b p-4">
-                  <h2 className="font-semibold">
-                    Payroll Details
-                  </h2>
-
-                  <p className="mt-1 text-sm text-muted-foreground">
-                    {selectedBatch.id}
-                  </p>
+                <div className="flex items-start justify-between border-b p-4">
+                  <div>
+                    <h2 className="font-semibold">Payroll Details</h2>
+                    <p className="mt-1 text-sm text-muted-foreground">
+                      {batch.id} · round {batch.round}
+                    </p>
+                  </div>
+                  <BatchStatusPill status={batch.status} />
                 </div>
 
-                <div className="space-y-4 p-4">
-                  <div>
-                    <p className="text-xs text-muted-foreground">
-                      Project
-                    </p>
-                    <p className="font-medium">
-                      {selectedBatch.projectCode || "All Projects"}
-                    </p>
+                <div className="space-y-5 p-4">
+                  <div className="grid grid-cols-3 gap-3 text-sm">
+                    <div>
+                      <p className="text-xs text-muted-foreground">Project</p>
+                      <p className="font-medium">{batch.projectCode || "All Projects"}</p>
+                    </div>
+                    <div>
+                      <p className="text-xs text-muted-foreground">Period</p>
+                      <p className="font-medium">{batch.period}</p>
+                    </div>
+                    <div>
+                      <p className="text-xs text-muted-foreground">Employees</p>
+                      <p className="font-medium">{batch.employees}</p>
+                    </div>
                   </div>
 
-                  <div>
-                    <p className="text-xs text-muted-foreground">
-                      Period
-                    </p>
-                    <p className="font-medium">
-                      {selectedBatch.period}
-                    </p>
-                  </div>
+                  <section className="rounded-xl border p-3">
+                    <Figure label="Gross payroll" value={formatCurrency(t.gross)} strong />
+                    <div className="my-1 border-t" />
+                    <p className="text-xs font-medium text-muted-foreground">Employee deductions</p>
+                    <Figure label="SSS" value={formatCurrency(t.sss)} />
+                    <Figure label="PhilHealth" value={formatCurrency(t.philhealth)} />
+                    <Figure label="Pag-IBIG" value={formatCurrency(t.pagibig)} />
+                    <Figure label="Withholding tax" value={formatCurrency(t.withholdingTax)} />
+                    <Figure label="Total deductions" value={formatCurrency(t.deductions)} strong />
+                    <div className="my-1 border-t" />
+                    <Figure label="Net payroll" value={formatCurrency(t.net)} strong />
+                  </section>
+
+                  <section className="rounded-xl border p-3">
+                    <p className="text-xs font-medium text-muted-foreground">Employer contributions</p>
+                    <Figure label="SSS" value={formatCurrency(t.employerSss)} />
+                    <Figure label="EC" value={formatCurrency(t.employerEc)} />
+                    <Figure label="PhilHealth" value={formatCurrency(t.employerPhilhealth)} />
+                    <Figure label="Pag-IBIG" value={formatCurrency(t.employerPagibig)} />
+                    <Figure
+                      label="Total employer contributions"
+                      value={formatCurrency(t.employerEc + t.employerSss + t.employerPhilhealth + t.employerPagibig)}
+                      strong
+                    />
+                    <div className="my-1 border-t" />
+                    <Figure label="Total employer cost" value={formatCurrency(t.employerCost)} strong />
+                  </section>
+
+                  <p className="text-xs text-muted-foreground">
+                    Rate versions:{" "}
+                    {Object.entries(detail.rateVersions)
+                      .filter(([k]) => k !== "overtime")
+                      .map(([k, v]) => `${k} ${v}`)
+                      .join(" · ")}
+                    {detail.needsVerification.length > 0 &&
+                      ` · needs verification: ${detail.needsVerification.join("; ")}`}
+                  </p>
 
                   <div>
-                    <p className="text-xs text-muted-foreground">
-                      Employee Count
-                    </p>
-                    <p className="font-medium">
-                      {selectedBatch.employees}
-                    </p>
-                  </div>
-
-                  <div>
-                    <p className="text-xs text-muted-foreground">
-                      Overtime Hours
-                    </p>
-                    <p className="font-medium">
-                      {selectedBatch.overtimeHours}
-                    </p>
-                  </div>
-
-                  <div>
-                    <p className="text-xs text-muted-foreground">
-                      Gross Payroll
-                    </p>
-                    <p className="text-xl font-semibold">
-                      {formatCurrency(Number(selectedBatch.grossPayroll))}
-                    </p>
-                  </div>
-
-                  <div>
-                    <p className="text-xs text-muted-foreground">
-                      Deductions
-                    </p>
-                    <p className="font-medium">
-                      {formatCurrency(Number(selectedBatch.deductions))}
-                    </p>
-                  </div>
-
-                  <div>
-                    <p className="text-xs text-muted-foreground">
-                      Net Payroll
-                    </p>
-                    <p className="text-xl font-semibold">
-                      {formatCurrency(Number(selectedBatch.netPayroll))}
-                    </p>
-                  </div>
-
-                  <div>
-                    <p className="text-xs text-muted-foreground">
-                      Status
-                    </p>
-
-                    <span className="inline-flex rounded-full border px-3 py-1 text-sm font-medium">
-                      {selectedBatch.status}
-                    </span>
-                  </div>
-
-                  {/* G1: per-employee breakdown, matching HR's own tracksheet
-                      instead of only batch-level totals. */}
-                  <div>
-                    <p className="text-xs text-muted-foreground">
-                      Per-employee breakdown
-                    </p>
-                    {linesLoading ? (
-                      <p className="mt-1 text-sm text-muted-foreground">Loading…</p>
-                    ) : batchLines.length === 0 ? (
-                      <p className="mt-1 text-sm text-muted-foreground">No lines found for this period.</p>
-                    ) : (
-                      <div className="mt-2 max-h-64 overflow-y-auto rounded-lg border">
-                        <table className="w-full text-xs">
-                          <thead className="sticky top-0 bg-muted/60">
-                            <tr>
-                              <th className="px-2 py-1.5 text-left">Employee</th>
-                              <th className="px-2 py-1.5 text-right">Hours</th>
-                              <th className="px-2 py-1.5 text-right">Net</th>
+                    <p className="mb-1 text-xs text-muted-foreground">Per-employee lines</p>
+                    <div className="rounded-lg border">
+                      <table className="w-full text-xs">
+                        <thead className="bg-muted/60">
+                          <tr>
+                            <th className="px-2 py-1.5 text-left">Employee</th>
+                            <th className="px-2 py-1.5 text-right">Hours</th>
+                            <th className="px-2 py-1.5 text-right">Gross</th>
+                            <th className="px-2 py-1.5 text-right">Net</th>
+                            <th />
+                          </tr>
+                        </thead>
+                        <tbody>
+                          {linePagination.pageItems.map((line) => (
+                            <tr key={line.id} className="border-t">
+                              <td className="px-2 py-1.5">{line.name}</td>
+                              <td className="px-2 py-1.5 text-right tabular-nums">
+                                {line.hours}
+                                {line.overtime ? ` + ${line.overtime} OT` : ""}
+                              </td>
+                              <td className="px-2 py-1.5 text-right tabular-nums">{formatCurrency(line.gross)}</td>
+                              <td className="px-2 py-1.5 text-right tabular-nums">{formatCurrency(line.net)}</td>
+                              <td className="px-2 py-1.5 text-right">
+                                <button
+                                  type="button"
+                                  className="text-primary underline"
+                                  onClick={() => setPayslipLine(line)}
+                                >
+                                  Payslip
+                                </button>
+                              </td>
                             </tr>
-                          </thead>
-                          <tbody>
-                            {batchLines.map((line) => (
-                              <tr key={line.id} className="border-t">
-                                <td className="px-2 py-1.5">{line.name}</td>
-                                <td className="px-2 py-1.5 text-right tabular-nums">{line.hours}</td>
-                                <td className="px-2 py-1.5 text-right tabular-nums">{formatCurrency(line.net)}</td>
-                              </tr>
-                            ))}
-                          </tbody>
-                        </table>
-                        {batchLines.length !== selectedBatch.employees && (
-                          <p className="border-t bg-warning/10 px-2 py-1.5 text-[11px] text-warning">
-                            {batchLines.length} line(s) found for period {selectedBatch.period}, batch reports {selectedBatch.employees} — another batch may share this period.
-                          </p>
-                        )}
-                      </div>
+                          ))}
+                        </tbody>
+                      </table>
+                    </div>
+                    <div className="pt-2">
+                      <DataTablePagination {...linePagination} />
+                    </div>
+                  </div>
+
+                  <div>
+                    <p className="mb-1 text-xs text-muted-foreground">Decision history</p>
+                    {detail.decisions.length === 0 ? (
+                      <p className="text-sm text-muted-foreground">No decisions yet.</p>
+                    ) : (
+                      <ul className="space-y-2">
+                        {detail.decisions.map((d) => (
+                          <li key={d.id} className="rounded-lg border p-2 text-xs">
+                            <div className="font-medium">
+                              Round {d.round}: {d.action === "approved" ? "Approved" : "Rejected"} by {d.decidedBy}
+                            </div>
+                            <div className="text-muted-foreground">{new Date(d.decidedAt).toLocaleString()}</div>
+                            {d.reasonCode && <div>Reason: {reasonLabel(d.reasonCode)}</div>}
+                            {d.comment && <div>{d.comment}</div>}
+                          </li>
+                        ))}
+                      </ul>
                     )}
                   </div>
 
-                  {selectedBatch.reviewedBy && (
+                  {/* Finance has no edit controls on lines — only the decision. */}
+                  <div className="space-y-3 border-t pt-4">
                     <div>
-                      <p className="text-xs text-muted-foreground">
-                        Reviewed By
-                      </p>
-
-                      <p className="font-medium">
-                        {selectedBatch.reviewedBy}
-                      </p>
+                      <label className="text-sm font-medium">Rejection reason</label>
+                      <Select value={reasonCode} onValueChange={setReasonCode} disabled={!pending}>
+                        <SelectTrigger className="mt-1 h-9 text-xs">
+                          <SelectValue placeholder="Required to reject" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          {REJECTION_REASONS.map((r) => (
+                            <SelectItem key={r.value} value={r.value}>
+                              {r.label}
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
                     </div>
-                  )}
-
-                  {selectedBatch.reviewedAt && (
                     <div>
-                      <p className="text-xs text-muted-foreground">
-                        Reviewed At
-                      </p>
-
-                      <p className="text-sm">
-                        {new Date(
-                          selectedBatch.reviewedAt,
-                        ).toLocaleString()}
-                      </p>
+                      <label htmlFor="payroll-comment" className="text-sm font-medium">
+                        Comment{" "}
+                        <span className="font-normal text-muted-foreground">
+                          (required when the reason is Other)
+                        </span>
+                      </label>
+                      <textarea
+                        id="payroll-comment"
+                        value={comment}
+                        disabled={!pending}
+                        onChange={(event) => setComment(event.target.value)}
+                        className="mt-1 min-h-20 w-full rounded-md border bg-background p-3 text-sm outline-none focus:ring-2 disabled:opacity-50"
+                      />
                     </div>
-                  )}
-
-                  {selectedBatch.reviewNote && (
-                    <div>
-                      <p className="text-xs text-muted-foreground">
-                        {selectedBatch.status === "rejected" ? "Rejection reason" : "Review note"}
-                      </p>
-                      <p className="text-sm">{selectedBatch.reviewNote}</p>
+                    <div className="flex gap-2">
+                      <button
+                        type="button"
+                        disabled={!pending || processing || !rejectReady}
+                        title={!pending ? `Batch is ${batch.status}` : !rejectReady ? "Choose a reason (and a comment for Other)" : undefined}
+                        onClick={() => setConfirming("rejected")}
+                        className="flex-1 rounded-md border px-4 py-2 text-sm font-medium hover:bg-muted disabled:cursor-not-allowed disabled:opacity-50"
+                      >
+                        Reject
+                      </button>
+                      <button
+                        type="button"
+                        disabled={!pending || processing}
+                        title={!pending ? `Batch is ${batch.status}` : undefined}
+                        onClick={() => setConfirming("approved")}
+                        className="flex-1 rounded-md bg-primary px-4 py-2 text-sm font-medium text-primary-foreground hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-50"
+                      >
+                        Approve Payroll
+                      </button>
                     </div>
-                  )}
-
-                  {selectedBatch.status === "pending" && (
-                    <>
-                      <div>
-                        <label
-                          htmlFor="payroll-comment"
-                          className="text-sm font-medium"
-                        >
-                          Review comment <span className="font-normal text-muted-foreground">(required to reject)</span>
-                        </label>
-
-                        <textarea
-                          id="payroll-comment"
-                          value={comment}
-                          onChange={(event) =>
-                            setComment(event.target.value)
-                          }
-                          placeholder="Optional when approving; required when rejecting"
-                          className="mt-2 min-h-24 w-full rounded-md border bg-background p-3 text-sm outline-none focus:ring-2"
-                        />
-                      </div>
-
-                      <div className="flex gap-2">
-                        <button
-                          type="button"
-                          disabled={processing || !comment.trim()}
-                          title={!comment.trim() ? "Enter a reason before rejecting" : undefined}
-                          onClick={() =>
-                            void handleDecision("rejected")
-                          }
-                          className="flex-1 rounded-md border px-4 py-2 text-sm font-medium hover:bg-muted disabled:cursor-not-allowed disabled:opacity-50"
-                        >
-                          {processing
-                            ? "Processing..."
-                            : "Reject"}
-                        </button>
-
-                        <button
-                          type="button"
-                          disabled={processing}
-                          onClick={() =>
-                            void handleDecision("approved")
-                          }
-                          className="flex-1 rounded-md bg-primary px-4 py-2 text-sm font-medium text-primary-foreground hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-50"
-                        >
-                          {processing
-                            ? "Processing..."
-                            : "Approve Payroll"}
-                        </button>
-                      </div>
-                    </>
-                  )}
+                  </div>
                 </div>
               </>
             )}
           </div>
         </div>
       )}
+
+      <ConfirmDialog
+        open={confirming !== null}
+        onOpenChange={(open) => !open && setConfirming(null)}
+        title={confirming === "approved" ? "Approve this payroll batch?" : "Send this batch back to HR?"}
+        description={
+          confirming === "approved"
+            ? "Approving locks the batch and books its total employer cost against the project's Labor budget."
+            : `HR will see the reason (${reasonLabel(reasonCode)}) and can correct and resubmit.`
+        }
+        confirmLabel={confirming === "approved" ? "Approve" : "Reject"}
+        destructive={confirming === "rejected"}
+        loading={processing}
+        onConfirm={() => confirming && void handleDecision(confirming)}
+      />
+
+      <PayslipDialog line={payslipLine} onClose={() => setPayslipLine(null)} />
     </div>
   );
 }

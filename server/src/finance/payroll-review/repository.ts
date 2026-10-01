@@ -3,7 +3,7 @@ import { and, eq } from "drizzle-orm";
 import { db } from "../../db/connection.js";
 import { payrollBatches } from "../../db/schema/finance.js";
 
-import type { CreatePayrollBatchInput, PayrollBatchFilters } from "./types.js";
+import type { PayrollBatchFilters } from "./types.js";
 
 const toDto = (row: typeof payrollBatches.$inferSelect) => ({
   id: row.id,
@@ -19,6 +19,9 @@ const toDto = (row: typeof payrollBatches.$inferSelect) => ({
   reviewedBy: row.reviewedBy,
   reviewedAt: row.reviewedAt,
   reviewNote: row.reviewNote,
+  round: row.round,
+  employerCost: row.employerCost,
+  submittedAt: row.submittedAt,
   createdAt: row.createdAt,
 });
 
@@ -50,38 +53,4 @@ export const findById = async (id: string) => {
     .where(eq(payrollBatches.id, id));
 
   return row ? toDto(row) : null;
-};
-
-export const create = async (data: CreatePayrollBatchInput) => {
-  const created = await db
-    .insert(payrollBatches)
-    .values(data)
-    .returning()
-    .then((rows) => rows[0]);
-
-  if (!created) {
-    throw new Error("Failed to create payroll batch.");
-  }
-
-  return toDto(created);
-};
-
-export const decide = async (
-  id: string,
-  decision: "approved" | "rejected",
-  reviewedBy: string,
-  reviewNote?: string,
-) => {
-  const [updated] = await db
-    .update(payrollBatches)
-    .set({
-      status: decision,
-      reviewedBy,
-      reviewedAt: new Date(),
-      reviewNote: reviewNote ?? null,
-    })
-    .where(eq(payrollBatches.id, id))
-    .returning();
-
-  return updated ? toDto(updated) : null;
 };

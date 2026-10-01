@@ -316,7 +316,7 @@ async function main() {
   step("Closeout: payroll batch generated and approved since entering Closeout");
   const payroll = await api<{ batch: { id: string } }>("/payroll/generate", t.hr, {
     method: "POST",
-    body: { period: `Closeout ${PROJECT_CODE}`, projectCode: PROJECT_CODE, entries: [{ employeeId: "EMP-DEMO-07", hoursWorked: 8 }] },
+    body: { period: `Closeout ${PROJECT_CODE}`, projectCode: PROJECT_CODE, entries: [{ employeeId: "EMP-DEMO-07", hoursWorked: 8 }], submit: true },
   });
   await api(`/finance/payroll-review/${payroll.batch.id}/decide`, t.finance, {
     method: "POST",

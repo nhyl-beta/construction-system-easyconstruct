@@ -1,10 +1,10 @@
 import { ConflictError, NotFoundError, ValidationError } from "../utils/errors.js";
 import * as repo from "./repository.js";
+import { getRules } from "../payroll/engine.js";
 import type {
   AttendanceInput,
   AttendanceQuery,
   CreateEmployeeInput,
-  PayrollGenerateInput,
   PayrollQuery,
   UpdateAttendanceInput,
   UpdateEmployeeInput,
@@ -360,7 +360,6 @@ export async function attendanceSummary(date: string) {
 async function payrollRowsForPeriod(
   start: string,
   end: string,
-  deductionRate: number,
 ) {
   const [activeEmployees, logs] =
     await Promise.all([
@@ -406,10 +405,7 @@ async function payrollRowsForPeriod(
 
     const gross =
       regularHours * rate +
-      overtime * rate * 1.25;
-
-    const deductions =
-      gross * deductionRate;
+      overtime * rate * getRules(end).overtimeMultiplier;
 
     return {
       empId: employee.employeeId,
@@ -423,10 +419,7 @@ async function payrollRowsForPeriod(
 
       gross: gross.toFixed(2),
 
-      deductions:
-        deductions.toFixed(2),
-
-      net: (gross - deductions).toFixed(2),
+      net: gross.toFixed(2),
 
       status: "Pending",
 
@@ -439,52 +432,6 @@ async function payrollRowsForPeriod(
       periodEnd: end,
     };
   });
-}
-
-export async function generatePayroll(
-  input: PayrollGenerateInput,
-) {
-  if (
-    input.periodStart >
-    input.periodEnd
-  ) {
-    throw new ValidationError(
-      "Period start must be before period end",
-    );
-  }
-
-  const period = periodLabel(
-    input.periodStart,
-    input.periodEnd,
-  );
-
-  const rows =
-    await payrollRowsForPeriod(
-      input.periodStart,
-      input.periodEnd,
-      input.deductionRate ?? 0.1,
-    );
-
-  await repo.deletePayrollPeriod(
-    period,
-  );
-
-  const inserted =
-    await repo.insertPayroll(rows);
-
-  return {
-    period,
-
-    deductionRate:
-      input.deductionRate ?? 0.1,
-
-    count: inserted.length,
-
-    totals:
-      summarizePayroll(rows),
-
-    rows: inserted,
-  };
 }
 
 function summarizePayroll(
@@ -642,7 +589,6 @@ export async function getGrossTracking(
     await payrollRowsForPeriod(
       start,
       end,
-      0,
     );
 
   return rows.map((row) => ({

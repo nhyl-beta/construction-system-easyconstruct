@@ -572,7 +572,7 @@ async function buildCloseoutPhase(code: string, t: Tokens) {
   }
   const payroll = await api<{ batch: { id: string } }>("/payroll/generate", t.hr, {
     method: "POST",
-    body: { period: `Closeout ${code}`, projectCode: code, entries: [{ employeeId: "EMP-DEMO-07", hoursWorked: 8 }] },
+    body: { period: `Closeout ${code}`, projectCode: code, entries: [{ employeeId: "EMP-DEMO-07", hoursWorked: 8 }], submit: true },
   });
   await api(`/finance/payroll-review/${payroll.batch.id}/decide`, t.finance, {
     method: "POST",

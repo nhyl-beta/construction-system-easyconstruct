@@ -5,7 +5,6 @@ import * as controller from "./controller.js";
 import {
   attendanceSchema,
   createEmployeeSchema,
-  payrollGenerateSchema,
   updateAttendanceSchema,
   updateEmployeeSchema,
 } from "./validators.js";
@@ -31,7 +30,6 @@ router.get("/payroll/tracksheet", controller.tracksheet);
 router.get("/payroll/gross-labor", controller.grossLabor);
 router.get("/payroll/gross-tracking", controller.grossTracking);
 router.get("/payroll", controller.listPayroll);
-router.post("/payroll/generate", validate(payrollGenerateSchema), controller.generatePayroll);
 
 router.get("/reports/workforce", controller.workforceReport);
 
