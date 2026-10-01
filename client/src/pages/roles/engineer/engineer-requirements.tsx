@@ -48,6 +48,7 @@ import {
 import { appendToSection, undoRewrite } from "@/features/requirements/lib/structured-format";
 import { RequirementService } from "@/features/requirements/services/requirement.service";
 import { useAuth } from "@/auth/auth-context";
+import { useStaffedProjectCodes } from "@/features/project-members/hooks/use-staffed-project-codes";
 
 const STATUS_TONE: Record<string, string> = {
   Draft: "bg-muted text-muted-foreground border-border",
@@ -84,6 +85,8 @@ function NewRequirementDialog({
   createRequirement,
   structureRequirement,
   engineerName,
+  canStructure,
+  allowedProjectCodes,
 }: {
   createRequirement: (payload: {
     title: string;
@@ -95,6 +98,10 @@ function NewRequirementDialog({
   }) => Promise<void>;
   structureRequirement: (input: StructureRequirementInput) => Promise<StructuredRequirement>;
   engineerName: string;
+  /** Rule-based structuring is for engineers/admins only (the endpoint refuses others). */
+  canStructure: boolean;
+  /** When set, the project picker offers only these (site personnel: projects they are staffed on). */
+  allowedProjectCodes?: string[];
 }) {
   const [open, setOpen] = useState(false);
   const [submitting, setSubmitting] = useState(false);
@@ -227,7 +234,7 @@ function NewRequirementDialog({
           <div className="grid grid-cols-2 gap-3">
             <div className="space-y-1.5">
               <Label>Project</Label>
-              <ProjectPicker value={project} onChange={setProject} className="w-full" />
+              <ProjectPicker value={project} onChange={setProject} className="w-full" allowedCodes={allowedProjectCodes} />
             </div>
             <div className="space-y-1.5">
               <Label>Category</Label>
@@ -251,7 +258,7 @@ function NewRequirementDialog({
           <div className="space-y-1.5">
             <div className="flex items-center justify-between gap-2">
               <Label htmlFor="req-description">Description</Label>
-              {FEATURES.ai && (
+              {FEATURES.ai && canStructure && (
                 <div className="flex items-center gap-1">
                   {before && (
                     <Button type="button" variant="ghost" size="sm" className="h-7 gap-1 px-2 text-xs" onClick={undoStructuring}>
@@ -284,7 +291,7 @@ function NewRequirementDialog({
                 {structureError} You can keep writing the description yourself.
               </p>
             )}
-            {FEATURES.ai && before && (
+            {FEATURES.ai && canStructure && before && (
               <div className="space-y-2 rounded-lg border border-border bg-muted/30 p-3 text-xs">
                 <p className="text-muted-foreground">
                   Rule-based structuring — decision support only. Review the text above; nothing was saved.
@@ -370,6 +377,14 @@ export default function RequirementsPage() {
   const { requirements, loading, createRequirement, submitRequirement, addAttachments, structureRequirement } =
     useRequirements();
   const [busyId, setBusyId] = useState<number | null>(null);
+  const role = user?.role;
+  const isSitePersonnel = role === "site-personnel";
+  const canCreate = role === "engineer" || role === "admin" || isSitePersonnel;
+  const { codes: staffedSiteCodes } = useStaffedProjectCodes("site-personnel");
+  // Site personnel submit only drafts they wrote themselves (requirements
+  // store the author as a display name); engineers/admins submit any draft.
+  const canSubmit = (r: Requirement) =>
+    role === "engineer" || role === "admin" || (isSitePersonnel && r.createdBy.trim().toLowerCase() === (user?.name ?? "").trim().toLowerCase());
 
   const submitForApproval = async (r: Requirement) => {
     setBusyId(r.dbId);
@@ -408,11 +423,15 @@ export default function RequirementsPage() {
         title="Requirements"
         description="Manage project requirements and specifications"
         actions={
-          <NewRequirementDialog
-            createRequirement={createRequirement}
-            structureRequirement={structureRequirement}
-            engineerName={user?.name ?? "Unknown"}
-          />
+          canCreate ? (
+            <NewRequirementDialog
+              createRequirement={createRequirement}
+              structureRequirement={structureRequirement}
+              engineerName={user?.name ?? "Unknown"}
+              canStructure={!isSitePersonnel}
+              allowedProjectCodes={isSitePersonnel ? staffedSiteCodes : undefined}
+            />
+          ) : undefined
         }
       />
       <PageContent className="space-y-6 p-6 md:p-8">
@@ -496,7 +515,7 @@ export default function RequirementsPage() {
                       <div className="text-xs text-muted-foreground">
                         {r.createdBy} · {r.updatedAgo}
                       </div>
-                      {r.status === "Draft" && (
+                      {r.status === "Draft" && canSubmit(r) && (
                         <div className="flex items-center gap-2">
                           {r.attachments.length === 0 && (
                             <label className="cursor-pointer text-xs text-primary hover:underline">

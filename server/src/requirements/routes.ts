@@ -23,9 +23,11 @@ router.post(
   validate(structureRequirementSchema),
   controller.structure,
 );
+// G: site-personnel may draft requirements on projects they are staffed on
+// (enforced in service.ts); the PM still decides on the Approvals page.
 router.post(
   "/",
-  requireRole("engineer", "admin"),
+  requireRole("engineer", "admin", "site-personnel"),
   validate(createRequirementSchema),
   controller.create,
 );
@@ -35,7 +37,7 @@ router.get("/:id", controller.getById);
 // requirements/service.ts assertCanSetStatus.
 router.patch(
   "/:id",
-  requireRole("engineer", "admin", "project-manager"),
+  requireRole("engineer", "admin", "project-manager", "site-personnel"),
   validate(updateRequirementSchema),
   controller.update,
 );

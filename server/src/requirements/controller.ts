@@ -48,9 +48,9 @@ export const getById = async (req: Request, res: Response, next: NextFunction) =
   }
 };
 
-export const create = async (req: Request, res: Response, next: NextFunction) => {
+export const create = async (req: AuthedRequest, res: Response, next: NextFunction) => {
   try {
-    const data = await service.create(req.body);
+    const data = await service.create(req.body, req.authUser);
     res.status(HTTP.CREATED).json(formatSuccess(data, MSG.requirements.created));
   } catch (err) {
     next(err);
@@ -63,6 +63,7 @@ export const update = async (req: AuthedRequest, res: Response, next: NextFuncti
       Number(req.params.id),
       req.body,
       req.authUser?.role ?? "",
+      req.authUser,
     );
     res.json(formatSuccess(data, MSG.requirements.updated));
   } catch (err) {

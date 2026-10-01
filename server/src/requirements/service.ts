@@ -2,7 +2,9 @@ import { db } from "../db/connection.js";
 import { requirements } from "../db/schema/requirements.js";
 import { projects } from "../db/schema/projects.js";
 import { and, desc, eq, ilike, SQL } from "drizzle-orm";
-import { ForbiddenError, ValidationError } from "../utils/errors.js";
+import { ForbiddenError, NotFoundError, ValidationError } from "../utils/errors.js";
+import * as projectMemberRepo from "../project-members/repository.js";
+import { assertSitePersonnelMayCreate, assertSitePersonnelMayUpdate } from "./permissions.js";
 import { assertProjectWritable, refreshProjectProgress } from "../lifecycle/service.js";
 import * as notificationsService from "../notifications/service.js";
 import type {
@@ -14,7 +16,13 @@ import type {
 // The engineer who authors a requirement may move it as far as "Under
 // Review" — asking for a decision — but deciding it (Approved/Rejected) is
 // the Project Manager's call, same split as engineering reports.
-const DECISION_STATUSES = new Set(["Approved", "Rejected"]);
+export interface Actor {
+  id: number;
+  name: string;
+  role: string;
+}
+
+const DECISION_STATUSES =new Set(["Approved", "Rejected"]);
 
 const assertCanSetStatus = (status: string | undefined, actorRole: string) => {
   if (!status || !DECISION_STATUSES.has(status)) return;
@@ -48,10 +56,19 @@ export const findById = async (id: number) => {
   return row ?? null;
 };
 
-export const create = async (data: CreateRequirementInput) => {
+// G: is this user staffed on the project as site personnel? (project_members)
+const isStaffedSitePersonnel = async (projectCode: string, userId: number) =>
+  (await projectMemberRepo.findAll({ projectCode, userId, role: "site-personnel" })).length > 0;
+
+export const create = async (data: CreateRequirementInput, actor?: Actor) => {
   const [project] = await db.select().from(projects).where(eq(projects.code, data.project));
   if (!project) {
     throw new ValidationError(`No project found with code "${data.project}"`);
+  }
+  if (actor?.role === "site-personnel") {
+    assertSitePersonnelMayCreate(data, await isStaffedSitePersonnel(data.project, actor.id));
+    // The author is always the signed-in user, whatever the client sent.
+    data = { ...data, createdBy: actor.name };
   }
   await assertProjectWritable(data.project);
   const requirementId =
@@ -70,9 +87,21 @@ export const update = async (
   id: number,
   data: UpdateRequirementInput,
   actorRole: string,
+  actor?: Actor,
 ) => {
   assertCanSetStatus(data.status, actorRole);
   const existing = await findById(id);
+  if (actorRole === "site-personnel") {
+    // G: site personnel may only change/submit their own drafts.
+    if (!existing) throw new NotFoundError("Requirement", String(id));
+    if (!actor) throw new ForbiddenError("Cannot identify the signed-in user");
+    assertSitePersonnelMayUpdate(
+      existing,
+      data as Record<string, unknown>,
+      actor.name,
+      await isStaffedSitePersonnel(existing.project, actor.id),
+    );
+  }
   if (existing) await assertProjectWritable(existing.project);
 
   // Submitting for approval needs evidence on file. New requirements can't be
