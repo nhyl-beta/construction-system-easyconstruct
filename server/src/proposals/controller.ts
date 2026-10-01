@@ -35,6 +35,18 @@ export const proposalController = {
     });
   },
 
+  async validate(
+    req: Request,
+    res: Response,
+  ) {
+    const data = await proposalService.validate(Number(req.params.id));
+
+    return res.json({
+      success: true,
+      data,
+    });
+  },
+
   async create(
     req: AuthedRequest,
     res: Response,

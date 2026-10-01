@@ -55,3 +55,24 @@ export function validateProposal(
     checkedAt: new Date().toISOString(),
   };
 }
+
+
+/** Roles allowed to trigger POST /proposals/:id/validate. */
+export const PROPOSAL_VALIDATE_ROLES = ["consultant", "project-manager", "architect", "admin"] as const;
+
+/**
+ * J: computes the stored validation JSON only when none exists yet, so asking
+ * twice never rewrites (or re-timestamps) what a reviewer already saw.
+ */
+export function ensureValidation(
+  proposal: ProposalValidationInput & { aiValidation?: string | null; projectCode: string },
+  projectExists: boolean,
+): { changed: boolean; aiValidation: string } {
+  if (proposal.aiValidation) return { changed: false, aiValidation: proposal.aiValidation };
+  const result = validateProposal(
+    { title: proposal.title, content: proposal.content, amount: proposal.amount },
+    projectExists,
+    proposal.projectCode,
+  );
+  return { changed: true, aiValidation: JSON.stringify(result) };
+}

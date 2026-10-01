@@ -2,7 +2,7 @@ import { NotFoundError, ValidationError } from "../utils/errors.js";
 import { db } from "../db/connection.js";
 import { projects } from "../db/schema/projects.js";
 import { eq } from "drizzle-orm";
-import { validateProposal } from "./validation.js";
+import { ensureValidation, validateProposal } from "./validation.js";
 import { FEATURES } from "../config/features.js";
 import { assertProjectWritable, refreshProjectProgress } from "../lifecycle/service.js";
 import { createWorkflow, decideStage } from "../workflows/service.js";
@@ -30,6 +30,22 @@ export const proposalService = {
     }
 
     return proposal;
+  },
+
+  /**
+   * J: proposals created while the AI flag was off (or before validation
+   * existed) have no stored summary. Compute it on demand and store it. Only
+   * the validation text is written; the proposal status is never touched.
+   * 404 when the flag is off, and a stored summary is returned unchanged.
+   */
+  async validate(id: number) {
+    if (!FEATURES.ai) throw new NotFoundError("Proposal validation is not enabled");
+    const proposal = await this.getById(id);
+    const [project] = await db.select().from(projects).where(eq(projects.code, proposal.projectCode));
+    const { changed, aiValidation } = ensureValidation(proposal, !!project);
+    if (!changed) return proposal;
+    const updated = await proposalRepository.update(id, { aiValidation });
+    return updated ?? proposal;
   },
 
   async create(data: any) {

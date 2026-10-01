@@ -303,8 +303,17 @@ export const useProposalsController = () => {
     };
   }, [proposals]);
 
+  /**
+   * J: asks the server to compute (and store) the rule-based validation
+   * summary for a proposal that has none. Idempotent; never changes status.
+   */
+  const validateProposal = async (id: number): Promise<Proposal> =>
+    unwrap<Proposal>(await apiClient.post(`/proposals/${id}/validate`, {}));
+
   return {
     proposals,
+
+    validateProposal,
 
     loading,
 

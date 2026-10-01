@@ -8,6 +8,7 @@ import {
   reviewProposalSchema,
 } from "../validators/proposal-validators.js";
 
+import { PROPOSAL_VALIDATE_ROLES } from "./validation.js";
 import { validate } from "../middleware/validate.js";
 import { authenticate, requireRole } from "../middleware/auth.js";
 
@@ -59,6 +60,14 @@ router.patch(
   canAuthor,
   validate(updateProposalSchema),
   proposalController.update,
+);
+
+// J: compute (and store) the rule-based validation summary on demand when a
+// proposal has none. Never changes the proposal status.
+router.post(
+  "/:id/validate",
+  requireRole(...PROPOSAL_VALIDATE_ROLES),
+  proposalController.validate,
 );
 
 router.patch(

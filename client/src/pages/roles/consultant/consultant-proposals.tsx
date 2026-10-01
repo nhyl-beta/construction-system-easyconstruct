@@ -65,7 +65,14 @@ export default function ConsultantProposalsPage() {
     error: loadError,
     refresh: loadProposals,
     reviewProposal: submitReview,
+    validateProposal,
   } = useProposals();
+
+  // J: a proposal created while the AI flag was off has no stored validation
+  // summary. Ask the server to compute it once per proposal, then reload so the
+  // open review screen picks it up.
+  const [validationTried, setValidationTried] = useState<Set<number>>(new Set());
+  const [validationFailed, setValidationFailed] = useState(false);
 
   const [selectedProposal, setSelectedProposal] =
     useState<Proposal | null>(null);
@@ -107,6 +114,17 @@ export default function ConsultantProposalsPage() {
       cancelled = true;
     };
   }, []);
+
+  useEffect(() => {
+    if (!FEATURES.ai || !selectedProposal || selectedProposal.aiValidation) return;
+    const id = selectedProposal.id;
+    if (validationTried.has(id)) return;
+    setValidationTried((prev) => new Set(prev).add(id));
+    setValidationFailed(false);
+    validateProposal(id)
+      .then(() => loadProposals())
+      .catch(() => setValidationFailed(true));
+  }, [selectedProposal, validationTried, validateProposal, loadProposals]);
 
   /*
    * Keep the open review screen in step with a refreshed list, so the
@@ -550,13 +568,11 @@ export default function ConsultantProposalsPage() {
                 <div className="border-b p-6">
 
                   <h2 className="font-semibold">
-                    Rule-Based Validation Summary
+                    Rule-based validation summary
                   </h2>
 
                   <p className="mt-1 text-sm text-muted-foreground">
-                    Automated, deterministic checks run at submission time —
-                    decision support only. This does not replace your
-                    professional judgment or approve/reject anything itself.
+                    Completeness checks — decision support only.
                   </p>
 
                 </div>
@@ -566,7 +582,9 @@ export default function ConsultantProposalsPage() {
                     if (!selectedProposal.aiValidation) {
                       return (
                         <p className="text-sm text-muted-foreground">
-                          No validation summary is available for this proposal.
+                          {validationFailed
+                            ? "The validation summary could not be generated right now."
+                            : "Preparing the validation summary…"}
                         </p>
                       );
                     }
