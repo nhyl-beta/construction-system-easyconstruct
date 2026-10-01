@@ -14,7 +14,7 @@ import type {
   ResetPasswordInput,
 } from "./types.js";
 
-const JWT_EXPIRES_IN = "8h";
+const JWT_EXPIRES_IN = "30d";
 const RESET_TOKEN_TTL_MS = 30 * 60 * 1000;
 const PASSWORD_SALT_ROUNDS = 10;
 
@@ -83,7 +83,7 @@ export const login = async (input: LoginInput) => {
     { expiresIn: JWT_EXPIRES_IN },
   );
 
-  // The JWT is stateless with an 8h expiry, so "active session" is derived
+  // The JWT is stateless with a 30-day expiry, so "active session" is derived
   // from the most recent successful sign-in rather than a session table —
   // see audit-logs/repository.ts findRecentSessions.
   await recordLoginAttempt(
