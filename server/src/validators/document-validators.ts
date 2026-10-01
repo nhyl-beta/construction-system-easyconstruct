@@ -23,4 +23,7 @@ export const createDocumentSchema = z.object({
   size: z.string().max(20).optional(),
   fileUrl: z.string().max(500).optional(),
   uploadedBy: z.string().max(100).optional(),
+  // I: optional link to the proposal/design this document concerns.
+  relatedType: z.enum(["proposal", "design"]).optional(),
+  relatedId: z.number().int().positive().optional(),
 });

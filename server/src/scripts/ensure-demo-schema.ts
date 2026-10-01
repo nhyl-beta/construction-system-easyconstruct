@@ -531,6 +531,11 @@ async function main() {
     -- which were ever filed against a stage) keep working unfiltered.
     ALTER TABLE documents
       ADD COLUMN IF NOT EXISTS stage varchar(50);
+
+    -- I: advisory documents can be tied to the proposal/design they concern.
+    ALTER TABLE documents
+      ADD COLUMN IF NOT EXISTS related_type varchar(20),
+      ADD COLUMN IF NOT EXISTS related_id integer;
   `);
 
   console.log("Demo schema tables and compatibility columns are ready.");

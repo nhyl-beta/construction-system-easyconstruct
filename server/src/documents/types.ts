@@ -10,6 +10,8 @@ export interface DocumentRecord {
   uploadedBy: string;
   fileUrl: string | null;
   stage: string | null;
+  relatedType: string | null;
+  relatedId: number | null;
   createdAt: Date | null;
   updatedAt: Date | null;
 }
@@ -24,6 +26,8 @@ export interface CreateDocumentInput {
   uploadedBy: string;
   fileUrl?: string;
   stage?: string;
+  relatedType?: string;
+  relatedId?: number;
 }
 
 export interface UploadDocumentInput {
@@ -34,6 +38,8 @@ export interface UploadDocumentInput {
   version?: string;
   uploadedBy: string;
   stage?: string;
+  relatedType?: string;
+  relatedId?: number | string;
 }
 
 export interface DocumentFilters {

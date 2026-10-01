@@ -1,4 +1,4 @@
-import { pgTable, serial, timestamp, varchar } from "drizzle-orm/pg-core";
+import { integer, pgTable, serial, timestamp, varchar } from "drizzle-orm/pg-core";
 
 export const documents = pgTable("documents", {
   id: serial("id").primaryKey(),
@@ -15,6 +15,11 @@ export const documents = pgTable("documents", {
   // predates this column, or was never filed against a specific stage,
   // keeps working unfiltered.
   stage: varchar("stage", { length: 50 }),
+  // I: an advisory document can be tied to the proposal or design it was
+  // written about. Both nullable (and always set together); the related item
+  // must belong to the same project — enforced in documents/service.ts.
+  relatedType: varchar("related_type", { length: 20 }),
+  relatedId: integer("related_id"),
   createdAt: timestamp("created_at").defaultNow(),
   updatedAt: timestamp("updated_at").defaultNow(),
 });

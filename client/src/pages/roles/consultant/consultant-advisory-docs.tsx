@@ -20,6 +20,11 @@ import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
 
 import { FilePreviewDialog } from "@/components/shared/file-preview-dialog";
+import { ProjectPicker } from "@/components/shared/project-picker";
+import { SearchableSelect } from "@/components/ui/searchable-select";
+import { useStaffedProjectCodes } from "@/features/project-members/hooks/use-staffed-project-codes";
+import { useRelatedCandidates } from "@/features/documents/hooks/use-related-candidates";
+import { isRealFileUrl } from "@/lib/file-url";
 import { useFieldDocuments } from "@/features/documents/hooks/use-field-documents";
 import type { DocumentRecord } from "@/features/documents/repositories/documents.repository";
 
@@ -27,6 +32,8 @@ type UploadForm = {
   title: string;
   project: string;
   type: string;
+  /** "proposal:12" / "design:3", or "" for none. */
+  related: string;
 };
 
 const MAX_FILE_SIZE = 5 * 1024 * 1024; // 5 MB
@@ -105,6 +112,7 @@ export default function AdvisoryDocsPage() {
   } = useFieldDocuments();
 
   const fileInputRef = useRef<HTMLInputElement | null>(null);
+  const { codes: staffedCodes } = useStaffedProjectCodes("consultant");
 
   const [showUploadForm, setShowUploadForm] = useState(false);
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
@@ -113,7 +121,13 @@ export default function AdvisoryDocsPage() {
     title: "",
     project: "",
     type: "",
+    related: "",
   });
+  const { candidates: relatedCandidates, loading: relatedLoading } = useRelatedCandidates(form.project);
+  const relatedLabel = (type?: string | null, id?: number | null) => {
+    if (!type || !id) return null;
+    return `${type === "design" ? "Design" : "Proposal"} #${id}`;
+  };
 
   const [search, setSearch] = useState("");
   const [formError, setFormError] = useState<string | null>(null);
@@ -149,6 +163,7 @@ export default function AdvisoryDocsPage() {
       title: "",
       project: "",
       type: "",
+      related: "",
     });
 
     setSelectedFile(null);
@@ -217,16 +232,19 @@ const handleUpload = async () => {
   }
 
   if (!form.project.trim()) {
-    setFormError("Project name or project code is required.");
+    setFormError("Select the project this advisory document is for.");
     return;
   }
 
   try {
+    const [relatedType, relatedIdRaw] = form.related ? form.related.split(":") : [];
     await upload({
       file: selectedFile,
       title: form.title.trim(),
       project: form.project.trim(),
       type: form.type || getDocumentType(selectedFile),
+      relatedType: relatedType === "proposal" || relatedType === "design" ? relatedType : undefined,
+      relatedId: relatedIdRaw ? Number(relatedIdRaw) : undefined,
     });
 
     setSuccessMessage(
@@ -347,7 +365,7 @@ const handleUpload = async () => {
               {/* File */}
               <div className="space-y-2">
                 <Label htmlFor="advisory-file">
-                  Advisory Document
+                  Advisory Document <span className="text-destructive">*</span>
                 </Label>
 
                 <div className="rounded-lg border border-dashed p-5">
@@ -441,26 +459,48 @@ const handleUpload = async () => {
 
               {/* Project */}
               <div className="space-y-2">
-                <Label htmlFor="advisory-project">
-                  Project
-                </Label>
+                <Label>Project</Label>
 
-                <Input
-                  id="advisory-project"
-                  placeholder="e.g. PRJ-001"
+                <ProjectPicker
                   value={form.project}
-                  disabled={uploading}
-                  onChange={(event) =>
-                    setForm((current) => ({
-                      ...current,
-                      project: event.target.value,
-                    }))
+                  onChange={(code) =>
+                    setForm((current) => ({ ...current, project: code, related: "" }))
                   }
+                  allowedCodes={staffedCodes}
+                  disabled={uploading}
+                  className="w-full"
                 />
 
                 <p className="text-xs text-muted-foreground">
-                  Enter the project name or project code associated with this
-                  advisory document.
+                  {staffedCodes.length === 0
+                    ? "You are not staffed on any project yet."
+                    : "Only projects you are staffed on as a consultant are listed."}
+                </p>
+              </div>
+
+              {/* Related item */}
+              <div className="space-y-2">
+                <Label>Related to (optional)</Label>
+
+                <SearchableSelect
+                  value={form.related || undefined}
+                  onValueChange={(value) =>
+                    setForm((current) => ({ ...current, related: value === "none" ? "" : value }))
+                  }
+                  disabled={uploading || !form.project}
+                  loading={relatedLoading}
+                  className="w-full"
+                  options={[
+                    { value: "none", label: "Not tied to a specific item" },
+                    ...relatedCandidates.map((c) => ({ value: `${c.type}:${c.id}`, label: c.label })),
+                  ]}
+                  placeholder={form.project ? "Select a proposal or design" : "Choose a project first"}
+                  searchPlaceholder="Search proposals and designs…"
+                  emptyText="No proposals or designs on this project"
+                />
+
+                <p className="text-xs text-muted-foreground">
+                  Tie this advisory to the proposal or design it is about.
                 </p>
               </div>
 
@@ -517,7 +557,7 @@ const handleUpload = async () => {
                 <Button
                   type="button"
                   onClick={() => void handleUpload()}
-                  disabled={uploading}
+                  disabled={uploading || !selectedFile}
                   className="gap-2"
                 >
                   {uploading ? (
@@ -614,10 +654,15 @@ const handleUpload = async () => {
               </div>
             ) : (
               <div className="space-y-3">
-                {filteredDocuments.map((document) => (
+                {filteredDocuments.map((document) => {
+                  const hasFile = isRealFileUrl(document.fileUrl);
+                  const related = relatedLabel(document.relatedType, document.relatedId);
+                  return (
                   <div
                     key={document.id}
-                    className="flex flex-col gap-4 rounded-lg border p-4 transition-colors hover:bg-muted/30 sm:flex-row sm:items-center"
+                    className={`flex flex-col gap-4 rounded-lg border p-4 transition-colors hover:bg-muted/30 sm:flex-row sm:items-center ${
+                      hasFile ? "" : "bg-muted/20 opacity-70"
+                    }`}
                   >
                     <div className="rounded-lg bg-primary/10 p-3">
                       <FileText className="size-5 text-primary" />
@@ -632,6 +677,12 @@ const handleUpload = async () => {
                         <Badge variant="outline">
                           {document.type || "Document"}
                         </Badge>
+
+                        {!hasFile && (
+                          <Badge variant="outline" className="border-warning/40 text-warning">
+                            No file attached
+                          </Badge>
+                        )}
                       </div>
 
                       <div className="mt-1 flex flex-wrap gap-x-4 gap-y-1 text-xs text-muted-foreground">
@@ -650,6 +701,8 @@ const handleUpload = async () => {
                         <span>
                           Uploaded: {formatDate(document.createdAt)}
                         </span>
+
+                        {related && <span>Related to: {related}</span>}
                       </div>
                     </div>
 
@@ -657,12 +710,14 @@ const handleUpload = async () => {
                       type="button"
                       variant="outline"
                       className="shrink-0"
+                      disabled={!hasFile}
                       onClick={() => setPreviewing(document)}
                     >
-                      View Document
+                      {hasFile ? "View Document" : "No file"}
                     </Button>
                   </div>
-                ))}
+                  );
+                })}
               </div>
             )}
           </CardContent>

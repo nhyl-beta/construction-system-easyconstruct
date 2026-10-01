@@ -3,6 +3,9 @@ import { and, eq, inArray, SQL } from "drizzle-orm";
 import { db } from "../db/connection.js";
 import { documents } from "../db/schema/documents.js";
 import { projects } from "../db/schema/projects.js";
+import { proposals } from "../db/schema/proposals.js";
+import { designs } from "../db/schema/designs.js";
+import type { RelatedType } from "./advisory.js";
 import type { CreateDocumentInput, DocumentFilters } from "./types.js";
 
 export const findAll = async (filters: DocumentFilters = {}) => {
@@ -20,6 +23,16 @@ export const findAll = async (filters: DocumentFilters = {}) => {
 export const findProjectCodesForPm = async (pmName: string) => {
   const rows = await db.select({ code: projects.code }).from(projects).where(eq(projects.pm, pmName));
   return rows.map((r) => r.code);
+};
+
+// I: the project a proposal/design belongs to, for the same-project check.
+export const findRelatedItem = async (type: RelatedType, id: number) => {
+  if (type === "proposal") {
+    const [row] = await db.select({ projectCode: proposals.projectCode }).from(proposals).where(eq(proposals.id, id));
+    return row ?? null;
+  }
+  const [row] = await db.select({ projectCode: designs.projectCode }).from(designs).where(eq(designs.id, id));
+  return row ?? null;
 };
 
 export const findById = async (id: number) => {

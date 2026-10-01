@@ -12,6 +12,9 @@ export interface DocumentRecord {
   fileUrl: string | null;
   // H1: which lifecycle stage (e.g. "Design") this document belongs to.
   stage?: string | null;
+  // I: the proposal/design an advisory document concerns (both or neither).
+  relatedType?: "proposal" | "design" | null;
+  relatedId?: number | null;
   createdAt: string | null;
 }
 
@@ -31,6 +34,8 @@ export interface UploadDocumentInput {
   type: string;
   title?: string;
   stage?: string;
+  relatedType?: "proposal" | "design";
+  relatedId?: number;
 }
 
 export const documentsRepository = {
@@ -59,6 +64,10 @@ export const documentsRepository = {
     }
     if (input.stage) {
       formData.append("stage", input.stage);
+    }
+    if (input.relatedType && input.relatedId) {
+      formData.append("relatedType", input.relatedType);
+      formData.append("relatedId", String(input.relatedId));
     }
 
     return apiClient.postFormData(

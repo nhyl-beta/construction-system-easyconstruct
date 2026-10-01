@@ -2,6 +2,7 @@ import * as repo from "./repository.js";
 import { assertProjectWritable, refreshProjectProgress } from "../lifecycle/service.js";
 import { deleteStoredFile } from "../uploads/service.js";
 import { NotFoundError } from "../utils/errors.js";
+import { assertAdvisoryHasFile, resolveRelatedItem, type RelatedInput } from "./advisory.js";
 
 import type {
   CreateDocumentInput,
@@ -20,9 +21,12 @@ export const findProjectCodesForPm = async (pmName: string) => {
 
 export const create = async (
   input: CreateDocumentInput,
+  actorRole?: string,
 ) => {
+  assertAdvisoryHasFile(actorRole, !!input.fileUrl?.trim());
   await assertProjectWritable(input.project);
-  const created = await repo.create(input);
+  const related = await resolveRelatedItem(input.project, input, repo.findRelatedItem);
+  const created = await repo.create({ ...input, ...related });
   // Several gate checks read document type (P5's Notice of Award/Contract,
   // C5's Notice to Proceed, X2's Certificate of Completion).
   if (created) await refreshProjectProgress(created.project);
@@ -54,6 +58,8 @@ export const upload = async ({
   version,
   uploadedBy,
   stage,
+  relatedType,
+  relatedId,
 }: {
   file: Express.Multer.File;
   title: string;
@@ -62,8 +68,9 @@ export const upload = async ({
   version?: string;
   uploadedBy: string;
   stage?: string;
-}) => {
+} & RelatedInput) => {
   await assertProjectWritable(project);
+  const related = await resolveRelatedItem(project, { relatedType, relatedId }, repo.findRelatedItem);
 
   const documentId =
     `ADV-${Date.now().toString(36)}${Math.random().toString(36).slice(2, 6)}`.toUpperCase();
@@ -92,6 +99,7 @@ export const upload = async ({
     uploadedBy,
     fileUrl,
     stage,
+    ...related,
   });
   await refreshProjectProgress(project);
   return created;

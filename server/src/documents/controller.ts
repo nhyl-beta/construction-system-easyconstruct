@@ -45,12 +45,15 @@ export const create = async (
   next: NextFunction,
 ) => {
   try {
-    const data = await service.create({
-      ...req.body,
-      uploadedBy:
-        req.body.uploadedBy ??
-        req.authUser!.email,
-    });
+    const data = await service.create(
+      {
+        ...req.body,
+        uploadedBy:
+          req.body.uploadedBy ??
+          req.authUser!.email,
+      },
+      req.authUser?.role,
+    );
 
     return res
       .status(HTTP.CREATED)
@@ -138,15 +141,25 @@ export const upload = async (
 
     const stage = String(req.body.stage ?? "").trim() || undefined;
 
-    const data = await service.upload({
-      file: req.file,
-      title,
-      project,
-      type,
-      version,
-      uploadedBy: req.authUser!.email,
-      stage,
-    });
+    let data;
+    try {
+      data = await service.upload({
+        file: req.file,
+        title,
+        project,
+        type,
+        version,
+        uploadedBy: req.authUser!.email,
+        stage,
+        relatedType: String(req.body.relatedType ?? "").trim() || undefined,
+        relatedId: String(req.body.relatedId ?? "").trim() || undefined,
+      });
+    } catch (err) {
+      // The file is already on disk; do not leave it orphaned when the
+      // request is refused (archived project, bad related item, ...).
+      await unlink(req.file.path).catch(() => undefined);
+      throw err;
+    }
 
     return res
       .status(HTTP.CREATED)
