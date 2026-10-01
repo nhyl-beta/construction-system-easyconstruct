@@ -16,10 +16,12 @@ export function useLoginController() {
     email,
     password,
     remember,
+    tabOnly = false,
   }: {
     email: string;
     password: string;
     remember: boolean;
+    tabOnly?: boolean;
   }) => {
     setErrors({});
     setFormError(null);
@@ -42,7 +44,7 @@ export function useLoginController() {
         return;
       }
 
-      setSession(json.data.token, json.data.user, remember);
+      setSession(json.data.token, json.data.user, remember, tabOnly);
 
       setStatus("success");
       navigate("/dashboard");

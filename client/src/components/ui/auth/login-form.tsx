@@ -23,6 +23,10 @@ export function LoginForm() {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [remember, setRemember] = useState(false);
+  // "?tab=1" (from the header's "Add another role") pre-ticks tab-only sign-in.
+  const [tabOnly, setTabOnly] = useState(
+    () => new URLSearchParams(window.location.search).get("tab") === "1",
+  );
   // Set by the AuthProvider when a session ended on its own (expired token,
   // or revoked by a password change) rather than by the user signing out.
   const [sessionEnded] = useState(() => {
@@ -76,7 +80,7 @@ export function LoginForm() {
           className="space-y-4"
           onSubmit={(e) => {
             e.preventDefault();
-            void submit({ email, password, remember });
+            void submit({ email, password, remember, tabOnly });
           }}
         >
           <div className="space-y-2">
@@ -150,6 +154,18 @@ export function LoginForm() {
             />
             <Label htmlFor="remember" className="text-sm font-normal text-muted-foreground">
               Keep me signed in on this device
+            </Label>
+          </div>
+
+          <div className="flex items-start gap-2">
+            <Checkbox
+              id="tab-only"
+              checked={tabOnly}
+              disabled={busy}
+              onCheckedChange={(v) => setTabOnly(v === true)}
+            />
+            <Label htmlFor="tab-only" className="text-sm font-normal text-muted-foreground">
+              Sign in on this tab only, so I can use a different role in another tab
             </Label>
           </div>
 

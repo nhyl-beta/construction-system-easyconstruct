@@ -57,7 +57,24 @@ export function tokenExpiry(token: string): number | null {
   }
 }
 
+/**
+ * A tab-only session lives in this tab's sessionStorage and wins over the
+ * shared localStorage session, so one Chrome profile can hold a different role
+ * per tab. It ends when the tab is closed.
+ */
+export function isTabSession(): boolean {
+  return safe(() => sessionStorage.getItem(TOKEN_KEY) !== null, false);
+}
+
 export function clearSession(): void {
+  // Signing out of a tab-only session must not sign out the other tabs.
+  if (isTabSession()) {
+    safe(() => {
+      sessionStorage.removeItem(TOKEN_KEY);
+      sessionStorage.removeItem(USER_KEY);
+    }, undefined);
+    return;
+  }
   safe(() => {
     for (const store of [localStorage, sessionStorage]) {
       store.removeItem(TOKEN_KEY);
@@ -68,7 +85,20 @@ export function clearSession(): void {
   }, undefined);
 }
 
-export function saveSession(token: string, user: SessionUser, remember: boolean): void {
+export function saveSession(
+  token: string,
+  user: SessionUser,
+  remember: boolean,
+  tabOnly = false,
+): void {
+  if (tabOnly) {
+    safe(() => {
+      sessionStorage.setItem(TOKEN_KEY, token);
+      sessionStorage.setItem(USER_KEY, JSON.stringify(user));
+      sessionStorage.removeItem(EXPIRED_NOTICE_KEY);
+    }, undefined);
+    return;
+  }
   clearSession();
   safe(() => {
     localStorage.setItem(TOKEN_KEY, token);
@@ -84,8 +114,8 @@ export function saveSession(token: string, user: SessionUser, remember: boolean)
 /** The stored session if there is one and it is still valid; otherwise null. */
 export function readSession(): SessionUser | null {
   return safe(() => {
-    // Sessions written before this change lived in sessionStorage.
-    const stores = [localStorage, sessionStorage];
+    // This tab's own session (if any) wins over the shared one.
+    const stores = [sessionStorage, localStorage];
     for (const store of stores) {
       const token = store.getItem(TOKEN_KEY);
       if (!token) continue;

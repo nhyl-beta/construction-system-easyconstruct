@@ -17,7 +17,7 @@ export type AuthUser = SessionUser;
 type AuthContextValue = {
   user: AuthUser | null;
   isAuthenticated: boolean;
-  setSession: (token: string, user: AuthUser, remember: boolean) => void;
+  setSession: (token: string, user: AuthUser, remember: boolean, tabOnly?: boolean) => void;
   logout: () => void;
 };
 
@@ -69,8 +69,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     () => ({
       user,
       isAuthenticated: user !== null,
-      setSession: (token, nextUser, remember) => {
-        saveSession(token, nextUser, remember);
+      setSession: (token, nextUser, remember, tabOnly) => {
+        saveSession(token, nextUser, remember, tabOnly);
         setUser(nextUser);
       },
       logout: () => {
