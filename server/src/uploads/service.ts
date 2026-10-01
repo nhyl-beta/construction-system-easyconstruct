@@ -235,10 +235,12 @@ export const deleteStoredFile = async (storedUrl: string): Promise<void> => {
 export const openStoredFile = async (storedUrl: string): Promise<StoredFile> => {
   if (isBlobUrl(storedUrl)) {
     if (!env.BLOB_READ_WRITE_TOKEN) throw new NotFoundError("File");
-    const result = await get(storedUrl, {
-      access: "private",
-      token: env.BLOB_READ_WRITE_TOKEN,
-    });
+    // Files stored before the store was made private (or by a public store)
+    // are public blobs; read whichever kind this one is.
+    let result = await get(storedUrl, { access: "private", token: env.BLOB_READ_WRITE_TOKEN }).catch(() => null);
+    if (!result || result.statusCode !== 200) {
+      result = await get(storedUrl, { access: "public", token: env.BLOB_READ_WRITE_TOKEN }).catch(() => null);
+    }
     if (!result || result.statusCode !== 200) throw new NotFoundError("File");
     return {
       stream: Readable.fromWeb(result.stream as never),

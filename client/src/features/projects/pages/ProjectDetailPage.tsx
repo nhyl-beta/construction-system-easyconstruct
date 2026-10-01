@@ -604,6 +604,7 @@ function DesignStageSection({
 }) {
   const { members: engineers, loading: engineersLoading } = useProjectMembers(projectCode, "engineer");
   const { designs, loading: designsLoading, error: designsError } = useProjectDesigns(projectCode);
+  const [designFileError, setDesignFileError] = useState<string | null>(null);
 
   const [docs, setDocs] = useState<DocumentRecord[]>([]);
   const [docsLoading, setDocsLoading] = useState(true);
@@ -688,6 +689,7 @@ function DesignStageSection({
       <div>
         <p className="text-xs font-medium text-muted-foreground">Submitted designs</p>
         {designsError && <p className="mt-2 text-sm text-destructive">{designsError}</p>}
+        {designFileError && <p role="alert" className="mt-2 text-sm text-destructive">{designFileError}</p>}
         {designsLoading ? (
           <p className="mt-2 text-sm text-muted-foreground">Loading…</p>
         ) : designs.length === 0 ? (
@@ -716,7 +718,15 @@ function DesignStageSection({
                         <button
                           type="button"
                           className="shrink-0 text-xs text-primary hover:underline"
-                          onClick={() => void downloadFileUrl(f.url, f.name).catch(() => undefined)}
+                          onClick={() =>
+                            void downloadFileUrl(f.url, f.name).catch((err: unknown) =>
+                              setDesignFileError(
+                                err instanceof Error && /404|not found/i.test(err.message)
+                                  ? `"${f.name}" is no longer in storage — ask the architect to attach it again.`
+                                  : err instanceof Error ? err.message : "Could not download the file",
+                              ),
+                            )
+                          }
                         >
                           Download
                         </button>
