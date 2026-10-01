@@ -22,7 +22,7 @@ import {
   useRefineOptions,
 } from "@refinedev/core";
 import { useState } from "react";
-import { LogOutIcon, Search, UserPlusIcon } from "lucide-react";
+import { LogOutIcon, Search } from "lucide-react";
 import { NotificationBell } from "@/components/notifications/notification-bell";
 import { Link, useNavigate } from "react-router";
 import { isNavRouteActive } from "@/lib/nav-active";
@@ -231,14 +231,6 @@ const UserDropdown = () => {
           <UserAvatar />
         </DropdownMenuTrigger>
         <DropdownMenuContent align="end">
-          {FEATURES.multiRoleTabs && (
-            <DropdownMenuItem
-              onClick={() => window.open("/login?tab=1", "_blank", "noopener")}
-            >
-              <UserPlusIcon />
-              <span>Sign in as another role (new tab)</span>
-            </DropdownMenuItem>
-          )}
           <DropdownMenuItem onClick={() => setConfirming(true)}>
             <LogOutIcon className={cn("text-destructive")} />
             <span className={cn("text-destructive")}>

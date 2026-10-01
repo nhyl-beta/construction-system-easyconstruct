@@ -2,9 +2,9 @@
 // (not deleted) while this is off — see the lifecycle progress doc, group B.
 export const FEATURES = {
   ai: import.meta.env.VITE_FEATURE_AI === "true",
-  // VITE_FEATURE_MULTI_ROLE_TABS=true lets one browser hold a different signed-in
-  // role per tab ("Sign in on this tab only" on the login form, and "Sign in as
-  // another role" in the header menu). Off: one shared login per browser.
+  // VITE_FEATURE_MULTI_ROLE_TABS=true: every login is private to its browser
+  // tab, so one Chrome can hold a different role in each tab. Off: one shared
+  // login per browser.
   multiRoleTabs: import.meta.env.VITE_FEATURE_MULTI_ROLE_TABS === "true",
   // Hardcoded false, never wired to an env var, and never to be turned on:
   // these are UI surfaces (a header badge, "coming soon" cards, an unused
