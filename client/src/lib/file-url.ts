@@ -48,19 +48,18 @@ export async function fetchFileBlob(url: string): Promise<Blob> {
 /** Open a stored file in a new tab. */
 export async function openFileUrl(url: string | null | undefined): Promise<void> {
   if (!isRealFileUrl(url)) return;
-  // Open the tab synchronously so popup blockers treat it as user-initiated,
-  // then point it at the object URL once the authenticated fetch resolves.
-  const tab = window.open("", "_blank");
-  try {
-    const blob = await fetchFileBlob(url as string);
-    const objectUrl = URL.createObjectURL(blob);
-    if (tab) tab.location.href = objectUrl;
-    else window.location.href = objectUrl;
-    window.setTimeout(() => URL.revokeObjectURL(objectUrl), 60_000);
-  } catch (err) {
-    tab?.close();
-    throw err;
+  // Fetch first, then open the finished object URL. (Opening an empty tab up
+  // front and navigating it later left some browsers on about:blank.) If the
+  // browser blocks the popup, save the file instead of doing nothing.
+  const blob = await fetchFileBlob(url as string);
+  const objectUrl = URL.createObjectURL(blob);
+  const tab = window.open(objectUrl, "_blank");
+  if (!tab) {
+    URL.revokeObjectURL(objectUrl);
+    await downloadFileUrl(url);
+    return;
   }
+  window.setTimeout(() => URL.revokeObjectURL(objectUrl), 60_000);
 }
 
 /** Download a stored file under `filename`. */

@@ -14,7 +14,7 @@ import { ConfirmDialog } from "@/components/ui/confirm-dialog";
 import { ProjectRepository } from "@/features/projects/repositories/project.repository";
 import { PROJECT_CURRENCIES, PROJECT_TYPES, RISK_LEVELS, type Project } from "@/features/projects/types/project.types";
 import { SearchableSelect } from "@/components/ui/searchable-select";
-import { openFileUrl } from "@/lib/file-url";
+import { downloadFileUrl } from "@/lib/file-url";
 import { formatCurrency } from "@/lib/format-currency";
 import { useProjectMembers } from "@/features/project-members/hooks/use-project-members";
 import { MilestonesPanel } from "@/features/milestones/components/MilestonesPanel";
@@ -716,7 +716,7 @@ function DesignStageSection({
                         <button
                           type="button"
                           className="shrink-0 text-xs text-primary hover:underline"
-                          onClick={() => void openFileUrl(f.url).catch(() => undefined)}
+                          onClick={() => void downloadFileUrl(f.url, f.name).catch(() => undefined)}
                         >
                           Download
                         </button>
@@ -787,7 +787,7 @@ function DesignStageSection({
                       type="button"
                       className="text-xs text-primary hover:underline"
                       onClick={() =>
-                        void openFileUrl(d.fileUrl).catch((err: unknown) =>
+                        void downloadFileUrl(d.fileUrl, d.title.includes(".") ? d.title : undefined).catch((err: unknown) =>
                           setDocsError(err instanceof Error ? err.message : "Could not open the file"),
                         )
                       }
