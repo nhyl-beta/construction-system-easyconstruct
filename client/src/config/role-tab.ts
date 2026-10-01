@@ -268,7 +268,6 @@ export const ROLE_CONFIGS: Record<string, RoleConfig> = {
       {
         label: "Intelligence",
         items: [
-          { label: "Resources", icon: Wrench, route: "/resources" },
           { label: "Reports", icon: BarChart2, route: "/reports" },
         ],
       },

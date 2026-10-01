@@ -1,4 +1,3 @@
-import { ComingSoonCard } from "@/components/refine-ui/views/coming-soon-card";
 import { PageHeader } from "@/components/refine-ui/views/page-header";
 import { Button } from "@/components/ui/button";
 import {
@@ -27,6 +26,8 @@ import {
   CheckSquare,
   Eye,
   FileText,
+  GitCompare,
+  Library,
   MessageSquare,
   PencilRuler,
   Plus,
@@ -218,26 +219,25 @@ export default function ArchitectDashboard() {
         </DialogContent>
       </Dialog>
 
-      <SectionCard
-        title="Coming soon"
-        subtitle="Not yet built — placeholders only"
-      >
-        <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-4">
-          <ComingSoonCard
-            title="Blueprint library"
-            description="Enterprise drawing library with folders and version history."
+      <SectionCard title="Quick links" subtitle="Jump to your working pages">
+        <div className="grid gap-3 md:grid-cols-3">
+          <QuickAction
+            icon={Library}
+            label="Blueprints"
+            description="Drawings and their review status"
+            onClick={() => navigate("/blueprints")}
           />
-          <ComingSoonCard
-            title="Review queue"
-            description="Track design reviews awaiting response."
+          <QuickAction
+            icon={GitCompare}
+            label="Revisions"
+            description="Design revisions and history"
+            onClick={() => navigate("/revisions")}
           />
-          <ComingSoonCard
-            title="Revision tracker"
-            description="Side-by-side comparison of design revisions."
-          />
-          <ComingSoonCard
-            title="Documentation hub"
-            description="Specifications, permits, and as-built docs."
+          <QuickAction
+            icon={FileText}
+            label="Documentation"
+            description="Specifications, permits and as-built documents"
+            onClick={() => navigate("/architect/documents")}
           />
         </div>
       </SectionCard>

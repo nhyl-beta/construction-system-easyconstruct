@@ -10,7 +10,6 @@ import {
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { ComingSoonCard } from "@/components/refine-ui/views/coming-soon-card";
 import { WaitingOnYouCard } from "@/features/lifecycle/components/WaitingOnYouCard";
 import { AwaitingApprovalCard } from "@/features/workflows/components/AwaitingApprovalCard";
 import { KpiStrip } from "@/components/ui/kpi-strip";
@@ -203,17 +202,9 @@ export default function DashboardPage() {
           cross-project via the same GET /lifecycle/my-actions path
           DecisionSupportSection uses, with an "AI" badge. A general
           cross-project *activity feed* (distinct from advisories/approvals)
-          genuinely has no backend (grepped server/src for any feed/log
-          endpoint besides the admin-only Audit Trail) — kept honest about
-          that specific piece rather than silently dropping it. */}
-      <section className="grid grid-cols-1 gap-6 lg:grid-cols-3">
-        <div className="lg:col-span-2">
-          <AwaitingApprovalCard />
-        </div>
-        <ComingSoonCard
-          title="Activity feed"
-          description="A general cross-project activity feed isn't backed by any table yet. Advisories are already covered above, in Waiting on you (Sparkles/AI-badged items) — this card is for a separate, broader event stream (every create/update across every project), not built."
-        />
+          genuinely has no backend, so its placeholder card was removed. */}
+      <section className="grid grid-cols-1 gap-6">
+        <AwaitingApprovalCard />
       </section>
 
       {/* ── Footer status ── */}

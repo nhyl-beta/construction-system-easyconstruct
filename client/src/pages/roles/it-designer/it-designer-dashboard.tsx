@@ -12,7 +12,6 @@ import {
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { ComingSoonCard } from "@/components/refine-ui/views/coming-soon-card";
 import { KpiStrip } from "@/components/ui/kpi-strip";
 import { useRoleConfig } from "@/hooks/use-role-config";
 import { useITDesignerDashboardController } from "@/features/dashboard/controllers/it-designer-dashboard.controller";
@@ -242,11 +241,6 @@ export default function ITDesignerDashboardPage() {
           </CardContent>
         </Card>
       </section>
-
-      <ComingSoonCard
-        title="Infrastructure health & maintenance windows"
-        description="Uptime, job queues, and backup status aren't recorded anywhere in the backend yet, so this panel stays empty rather than showing invented numbers. The account, role, and audit data above is live."
-      />
 
       {/* ── Footer status ── */}
       <div className="flex items-center justify-center gap-2 pt-2 text-xs text-muted-foreground">
