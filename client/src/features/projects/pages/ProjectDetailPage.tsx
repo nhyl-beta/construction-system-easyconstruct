@@ -464,15 +464,11 @@ export default function ProjectDetailPage() {
         <TeamMemberPanel projectCode={project.code} role="consultant" label="Consultants" readOnly={!canEdit} />
       </div>
 
-      <div className="max-w-4xl">
-        <LinkedDesignsPanel projectCode={project.code} />
-      </div>
-
-      {/* H1: the Design stage's own assigned-engineer + files view, distinct
-          from LinkedDesignsPanel (design records) — this is stage-scoped
-          documents (the generic documents module, filtered to stage=Design)
-          plus a read-only reflection of the Engineers panel above, so both
-          facts of "who owns Design and what they've filed" are in one place. */}
+      {/* One Design section: who owns the stage, the designs the architect has
+          submitted (with the files attached to each), and any further files
+          filed against the stage. The designs used to sit in a separate
+          "Linked designs" card, so the architect's submitted files never
+          showed up under "Design stage files". */}
       <div className="max-w-4xl">
         <DesignStageSection projectCode={project.code} canManage={canEdit} canRemove={DOCUMENT_REMOVERS.includes(role)} />
       </div>
@@ -594,51 +590,6 @@ function TeamMemberPanel({
   );
 }
 
-function LinkedDesignsPanel({ projectCode }: { projectCode: string }) {
-  const { designs, loading, error } = useProjectDesigns(projectCode);
-
-  return (
-    <div className="space-y-4 rounded-2xl border border-border bg-card p-6">
-      <div>
-        <h2 className="flex items-center gap-2 text-base font-semibold">
-          <PencilRuler className="h-4 w-4 text-muted-foreground" />
-          Linked designs
-        </h2>
-        <p className="mt-1 text-sm text-muted-foreground">
-          Designs registered against this project's code.
-        </p>
-      </div>
-
-      {error && <p className="text-sm text-destructive">{error}</p>}
-
-      {loading ? (
-        <p className="text-sm text-muted-foreground">Loading…</p>
-      ) : designs.length === 0 ? (
-        <p className="text-sm text-muted-foreground">No designs linked to this project yet.</p>
-      ) : (
-        <ul className="space-y-2">
-          {designs.map((d) => (
-            <li key={d.id}>
-              <Link
-                to={`/designs/${d.id}`}
-                className="flex items-center justify-between gap-3 rounded-xl border border-border px-4 py-2 text-sm transition-colors hover:bg-muted/40"
-              >
-                <div className="min-w-0">
-                  <div className="font-medium">{d.name}</div>
-                  <div className="font-mono text-[11px] text-muted-foreground">
-                    {d.code} · {d.discipline}
-                  </div>
-                </div>
-                <StatusBadge status={d.status} />
-              </Link>
-            </li>
-          ))}
-        </ul>
-      )}
-    </div>
-  );
-}
-
 /** H1: Design stage — the assigned engineer(s) (read-only reflection of the
  * Engineers TeamMemberPanel above, which is the actual source of truth via
  * project_members) plus documents filed specifically against stage="Design". */
@@ -652,6 +603,7 @@ function DesignStageSection({
   canRemove: boolean;
 }) {
   const { members: engineers, loading: engineersLoading } = useProjectMembers(projectCode, "engineer");
+  const { designs, loading: designsLoading, error: designsError } = useProjectDesigns(projectCode);
 
   const [docs, setDocs] = useState<DocumentRecord[]>([]);
   const [docsLoading, setDocsLoading] = useState(true);
@@ -716,7 +668,7 @@ function DesignStageSection({
           Design stage
         </h2>
         <p className="mt-1 text-sm text-muted-foreground">
-          Assigned engineer(s) and files filed specifically against the Design stage.
+          Assigned engineer(s), the designs submitted by the architect, and files filed against the Design stage.
         </p>
       </div>
 
@@ -734,8 +686,53 @@ function DesignStageSection({
       </div>
 
       <div>
+        <p className="text-xs font-medium text-muted-foreground">Submitted designs</p>
+        {designsError && <p className="mt-2 text-sm text-destructive">{designsError}</p>}
+        {designsLoading ? (
+          <p className="mt-2 text-sm text-muted-foreground">Loading…</p>
+        ) : designs.length === 0 ? (
+          <p className="mt-2 text-sm text-muted-foreground">No design has been submitted for this project yet.</p>
+        ) : (
+          <ul className="mt-2 space-y-2">
+            {designs.map((d) => (
+              <li key={d.id} className="space-y-2 rounded-xl border border-border px-4 py-3">
+                <div className="flex items-center justify-between gap-3">
+                  <Link to={`/designs/${d.id}`} className="min-w-0 hover:underline">
+                    <div className="truncate text-sm font-medium">{d.name}</div>
+                    <div className="font-mono text-[11px] text-muted-foreground">
+                      {d.code} · {d.discipline} · submitted by {d.leadArchitect}
+                    </div>
+                  </Link>
+                  <StatusBadge status={d.status} />
+                </div>
+                {(d.fileUrls ?? []).length > 0 && (
+                  <ul className="space-y-1">
+                    {(d.fileUrls ?? []).map((f) => (
+                      <li key={f.url} className="flex items-center justify-between gap-2 text-sm">
+                        <span className="flex min-w-0 items-center gap-2">
+                          <FileText className="h-3.5 w-3.5 shrink-0 text-muted-foreground" />
+                          <span className="truncate">{f.name}</span>
+                        </span>
+                        <button
+                          type="button"
+                          className="shrink-0 text-xs text-primary hover:underline"
+                          onClick={() => void openFileUrl(f.url).catch(() => undefined)}
+                        >
+                          Download
+                        </button>
+                      </li>
+                    ))}
+                  </ul>
+                )}
+              </li>
+            ))}
+          </ul>
+        )}
+      </div>
+
+      <div>
         <div className="flex items-center justify-between">
-          <p className="text-xs font-medium text-muted-foreground">Design stage files</p>
+          <p className="text-xs font-medium text-muted-foreground">Other Design stage files</p>
           {canManage && (
             <>
               <input
@@ -772,7 +769,7 @@ function DesignStageSection({
         {docsLoading ? (
           <p className="mt-2 text-sm text-muted-foreground">Loading…</p>
         ) : docs.length === 0 ? (
-          <p className="mt-2 text-sm text-muted-foreground">No files filed against the Design stage yet.</p>
+          <p className="mt-2 text-sm text-muted-foreground">No other files filed against the Design stage.</p>
         ) : (
           <ul className="mt-2 space-y-2">
             {docs.map((d) => (

@@ -22,6 +22,8 @@ export interface Design {
   zone: string | null;
   description: string | null;
   fileCount: number;
+  /** Files the architect attached when submitting the design. */
+  fileUrls?: Array<{ name: string; url: string }>;
   // Denormalized first engineer, kept in sync with assignedEngineers[0] by
   // the API; prefer assignedEngineers.
   assignedEngineerId: number | null;
