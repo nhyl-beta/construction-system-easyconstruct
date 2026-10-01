@@ -9,6 +9,7 @@ import * as repo from "./repository.js";
 import { projectCodesForPm } from "../projects/service.js";
 import type { CreateIssueInput, IssueFilters } from "./types.js";
 import { FEATURES } from "../config/features.js";
+import { rankPrecedents, type RankedPrecedent } from "./precedents.js";
 
 // ai-signals E5: decision support, read-only, never gates issue status.
 export interface IssuePrecedent {
@@ -24,7 +25,25 @@ export const getPrecedentsByCategory = async (category: string): Promise<IssuePr
   return rows.filter((r): r is IssuePrecedent => !!r.resolutionNotes?.trim());
 };
 
-export const getAll = async (filters: IssueFilters) => repo.findAll(filters);
+// B2: similarity-ranked precedents for one issue (replaces the category-only
+// lookup on the Engineer page). [] when the AI flag is off or nothing clears
+// the similarity floor.
+export const getPrecedentsForIssue = async (
+  issueId: number,
+  actor?: { id: number; name: string; role: string },
+): Promise<RankedPrecedent[]> => {
+  if (!FEATURES.ai) return [];
+  const issue = await getById(issueId);
+  if (actor?.role === "project-manager") {
+    const mine = await projectCodesForPm({ role: actor.role, userId: actor.id, name: actor.name });
+    if (!mine.has(issue.projectCode)) {
+      throw new ForbiddenError("You can only view issues on projects assigned to you");
+    }
+  }
+  return rankPrecedents(issue, await repo.findResolvedWithNotes());
+};
+
+export const getAll =async (filters: IssueFilters) => repo.findAll(filters);
 
 export const getById = async (id: number) => {
   const issue = await repo.findById(id);

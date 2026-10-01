@@ -1,7 +1,9 @@
 import { useEffect, useMemo, useState } from "react";
 import { AlertTriangle, CheckCircle2, Clock, ShieldAlert, Sparkles } from "lucide-react";
 import { FEATURES } from "@/config/features";
-import { issuesRepository, type IssuePrecedent } from "@/features/issues/repositories/issues.repository";
+import { issuesRepository, type SimilarResolvedIssue } from "@/features/issues/repositories/issues.repository";
+import { ReportIssueDialog } from "@/features/issues/components/ReportIssueDialog";
+import { useStaffedProjectCodes } from "@/features/project-members/hooks/use-staffed-project-codes";
 
 import { PageContainer } from "@/components/refine-ui/views/page-container";
 import { PageHeader } from "@/components/refine-ui/views/page-header";
@@ -37,14 +39,12 @@ function trim(text: string, max: number): string {
 function IssueRow({
   issue,
   updating,
-  precedents,
   updateError,
   onEdit,
   onUpdate,
 }: {
   issue: IssueRecord;
   updating: boolean;
-  precedents: IssuePrecedent[];
   /** Why the last update to THIS issue failed — shown under it, nowhere else. */
   updateError?: string;
   onEdit: () => void;
@@ -56,6 +56,30 @@ function IssueRow({
   );
   const [notes, setNotes] = useState("");
   const dirty = nextStatus !== issue.status;
+  const isOpen = issue.status === "Submitted" || issue.status === "Under Review";
+
+  // B2: similarity-ranked precedents for THIS issue. The server returns [] when
+  // the AI flag is off or nothing clears the similarity floor, so no box
+  // appears unless there is a real match.
+  const [precedents, setPrecedents] = useState<SimilarResolvedIssue[]>([]);
+  useEffect(() => {
+    if (!FEATURES.ai || !isOpen) {
+      setPrecedents([]);
+      return;
+    }
+    let cancelled = false;
+    issuesRepository
+      .precedentsForIssue(issue.id)
+      .then((res) => {
+        if (!cancelled) setPrecedents(res.data);
+      })
+      .catch(() => {
+        if (!cancelled) setPrecedents([]);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [issue.id, isOpen]);
 
   return (
     <div className="space-y-3 border-b border-border/60 p-4 last:border-0">
@@ -137,67 +161,52 @@ function IssueRow({
         <p className="text-xs text-muted-foreground">Location: {issue.siteContext}</p>
       )}
 
-      {/* ai-signals E5: an open issue whose category has a resolved
-          precedent elsewhere — decision support only, never changes what
-          status this issue can be moved to. */}
-      {FEATURES.ai &&
-        (issue.status === "Submitted" || issue.status === "Under Review") &&
-        precedents.length > 0 && (
-          <div className="rounded-lg border border-ai/20 bg-ai-soft/30 p-2.5 text-xs">
-            <p className="flex items-center gap-1.5 font-medium text-foreground">
-              <Sparkles className="h-3 w-3 text-ai" />
-              Resolved before
-            </p>
-            <ul className="mt-1 space-y-1 text-muted-foreground">
-              {precedents.slice(0, 2).map((p) => (
-                <li key={p.issueCode}>
-                  "{p.title}"{p.updatedAt ? ` (${p.updatedAt.slice(0, 10)})` : ""}: {trim(p.resolutionNotes, 160)}
-                </li>
-              ))}
-            </ul>
-          </div>
-        )}
+      {/* B2: decision support only — never changes what status this issue
+          can be moved to, and never fills the notes by itself. */}
+      {FEATURES.ai && isOpen && precedents.length > 0 && (
+        <div className="rounded-lg border border-ai/20 bg-ai-soft/30 p-2.5 text-xs">
+          <p className="flex items-center gap-1.5 font-medium text-foreground">
+            <Sparkles className="h-3 w-3 text-ai" />
+            Similar issue resolved before
+          </p>
+          <ul className="mt-1 space-y-2 text-muted-foreground">
+            {precedents.map((p) => (
+              <li key={p.issueCode}>
+                <div className="font-mono text-[11px]">
+                  {p.issueCode} · {p.projectCode}
+                  {p.resolvedAt ? ` · ${p.resolvedAt.slice(0, 10)}` : ""} · {Math.round(p.score * 100)}% match
+                </div>
+                <div>
+                  "{p.title}": {trim(p.resolutionNotes, 200)}
+                </div>
+                {dirty && nextStatus === "Resolved" && (
+                  <button
+                    type="button"
+                    className="mt-0.5 text-primary hover:underline"
+                    onClick={() => {
+                      setNotes(p.resolutionNotes);
+                      setLocalError(null);
+                      onEdit();
+                    }}
+                  >
+                    Use as starting point
+                  </button>
+                )}
+              </li>
+            ))}
+          </ul>
+        </div>
+      )}
     </div>
   );
 }
 
 export default function IssuesPage() {
   const { user } = useAuth();
-  const { issues, loading, error, updating, updateErrors, clearUpdateError, updateStatus } = useIssues();
+  const { issues, loading, error, updating, updateErrors, clearUpdateError, updateStatus, refresh } = useIssues();
   const isPm = user?.role === "project-manager";
-  const [precedentsByCategory, setPrecedentsByCategory] = useState<Record<string, IssuePrecedent[]>>({});
-
-  const openCategories = useMemo(
-    () =>
-      Array.from(
-        new Set(
-          issues
-            .filter((i) => i.status === "Submitted" || i.status === "Under Review")
-            .map((i) => i.category),
-        ),
-      ),
-    [issues],
-  );
-
-  useEffect(() => {
-    if (!FEATURES.ai || openCategories.length === 0) return;
-    let cancelled = false;
-    void Promise.all(
-      openCategories.map(async (category) => {
-        const res = await issuesRepository.precedentsByCategory(category);
-        return [category, res.data] as const;
-      }),
-    ).then((entries) => {
-      if (cancelled) return;
-      setPrecedentsByCategory(Object.fromEntries(entries));
-    });
-    return () => {
-      cancelled = true;
-    };
-    // openCategories is derived from `issues` each render — comparing its
-    // contents (not identity) avoids re-fetching every unrelated update.
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [openCategories.join(",")]);
+  const isEngineer = user?.role === "engineer";
+  const { codes: staffedCodes } = useStaffedProjectCodes("engineer");
 
   const openCount = useMemo(
     () => issues.filter((i) => i.status === "Submitted").length,
@@ -225,6 +234,7 @@ export default function IssuesPage() {
             ? "Review issues reported on your projects and record their resolution"
             : "Review issues reported from the field and record their resolution"
         }
+        actions={isEngineer ? <ReportIssueDialog staffedCodes={staffedCodes} onReported={refresh} /> : undefined}
       />
       <PageContent className="space-y-6 p-6 md:p-8">
         <KpiStrip
@@ -255,7 +265,6 @@ export default function IssuesPage() {
                     updating={updating === issue.id}
                     updateError={updateErrors[issue.id]}
                     onEdit={() => clearUpdateError(issue.id)}
-                    precedents={precedentsByCategory[issue.category] ?? []}
                     onUpdate={(status, resolutionNotes) => updateStatus(issue.id, { status, resolutionNotes })}
                   />
                 ))}

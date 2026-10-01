@@ -37,7 +37,17 @@ export const getPrecedents = async (req: AuthedRequest, res: Response, next: Nex
   }
 };
 
-export const getById = async (req: AuthedRequest, res: Response, next: NextFunction) => {
+// B2
+export const getPrecedentsForIssue = async (req: AuthedRequest, res: Response, next: NextFunction) => {
+  try {
+    const data = await service.getPrecedentsForIssue(Number(req.params.id), req.authUser);
+    res.json(formatSuccess(data, "Similar resolved issues retrieved"));
+  } catch (err) {
+    next(err);
+  }
+};
+
+export const getById =async (req: AuthedRequest, res: Response, next: NextFunction) => {
   try {
     const data = await service.getById(Number(req.params.id));
     res.json(formatSuccess(data, MSG.issues.single));

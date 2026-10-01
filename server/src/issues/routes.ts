@@ -11,6 +11,12 @@ router.use(authenticate);
 router.get("/", controller.getAll);
 // ai-signals E5: before "/:id", or Express matches "precedents" as an id.
 router.get("/precedents/:category", controller.getPrecedents);
+// B2: "/:id/precedents" has a distinct shape from both routes above/below.
+router.get(
+  "/:id/precedents",
+  requireRole("engineer", "project-manager", "admin"),
+  controller.getPrecedentsForIssue,
+);
 router.get("/:id", controller.getById);
 router.post(
   "/",

@@ -44,7 +44,24 @@ export const findResolvedPrecedentsByCategory = async (category: string, limit =
     .orderBy(desc(issues.updatedAt))
     .limit(limit);
 
-export const updateStatus = async (id: number, status: string, resolutionNotes?: string) => {
+// B2: every resolved issue that has notes, any project/category — ranking
+// (issues/precedents.ts) decides what is similar enough to show.
+export const findResolvedWithNotes = async () =>
+  db
+    .select({
+      id: issues.id,
+      issueCode: issues.issueCode,
+      projectCode: issues.projectCode,
+      title: issues.title,
+      description: issues.description,
+      category: issues.category,
+      resolutionNotes: issues.resolutionNotes,
+      updatedAt: issues.updatedAt,
+    })
+    .from(issues)
+    .where(and(eq(issues.status, "Resolved"), isNotNull(issues.resolutionNotes)));
+
+export const updateStatus =async (id: number, status: string, resolutionNotes?: string) => {
   const [updated] = await db
     .update(issues)
     .set({ status, resolutionNotes, updatedAt: new Date() })

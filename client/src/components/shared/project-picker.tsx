@@ -19,6 +19,8 @@ interface ProjectPickerProps {
   placeholder?: string;
   className?: string;
   disabled?: boolean;
+  /** When set, only these project codes are offered (e.g. the ones the user is staffed on). */
+  allowedCodes?: string[];
 }
 
 export function ProjectPicker({
@@ -27,6 +29,7 @@ export function ProjectPicker({
   placeholder = "Select a project",
   className,
   disabled,
+  allowedCodes,
 }: ProjectPickerProps) {
   const { projects, loading } = useProjects();
 
@@ -39,11 +42,13 @@ export function ProjectPicker({
       disabled={disabled}
       loading={loading}
       className={className}
-      options={projects.map((p) => ({
+      options={projects
+        .filter((p) => !allowedCodes || allowedCodes.includes(p.code))
+        .map((p) => ({
         value: p.code,
         label: `${p.code} · ${p.name}`,
         description: p.client && p.client !== "Unknown" ? p.client : undefined,
-      }))}
+        }))}
       placeholder={loading ? "Loading projects…" : placeholder}
       searchPlaceholder="Search by code, name or client…"
       emptyText="No projects on file"
