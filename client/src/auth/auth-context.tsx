@@ -54,8 +54,16 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     const token = getToken();
     const exp = token ? tokenExpiry(token) : null;
     if (user && exp !== null) {
-      // setTimeout caps at ~24.8 days; tokens here live hours.
-      timer = window.setTimeout(expire, Math.max(exp - Date.now(), 0));
+      // setTimeout stores its delay in 32 bits (~24.8 days): a longer delay
+      // overflows and fires at once, which signed users out the moment they
+      // logged in with a 30-day token. Wait in capped slices and re-check.
+      const MAX_DELAY = 2_147_000_000;
+      const arm = () => {
+        const left = exp - Date.now();
+        if (left <= 0) expire();
+        else timer = window.setTimeout(arm, Math.min(left, MAX_DELAY));
+      };
+      arm();
     }
 
     return () => {
