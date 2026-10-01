@@ -241,6 +241,60 @@ export const getAttendanceSummary = async (
   }));
 };
 
+export interface ExcludedWorker {
+  employeeId: string;
+  name: string;
+  status: string;
+  reason: string;
+}
+
+// Step 2 of the HR wizard: what verified attendance supports paying, what is
+// left out (unverified entries, workers who cannot be paid) and why.
+export const getAttendanceReadiness = async (
+  projectCode: string,
+  dateFrom?: string,
+  dateTo?: string,
+) => {
+  const [summary, all] = await Promise.all([
+    getAttendanceSummary(projectCode, dateFrom, dateTo),
+    attendanceRepo.findForProject({ projectCode, dateFrom, dateTo }),
+  ]);
+
+  const unverified = all.filter((r) => r.status !== "Verified");
+  const employeeIds = [...new Set(all.map((r) => r.employeeId))];
+  const excluded: ExcludedWorker[] = [];
+  const eligible = new Set<string>();
+
+  for (const employeeId of employeeIds) {
+    const e = await employeesRepo.findByEmployeeId(employeeId);
+    if (!e) {
+      excluded.push({ employeeId, name: employeeId, status: "Unknown", reason: "Not in the employee roster" });
+    } else if (e.status !== "Active") {
+      excluded.push({
+        employeeId,
+        name: e.name,
+        status: e.status,
+        reason: `Status is ${e.status}; only Active workers can be paid`,
+      });
+    } else if (!(Number(e.payRate) > 0)) {
+      excluded.push({
+        employeeId,
+        name: e.name,
+        status: e.status,
+        reason: "No pay rate set; HR must approve the worker and set a rate",
+      });
+    } else {
+      eligible.add(employeeId);
+    }
+  }
+
+  return {
+    entries: summary.filter((s) => eligible.has(s.employeeId)),
+    unverifiedCount: unverified.length,
+    excludedWorkers: excluded,
+  };
+};
+
 // ── Generate (creates a draft batch with computed lines) ────────────────────
 
 export const generate = async (input: GeneratePayrollInput, actor: Actor = SYSTEM_ACTOR) => {
@@ -466,7 +520,7 @@ export const submitBatch = async (
     projectCode: submitted.projectCode ?? undefined,
     title: resubmission ? "Payroll batch resubmitted" : "Payroll batch awaiting review",
     body: `${submitted.id} (${submitted.period}, ${submitted.employees} employees) was submitted by ${actor.name}.`,
-    link: "/finance/payroll-review",
+    link: "/payroll-review",
   });
   return submitted;
 };
@@ -554,7 +608,7 @@ export const decideBatch = async (id: string, input: DecideBatchInput, actor: Ac
         : `${decided.id} (${decided.period}) was sent back: ${input.reasonCode}${
             input.comment ? ` — ${input.comment}` : ""
           }`,
-    link: "/hr/payroll",
+    link: "/payroll",
   });
 
   return decided;

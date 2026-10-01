@@ -25,6 +25,8 @@ router.get("/", canRead, controller.getAll);
 // come before "/:id" or Express would match "attendance-summary" as an id.
 router.get("/attendance-summary", canWrite, controller.getAttendanceSummary);
 
+router.get("/attendance-readiness", canWrite, controller.getAttendanceReadiness);
+
 // Generate → draft batch with server-computed lines
 router.post("/generate", canWrite, validate(generatePayrollSchema), controller.generate);
 

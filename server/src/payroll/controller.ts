@@ -82,6 +82,21 @@ export const getAttendanceSummary = async (req: Request, res: Response, next: Ne
   }
 };
 
+export const getAttendanceReadiness = async (req: Request, res: Response, next: NextFunction) => {
+  try {
+    const projectCode = req.query.projectCode as string;
+    if (!projectCode) throw new ValidationError("projectCode is required");
+    const data = await service.getAttendanceReadiness(
+      projectCode,
+      req.query.dateFrom as string | undefined,
+      req.query.dateTo as string | undefined,
+    );
+    res.json(formatSuccess(data, "Attendance readiness retrieved"));
+  } catch (err) {
+    next(err);
+  }
+};
+
 // ── Generate (draft batch with server-computed lines) ───────────────────────
 
 export const generate = async (req: AuthedRequest, res: Response, next: NextFunction) => {

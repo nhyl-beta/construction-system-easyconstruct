@@ -1,26 +1,40 @@
 import { apiClient } from "@/services/api.client";
 
+// Every money figure below is computed by the server (server/src/payroll/
+// engine.ts). The client only displays them and never derives a statutory
+// amount.
+
+export type RateVersions = Record<string, string>;
+
 export interface PayrollLine {
   id: number;
+  batchId: string | null;
   empId: string;
   name: string;
   initials: string;
   role: string;
   hours: number;
   overtime: number;
+  adjustments: number;
   gross: number;
-  // Philippine statutory withholdings, each computed on its own base by the
-  // server (server/src/payroll/ph-statutory.ts). `deductions` is their sum,
-  // so a payslip line can be broken down instead of showing one opaque figure.
   sss: number;
   philhealth: number;
   pagibig: number;
   withholdingTax: number;
+  /** Sum of the four employee deductions. */
   deductions: number;
   net: number;
+  employerSss: number;
+  employerEc: number;
+  employerPhilhealth: number;
+  employerPagibig: number;
+  employerCost: number;
+  rateVersions: RateVersions | null;
   status: string;
   period: string;
 }
+
+export type BatchStatus = "draft" | "pending" | "approved" | "revision_required";
 
 export interface PayrollBatch {
   id: string;
@@ -32,10 +46,59 @@ export interface PayrollBatch {
   grossPayroll: number;
   deductions: number;
   netPayroll: number;
-  status: string;
+  employerCost: number;
+  round: number;
+  status: BatchStatus | string;
   reviewedBy: string | null;
   reviewedAt: string | null;
+  reviewNote: string | null;
+  submittedAt: string | null;
   createdAt: string | null;
+}
+
+export interface BatchDecision {
+  id: number;
+  batchId: string;
+  round: number;
+  action: "approved" | "rejected";
+  reasonCode: string | null;
+  comment: string | null;
+  decidedBy: string;
+  decidedAt: string;
+}
+
+export interface BatchTotals {
+  employees: number;
+  overtimeHours: number;
+  gross: number;
+  sss: number;
+  philhealth: number;
+  pagibig: number;
+  withholdingTax: number;
+  deductions: number;
+  net: number;
+  employerSss: number;
+  employerEc: number;
+  employerPhilhealth: number;
+  employerPagibig: number;
+  employerCost: number;
+}
+
+export interface ValidationIssue {
+  severity: "error" | "warning";
+  code: string;
+  message: string;
+  empId?: string;
+}
+
+export interface BatchDetail {
+  batch: PayrollBatch;
+  lines: PayrollLine[];
+  decisions: BatchDecision[];
+  totals: BatchTotals;
+  rateVersions: Record<string, string>;
+  needsVerification: string[];
+  validation: ValidationIssue[];
 }
 
 export interface GeneratePayrollEntry {
@@ -52,24 +115,34 @@ export interface GeneratePayrollInput {
   entries: GeneratePayrollEntry[];
 }
 
-interface BackendPayrollLine {
-  id: number;
-  empId: string;
-  name: string;
-  initials: string;
-  role: string;
-  hours: number;
-  overtime: number;
-  gross: string | number;
-  sss?: string | number | null;
-  philhealth?: string | number | null;
-  pagibig?: string | number | null;
-  withholdingTax?: string | number | null;
-  deductions: string | number;
-  net: string | number;
-  status: string;
-  period: string;
+export interface LineEdit {
+  hours?: number;
+  overtime?: number;
+  adjustments?: number;
 }
+
+export const REJECTION_REASONS: Array<{ value: string; label: string }> = [
+  { value: "attendance_discrepancy", label: "Attendance discrepancy" },
+  { value: "incorrect_basic_pay", label: "Incorrect basic pay" },
+  { value: "incorrect_overtime", label: "Incorrect overtime" },
+  { value: "incorrect_sss", label: "Incorrect SSS" },
+  { value: "incorrect_philhealth", label: "Incorrect PhilHealth" },
+  { value: "incorrect_pagibig", label: "Incorrect Pag-IBIG" },
+  { value: "incorrect_withholding_tax", label: "Incorrect withholding tax" },
+  { value: "missing_employee_information", label: "Missing employee information" },
+  { value: "incorrect_government_rate", label: "Incorrect government rate" },
+  { value: "other", label: "Other" },
+];
+
+export const reasonLabel = (code: string | null | undefined) =>
+  REJECTION_REASONS.find((r) => r.value === code)?.label ?? code ?? "";
+
+export const BATCH_STATUS_LABEL: Record<string, string> = {
+  draft: "Draft",
+  pending: "Pending Finance review",
+  approved: "Approved",
+  revision_required: "Revision required",
+};
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 async function unwrap<T>(promise: Promise<any>): Promise<T> {
@@ -78,54 +151,96 @@ async function unwrap<T>(promise: Promise<any>): Promise<T> {
   return json as T;
 }
 
-function normalize(raw: BackendPayrollLine): PayrollLine {
+type RawLine = Omit<
+  PayrollLine,
+  | "hours" | "overtime" | "adjustments" | "gross" | "sss" | "philhealth" | "pagibig"
+  | "withholdingTax" | "deductions" | "net" | "employerSss" | "employerEc"
+  | "employerPhilhealth" | "employerPagibig" | "employerCost"
+> & Record<string, string | number | null | RateVersions | undefined>;
+
+const num = (v: unknown) => Number(v ?? 0);
+
+export function normalizeLine(raw: RawLine): PayrollLine {
   return {
     id: raw.id,
+    batchId: raw.batchId ?? null,
     empId: raw.empId,
     name: raw.name,
     initials: raw.initials,
     role: raw.role,
-    hours: raw.hours,
-    overtime: raw.overtime,
-    gross: Number(raw.gross),
-    // Rows generated before the statutory columns existed carry one blended
-    // figure in `deductions` and nothing in the four breakdown columns.
-    sss: Number(raw.sss ?? 0),
-    philhealth: Number(raw.philhealth ?? 0),
-    pagibig: Number(raw.pagibig ?? 0),
-    withholdingTax: Number(raw.withholdingTax ?? 0),
-    deductions: Number(raw.deductions),
-    net: Number(raw.net),
+    hours: num(raw.hours),
+    overtime: num(raw.overtime),
+    adjustments: num(raw.adjustments),
+    gross: num(raw.gross),
+    sss: num(raw.sss),
+    philhealth: num(raw.philhealth),
+    pagibig: num(raw.pagibig),
+    withholdingTax: num(raw.withholdingTax),
+    deductions: num(raw.deductions),
+    net: num(raw.net),
+    employerSss: num(raw.employerSss),
+    employerEc: num(raw.employerEc),
+    employerPhilhealth: num(raw.employerPhilhealth),
+    employerPagibig: num(raw.employerPagibig),
+    employerCost: num(raw.employerCost),
+    rateVersions: (raw.rateVersions as RateVersions | null) ?? null,
     status: raw.status,
     period: raw.period,
   };
 }
 
-export async function listPayroll(period?: string): Promise<PayrollLine[]> {
-  const qs = period ? `?period=${encodeURIComponent(period)}` : "";
-  const raw = await unwrap<BackendPayrollLine[]>(apiClient.get(`/payroll${qs}`));
-  return raw.map(normalize);
+export function normalizeBatch(raw: Record<string, unknown>): PayrollBatch {
+  return {
+    id: String(raw.id),
+    projectCode: (raw.projectCode as string | null) ?? null,
+    period: String(raw.period),
+    group: String(raw.group ?? ""),
+    employees: num(raw.employees),
+    overtimeHours: num(raw.overtimeHours),
+    grossPayroll: num(raw.grossPayroll),
+    deductions: num(raw.deductions),
+    netPayroll: num(raw.netPayroll),
+    employerCost: num(raw.employerCost),
+    round: num(raw.round) || 1,
+    status: String(raw.status),
+    reviewedBy: (raw.reviewedBy as string | null) ?? null,
+    reviewedAt: (raw.reviewedAt as string | null) ?? null,
+    reviewNote: (raw.reviewNote as string | null) ?? null,
+    submittedAt: (raw.submittedAt as string | null) ?? null,
+    createdAt: (raw.createdAt as string | null) ?? null,
+  };
+}
+
+export async function listPayroll(period?: string, batchId?: string): Promise<PayrollLine[]> {
+  const params = new URLSearchParams();
+  if (period) params.set("period", period);
+  if (batchId) params.set("batchId", batchId);
+  const qs = params.toString();
+  const raw = await unwrap<RawLine[]>(apiClient.get(`/payroll${qs ? `?${qs}` : ""}`));
+  return raw.map(normalizeLine);
 }
 
 export async function listPayrollBatches(): Promise<PayrollBatch[]> {
-  const raw = await unwrap<
-    Array<
-      Omit<PayrollBatch, "overtimeHours" | "grossPayroll" | "deductions" | "netPayroll"> & {
-        overtimeHours: string | number;
-        grossPayroll: string | number;
-        deductions: string | number;
-        netPayroll: string | number;
-      }
-    >
-  >(apiClient.get("/payroll/batches/all"));
+  const raw = await unwrap<Record<string, unknown>[]>(apiClient.get("/payroll/batches/all"));
+  return raw.map(normalizeBatch);
+}
 
-  return raw.map((batch) => ({
-    ...batch,
-    overtimeHours: Number(batch.overtimeHours),
-    grossPayroll: Number(batch.grossPayroll),
-    deductions: Number(batch.deductions),
-    netPayroll: Number(batch.netPayroll),
-  }));
+export async function getBatchDetail(id: string): Promise<BatchDetail> {
+  const raw = await unwrap<
+    Omit<BatchDetail, "batch" | "lines" | "totals"> & {
+      batch: Record<string, unknown>;
+      lines: RawLine[];
+      totals: Record<string, unknown>;
+    }
+  >(apiClient.get(`/payroll/batches/${encodeURIComponent(id)}`));
+  return {
+    ...raw,
+    batch: normalizeBatch(raw.batch),
+    lines: raw.lines.map(normalizeLine),
+    totals: Object.fromEntries(
+      Object.entries(raw.totals).map(([k, v]) => [k, num(v)]),
+    ) as unknown as BatchTotals,
+  };
 }
 
 // G5: verified attendance for a project, summed per employee — used to
@@ -141,11 +256,82 @@ export async function getAttendanceSummary(
   return unwrap<GeneratePayrollEntry[]>(apiClient.get(`/payroll/attendance-summary?${params.toString()}`));
 }
 
+// Creates a draft batch (server-persisted, invisible to Finance until submitted).
 export async function generatePayroll(
   input: GeneratePayrollInput,
 ): Promise<{ lines: PayrollLine[]; batch: PayrollBatch }> {
-  const raw = await unwrap<{ lines: BackendPayrollLine[]; batch: PayrollBatch }>(
+  const raw = await unwrap<{ lines: RawLine[]; batch: Record<string, unknown> }>(
     apiClient.post("/payroll/generate", input),
   );
-  return { lines: raw.lines.map(normalize), batch: raw.batch };
+  return { lines: raw.lines.map(normalizeLine), batch: normalizeBatch(raw.batch) };
+}
+
+export async function updatePayrollLine(id: number, edit: LineEdit): Promise<PayrollLine> {
+  return normalizeLine(await unwrap<RawLine>(apiClient.patch(`/payroll/${id}`, edit)));
+}
+
+export async function addPayrollLine(batchId: string, entry: GeneratePayrollEntry): Promise<PayrollLine> {
+  return normalizeLine(
+    await unwrap<RawLine>(apiClient.post(`/payroll/batches/${encodeURIComponent(batchId)}/lines`, entry)),
+  );
+}
+
+export async function removePayrollLine(id: number): Promise<void> {
+  await apiClient.del(`/payroll/${id}`);
+}
+
+export async function discardBatch(id: string): Promise<void> {
+  await apiClient.del(`/payroll/batches/${encodeURIComponent(id)}`);
+}
+
+export async function submitBatch(id: string, confirmDuplicate = false): Promise<PayrollBatch> {
+  return normalizeBatch(
+    await unwrap<Record<string, unknown>>(
+      apiClient.post(`/payroll/batches/${encodeURIComponent(id)}/submit`, { confirmDuplicate }),
+    ),
+  );
+}
+
+export type Agency = "sss" | "philhealth" | "pagibig";
+
+export interface ContributionRow {
+  batchId: string;
+  projectCode: string | null;
+  empId: string;
+  name: string;
+  period: string;
+  employeeShare: number;
+  employerShare: number;
+  ec?: number;
+  rateVersion: string;
+}
+
+export async function getContributionReport(agency: Agency, period: string): Promise<ContributionRow[]> {
+  const params = new URLSearchParams({ agency, period });
+  return unwrap<ContributionRow[]>(apiClient.get(`/payroll/reports/contributions?${params.toString()}`));
+}
+
+export interface ExcludedWorker {
+  employeeId: string;
+  name: string;
+  status: string;
+  reason: string;
+}
+
+export interface AttendanceReadiness {
+  entries: GeneratePayrollEntry[];
+  unverifiedCount: number;
+  excludedWorkers: ExcludedWorker[];
+}
+
+// Wizard step 2: verified hours per payable employee, plus what is left out.
+export async function getAttendanceReadiness(
+  projectCode: string,
+  dateFrom?: string,
+  dateTo?: string,
+): Promise<AttendanceReadiness> {
+  const params = new URLSearchParams({ projectCode });
+  if (dateFrom) params.set("dateFrom", dateFrom);
+  if (dateTo) params.set("dateTo", dateTo);
+  return unwrap<AttendanceReadiness>(apiClient.get(`/payroll/attendance-readiness?${params.toString()}`));
 }

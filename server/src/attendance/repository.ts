@@ -42,6 +42,15 @@ export const findVerified = async (filters: { projectCode: string; dateFrom?: st
   return db.select().from(attendance).where(and(...conditions));
 };
 
+// Every entry for a project in a date range, whatever its verification status
+// — payroll readiness needs the unverified ones to say what is left out.
+export const findForProject = async (filters: { projectCode: string; dateFrom?: string; dateTo?: string }) => {
+  const conditions: SQL[] = [eq(attendance.projectCode, filters.projectCode)];
+  if (filters.dateFrom) conditions.push(gte(attendance.logDate, filters.dateFrom));
+  if (filters.dateTo) conditions.push(lte(attendance.logDate, filters.dateTo));
+  return db.select().from(attendance).where(and(...conditions));
+};
+
 export const findById = async (id: number) => {
   const [row] = await db.select().from(attendance).where(eq(attendance.id, id));
   return row ?? null;
