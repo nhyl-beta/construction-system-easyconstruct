@@ -83,6 +83,13 @@ export const create = async (data: CreateAuditLogInput) => {
  * who currently holds a live token from the login events auth/service.ts
  * records, which is the same information with no new moving parts.
  */
+/**
+ * Upper bound on the failed-login list the security page loads. Older attempts
+ * stay in the audit trail; the overview reports the real total alongside this
+ * bound so the UI can say it is showing the newest N of M.
+ */
+export const FAILED_LOGINS_LIMIT = 200;
+
 export const findRecentSessions = async (withinHours = 8) => {
   const since = new Date(Date.now() - withinHours * 60 * 60 * 1000);
 
@@ -106,8 +113,20 @@ export const findRecentSessions = async (withinHours = 8) => {
   return Array.from(latest.values());
 };
 
-/** Failed sign-in attempts, newest first. */
-export const findFailedLogins = async (limit = 50) => {
+const failedLoginWhere = () =>
+  and(eq(auditLogs.entityType, "auth"), eq(auditLogs.action, "login-failed"));
+
+/** Real number of failed sign-in attempts on record (not capped). */
+export const countFailedLogins = async (): Promise<number> => {
+  const [row] = await db
+    .select({ value: count() })
+    .from(auditLogs)
+    .where(failedLoginWhere());
+  return row?.value ?? 0;
+};
+
+/** Failed sign-in attempts, newest first, up to `limit`. */
+export const findFailedLogins = async (limit = FAILED_LOGINS_LIMIT) => {
   return db
     .select()
     .from(auditLogs)

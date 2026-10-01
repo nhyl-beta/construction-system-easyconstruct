@@ -38,5 +38,9 @@ export interface AuditLogFacets {
 export interface SecurityOverview {
   /** One entry per person with a sign-in inside the token lifetime. */
   sessions: AuditLog[];
+  /** The newest `failedLoginsLimit` failed attempts. */
   failedLogins: AuditLog[];
+  /** Every failed attempt on record — can exceed failedLogins.length. */
+  totalFailedLogins: number;
+  failedLoginsLimit: number;
 }

@@ -30,6 +30,8 @@ export function useSecurityOverview() {
   return {
     sessions: data?.sessions ?? [],
     failedLogins: data?.failedLogins ?? [],
+    totalFailedLogins: data?.totalFailedLogins ?? data?.failedLogins.length ?? 0,
+    failedLoginsLimit: data?.failedLoginsLimit ?? 0,
     loading,
     error,
     reload,

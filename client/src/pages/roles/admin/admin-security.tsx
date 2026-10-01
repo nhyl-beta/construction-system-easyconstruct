@@ -15,6 +15,9 @@ import { formatRelativeTime } from "@/lib/format-relative-time";
 // the same real data rather than inventing a separate security-events table.
 const SENSITIVE_ACTIONS = new Set(["rejected", "deleted"]);
 
+const SIGNIN_PAGE_SIZE = 5;
+const SIGNIN_PAGE_SIZES = [5, 10, 20];
+
 export default function AdminSecurityPage() {
   const { logs, loading, error } = useAuditLogs();
   const security = useSecurityOverview();
@@ -26,6 +29,12 @@ export default function AdminSecurityPage() {
     [logs],
   );
   const pagination = usePagination(sensitiveEvents, 10);
+
+  // Each login panel pages on its own: separate state, so turning a page in
+  // one never moves the other. 5 per page fits the half-width columns.
+  const sessionsPagination = usePagination(security.sessions, SIGNIN_PAGE_SIZE);
+  const failedLoginsPagination = usePagination(security.failedLogins, SIGNIN_PAGE_SIZE);
+  const failedLoginsCapped = security.totalFailedLogins > security.failedLogins.length;
 
   return (
     <PageContainer>
@@ -90,7 +99,7 @@ export default function AdminSecurityPage() {
             8h lifetime — the JWT is stateless, so there is no session table
             to enumerate. */}
         <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">
-          <div className="space-y-3">
+          <div className="min-w-0 space-y-3">
             <h3 className="flex items-center gap-2 text-sm font-semibold text-foreground">
               <Users className="h-4 w-4 text-primary" />
               Active sessions
@@ -111,7 +120,7 @@ export default function AdminSecurityPage() {
                 Nobody has signed in within the last 8 hours.
               </p>
             )}
-            {security.sessions.map((s) => (
+            {sessionsPagination.pageItems.map((s) => (
               <div
                 key={s.id}
                 className="flex items-center justify-between gap-3 rounded-xl border border-border/70 bg-card px-4 py-3"
@@ -123,30 +132,42 @@ export default function AdminSecurityPage() {
                     {s.summary ? ` · ${s.summary}` : ""}
                   </p>
                 </div>
-                <span className="text-xs text-muted-foreground">
+                <span className="shrink-0 text-xs text-muted-foreground">
                   {formatRelativeTime(s.createdAt)}
                 </span>
               </div>
             ))}
+            {/* Hidden while everything fits on the first page. Keyed to the
+                smallest page size rather than pageCount, so picking a larger
+                size can't make the controls vanish with no way back. */}
+            {!security.loading && security.sessions.length > SIGNIN_PAGE_SIZE && (
+              <DataTablePagination {...sessionsPagination} compact pageSizeOptions={SIGNIN_PAGE_SIZES} />
+            )}
           </div>
 
-          <div className="space-y-3">
+          <div className="min-w-0 space-y-3">
             <h3 className="flex items-center gap-2 text-sm font-semibold text-foreground">
               <KeyRound className="h-4 w-4 text-destructive" />
               Failed sign-in attempts
               {!security.loading && (
                 <span className="text-xs font-normal text-muted-foreground">
-                  ({security.failedLogins.length})
+                  ({security.totalFailedLogins.toLocaleString()})
                 </span>
               )}
             </h3>
+            {!security.loading && failedLoginsCapped && (
+              <p className="text-xs text-muted-foreground">
+                Showing the latest {security.failedLogins.length.toLocaleString()} of{" "}
+                {security.totalFailedLogins.toLocaleString()}. Older attempts remain in the audit trail.
+              </p>
+            )}
             {security.loading && <p className="text-sm text-muted-foreground">Loading…</p>}
             {!security.loading && !security.error && security.failedLogins.length === 0 && (
               <p className="text-sm text-muted-foreground">
                 No failed sign-in attempts recorded.
               </p>
             )}
-            {security.failedLogins.map((f) => (
+            {failedLoginsPagination.pageItems.map((f) => (
               <div
                 key={f.id}
                 className="flex items-center justify-between gap-3 rounded-xl border border-border/70 bg-card px-4 py-3"
@@ -157,11 +178,14 @@ export default function AdminSecurityPage() {
                     <p className="text-xs text-muted-foreground">{f.summary}</p>
                   )}
                 </div>
-                <span className="text-xs text-muted-foreground">
+                <span className="shrink-0 text-xs text-muted-foreground">
                   {formatRelativeTime(f.createdAt)}
                 </span>
               </div>
             ))}
+            {!security.loading && security.failedLogins.length > SIGNIN_PAGE_SIZE && (
+              <DataTablePagination {...failedLoginsPagination} compact pageSizeOptions={SIGNIN_PAGE_SIZES} />
+            )}
           </div>
         </div>
       </PageContent>

@@ -25,6 +25,13 @@ type DataTablePaginationProps = {
   pageSize: number;
   setPageSize: (size: number) => void;
   total?: number;
+  /**
+   * For half-width columns: icon-only previous/next, a smaller page-size
+   * selector, no first/last buttons, and wrapping rows instead of one wide one.
+   */
+  compact?: boolean;
+  /** Page sizes offered; defaults to 10–50. */
+  pageSizeOptions?: number[];
 };
 
 export function DataTablePagination({
@@ -34,9 +41,11 @@ export function DataTablePagination({
   pageSize,
   setPageSize,
   total,
+  compact = false,
+  pageSizeOptions: pageSizeOptionsProp,
 }: DataTablePaginationProps) {
   const pageSizeOptions = useMemo(() => {
-    const baseOptions = [10, 20, 30, 40, 50];
+    const baseOptions = pageSizeOptionsProp ?? [10, 20, 30, 40, 50];
     const optionsSet = new Set(baseOptions);
 
     if (!optionsSet.has(pageSize)) {
@@ -44,7 +53,57 @@ export function DataTablePagination({
     }
 
     return Array.from(optionsSet).sort((a, b) => a - b);
-  }, [pageSize]);
+  }, [pageSize, pageSizeOptionsProp]);
+
+  if (compact) {
+    return (
+      <div className="flex w-full flex-wrap items-center justify-between gap-x-3 gap-y-2 px-1 text-xs">
+        <span className="whitespace-nowrap text-muted-foreground">
+          {typeof total === "number" ? `${total} row(s)` : null}
+        </span>
+        <div className="flex flex-wrap items-center gap-x-3 gap-y-2">
+          <label className="flex items-center gap-1.5 text-muted-foreground">
+            <span className="sr-only sm:not-sr-only">Per page</span>
+            <Select value={`${pageSize}`} onValueChange={(v) => setPageSize(Number(v))}>
+              <SelectTrigger aria-label="Rows per page" className="h-7 w-[56px] px-2 text-xs">
+                <SelectValue placeholder={pageSize} />
+              </SelectTrigger>
+              <SelectContent side="top">
+                {pageSizeOptions.map((size) => (
+                  <SelectItem key={size} value={`${size}`}>
+                    {size}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </label>
+          <span className="whitespace-nowrap font-medium tabular-nums">
+            {currentPage} / {pageCount}
+          </span>
+          <div className="flex items-center gap-1.5">
+            <Button
+              variant="outline"
+              className="h-7 w-7 p-0"
+              onClick={() => setCurrentPage(currentPage - 1)}
+              disabled={currentPage === 1}
+              aria-label="Go to previous page"
+            >
+              <ChevronLeft />
+            </Button>
+            <Button
+              variant="outline"
+              className="h-7 w-7 p-0"
+              onClick={() => setCurrentPage(currentPage + 1)}
+              disabled={currentPage === pageCount}
+              aria-label="Go to next page"
+            >
+              <ChevronRight />
+            </Button>
+          </div>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div
