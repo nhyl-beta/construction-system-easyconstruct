@@ -89,6 +89,7 @@ export const ROLE_RESOURCE_ACCESS: Record<string, string[]> = {
     "dashboard",
     "ai-validation-reference",
     "progress",
+    "tasks",
     "requirements",
     "approvals",
     "issues",

@@ -82,7 +82,9 @@ export default function TasksPage() {
               <div className="p-5 text-sm text-destructive">Couldn't load tasks. {error}</div>
             ) : tasks.length === 0 ? (
               <div className="p-5 text-sm text-muted-foreground">
-                No tasks assigned to you yet.
+                {canCreate
+                  ? "No tasks yet — create one above to assign it to Site Personnel."
+                  : "No tasks assigned to you yet."}
               </div>
             ) : (
               <div className="divide-y divide-border/60">
