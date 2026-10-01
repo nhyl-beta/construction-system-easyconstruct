@@ -1142,3 +1142,34 @@ similar to the first ("Cracks on warehouse slab surface after curing"). All acco
 
 With the flags off: no **Structure with AI** button, no **Similar issue resolved before** box; Report
 issue, milestones, dashboard links and Tasks all still work.
+
+### Demo script — Site Personnel (`site@easyconstruct.demo`)
+
+1. **Requirements** → **New requirement** (the button now shows for Site Personnel). The project picker lists
+   only projects Rico is staffed on; use `DEMO-STAGE-3`. There is no **Structure with AI** button for this role.
+2. Fill title/category/description, attach a file, **Save as draft**; then press **Submit for approval** on the
+   draft (only drafts you wrote yourself show the button).
+3. *(Project Manager)* **Approvals** → decide it. Site Personnel cannot approve or reject, edit another
+   author's requirement, or delete.
+
+### Demo script — Consultant (`consultant@easyconstruct.demo`)
+
+1. **Designs** → click a row: read-only detail with name, code, project, discipline, phase, version, status,
+   lead architect, engineers, description and the design's files (or "No files attached to this design.").
+2. **Design reviews**: each row now shows the design name, its project and its file links; the decision buttons
+   are unchanged.
+3. **Proposals** → open a proposal: the **Rule-based validation summary** ("Completeness checks — decision
+   support only.") is computed on demand if the proposal was created while the flag was off.
+4. **Advisory Documents** → **Upload Advisory**: pick a project (only projects you are staffed on), optionally
+   **Related to** a proposal or design on that project, choose a file (required), upload. The list shows the
+   related item; old rows with no file show a muted **No file attached** badge
+   (`npx tsx src/scripts/flag-advisory-without-file.ts` lists them without changing anything).
+
+### Notes from running this pass
+
+- `demo-seed-stages.ts` was failing on `POST /projects` (the project schema now requires `plannedStartDate`);
+  the seed now sends today's date.
+- The role extras (milestone, Resolved quality issues, open similar issue) are added only to `DEMO-STAGE-3`.
+- The single schema change is `drizzle/0016_advisory_related_item.sql` (hand-written, idempotent, like
+  `0015_payroll_lifecycle.sql`; `drizzle-kit generate` needs an interactive rename prompt against the current
+  snapshots) and is mirrored in `ensure-demo-schema.ts`.
