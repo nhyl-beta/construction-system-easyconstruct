@@ -1095,3 +1095,50 @@ Server `npx tsc --noEmit -p server`: clean. Client `npm run build`: clean.
 All five parts (A-E) are now built and live-verified in this round — see each section above for
 evidence. `FEATURES.aiPlaceholders`'s surface table was not touched; nothing fake-AI was
 resurrected (Part D's audit confirms every existing fake-AI surface stayed correctly gated).
+
+
+## Demo script (engineer / site personnel / consultant alignment pass)
+
+Branch `feature/engineer-consultant-alignment`. One seeded project serves every role: **`DEMO-STAGE-3`**
+("DEMO · 4 Construction") — writable, not archived, with the demo Engineer (Paolo Mendoza), Site
+Personnel (Rico Domingo), Architect and Consultant all staffed on it.
+
+**Environment** — both flags on, or the AI surfaces will not appear:
+
+```
+FEATURE_AI=true         # server/.env
+VITE_FEATURE_AI=true    # client/.env
+```
+
+Seed: `npm run db:seed`, `npm run ai:seed-references`, then `npm --prefix server run demo:seed`
+(re-runnable; rebuilds `DEMO-STAGE-0..6`). `DEMO-STAGE-3` additionally gets the role extras from
+`buildRoleDemoExtras` in `demo-seed-stages.ts`: a second active milestone ("Slab pour complete"),
+two Resolved quality issues with resolution notes (slab cracks, honeycombing), and one open issue
+similar to the first ("Cracks on warehouse slab surface after curing"). All accounts use `Demo@12345`
+(see `docs/TEST_ACCOUNTS.md`).
+
+### Demo script — Engineer (`engineer@easyconstruct.demo`)
+
+1. **Requirements → New requirement.** Project `DEMO-STAGE-3`, title "Warehouse floor slab". In
+   Description type `Need concrete slab for the warehouse floor, around 320 sqm`, click
+   **Structure with AI**. The text becomes four headed sections (Objectives / Materials / Constraints /
+   Specifications), Category is set (still editable), "Reworded: around → approximately" and
+   "sqm → m²" appear with **Undo**, and a suggestions list (strength grade, thickness, curing,
+   reinforcement, testing…) appears — tick two and **Add selected**. **Undo structuring** restores
+   the original text.
+2. Attach any file, **Save as draft**, then **Submit for approval**.
+3. *(Project Manager `pm@easyconstruct.demo`)* **Approvals** → approve the requirement.
+4. **Progress** → **New report** (e.g. Progress Report on `DEMO-STAGE-3`); then in the **Milestones**
+   card press **Mark completed** on "Slab pour complete" and confirm. Click a row under
+   **Recent site reports** to open the read-only report detail.
+5. **Issues** → **Report issue**: project `DEMO-STAGE-3`, title "Cracks on slab surface after
+   curing", category Quality, description mentioning cracks on the concrete slab. Submit. The issue
+   shows **Similar issue resolved before** with issue code · project · date · match %.
+6. Set that issue's status to **Resolved**, press **Use as starting point** to copy the precedent's
+   note into the resolution notes, edit it, and **Update status**.
+7. **Dashboard** → click an assigned-project row (opens the project page) and a row under **Recent
+   reports** (opens the report detail).
+8. Sidebar → **Tasks** (create a task for Site Personnel).
+
+With the flags off: no **Structure with AI** button, no **Similar issue resolved before** box; Report
+issue, milestones, dashboard links and Tasks all still work.

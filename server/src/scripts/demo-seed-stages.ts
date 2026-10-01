@@ -501,6 +501,57 @@ async function buildConstructionPartial(code: string, t: Tokens, ids: Ids, budge
   return { projectId, workflow };
 }
 
+// Engineer / Site Personnel / Consultant demo extras, added to the
+// Construction-stage project (DEMO-STAGE-3) only — it is the one project that
+// is writable, non-archived, and has every demo role staffed. Not used for
+// the completed stages: open issues would block their Construction exit gate.
+// Extends the existing seed (docs/demo-and-ux-progress.md "Demo script").
+async function buildRoleDemoExtras(code: string, t: Tokens) {
+  // Engineer milestone completion (Task C): a second active milestone, so
+  // completing one in the demo leaves another to show.
+  const m = await api<{ id: number }>("/milestones", t.pm, {
+    method: "POST",
+    body: { projectCode: code, title: "Slab pour complete", estimatedCompletionDate: "2026-12-15" },
+  });
+  await api(`/milestones/${m.id}`, t.pm, { method: "PATCH", body: { status: "active" } });
+
+  // Issue precedents (Task B): two Resolved issues with notes in similar
+  // categories, plus one open issue similar to the first.
+  const resolved = [
+    {
+      title: "Hairline cracks on concrete slab surface",
+      description: "Hairline cracks appeared on the warehouse concrete slab surface a few days after the pour",
+      resolutionNotes: "Mapped the cracks, injected low-viscosity epoxy and extended moist curing to 7 days; re-inspected with no further growth.",
+    },
+    {
+      title: "Honeycombing at column base after pour",
+      description: "Voids and honeycombing found at the base of column C4 after formwork removal",
+      resolutionNotes: "Chipped out loose concrete, applied bonding agent and repaired with non-shrink grout; vibration procedure reviewed with the crew.",
+    },
+  ];
+  for (const [i, r] of resolved.entries()) {
+    const issue = await api<{ id: number }>("/issues", t.engineer, {
+      method: "POST",
+      body: { issueCode: `ISS-${code}-R${i + 1}`, projectCode: code, category: "Quality", severity: "Medium", title: r.title, description: r.description },
+    });
+    await api(`/issues/${issue.id}/status`, t.pm, {
+      method: "PATCH",
+      body: { status: "Resolved", resolutionNotes: r.resolutionNotes },
+    });
+  }
+  await api("/issues", t.engineer, {
+    method: "POST",
+    body: {
+      issueCode: `ISS-${code}-O1`,
+      projectCode: code,
+      category: "Quality",
+      severity: "Medium",
+      title: "Cracks on warehouse slab surface after curing",
+      description: "Cracks on the concrete slab surface noticed after curing, near the loading bay",
+    },
+  });
+}
+
 // Used from DEMO-STAGE-4 onward: fully completes Construction (K1-K4) so
 // advance() to Closeout is legitimately allowed. Reuses the same 8-task
 // list shape as buildConstructionPartial but finishes every task, closes
@@ -677,6 +728,7 @@ async function main() {
     step("Construction phase");
     if (target === "Construction") {
       await buildConstructionPartial(code, t, ids, budgetId!);
+      await buildRoleDemoExtras(code, t);
       const view = await api<{ phase: string; progress: number }>(`/projects/${project.id}/lifecycle`, t.pm);
       summary.push({ code, targetPhase: target, finalPhase: view.phase, progress: view.progress });
       continue;
