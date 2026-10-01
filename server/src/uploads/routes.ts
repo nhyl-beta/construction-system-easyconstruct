@@ -8,6 +8,7 @@ import { uploadSchema } from "../validators/upload-validators.js";
 const router = Router();
 
 router.use(authenticate);
+router.get("/file", controller.download);
 router.post("/", validate(uploadSchema), controller.upload);
 
 export default router;

@@ -12,14 +12,14 @@ export default defineConfig({
     },
   },
   server: {
+    // Fixed port, never "whatever is free". Vite otherwise hops to 5174 when
+    // 5173 is taken, and every emailed link (APP_URL on the server) then
+    // points at a port nothing is listening on — "localhost refused to
+    // connect". Better to fail loudly at startup.
+    port: 5173,
+    strictPort: true,
     proxy: {
       "/api": "http://localhost:8000",
-      // Uploaded files are served as static assets by the API
-      // (app.use("/uploads", express.static(...))). Without this, a stored
-      // "/uploads/documents/x.pdf" link hit Vite instead, fell through to the
-      // SPA shell, and rendered the catch-all "Page Not Found" — or bounced to
-      // /login, since a new tab has no sessionStorage token.
-      "/uploads": "http://localhost:8000",
     },
   },
 });

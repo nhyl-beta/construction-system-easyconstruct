@@ -1,6 +1,23 @@
 import { z } from "zod";
 import { REQUIREMENT_CATEGORIES, REQUIREMENT_STATUSES } from "../requirements/types.js";
 
+// A file already stored through POST /api/uploads. The URL must be one of our
+// own storage locations — a blob URL or a local /uploads/ path — not an
+// arbitrary external link.
+const attachmentSchema = z.object({
+  url: z
+    .string()
+    .min(1)
+    .max(500)
+    .refine(
+      (u) => u.startsWith("/uploads/") || /^https:\/\/[^/]+\.blob\.vercel-storage\.com\//.test(u),
+      "Attachment must be a file uploaded through the app",
+    ),
+  filename: z.string().min(1).max(255),
+  contentType: z.string().min(1).max(100),
+  sizeBytes: z.number().int().nonnegative(),
+});
+
 export const createRequirementSchema = z.object({
   requirementId: z.string().min(2).max(20).optional(),
   title: z.string().min(4, "Title is required"),
@@ -8,6 +25,8 @@ export const createRequirementSchema = z.object({
   category: z.enum(REQUIREMENT_CATEGORIES),
   description: z.string().min(10, "Description must be at least 10 characters"),
   status: z.enum(REQUIREMENT_STATUSES).optional(),
+  // Required on every requirement — saving a draft and submitting both.
+  attachments: z.array(attachmentSchema).min(1, "Attach at least one file").max(10),
   createdBy: z.string().min(2),
 });
 

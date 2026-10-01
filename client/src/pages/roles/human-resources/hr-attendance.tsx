@@ -27,7 +27,7 @@ import {
 import { listEmployees } from "@/features/hr/hr-api";
 import { AttendanceVerificationDialog } from "@/components/hr/attendance-verification-dialog";
 
-import { Camera, CheckCircle2, Clock, MapPin, ShieldCheck } from "lucide-react";
+import { Camera, CheckCircle2, Clock, FileSpreadsheet, MapPin, ShieldCheck } from "lucide-react";
 
 export default function HRAttendancePage() {
   const [logs, setLogs] = useState<AttendanceEntry[]>([]);
@@ -176,6 +176,15 @@ export default function HRAttendancePage() {
                     </TableCell>
                     <TableCell className="text-sm text-muted-foreground">
                       {l.site}
+                      {l.source === "Sheet" && (
+                        <Badge
+                          variant="outline"
+                          className="mt-1 flex w-fit items-center gap-1 rounded-full text-[10px]"
+                          title="Imported from a site attendance spreadsheet — needs verification"
+                        >
+                          <FileSpreadsheet className="h-3 w-3" /> Sheet
+                        </Badge>
+                      )}
                     </TableCell>
                     <TableCell className="font-mono text-xs">
                       {l.clockIn}
@@ -221,6 +230,8 @@ export default function HRAttendancePage() {
                               ? "border-success/30 text-success"
                               : l.photo === "Pending"
                               ? "border-warning/30 text-warning"
+                              : l.photo === "Not captured"
+                              ? "border-border text-muted-foreground"
                               : "border-destructive/30 text-destructive"
                           }`}
                         >

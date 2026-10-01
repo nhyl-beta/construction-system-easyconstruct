@@ -11,6 +11,8 @@ export interface AttendanceRecord {
   attendanceStatus: string;
   remarks: string | null;
   logDate: string;
+  /** "Clock-in" (live) or "Sheet" (imported from a spreadsheet). */
+  source: string;
   createdAt: Date | null;
 }
 

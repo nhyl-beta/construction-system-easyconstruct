@@ -20,6 +20,7 @@ import {
 } from "@/components/ui/select";
 
 import { useIssues } from "@/features/issues/hooks/use-issues";
+import { useAuth } from "@/auth/auth-context";
 import type { IssueRecord, UpdateIssueStatusInput } from "@/features/issues/repositories/issues.repository";
 
 const STATUS_OPTIONS: UpdateIssueStatusInput["status"][] = [
@@ -37,13 +38,19 @@ function IssueRow({
   issue,
   updating,
   precedents,
+  updateError,
+  onEdit,
   onUpdate,
 }: {
   issue: IssueRecord;
   updating: boolean;
   precedents: IssuePrecedent[];
+  /** Why the last update to THIS issue failed — shown under it, nowhere else. */
+  updateError?: string;
+  onEdit: () => void;
   onUpdate: (status: UpdateIssueStatusInput["status"], resolutionNotes?: string) => void;
 }) {
+  const [localError, setLocalError] = useState<string | null>(null);
   const [nextStatus, setNextStatus] = useState<UpdateIssueStatusInput["status"]>(
     issue.status as UpdateIssueStatusInput["status"],
   );
@@ -67,7 +74,14 @@ function IssueRow({
       </div>
 
       <div className="flex flex-wrap items-center gap-2">
-        <Select value={nextStatus} onValueChange={(v) => setNextStatus(v as UpdateIssueStatusInput["status"])}>
+        <Select
+          value={nextStatus}
+          onValueChange={(v) => {
+            setNextStatus(v as UpdateIssueStatusInput["status"]);
+            setLocalError(null);
+            onEdit();
+          }}
+        >
           <SelectTrigger className="h-8 w-44 rounded-lg text-xs">
             <SelectValue />
           </SelectTrigger>
@@ -85,7 +99,12 @@ function IssueRow({
             className="h-8 min-h-8 flex-1 text-xs"
             placeholder="Resolution notes…"
             value={notes}
-            onChange={(e) => setNotes(e.target.value)}
+            aria-invalid={!!(localError || updateError)}
+            onChange={(e) => {
+              setNotes(e.target.value);
+              setLocalError(null);
+              onEdit();
+            }}
           />
         )}
 
@@ -93,11 +112,26 @@ function IssueRow({
           size="sm"
           className="h-8 rounded-lg"
           disabled={!dirty || updating}
-          onClick={() => onUpdate(nextStatus, notes || undefined)}
+          onClick={() => {
+            // Resolving needs notes; say so here instead of sending a request
+            // that is bound to be refused.
+            if (nextStatus === "Resolved" && !notes.trim()) {
+              setLocalError("Resolution notes are required to resolve an issue.");
+              return;
+            }
+            setLocalError(null);
+            onUpdate(nextStatus, notes.trim() || undefined);
+          }}
         >
           {updating ? "Saving…" : "Update status"}
         </Button>
       </div>
+
+      {(localError || updateError) && (
+        <p role="alert" className="rounded-lg border border-destructive/30 bg-destructive/5 px-3 py-2 text-xs text-destructive">
+          {localError ?? updateError}
+        </p>
+      )}
 
       {issue.status === "Resolved" && issue.siteContext && (
         <p className="text-xs text-muted-foreground">Location: {issue.siteContext}</p>
@@ -128,7 +162,9 @@ function IssueRow({
 }
 
 export default function IssuesPage() {
-  const { issues, loading, error, updating, updateStatus } = useIssues();
+  const { user } = useAuth();
+  const { issues, loading, error, updating, updateErrors, clearUpdateError, updateStatus } = useIssues();
+  const isPm = user?.role === "project-manager";
   const [precedentsByCategory, setPrecedentsByCategory] = useState<Record<string, IssuePrecedent[]>>({});
 
   const openCategories = useMemo(
@@ -183,8 +219,12 @@ export default function IssuesPage() {
   return (
     <PageContainer>
       <PageHeader
-        title="Issues"
-        description="Review issues reported from the field and record their resolution"
+        title={isPm ? "Issue review" : "Issues"}
+        description={
+          isPm
+            ? "Review issues reported on your projects and record their resolution"
+            : "Review issues reported from the field and record their resolution"
+        }
       />
       <PageContent className="space-y-6 p-6 md:p-8">
         <KpiStrip
@@ -200,7 +240,7 @@ export default function IssuesPage() {
           <CardContent className="p-0">
             {loading ? (
               <div className="p-5 text-sm text-muted-foreground">Loading issues…</div>
-            ) : error ? (
+            ) : error && issues.length === 0 ? (
               <div className="p-5 text-sm text-destructive">Couldn't load issues. {error}</div>
             ) : issues.length === 0 ? (
               <div className="p-5 text-sm text-muted-foreground">
@@ -213,6 +253,8 @@ export default function IssuesPage() {
                     key={issue.id}
                     issue={issue}
                     updating={updating === issue.id}
+                    updateError={updateErrors[issue.id]}
+                    onEdit={() => clearUpdateError(issue.id)}
                     precedents={precedentsByCategory[issue.category] ?? []}
                     onUpdate={(status, resolutionNotes) => updateStatus(issue.id, { status, resolutionNotes })}
                   />

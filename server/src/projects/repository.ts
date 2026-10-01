@@ -1,6 +1,6 @@
 import { db }       from "../db/connection.js";
 import { projects } from "../db/schema/projects.js";
-import { eq, ilike, and, or, SQL } from 'drizzle-orm';
+import { eq, ne, ilike, and, or, isNull, SQL } from 'drizzle-orm';
 import type { CreateProjectInput, UpdateProjectInput, ProjectFilters } from "./types.js";
 
 export const findAll = async (filters: ProjectFilters = {}) => {
@@ -10,7 +10,24 @@ export const findAll = async (filters: ProjectFilters = {}) => {
     conditions.push(eq(projects.status, filters.status));
 
   if (filters.risk && filters.risk !== 'all')
-    conditions.push(eq(projects.risk, filters.risk));
+    conditions.push(ilike(projects.risk, filters.risk));
+
+  if (filters.excludeArchived) conditions.push(ne(projects.status, 'Archived'));
+
+  if (filters.projectType && filters.projectType !== 'all')
+    conditions.push(eq(projects.projectType, filters.projectType));
+
+  // Project Manager scope — see projects/service.ts isOwnProject.
+  if (filters.pmUserId != null) {
+    conditions.push(
+      or(
+        eq(projects.pmUserId, filters.pmUserId),
+        filters.pmName
+          ? and(isNull(projects.pmUserId), eq(projects.pm, filters.pmName))
+          : undefined,
+      )!,
+    );
+  }
 
   if (filters.search) {
     const s = `%${filters.search}%`;
@@ -72,10 +89,18 @@ export const create = async (data: CreateProjectInput) => {
   return created;
 };
 
-export const update = async (id: number, data: UpdateProjectInput) => {
+export const update = async (
+  id: number,
+  data: UpdateProjectInput,
+  pmUserId?: number | null,
+) => {
   const [updated] = await db
     .update(projects)
-    .set({ ...serialize(data), updatedAt: new Date() })
+    .set({
+      ...serialize(data),
+      ...(pmUserId !== undefined ? { pmUserId } : {}),
+      updatedAt: new Date(),
+    })
     .where(eq(projects.id, id))
     .returning();
   return updated ?? null;

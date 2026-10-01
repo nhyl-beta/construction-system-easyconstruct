@@ -1,5 +1,6 @@
 import * as repo           from "./repository.js";
 import * as projectMemberRepo from "../project-members/repository.js";
+import * as usersRepo from "../users/repository.js";
 import { ForbiddenError, NotFoundError, ValidationError } from "../utils/errors.js";
 import { assertProjectWritable } from "../lifecycle/service.js";
 import type {
@@ -31,7 +32,47 @@ function toConsultantView(project: Awaited<ReturnType<typeof repo.findAll>>[numb
 export interface ProjectScope {
   role: string;
   userId: number;
+  /** Display name — the fallback match for projects whose pmUserId is unset. */
+  name?: string;
 }
+
+/**
+ * Project Managers see and open only the projects assigned to them. Same
+ * rule lifecycle/service.ts uses for "is this caller the project's own PM":
+ * the pm_user_id link when set, the `pm` display name while it is still null.
+ */
+export const isOwnProject = (
+  project: { pmUserId: number | null; pm: string },
+  scope: ProjectScope,
+): boolean =>
+  project.pmUserId != null
+    ? project.pmUserId === scope.userId
+    : !!scope.name && project.pm === scope.name;
+
+/**
+ * Narrows any project-scoped list (tasks, issues, requirements, milestones…)
+ * to the caller's own projects when the caller is a Project Manager; every
+ * other role passes through untouched. One helper so each module's list
+ * endpoint applies the identical rule instead of re-deriving it.
+ */
+export const scopeRowsToPm = async <T>(
+  auth: { id: number; role: string; name: string } | undefined,
+  rows: T[],
+  codeOf: (row: T) => string | null | undefined,
+): Promise<T[]> => {
+  if (auth?.role !== "project-manager") return rows;
+  const mine = await projectCodesForPm({ role: auth.role, userId: auth.id, name: auth.name });
+  return rows.filter((row) => {
+    const code = codeOf(row);
+    return !!code && mine.has(code);
+  });
+};
+
+/** Project codes a Project Manager is assigned to (for other modules' scoping). */
+export const projectCodesForPm = async (scope: ProjectScope): Promise<Set<string>> => {
+  const projects = await repo.findAll({});
+  return new Set(projects.filter((p) => isOwnProject(p, scope)).map((p) => p.code));
+};
 
 /**
  * Roles whose project visibility is their staffing, not the whole portfolio.
@@ -63,11 +104,15 @@ const assignedProjectCodes = async (userId: number): Promise<Set<string>> => {
   return new Set(memberships.map((m) => m.projectCode));
 };
 
-export const getAll = async (
-  filters: ProjectFilters,
-  scope?: ProjectScope,
-) => {
-  const projects = await repo.findAll(filters);
+const visibleProjects = async (filters: ProjectFilters, scope?: ProjectScope) => {
+  // A Project Manager's portfolio is the projects assigned to them — applied
+  // in the query itself, so the list, the dashboard counts built from it and
+  // every paged/filtered variant agree on what "mine" means.
+  const projects = await repo.findAll(
+    scope?.role === "project-manager"
+      ? { ...filters, pmUserId: scope.userId, pmName: scope.name }
+      : filters,
+  );
 
   if (!scope || !MEMBERSHIP_SCOPED_ROLES.has(scope.role)) return projects;
 
@@ -80,12 +125,31 @@ export const getAll = async (
   return scope.role === "consultant" ? visible.map(toConsultantView) : visible;
 };
 
+export const getAll = async (filters: ProjectFilters, scope?: ProjectScope) =>
+  visibleProjects({ ...filters, page: undefined, pageSize: undefined }, scope);
+
+/** Server-side pagination: the filtered, scoped list sliced to one page. */
+export const getPage = async (filters: ProjectFilters, scope?: ProjectScope) => {
+  const all = await visibleProjects(filters, scope);
+  const pageSize = Math.min(Math.max(filters.pageSize ?? 10, 1), 100);
+  const pages = Math.max(Math.ceil(all.length / pageSize), 1);
+  const page = Math.min(Math.max(filters.page ?? 1, 1), pages);
+  return {
+    items: all.slice((page - 1) * pageSize, page * pageSize),
+    meta: { total: all.length, page, pageSize, pages },
+  };
+};
+
 export const getById = async (id: number, scope?: ProjectScope) => {
   const project = await repo.findById(id);
   if (!project) throw new NotFoundError('Project', String(id));
 
-  // Same rule as the list. Without it, a staff member who could not see a
-  // project in the table could still open it by guessing its id.
+  // Same rule as the list. Without it, a Project Manager could open (or edit,
+  // or delete) another PM's project by guessing its id.
+  if (scope?.role === "project-manager" && !isOwnProject(project, scope)) {
+    throw new ForbiddenError("You can only open projects assigned to you");
+  }
+
   if (scope && MEMBERSHIP_SCOPED_ROLES.has(scope.role)) {
     const assigned = await assignedProjectCodes(scope.userId);
     if (!assigned.has(project.code)) {
@@ -107,7 +171,15 @@ export const getByCode = async (code: string) => {
   return project;
 };
 
-export const create = async (input: CreateProjectInput) => {
+/** The project-manager account whose display name is `name`, if exactly one. */
+const findPmUserId = async (name: string | undefined): Promise<number | undefined> => {
+  if (!name) return undefined;
+  const pms = (await usersRepo.findAll({ role: "project-manager" })).filter((u) => u.name === name);
+  return pms.length === 1 ? pms[0]!.id : undefined;
+};
+
+export const create = async (input: CreateProjectInput, pmUserId?: number) => {
+  pmUserId ??= await findPmUserId(input.pm);
   // Every project starts at Proposal/0% regardless of what the client sent —
   // see lifecycle/phases.ts. statusTone follows PHASE_TONE rather than the
   // schema's stale 'muted' default.
@@ -116,10 +188,12 @@ export const create = async (input: CreateProjectInput) => {
     status: "Proposal",
     statusTone: "neutral",
     progress: 0,
+    // Link the PM by id so ownership survives a rename — see isOwnProject.
+    ...(pmUserId != null ? { pmUserId } : {}),
   });
 };
 
-export const update = async (id: number, input: UpdateProjectInput) => {
+export const update = async (id: number, input: UpdateProjectInput, scope?: ProjectScope) => {
   // Defense in depth: project-validator.ts's updateProjectSchema already
   // omits these, so a well-formed request never reaches here carrying them —
   // this only fires if something bypasses that schema.
@@ -129,15 +203,23 @@ export const update = async (id: number, input: UpdateProjectInput) => {
       "status/progress are lifecycle-owned — use the /lifecycle endpoints instead of PATCH /projects/:id",
     );
   }
-  const existing = await getById(id);
+  const existing = await getById(id, scope);
   await assertProjectWritable(existing.code);
-  const updated = await repo.update(id, input);
+  // Reassigning the PM by name must move the ownership link with it, or the
+  // previous PM keeps seeing the project and the new one can't.
+  const reassignedPmUserId =
+    input.pm && input.pm !== existing.pm ? await findPmUserId(input.pm) : undefined;
+  const updated = await repo.update(
+    id,
+    input,
+    input.pm && input.pm !== existing.pm ? (reassignedPmUserId ?? null) : undefined,
+  );
   if (!updated) throw new NotFoundError('Project', String(id));
   return updated;
 };
 
-export const remove = async (id: number) => {
-  await getById(id);
+export const remove = async (id: number, scope?: ProjectScope) => {
+  await getById(id, scope);
   const deleted = await repo.remove(id);
   if (!deleted) throw new NotFoundError('Project', String(id));
   return deleted;

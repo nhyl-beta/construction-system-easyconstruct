@@ -396,7 +396,7 @@ export function ApprovalQueuePanel({
                       Read-only
                     </Badge>
                   ) : tab === "pending" ? (
-                    <div className="flex w-full flex-col items-end gap-2 md:w-64">
+                    <div className="flex w-full flex-col items-end gap-2 md:w-174">
                       {/* Finance needed a way to attach its own cost-impact
                           document to a budget change before approving it —
                           there was no upload affordance anywhere on this

@@ -22,7 +22,7 @@ router.get("/:id", controller.getById);
 // Writes are the Project Manager's, mirroring projects/routes.ts exactly
 // (project-manager, admin, it-designer) — a milestone belongs to the same
 // record a PM already owns and edits.
-const canManageMilestones = requireRole("project-manager", "admin", "it-designer");
+const canManageMilestones = requireRole("project-manager", "admin");
 
 router.post("/", canManageMilestones, validate(createMilestoneSchema), controller.create);
 router.patch("/:id", canManageMilestones, validate(updateMilestoneSchema), controller.update);
@@ -33,13 +33,13 @@ router.delete("/:id", canManageMilestones, controller.remove);
 // enforced in milestones/service.ts assertCanLink rather than here.
 router.post(
   "/:id/links",
-  requireRole("project-manager", "admin", "it-designer", "engineer"),
+  requireRole("project-manager", "admin", "engineer"),
   validate(createMilestoneLinkSchema),
   controller.createLink,
 );
 router.delete(
   "/:id/links/:linkId",
-  requireRole("project-manager", "admin", "it-designer", "engineer"),
+  requireRole("project-manager", "admin", "engineer"),
   controller.removeLink,
 );
 

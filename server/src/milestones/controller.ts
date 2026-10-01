@@ -6,10 +6,15 @@ import { formatSuccess } from "../utils/response.js";
 import { logAudit } from "../utils/audit.js";
 import * as service from "./service.js";
 import type { AuthedRequest } from "../middleware/auth.js";
+import { scopeRowsToPm } from "../projects/service.js";
 
 export const getAll = async (req: AuthedRequest, res: Response, next: NextFunction) => {
   try {
-    const data = await service.getAll(req.query.projectCode as string | undefined);
+    const data = await scopeRowsToPm(
+      req.authUser,
+      await service.getAll(req.query.projectCode as string | undefined),
+      (m) => m.projectCode,
+    );
     res.json(formatSuccess(data, MSG.milestones.retrieved));
   } catch (err) {
     next(err);

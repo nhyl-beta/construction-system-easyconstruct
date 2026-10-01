@@ -1,6 +1,7 @@
 import type {
   CreateRequirementInput,
   Requirement,
+  RequirementAttachment,
   RequirementFilters,
 } from "../types/requirements.types";
 import { useEffect, useState } from "react";
@@ -50,5 +51,17 @@ export function useRequirementsController() {
     setRequirements((current) => [created, ...current]);
   };
 
-  return { requirements, loading, createRequirement };
+  const replace = (updated: Requirement) =>
+    setRequirements((current) => current.map((r) => (r.dbId === updated.dbId ? updated : r)));
+
+  /** Draft → Under Review, i.e. into the Project Manager's approval queue. */
+  const submitRequirement = async (dbId: number) => {
+    replace(await RequirementRepository.submit(dbId));
+  };
+
+  const addAttachments = async (requirement: Requirement, added: RequirementAttachment[]) => {
+    replace(await RequirementRepository.setAttachments(requirement.dbId, [...requirement.attachments, ...added]));
+  };
+
+  return { requirements, loading, createRequirement, submitRequirement, addAttachments, reload: load };
 }

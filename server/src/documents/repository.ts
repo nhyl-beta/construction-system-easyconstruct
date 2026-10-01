@@ -22,6 +22,16 @@ export const findProjectCodesForPm = async (pmName: string) => {
   return rows.map((r) => r.code);
 };
 
+export const findById = async (id: number) => {
+  const [row] = await db.select().from(documents).where(eq(documents.id, id));
+  return row ?? null;
+};
+
+export const remove = async (id: number) => {
+  const [deleted] = await db.delete(documents).where(eq(documents.id, id)).returning();
+  return deleted ?? null;
+};
+
 export const create = async (data: CreateDocumentInput) => {
   const [created] = await db.insert(documents).values(data).returning();
   return created;

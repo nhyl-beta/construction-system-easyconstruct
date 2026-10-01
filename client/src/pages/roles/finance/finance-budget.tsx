@@ -34,7 +34,7 @@ import { useBudgetAllocationController } from "@/features/finance/budgets/contro
 import { useBudgetAdjustments } from "@/features/finance/budgets/hooks/useBudgetAdjustments";
 import { useBudgets } from "@/features/finance/budgets/hooks/useBudgets";
 import { formatCompactCurrency, formatCurrency } from "@/lib/format-currency";
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 
 import {
   AlertTriangle,
@@ -90,6 +90,7 @@ import { ApprovalTimeline } from "@/components/ui/approval-timeline";
 import { Textarea } from "@/components/ui/textarea";
 import { useBudgetApproval } from "@/features/finance/budgets/hooks/useBudgetApproval";
 import { Check, RotateCcw, X } from "lucide-react";
+import { SearchableSelect } from "@/components/ui/searchable-select";
 import type { CreateBudgetInput } from "@/features/finance/budgets/controllers/budget.controllers";
 import { OwnerDepartmentPicker } from "@/components/shared/owner-department-picker";
 import { useProjects } from "@/features/projects/hooks/useProjects";
@@ -245,6 +246,31 @@ export default function FinanceBudget() {
     () => new Map(projects.map((p) => [p.code, p.client])),
     [projects],
   );
+
+  // Approvals tab: find a budget by what a person remembers about it — its
+  // name (category), project code, who requested it (the owning department) —
+  // and narrow by where it sits in the pipeline.
+  const [approvalQuery, setApprovalQuery] = useState("");
+  const [approvalStatus, setApprovalStatus] = useState("all");
+  const filteredApprovalBudgets = useMemo(() => {
+    const q = approvalQuery.trim().toLowerCase();
+    return approval.budgets.filter((b) => {
+      if (approvalStatus !== "all" && b.status !== approvalStatus) return false;
+      if (!q) return true;
+      return [String(b.id), b.project, clientByCode.get(b.project) ?? "", b.category, b.owner, b.fiscalYear]
+        .some((field) => field.toLowerCase().includes(q));
+    });
+  }, [approval.budgets, approvalQuery, approvalStatus, clientByCode]);
+
+  // Keep the pipeline on a budget that is actually in the filtered results.
+  const { selectedBudgetId: approvalSelectedId, setSelectedBudgetId: setApprovalSelectedId } = approval;
+  useEffect(() => {
+    if (filteredApprovalBudgets.length === 0) return;
+    if (!filteredApprovalBudgets.some((b) => String(b.id) === approvalSelectedId)) {
+      setApprovalSelectedId(String(filteredApprovalBudgets[0]!.id));
+    }
+  }, [filteredApprovalBudgets, approvalSelectedId, setApprovalSelectedId]);
+  const approvalSelectionVisible = filteredApprovalBudgets.some((b) => String(b.id) === approvalSelectedId);
 
   return (
     <div className="flex-1 space-y-6 p-4 md:p-8">
@@ -634,26 +660,75 @@ export default function FinanceBudget() {
         {/* ── Approvals ─────────────────────────────────────────────── */}
         <TabsContent value="approval" className="mt-4 space-y-4">
           <div className="rounded-2xl border border-border/70 p-5">
-            <div className="mb-3 flex items-center justify-between gap-2">
-              <h3 className="text-sm font-medium">Approval pipeline</h3>
-              <Select
-                value={approval.selectedBudgetId}
-                onValueChange={approval.setSelectedBudgetId}
-              >
-                <SelectTrigger className="h-8 w-56 rounded-lg text-xs">
+            <div className="mb-4 flex flex-wrap items-center gap-2">
+              <div className="relative min-w-56 flex-1 sm:max-w-sm">
+                <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+                <Input
+                  value={approvalQuery}
+                  onChange={(e) => setApprovalQuery(e.target.value)}
+                  placeholder="Search by budget, project code or requester…"
+                  aria-label="Search budgets awaiting approval"
+                  className="h-9 rounded-xl pl-9"
+                />
+              </div>
+              <Select value={approvalStatus} onValueChange={setApprovalStatus}>
+                <SelectTrigger aria-label="Filter by status" className="h-9 w-44 rounded-xl text-xs">
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
-                  {approval.budgets.map((b) => (
-                    <SelectItem key={b.id} value={String(b.id)}>
-                      {b.id} · {b.project}
-                    </SelectItem>
-                  ))}
+                  <SelectItem value="all">All statuses</SelectItem>
+                  <SelectItem value="draft">Draft</SelectItem>
+                  <SelectItem value="pending-review">Pending review</SelectItem>
+                  <SelectItem value="finance-review">Finance review</SelectItem>
+                  <SelectItem value="manager-review">Manager review</SelectItem>
+                  <SelectItem value="approved">Approved</SelectItem>
+                  <SelectItem value="rejected">Rejected</SelectItem>
+                  <SelectItem value="locked">Locked</SelectItem>
                 </SelectContent>
               </Select>
+              {(approvalQuery || approvalStatus !== "all") && (
+                <Button
+                  size="sm"
+                  variant="ghost"
+                  className="h-9 rounded-xl text-xs"
+                  onClick={() => {
+                    setApprovalQuery("");
+                    setApprovalStatus("all");
+                  }}
+                >
+                  Clear
+                </Button>
+              )}
+              <span className="ml-auto text-xs text-muted-foreground">
+                {filteredApprovalBudgets.length} of {approval.budgets.length} budgets
+              </span>
             </div>
 
-            {approval.loading ? (
+            <div className="mb-3 flex items-center justify-between gap-2">
+              <h3 className="text-sm font-medium">Approval pipeline</h3>
+              <div className="w-72">
+                <SearchableSelect
+                  value={approvalSelectionVisible ? approvalSelectedId : undefined}
+                  onValueChange={setApprovalSelectedId}
+                  options={filteredApprovalBudgets.map((b) => ({
+                    value: String(b.id),
+                    label: `${b.id} · ${b.project}`,
+                    description: `${b.category} · ${b.owner}`,
+                  }))}
+                  sort="none"
+                  placeholder="Select a budget"
+                  searchPlaceholder="Search budgets…"
+                  emptyText="No budgets match"
+                  className="h-8 rounded-lg text-xs"
+                />
+              </div>
+            </div>
+
+            {filteredApprovalBudgets.length === 0 ? (
+              <div className="text-sm text-muted-foreground">
+                No budgets match the current search and filter.
+              </div>
+            ) : approval.loading ? (
               <div className="text-sm text-muted-foreground">
                 Loading pipeline…
               </div>

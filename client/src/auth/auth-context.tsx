@@ -1,11 +1,18 @@
-import { createContext, useContext, useMemo, useState, type ReactNode } from "react";
+import { createContext, useContext, useEffect, useMemo, useState, type ReactNode } from "react";
+import {
+  EXPIRED_NOTICE_KEY,
+  TOKEN_KEY,
+  UNAUTHORIZED_EVENT,
+  clearSession,
+  getToken,
+  readSession,
+  saveSession,
+  startHeartbeat,
+  tokenExpiry,
+  type SessionUser,
+} from "./session";
 
-export type AuthUser = {
-  id: number;
-  email: string;
-  name: string;
-  role: string;
-};
+export type AuthUser = SessionUser;
 
 type AuthContextValue = {
   user: AuthUser | null;
@@ -14,46 +21,60 @@ type AuthContextValue = {
   logout: () => void;
 };
 
-const TOKEN_KEY = "easyconstruct_token";
-const USER_KEY = "easyconstruct_user";
-
-function readSession(): AuthUser | null {
-  const stores = [sessionStorage, localStorage];
-  for (const store of stores) {
-    if (!store.getItem(TOKEN_KEY)) continue;
-    const rawUser = store.getItem(USER_KEY);
-    if (!rawUser) continue;
-    try {
-      return JSON.parse(rawUser) as AuthUser;
-    } catch {
-      store.removeItem(TOKEN_KEY);
-      store.removeItem(USER_KEY);
-    }
-  }
-  return null;
-}
-
 export function AuthProvider({ children }: { children: ReactNode }) {
   const [user, setUser] = useState<AuthUser | null>(() => readSession());
+
+  // Keeps an unchecked "Keep me signed in" session alive across tabs.
+  useEffect(() => startHeartbeat(), []);
+
+  // Expired or revoked sessions must end in the login page, not in a screen
+  // full of failing requests:
+  //  - the API client fires UNAUTHORIZED_EVENT on any 401;
+  //  - the token's own expiry is timed, so an idle tab signs out on schedule;
+  //  - signing out (or in) in another tab is followed via the storage event.
+  useEffect(() => {
+    const expire = () => {
+      clearSession();
+      try {
+        sessionStorage.setItem(EXPIRED_NOTICE_KEY, "1");
+      } catch {
+        /* storage unavailable — the redirect alone still happens */
+      }
+      setUser(null);
+    };
+
+    window.addEventListener(UNAUTHORIZED_EVENT, expire);
+
+    const onStorage = (event: StorageEvent) => {
+      if (event.key === TOKEN_KEY || event.key === null) setUser(readSession());
+    };
+    window.addEventListener("storage", onStorage);
+
+    let timer: number | undefined;
+    const token = getToken();
+    const exp = token ? tokenExpiry(token) : null;
+    if (user && exp !== null) {
+      // setTimeout caps at ~24.8 days; tokens here live hours.
+      timer = window.setTimeout(expire, Math.max(exp - Date.now(), 0));
+    }
+
+    return () => {
+      window.removeEventListener(UNAUTHORIZED_EVENT, expire);
+      window.removeEventListener("storage", onStorage);
+      if (timer) window.clearTimeout(timer);
+    };
+  }, [user]);
 
   const value = useMemo<AuthContextValue>(
     () => ({
       user,
       isAuthenticated: user !== null,
       setSession: (token, nextUser, remember) => {
-        const target = remember ? localStorage : sessionStorage;
-        const other = remember ? sessionStorage : localStorage;
-        other.removeItem(TOKEN_KEY);
-        other.removeItem(USER_KEY);
-        target.setItem(TOKEN_KEY, token);
-        target.setItem(USER_KEY, JSON.stringify(nextUser));
+        saveSession(token, nextUser, remember);
         setUser(nextUser);
       },
       logout: () => {
-        localStorage.removeItem(TOKEN_KEY);
-        localStorage.removeItem(USER_KEY);
-        sessionStorage.removeItem(TOKEN_KEY);
-        sessionStorage.removeItem(USER_KEY);
+        clearSession();
         setUser(null);
       },
     }),

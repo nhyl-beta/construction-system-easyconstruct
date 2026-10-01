@@ -1,28 +1,23 @@
-// client/src/features/account-recovery/hooks/use-account-recovery.ts — NEW
+// client/src/features/account-recovery/hooks/use-account-recovery.ts
 import { useCallback, useEffect, useState } from "react";
 import { UserRepository, type PublicUser } from "@/features/users/repositories/user.repository";
 import {
   AccountRecoveryRepository,
-  type OwnerRecoveryEmail,
+  type OwnerRecoveryResult,
 } from "../repositories/account-recovery.repository";
 
 export function useAccountRecovery() {
   const [targets, setTargets] = useState<PublicUser[]>([]);
   const [loading, setLoading] = useState(true);
   const [sending, setSending] = useState(false);
-  const [email, setEmail] = useState<OwnerRecoveryEmail | null>(null);
+  const [sent, setSent] = useState<OwnerRecoveryResult | null>(null);
   const [error, setError] = useState<string | null>(null);
 
   const reload = useCallback(async () => {
     setLoading(true);
     setError(null);
     try {
-      const [itDesigners, inboxEmail] = await Promise.all([
-        UserRepository.listByRole("it-designer"),
-        AccountRecoveryRepository.inbox(),
-      ]);
-      setTargets(itDesigners);
-      setEmail(inboxEmail);
+      setTargets(await UserRepository.listByRole("it-designer"));
     } catch (err) {
       setError(err instanceof Error ? err.message : "Failed to load account recovery.");
     } finally {
@@ -37,10 +32,11 @@ export function useAccountRecovery() {
   const sendRecoveryEmail = useCallback(async (targetUserId: number) => {
     setSending(true);
     setError(null);
+    setSent(null);
     try {
-      const sent = await AccountRecoveryRepository.initiate(targetUserId);
-      setEmail(sent);
-      return sent;
+      const result = await AccountRecoveryRepository.initiate(targetUserId);
+      setSent(result);
+      return result;
     } catch (err) {
       setError(err instanceof Error ? err.message : "Failed to send the recovery email.");
       return null;
@@ -49,5 +45,5 @@ export function useAccountRecovery() {
     }
   }, []);
 
-  return { targets, loading, sending, email, error, reload, sendRecoveryEmail } as const;
+  return { targets, loading, sending, sent, error, reload, sendRecoveryEmail } as const;
 }

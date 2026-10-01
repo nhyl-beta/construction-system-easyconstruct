@@ -1,11 +1,10 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
+import { UNAUTHORIZED_EVENT, getToken } from "@/auth/session";
 
 const BASE = import.meta.env.VITE_API_BASE || "";
 
 function authHeader(): Record<string, string> {
-  const token =
-    sessionStorage.getItem("easyconstruct_token") ??
-    localStorage.getItem("easyconstruct_token");
+  const token = getToken();
 
   return token
     ? { Authorization: `Bearer ${token}` }
@@ -16,6 +15,13 @@ async function parseResponse(res: Response) {
   const text = await res.text();
 
   if (!res.ok) {
+    // A 401 on an authenticated call means the session is over (expired, or
+    // revoked by a password change). Tell the AuthProvider, which clears the
+    // stored session and sends the user to the login page.
+    if (res.status === 401 && getToken()) {
+      window.dispatchEvent(new Event(UNAUTHORIZED_EVENT));
+    }
+
     let message = `API error ${res.status}`;
     let body: unknown;
 
@@ -45,7 +51,7 @@ async function parseResponse(res: Response) {
   }
 }
 
-function apiUrl(path: string) {
+export function apiUrl(path: string) {
   return BASE ? `${BASE}/api${path}` : `/api${path}`;
 }
 
@@ -86,15 +92,25 @@ async function requestFormData(
 // C1: EventSource can't set an Authorization header, so the one SSE endpoint
 // takes the token as a query param instead (see server middleware/auth.ts).
 export function streamUrl(path: string): string {
-  const token =
-    sessionStorage.getItem("easyconstruct_token") ??
-    localStorage.getItem("easyconstruct_token");
+  const token = getToken();
   const url = new URL(apiUrl(path), window.location.origin);
   if (token) url.searchParams.set("token", token);
   return url.toString();
 }
 
+// Binary GET (stored files). Throws the same Error shape as request() so the
+// 401 handler and callers treat it uniformly.
+async function requestBlob(path: string): Promise<Blob> {
+  const res = await fetch(apiUrl(path), { headers: authHeader() });
+  if (!res.ok) {
+    await parseResponse(res);
+  }
+  return res.blob();
+}
+
 export const apiClient = {
+  getBlob: (path: string) => requestBlob(path),
+
   get: (path: string, opts: RequestInit = {}) =>
     request(path, {
       ...opts,

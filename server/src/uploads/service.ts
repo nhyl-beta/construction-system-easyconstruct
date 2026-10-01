@@ -1,10 +1,11 @@
-import { put } from "@vercel/blob";
+import { del, get, put } from "@vercel/blob";
 import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
+import { Readable } from "node:stream";
 
 import { env } from "../config/env.js";
-import { ValidationError } from "../utils/errors.js";
+import { AppError, NotFoundError, ValidationError } from "../utils/errors.js";
 
 import type { UploadInput, UploadResult } from "./types.js";
 
@@ -111,11 +112,17 @@ export const uploadFile = async (
 
   if (env.BLOB_READ_WRITE_TOKEN) {
     try {
+      // The store is configured for PRIVATE access — project documents must
+      // not be world-readable by URL — so the write asks for "private" too.
+      // Asking for "public" against a private store was the BlobError that
+      // pushed every upload onto local disk. A private blob can't be fetched
+      // by the browser directly; files are read back through the
+      // authenticated GET /api/uploads/file route (see openStoredFile).
       const blob = await put(
-        `easyconstruct/${Date.now()}-${input.filename}`,
+        `easyconstruct/${Date.now()}-${input.filename.replace(/[^a-zA-Z0-9.\-_]/g, "-")}`,
         buffer,
         {
-          access: "public",
+          access: "private",
           contentType,
           token: env.BLOB_READ_WRITE_TOKEN,
         },
@@ -128,12 +135,19 @@ export const uploadFile = async (
         sizeBytes: buffer.byteLength,
       };
     } catch (error) {
-      // A token can be present but unusable — most commonly the store is
-      // configured for private access while `put` above asks for public,
-      // which threw BlobError and surfaced to the user as a bare
-      // "Internal server error" on every design-file upload. A misconfigured
-      // remote store shouldn't take the feature down: log it once and fall
-      // through to local disk, which is served by the same /uploads route.
+      // Local disk is ephemeral on Vercel (os.tmpdir() is wiped between
+      // invocations), so silently falling back there in production would
+      // hand back a URL that 404s minutes later. Fail loudly instead; the
+      // local fallback exists for development machines only, and is served
+      // by the same authenticated download route.
+      if (process.env.VERCEL || env.NODE_ENV === "production") {
+        console.error("[uploads] Vercel Blob upload failed.", error);
+        throw new AppError(
+          502,
+          "STORAGE_UNAVAILABLE",
+          "File storage is unavailable right now. Please try again.",
+        );
+      }
       console.error(
         "[uploads] Vercel Blob rejected the upload; falling back to local disk.",
         error instanceof Error ? error.message : error,
@@ -155,4 +169,99 @@ export const uploadFile = async (
     contentType,
     sizeBytes: buffer.byteLength,
   };
+};
+
+// ---------------------------------------------------------------------------
+// Download — one route for every stored file, whichever backend wrote it.
+//
+// The stored `url` on a record is either a Vercel Blob URL (private store) or
+// a path under /uploads/ (local disk, including the multer-based
+// /api/documents/upload). Both are resolved here, after authentication, so no
+// file is reachable by guessing a URL.
+
+const uploadsRoot = process.env.VERCEL
+  ? path.join(os.tmpdir(), "uploads")
+  : path.resolve(process.cwd(), "uploads");
+
+const isBlobUrl = (value: string) => {
+  try {
+    const url = new URL(value);
+    return url.protocol === "https:" && url.hostname.endsWith(".blob.vercel-storage.com");
+  } catch {
+    return false;
+  }
+};
+
+const MIME_BY_EXT: Record<string, string> = {
+  ".pdf": "application/pdf",
+  ".png": "image/png",
+  ".jpg": "image/jpeg",
+  ".jpeg": "image/jpeg",
+  ".gif": "image/gif",
+  ".webp": "image/webp",
+  ".doc": "application/msword",
+  ".docx": "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+  ".xls": "application/vnd.ms-excel",
+  ".xlsx": "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+  ".ppt": "application/vnd.ms-powerpoint",
+  ".pptx": "application/vnd.openxmlformats-officedocument.presentationml.presentation",
+  ".txt": "text/plain",
+  ".csv": "text/csv",
+};
+
+export interface StoredFile {
+  stream: NodeJS.ReadableStream;
+  contentType: string;
+  sizeBytes?: number;
+}
+
+/** Best-effort removal of a stored file; a missing file is not an error. */
+export const deleteStoredFile = async (storedUrl: string): Promise<void> => {
+  try {
+    if (isBlobUrl(storedUrl)) {
+      if (env.BLOB_READ_WRITE_TOKEN) await del(storedUrl, { token: env.BLOB_READ_WRITE_TOKEN });
+      return;
+    }
+    if (storedUrl.startsWith("/uploads/")) {
+      const relative = decodeURIComponent(storedUrl.slice("/uploads/".length).split(/[?#]/)[0] ?? "");
+      const absolute = path.resolve(uploadsRoot, relative);
+      if (absolute.startsWith(uploadsRoot + path.sep)) fs.rmSync(absolute, { force: true });
+    }
+  } catch (error) {
+    console.error("[uploads] could not remove stored file", storedUrl, error);
+  }
+};
+
+export const openStoredFile = async (storedUrl: string): Promise<StoredFile> => {
+  if (isBlobUrl(storedUrl)) {
+    if (!env.BLOB_READ_WRITE_TOKEN) throw new NotFoundError("File");
+    const result = await get(storedUrl, {
+      access: "private",
+      token: env.BLOB_READ_WRITE_TOKEN,
+    });
+    if (!result || result.statusCode !== 200) throw new NotFoundError("File");
+    return {
+      stream: Readable.fromWeb(result.stream as never),
+      contentType: result.blob.contentType,
+      sizeBytes: result.blob.size,
+    };
+  }
+
+  if (storedUrl.startsWith("/uploads/")) {
+    const relative = decodeURIComponent(storedUrl.slice("/uploads/".length).split(/[?#]/)[0] ?? "");
+    const absolute = path.resolve(uploadsRoot, relative);
+    // Reject ../ traversal out of the uploads directory.
+    if (!absolute.startsWith(uploadsRoot + path.sep)) throw new NotFoundError("File");
+    if (!fs.existsSync(absolute) || !fs.statSync(absolute).isFile()) {
+      throw new NotFoundError("File");
+    }
+    return {
+      stream: fs.createReadStream(absolute),
+      contentType:
+        MIME_BY_EXT[path.extname(absolute).toLowerCase()] ?? "application/octet-stream",
+      sizeBytes: fs.statSync(absolute).size,
+    };
+  }
+
+  throw new ValidationError("Unsupported file location");
 };

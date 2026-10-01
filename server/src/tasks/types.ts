@@ -28,6 +28,8 @@ export interface CreateTaskInput {
   dueDate?: string;
   assignedToUserId?: number;
   assignedToName?: string;
+  /** Link the new task to this milestone in the same request (create only). */
+  milestoneId?: number;
 }
 
 export interface UpdateTaskStatusInput {

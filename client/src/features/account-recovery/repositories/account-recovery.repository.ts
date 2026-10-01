@@ -1,12 +1,14 @@
-// client/src/features/account-recovery/repositories/account-recovery.repository.ts — NEW
+// client/src/features/account-recovery/repositories/account-recovery.repository.ts
 import { apiClient } from "@/services/api.client";
 
-export interface OwnerRecoveryEmail {
+// What the server reports after emailing the recovery link. The link itself
+// is never returned to the browser — it exists only in the Owner's mailbox.
+export interface OwnerRecoveryResult {
   to: string;
   targetUserId: number;
   targetName: string;
   targetEmail: string;
-  resetUrl: string;
+  expiresAt: string;
   createdAt: string;
 }
 
@@ -18,13 +20,9 @@ async function unwrap<T>(promise: Promise<any>): Promise<T> {
 }
 
 export const AccountRecoveryRepository = {
-  async initiate(targetUserId: number): Promise<OwnerRecoveryEmail> {
-    return unwrap<OwnerRecoveryEmail>(
+  async initiate(targetUserId: number): Promise<OwnerRecoveryResult> {
+    return unwrap<OwnerRecoveryResult>(
       apiClient.post("/auth/owner-recovery/initiate", { targetUserId }),
     );
-  },
-
-  async inbox(): Promise<OwnerRecoveryEmail | null> {
-    return unwrap<OwnerRecoveryEmail | null>(apiClient.get("/auth/owner-recovery/inbox"));
   },
 };

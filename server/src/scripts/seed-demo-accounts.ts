@@ -11,6 +11,10 @@ import { refreshProjectProgress } from "../lifecycle/service.js";
 
 const PASSWORD = "Demo@12345";
 
+// The Owner's real mailbox — see the note in main() and auth/service.ts
+// initiateOwnerRecovery, which mails the IT Designer recovery link here.
+const OWNER_EMAIL = "nhylcyrusgervasio@gmail.com";
+
 const ACCOUNTS = [
   // NOTE: the legacy platform-admin role was renamed/merged into IT Designer
   // — its old demo account (superadmin@easyconstruct.demo) is intentionally
@@ -23,7 +27,7 @@ const ACCOUNTS = [
   { name: "Paolo Mendoza", email: "engineer@easyconstruct.demo", role: "engineer", employeeRole: "Site Engineer", department: "Engineering" },
   { name: "Rico Domingo", email: "site@easyconstruct.demo", role: "site-personnel", employeeRole: "Construction Worker", department: "Field Operations" },
   { name: "Elena Bautista", email: "consultant@easyconstruct.demo", role: "consultant", employeeRole: "Consultant", department: "Advisory" },
-  { name: "Teresa Aquino", email: "owner@easyconstruct.demo", role: "owner", employeeRole: "Owner", department: "Executive" },
+  { name: "Teresa Aquino", email: OWNER_EMAIL, role: "owner", employeeRole: "Owner", department: "Executive" },
   { name: "Noel Garcia", email: "itdesigner@easyconstruct.demo", role: "it-designer", employeeRole: "IT Designer", department: "Information Technology" },
 ] as const;
 
@@ -334,6 +338,18 @@ async function main() {
   let createdEmployees = 0;
 
   await db.transaction(async (tx) => {
+    // The Owner's registered email is a real inbox (fail-safe recovery mails
+    // its reset link there). Seeding is keyed on email, so an Owner created
+    // by an older run under owner@easyconstruct.demo would otherwise be left
+    // in place and a SECOND owner inserted — which the single-Owner unique
+    // index rejects. Move the existing row over instead.
+    const [existingOwner] = await tx.select().from(users).where(eq(users.role, "owner"));
+    if (existingOwner && existingOwner.email !== OWNER_EMAIL) {
+      await tx.update(users).set({ email: OWNER_EMAIL, updatedAt: new Date() }).where(eq(users.id, existingOwner.id));
+      await tx.update(employees).set({ email: OWNER_EMAIL, updatedAt: new Date() }).where(eq(employees.userId, existingOwner.id));
+      console.log(`moved owner email: ${existingOwner.email} -> ${OWNER_EMAIL}`);
+    }
+
     for (const [index, account] of ALL_ACCOUNTS.entries()) {
       let [user] = await tx
         .select()

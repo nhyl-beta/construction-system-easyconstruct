@@ -219,7 +219,7 @@ async function main() {
 
   // ── Pre-Construction ─────────────────────────────────────────────────
   for (const category of ["Materials", "Specifications"] as const) {
-    const req = await api<{ id: number }>("/requirements", t.engineer, { method: "POST", body: { title: `${category} requirement`, project: PROJECT_CODE, category, description: `Demo ${category.toLowerCase()} requirement`, createdBy: "Paolo Mendoza" } });
+    const req = await api<{ id: number }>("/requirements", t.engineer, { method: "POST", body: { title: `${category} requirement`, project: PROJECT_CODE, category, description: `Demo ${category.toLowerCase()} requirement`, attachments: [{ url: "/uploads/generic/demo-requirement.pdf", filename: "demo-requirement.pdf", contentType: "application/pdf", sizeBytes: 1024 }], createdBy: "Paolo Mendoza" } });
     await api(`/requirements/${req.id}`, t.pm, { method: "PATCH", body: { status: "Approved" } });
   }
   const budget1 = await api<{ id: number }>("/finance/budgets", t.finance, { method: "POST", body: { project: PROJECT_CODE, category: "Materials", owner: "Carlo Ramos", planned: 100_000, fiscalYear: "2026" } });

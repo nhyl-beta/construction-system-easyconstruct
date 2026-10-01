@@ -14,13 +14,10 @@ import { Card, CardContent } from "@/components/ui/card";
 import { PageContainer } from "@/components/refine-ui/views/page-container";
 import { PageHeader } from "@/components/refine-ui/views/page-header";
 import { PageContent } from "@/components/refine-ui/views/page-content";
-import { useAuth } from "@/auth/auth-context";
 import { useAccountRecovery } from "@/features/account-recovery/hooks/use-account-recovery";
-import { formatRelativeTime } from "@/lib/format-relative-time";
 
 export default function OwnerAccountRecoveryPage() {
-  const { user } = useAuth();
-  const { targets, loading, sending, email, error, sendRecoveryEmail } = useAccountRecovery();
+  const { targets, loading, sending, sent, error, sendRecoveryEmail } = useAccountRecovery();
   const [sentFor, setSentFor] = useState<number | null>(null);
 
   return (
@@ -96,39 +93,25 @@ export default function OwnerAccountRecoveryPage() {
             ))}
         </div>
 
-        {email && (
-          <div className="space-y-3">
-            <h3 className="flex items-center gap-2 text-sm font-semibold text-foreground">
-              <Mail className="h-4 w-4 text-muted-foreground" />
-              Your inbox — {email.to}
-            </h3>
-            <Card className="rounded-2xl border-primary/30 bg-primary-soft/30 shadow-sm">
-              <CardContent className="space-y-3 p-5 text-sm">
-                <div className="flex flex-wrap items-center justify-between gap-2 border-b border-border/60 pb-3">
-                  <div>
-                    <p className="font-medium">EasyConstruct account recovery</p>
-                    <p className="text-xs text-muted-foreground">
-                      To {email.to} · {formatRelativeTime(email.createdAt)}
-                    </p>
-                  </div>
-                  <Badge variant="outline" className="rounded-full text-[10px]">
-                    Simulated — no mail server configured
-                  </Badge>
-                </div>
-                <p className="text-muted-foreground">
-                  {user?.name ?? "You"} requested access recovery for the IT Designer account{" "}
-                  <span className="font-medium text-foreground">
-                    {email.targetName} ({email.targetEmail})
-                  </span>
-                  . Use the link below to set a new password for that account. This link expires
-                  in 30 minutes and can only be used once.
-                </p>
-                <Button asChild className="rounded-xl">
-                  <a href={email.resetUrl}>Reset the IT Designer password</a>
-                </Button>
-                <p className="break-all text-[11px] text-muted-foreground">{email.resetUrl}</p>
-              </CardContent>
-            </Card>
+        {sent && (
+          <div
+            role="status"
+            className="flex items-start gap-3 rounded-xl border border-success/30 bg-success/10 p-4 text-sm"
+          >
+            <Mail className="mt-0.5 h-4 w-4 shrink-0 text-success" />
+            <div className="space-y-1">
+              <p className="font-medium text-foreground">
+                Recovery email sent to {sent.to}
+              </p>
+              <p className="text-muted-foreground">
+                Open it from your inbox and use the link to set a new password for{" "}
+                <span className="font-medium text-foreground">
+                  {sent.targetName} ({sent.targetEmail})
+                </span>
+                . The link expires in 30 minutes, works once, and signs that account out everywhere
+                when used. Check your spam folder if it doesn't arrive within a minute.
+              </p>
+            </div>
           </div>
         )}
       </PageContent>

@@ -13,6 +13,7 @@ import type {
 } from "@refinedev/core";
 
 import { API_URL } from "./constants";
+import { UNAUTHORIZED_EVENT, getToken } from "@/auth/session";
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Matches the backend envelope: { success, message, data }
@@ -35,9 +36,7 @@ interface ApiEnvelope<T> {
 // ─────────────────────────────────────────────────────────────────────────────
 
 function authHeader(): Record<string, string> {
-  const token =
-    sessionStorage.getItem("easyconstruct_token") ??
-    localStorage.getItem("easyconstruct_token");
+  const token = getToken();
 
   return token
     ? { Authorization: `Bearer ${token}` }
@@ -66,6 +65,10 @@ async function request<T>(
     | null;
 
   if (!res.ok) {
+    // Session over — see AuthProvider.
+    if (res.status === 401 && getToken()) {
+      window.dispatchEvent(new Event(UNAUTHORIZED_EVENT));
+    }
     const message =
       json?.message ??
       `Request failed with status ${res.status}`;

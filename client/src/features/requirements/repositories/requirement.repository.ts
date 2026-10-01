@@ -3,6 +3,7 @@ import { formatRelativeTime } from "@/lib/format-relative-time";
 import type {
   CreateRequirementInput,
   Requirement,
+  RequirementAttachment,
   RequirementFilters,
 } from "../types/requirements.types";
 
@@ -14,6 +15,7 @@ interface BackendRequirement {
   category: string;
   description: string;
   status: string;
+  attachments?: RequirementAttachment[] | null;
   createdBy: string;
   createdAt: string | null;
   updatedAt: string | null;
@@ -28,6 +30,7 @@ function normalizeRequirement(raw: BackendRequirement): Requirement {
     category: raw.category as Requirement["category"],
     description: raw.description,
     status: raw.status as Requirement["status"],
+    attachments: raw.attachments ?? [],
     createdBy: raw.createdBy,
     updatedAgo: formatRelativeTime(raw.updatedAt),
   };
@@ -57,6 +60,22 @@ export const RequirementRepository = {
 
   async create(payload: CreateRequirementInput): Promise<Requirement> {
     const raw = await unwrap<BackendRequirement>(apiClient.post("/requirements", payload));
+    return normalizeRequirement(raw);
+  },
+
+  /** Engineer submits a saved draft: Draft → Under Review (pending PM approval). */
+  async submit(dbId: number): Promise<Requirement> {
+    const raw = await unwrap<BackendRequirement>(
+      apiClient.patch(`/requirements/${dbId}`, { status: "Under Review" }),
+    );
+    return normalizeRequirement(raw);
+  },
+
+  /** Replaces the attached files (the caller passes the full new list). */
+  async setAttachments(dbId: number, attachments: RequirementAttachment[]): Promise<Requirement> {
+    const raw = await unwrap<BackendRequirement>(
+      apiClient.patch(`/requirements/${dbId}`, { attachments }),
+    );
     return normalizeRequirement(raw);
   },
 

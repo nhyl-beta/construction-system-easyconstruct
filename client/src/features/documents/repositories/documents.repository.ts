@@ -67,6 +67,9 @@ export const documentsRepository = {
     );
   },
 
+  remove: (id: number): Promise<{ data: DocumentRecord }> =>
+    apiClient.del(`/documents/${id}`),
+
   create: (
     input: CreateDocumentInput,
   ): Promise<{ data: DocumentRecord }> =>

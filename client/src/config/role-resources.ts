@@ -45,6 +45,7 @@ export const ROLE_RESOURCE_ACCESS: Record<string, string[]> = {
     "projects",
     "workflows",
     "approvals",
+    "issues",
     "tasks",
     "documents",
     "resources",

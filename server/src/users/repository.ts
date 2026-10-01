@@ -52,7 +52,7 @@ export const update = async (id: number, data: UpdateUserInput) => {
 export const setPassword = async (id: number, passwordHash: string) => {
   const [updated] = await db
     .update(users)
-    .set({ password: passwordHash, updatedAt: new Date() })
+    .set({ password: passwordHash, passwordChangedAt: new Date(), updatedAt: new Date() })
     .where(eq(users.id, id))
     .returning(PUBLIC_COLUMNS);
   return updated ?? null;

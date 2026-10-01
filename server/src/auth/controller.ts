@@ -54,21 +54,9 @@ export const initiateOwnerRecovery = async (
       req.authUser!.id,
       req.body.targetUserId,
     );
-    sendSuccess(res, data, 200, `Recovery link sent to ${data.to}`);
+    sendSuccess(res, data, 200, `Recovery link emailed to ${data.to}`);
   } catch (err) {
     next(err);
   }
 };
 
-export const ownerRecoveryInbox = async (
-  req: AuthedRequest,
-  res: Response,
-  next: NextFunction,
-) => {
-  try {
-    const data = service.getOwnerRecoveryInbox(req.authUser!.id);
-    sendSuccess(res, data, 200, data ? "Latest recovery email" : "No recovery email yet");
-  } catch (err) {
-    next(err);
-  }
-};

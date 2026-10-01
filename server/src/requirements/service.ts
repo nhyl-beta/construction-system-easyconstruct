@@ -74,6 +74,16 @@ export const update = async (
   assertCanSetStatus(data.status, actorRole);
   const existing = await findById(id);
   if (existing) await assertProjectWritable(existing.project);
+
+  // Submitting for approval needs evidence on file. New requirements can't be
+  // created without a file, but older drafts can be empty — those have to be
+  // given one (in the same request or before) before they can be submitted.
+  if (data.status === "Under Review") {
+    const files = data.attachments ?? existing?.attachments ?? [];
+    if (files.length === 0) {
+      throw new ValidationError("Attach at least one file before submitting this requirement for review");
+    }
+  }
   const [updated] = await db
     .update(requirements)
     .set({ ...data, updatedAt: new Date() })
@@ -84,6 +94,14 @@ export const update = async (
     // J2: requirements has no author userId (createdBy is a display name),
     // so this reaches whoever is actually staffed as engineer on the
     // project rather than the specific author.
+    // Submitted for approval: tell the project's PM it is waiting on them.
+    if (data.status === "Under Review" && existing?.status !== "Under Review") {
+      await notificationsService.notifyProject(updated.project, ["project-manager"], {
+        title: "Requirement awaiting your approval",
+        body: `"${updated.title}" was submitted for review on ${updated.project}`,
+        link: "/approvals",
+      });
+    }
     if (data.status && DECISION_STATUSES.has(data.status)) {
       await notificationsService.notifyProject(updated.project, ["engineer"], {
         title: `Requirement ${data.status.toLowerCase()}`,

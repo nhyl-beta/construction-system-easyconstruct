@@ -27,6 +27,11 @@ export const projects = pgTable('projects', {
   currency:    varchar('currency',    { length: 3   }).notNull().default('PHP'),
   workforce:   integer('workforce').default(0),
   description: text('description'),
+  // Collected by the New Project wizard; until these columns existed the form
+  // accepted the values and the API silently dropped them (Bug-008).
+  projectType:      varchar('project_type', { length: 50 }),
+  plannedStartDate: varchar('planned_start_date', { length: 20 }),
+  scopeSummary:     text('scope_summary'),
   
   // ── Added for Site Personnel geofenced attendance ──
   siteLatitude:     numeric('site_latitude', { precision: 10, scale: 7 }),

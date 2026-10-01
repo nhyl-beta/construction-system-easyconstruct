@@ -6,10 +6,33 @@ import {
   createAttendanceSchema,
   updateAttendanceSchema,
 } from "../validators/attendance-validators.js";
+import multer from "multer";
+import { ValidationError } from "../utils/errors.js";
 
 const router = Router();
 
+// The sheet is read straight from memory and never stored as a file: it is
+// parsed, validated and (on commit) turned into attendance rows.
+const sheetUpload = multer({
+  storage: multer.memoryStorage(),
+  limits: { fileSize: 5 * 1024 * 1024, files: 1 },
+  fileFilter: (_req, file, cb) => {
+    if (!/\.xlsx$/i.test(file.originalname)) {
+      return cb(new ValidationError("Upload an Excel workbook (.xlsx). Start from the template if you're unsure."));
+    }
+    cb(null, true);
+  },
+});
+
 router.use(authenticate);
+
+// Site attendance by spreadsheet. Declared before "/:id" so "import" isn't
+// taken for an id. Site Personnel upload for the projects they are staffed
+// on; Admin may upload for any.
+const canImportSheets = requireRole("site-personnel", "admin");
+router.get("/import/template", canImportSheets, controller.importTemplate);
+router.post("/import/preview", canImportSheets, sheetUpload.single("file"), controller.importPreview);
+router.post("/import/commit", canImportSheets, sheetUpload.single("file"), controller.importCommit);
 
 router.get("/", controller.getAll);
 router.get("/:id", controller.getById);

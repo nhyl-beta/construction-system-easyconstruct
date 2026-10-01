@@ -8,6 +8,7 @@ import { PageContainer } from "@/components/refine-ui/views/page-container";
 import { PageHeader } from "@/components/refine-ui/views/page-header";
 import { PageContent } from "@/components/refine-ui/views/page-content";
 import { NewWorkflowTemplateDialog } from "@/components/workflows/new-workflow-template-dialog";
+import { WORKFLOW_STAGE_ICONS } from "@/components/workflows/workflow-stage-pipeline";
 import { useWorkflowTemplates } from "@/features/workflows/hooks/useWorkflows";
 import { WorkflowFormatService } from "@/features/workflows/services/workflow.service";
 import { useAuth } from "@/auth/auth-context";
@@ -99,16 +100,22 @@ export default function AdminWorkflowConfigurationPage() {
               </CardHeader>
               <CardContent>
                 <div className="flex flex-wrap items-center gap-2">
-                  {t.defaultStages.map((stage, i) => (
-                    <span key={`${t.id}-${stage.role}`} className="flex items-center gap-2">
-                      <Badge variant="outline" className="rounded-full px-2.5 py-1 text-[11px]">
+                  {t.defaultStages.map((stage, i) => {
+                    // Each stage shows the icon of its step type, same map
+                    // the live pipeline uses.
+                    const StageIcon = WORKFLOW_STAGE_ICONS[stage.iconKey ?? ""];
+                    return (
+                    <span key={`${t.id}-${i}-${stage.role}`} className="flex items-center gap-2">
+                      <Badge variant="outline" className="gap-1.5 rounded-full px-2.5 py-1 text-[11px]">
+                        {StageIcon && <StageIcon className="h-3 w-3" />}
                         {i + 1}. {stage.roleLabel}
                       </Badge>
                       {i < t.defaultStages.length - 1 && (
                         <span className="text-muted-foreground">→</span>
                       )}
                     </span>
-                  ))}
+                    );
+                  })}
                 </div>
               </CardContent>
             </Card>

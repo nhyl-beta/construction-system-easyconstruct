@@ -40,6 +40,8 @@ export interface CreateTaskInput {
   dueDate?: string;
   assignedToUserId?: number;
   assignedToName?: string;
+  /** Link to a milestone at creation; the server also enforces the due-date rule. */
+  milestoneId?: number;
 }
 
 export const tasksRepository = {

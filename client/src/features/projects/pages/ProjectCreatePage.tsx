@@ -10,6 +10,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
+import { SearchableSelect } from "@/components/ui/searchable-select";
 import { Button } from "@/components/ui/button";
 import { ProjectRepository } from "@/features/projects/repositories/project.repository";
 import { ProjectMemberRepository, type ProjectMemberRole } from "@/features/project-members/repositories/project-member.repository";
@@ -21,7 +22,8 @@ import { useUsersByRole } from "@/features/users/hooks/use-users-by-role";
 import { Flag, Info, MapPin, Trash2, UserCheck } from "lucide-react";
 import { useState } from "react";
 import { useNavigate } from "react-router";
-import { PROJECT_CURRENCIES, RISK_LEVELS } from "@/features/projects/types/project.types";
+import { PROJECT_CURRENCIES, PROJECT_TYPES, RISK_LEVELS } from "@/features/projects/types/project.types";
+import { cn } from "@/lib/utils";
 
 // Architect and Consultant are required (D1) — the lifecycle's Proposal
 // phase gate checks P1/P2 need both staffed before the project can ever
@@ -81,9 +83,11 @@ interface ProjectFormData {
   currency: string;
   // Collected for UX but not yet persisted — schema doesn't have these columns:
   contingencyPct: string;
-  type: string;
   contractType: string;
+  // Persisted (projects.project_type / planned_start_date / scope_summary).
+  projectType: string;
   startDate: string;
+  scopeSummary: string;
   siteLatitude: number | null;
   siteLongitude: number | null;
   geofenceRadiusM: number | null;
@@ -100,7 +104,8 @@ const initialForm: ProjectFormData = {
   pm: "",
   contractValue: "",
   contingencyPct: "",
-  type: "",
+  projectType: "",
+  scopeSummary: "",
   contractType: "",
   currency: "PHP",
   startDate: "",
@@ -108,6 +113,54 @@ const initialForm: ProjectFormData = {
   siteLongitude: null,
   geofenceRadiusM: null,
 };
+
+type FieldErrors = Record<string, string>;
+
+/** Today as yyyy-MM-dd in the browser's timezone (the DatePicker's format). */
+const todayIso = () => {
+  const d = new Date();
+  const pad = (n: number) => String(n).padStart(2, "0");
+  return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`;
+};
+
+/**
+ * Errors for ONE wizard step, all at once — so pressing Next highlights every
+ * missing field on that step immediately instead of surfacing them one at a
+ * time on later steps or at submit. Mirrors the server validator
+ * (server/src/validators/project-validator.ts), which stays the authority.
+ */
+function validateStep(step: number, data: ProjectFormData, isSelfAssigned: boolean, team: TeamSelections): FieldErrors {
+  const errors: FieldErrors = {};
+  const required = (key: string, value: string, label: string) => {
+    if (!value.trim()) errors[key] = `${label} is required`;
+  };
+
+  if (step === 1) {
+    required("name", data.name, "Project name");
+    required("code", data.code, "Project code");
+    required("client", data.client, "Client / Owner");
+    required("projectType", data.projectType, "Project type");
+    required("location", data.location, "Location");
+
+    const today = todayIso();
+    if (!data.startDate) errors.startDate = "Planned start date is required";
+    else if (data.startDate < today) errors.startDate = "Planned start date cannot be in the past";
+
+    if (!data.due) errors.due = "Due date is required";
+    else if (data.due < today) errors.due = "Due date cannot be in the past";
+    else if (data.startDate && data.due < data.startDate) {
+      errors.due = "Due date must be on or after the planned start date";
+    }
+  }
+
+  if (step === 4) {
+    if (!isSelfAssigned) required("pm", data.pm, "Project Manager");
+    if (!team.architect) errors.architect = "Architect is required";
+    if (!team.consultant) errors.consultant = "Consultant is required";
+  }
+
+  return errors;
+}
 
 export default function ProjectCreatePage() {
   const navigate = useNavigate();
@@ -130,43 +183,58 @@ export default function ProjectCreatePage() {
   const [milestones, setMilestones] = useState<MilestoneDraft[]>([]);
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [fieldErrors, setFieldErrors] = useState<FieldErrors>({});
+
+  // Editing a field clears its own error; the rest stay until fixed.
+  const clearError = (key: string) =>
+    setFieldErrors((prev) => {
+      if (!(key in prev)) return prev;
+      const next = { ...prev };
+      delete next[key];
+      return next;
+    });
 
   const set = <K extends keyof ProjectFormData>(
     key: K,
     value: ProjectFormData[K],
-  ) => setData((prev) => ({ ...prev, [key]: value }));
+  ) => {
+    setData((prev) => ({ ...prev, [key]: value }));
+    clearError(key as string);
+    // The due date's rule depends on the start date and vice versa.
+    if (key === "startDate") clearError("due");
+  };
 
+  const isSelfAssigned = user?.role === "project-manager";
   const isAdmin = user?.role === "admin" || user?.role === "it-designer";
   const projectsListRoute = isAdmin ? "/admin/projects" : "/projects";
+
+  // Validate the current step before moving on. Blocks progression and marks
+  // every invalid field on the step at once.
+  const handleNext = () => {
+    const errors = validateStep(step, data, isSelfAssigned, team);
+    setFieldErrors(errors);
+    if (Object.keys(errors).length > 0) {
+      setError("Please complete the highlighted fields before continuing.");
+      return;
+    }
+    setError(null);
+    setStep((s) => Math.min(s + 1, STEPS.length));
+  };
 
   const handleCancel = () => navigate(projectsListRoute);
 
   const handleSubmit = async () => {
-    const required: Array<[string, string]> = [
-      ["Project name", data.name],
-      ["Project code", data.code],
-      ["Client / Owner", data.client],
-      ["Location", data.location],
-      ["Due date", data.due],
-    ];
-    if (user?.role !== "project-manager") {
-      required.push(["Project Manager", data.pm]);
-    }
-    const missing = required.find(([, value]) => !value.trim());
-    if (missing) {
-      setError(`${missing[0]} is required.`);
-      return;
-    }
-    // D1: gate P1/P2 (Proposal phase) need an architect and a consultant
-    // staffed before the project can ever advance — required here rather
-    // than only discovered later as a blocked Advance.
-    if (!team.architect) {
-      setError("Assign an Architect before creating the project.");
-      return;
-    }
-    if (!team.consultant) {
-      setError("Assign a Consultant before creating the project.");
-      return;
+    // Every step was validated on the way through; re-check them all here so
+    // a step that was edited after passing (or skipped via the stepper) can't
+    // slip through, and jump back to the first step that has a problem.
+    for (const s of [1, 4]) {
+      const errors = validateStep(s, data, isSelfAssigned, team);
+      if (Object.keys(errors).length > 0) {
+        setFieldErrors(errors);
+        setStep(s);
+        setError("Please complete the highlighted fields.");
+        return;
+      }
     }
 
     setSubmitting(true);
@@ -182,6 +250,9 @@ export default function ProjectCreatePage() {
         due: data.due,
         pm: data.pm,
         description: data.description.trim() || undefined,
+        projectType: data.projectType || undefined,
+        plannedStartDate: data.startDate || undefined,
+        scopeSummary: data.scopeSummary.trim() || undefined,
         // status/progress are lifecycle-owned now — every project starts at
         // Proposal/0% regardless of what's sent (server/src/lifecycle).
         // budget is utilisation-to-date (a percentage), which starts at zero;
@@ -243,8 +314,11 @@ export default function ProjectCreatePage() {
       description="Create a new construction project and set up the foundation for success."
       steps={STEPS}
       currentStep={step}
-      onNext={() => setStep((s) => Math.min(s + 1, STEPS.length))}
-      onBack={() => setStep((s) => Math.max(s - 1, 1))}
+      onNext={handleNext}
+      onBack={() => {
+        setError(null);
+        setStep((s) => Math.max(s - 1, 1));
+      }}
       onCancel={handleCancel}
       onSubmit={handleSubmit}
       isLastStep={step === STEPS.length}
@@ -253,11 +327,22 @@ export default function ProjectCreatePage() {
       error={error}
       aiHint="Use AI to generate project timeline from a proposal or document."
     >
-      {step === 1 && <StepProjectInfo data={data} set={set} />}
-      {step === 2 && <StepScopeSchedule milestones={milestones} setMilestones={setMilestones} />}
+      {step === 1 && <StepProjectInfo data={data} set={set} errors={fieldErrors} />}
+      {step === 2 && <StepScopeSchedule data={data} set={set} milestones={milestones} setMilestones={setMilestones} />}
       {step === 3 && <StepBudget data={data} set={set} />}
       {step === 4 && (
-        <StepTeam data={data} set={set} currentUserRole={user?.role ?? ""} team={team} setTeam={setTeam} />
+        <StepTeam
+          data={data}
+          set={set}
+          currentUserRole={user?.role ?? ""}
+          team={team}
+          setTeam={(updater) => {
+            setTeam(updater);
+            clearError("architect");
+            clearError("consultant");
+          }}
+          errors={fieldErrors}
+        />
       )}
       {step === 5 && <StepReview data={data} />}
     </MultiStepPage>
@@ -266,15 +351,28 @@ export default function ProjectCreatePage() {
 
 // ── Step 1 — Project Information ─────────────────────────────────────────────
 
+/** Red outline for an invalid control, applied on top of its own classes. */
+const invalidClass = (error?: string) => (error ? "border-destructive focus-visible:ring-destructive/30" : "");
+
+function FieldError({ message }: { message?: string }) {
+  return message ? (
+    <p role="alert" className="text-xs text-destructive">
+      {message}
+    </p>
+  ) : null;
+}
+
 function StepProjectInfo({
   data,
   set,
+  errors,
 }: {
   data: ProjectFormData;
   set: <K extends keyof ProjectFormData>(
     key: K,
     value: ProjectFormData[K],
   ) => void;
+  errors: FieldErrors;
 }) {
   // Part B item 6: the free-text Location input wasn't wired to the map at
   // all — typing an address did nothing until the pin was dragged by hand.
@@ -303,8 +401,10 @@ function StepProjectInfo({
             placeholder="e.g. Westgate Commercial Tower"
             value={data.name}
             onChange={(e) => set("name", e.target.value)}
-            className="rounded-xl"
+            className={cn("rounded-xl", invalidClass(errors.name))}
+            aria-invalid={!!errors.name}
           />
+          <FieldError message={errors.name} />
         </div>
 
         <div className="space-y-1.5">
@@ -315,8 +415,10 @@ function StepProjectInfo({
             placeholder="e.g. WGT-2025-001"
             value={data.code}
             onChange={(e) => set("code", e.target.value)}
-            className="rounded-xl"
+            className={cn("rounded-xl", invalidClass(errors.code))}
+            aria-invalid={!!errors.code}
           />
+          <FieldError message={errors.code} />
         </div>
 
         {/* Project.client is stored/rendered as free text, not a slug — the
@@ -331,8 +433,10 @@ function StepProjectInfo({
             placeholder="Select or type a new client"
             value={data.client}
             onChange={(e) => set("client", e.target.value)}
-            className="rounded-xl"
+            className={cn("rounded-xl", invalidClass(errors.client))}
+            aria-invalid={!!errors.client}
           />
+          <FieldError message={errors.client} />
           <datalist id="client-options">
             <option value="Westgate Health Group" />
             <option value="Harbor Freight Corp" />
@@ -343,19 +447,20 @@ function StepProjectInfo({
         </div>
 
         <div className="space-y-1.5">
-          <Label>Project type</Label>
-          <Select onValueChange={(v) => set("type", v)}>
-            <SelectTrigger className="rounded-xl">
+          <Label>
+            Project type <span className="text-destructive">*</span>
+          </Label>
+          <Select value={data.projectType || undefined} onValueChange={(v) => set("projectType", v)}>
+            <SelectTrigger className={cn("rounded-xl", invalidClass(errors.projectType))} aria-invalid={!!errors.projectType}>
               <SelectValue placeholder="Select project type" />
             </SelectTrigger>
             <SelectContent>
-              <SelectItem value="Commercial">Commercial</SelectItem>
-              <SelectItem value="Residential">Residential</SelectItem>
-              <SelectItem value="Infrastructure">Infrastructure</SelectItem>
-              <SelectItem value="Industrial">Industrial</SelectItem>
-              <SelectItem value="Renewable Energy">Renewable Energy</SelectItem>
+              {PROJECT_TYPES.map((t) => (
+                <SelectItem key={t} value={t}>{t}</SelectItem>
+              ))}
             </SelectContent>
           </Select>
+          <FieldError message={errors.projectType} />
         </div>
 
         <div className="col-span-2 space-y-1.5">
@@ -379,7 +484,8 @@ function StepProjectInfo({
                 // list unmounts.
                 setTimeout(() => setShowSuggestions(false), 150);
               }}
-              className="rounded-xl pl-9"
+              className={cn("rounded-xl pl-9", invalidClass(errors.location))}
+              aria-invalid={!!errors.location}
               autoComplete="off"
             />
             {showSuggestions && (geocode.loading || geocode.suggestions.length > 0 || geocode.error) && (
@@ -412,6 +518,7 @@ function StepProjectInfo({
               </div>
             )}
           </div>
+          <FieldError message={errors.location} />
           <p className="text-[11px] text-muted-foreground">
             Start typing an address to search — selecting a result moves the map pin below.
           </p>
@@ -508,12 +615,18 @@ function StepProjectInfo({
 
       <div className="grid grid-cols-2 gap-5">
         <div className="space-y-1.5">
-          <Label>Planned start date</Label>
+          <Label>
+            Planned start date <span className="text-destructive">*</span>
+          </Label>
           <DatePicker
             value={data.startDate}
             onChange={(v) => set("startDate", v)}
             placeholder="Select start date"
+            min={todayIso()}
+            clearable={false}
+            invalid={!!errors.startDate}
           />
+          <FieldError message={errors.startDate} />
         </div>
         <div className="space-y-1.5">
           <Label>
@@ -524,7 +637,11 @@ function StepProjectInfo({
             onChange={(v) => set("due", v)}
             placeholder="Select due date"
             clearable={false}
+            // Due can't precede the planned start, and neither can be past.
+            min={data.startDate && data.startDate > todayIso() ? data.startDate : todayIso()}
+            invalid={!!errors.due}
           />
+          <FieldError message={errors.due} />
         </div>
       </div>
 
@@ -542,9 +659,16 @@ function StepProjectInfo({
 // ── Step 2 — Scope & Schedule ─────────────────────────────────────────────────
 
 function StepScopeSchedule({
+  data,
+  set,
   milestones,
   setMilestones,
 }: {
+  data: ProjectFormData;
+  set: <K extends keyof ProjectFormData>(
+    key: K,
+    value: ProjectFormData[K],
+  ) => void;
   milestones: MilestoneDraft[];
   setMilestones: (updater: (prev: MilestoneDraft[]) => MilestoneDraft[]) => void;
 }) {
@@ -578,6 +702,9 @@ function StepScopeSchedule({
           <Textarea
             placeholder="Describe the full scope of work..."
             className="h-32 resize-none rounded-xl"
+            value={data.scopeSummary}
+            onChange={(e) => set("scopeSummary", e.target.value)}
+            maxLength={5000}
           />
         </div>
       </div>
@@ -702,6 +829,7 @@ function StepTeam({
   currentUserRole,
   team,
   setTeam,
+  errors,
 }: {
   data: ProjectFormData;
   set: <K extends keyof ProjectFormData>(
@@ -711,6 +839,7 @@ function StepTeam({
   currentUserRole: string;
   team: TeamSelections;
   setTeam: (updater: (prev: TeamSelections) => TeamSelections) => void;
+  errors: FieldErrors;
 }) {
   // A Project Manager creating their own project can't assign a different
   // PM — it's always them. Admin/IT Designer still assign a real PM, picked
@@ -742,33 +871,19 @@ function StepTeam({
               <span className="font-medium">{data.pm || "You"}</span>
             </div>
           ) : (
-            <Select
-              value={data.pm || undefined}
-              onValueChange={(v) => set("pm", v)}
-            >
-              <SelectTrigger className="rounded-xl">
-                {/* `value` is passed as undefined rather than "" when nothing
-                    is picked — Radix treats "" as a real selected value and
-                    renders an empty trigger instead of the placeholder. */}
-                <SelectValue
-                  placeholder={
-                    pmOptionsLoading ? "Loading…" : "Select project manager"
-                  }
-                />
-              </SelectTrigger>
-              <SelectContent>
-                {pmOptions.length === 0 && !pmOptionsLoading && (
-                  <div className="px-2 py-1.5 text-xs text-muted-foreground">
-                    No project managers on file
-                  </div>
-                )}
-                {pmOptions.map((u) => (
-                  <SelectItem key={u.id} value={u.name}>
-                    {u.name}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
+            <>
+              <SearchableSelect
+                value={data.pm || undefined}
+                onValueChange={(v) => set("pm", v)}
+                options={pmOptions.map((u) => ({ value: u.name, label: u.name, description: u.email }))}
+                placeholder="Select project manager"
+                searchPlaceholder="Search project managers…"
+                emptyText="No project managers on file"
+                loading={pmOptionsLoading}
+                invalid={!!errors.pm}
+              />
+              <FieldError message={errors.pm} />
+            </>
           )}
         </div>
 
@@ -779,6 +894,7 @@ function StepTeam({
             label={label}
             required={required}
             selected={team[role] ?? null}
+            error={errors[role]}
             onChange={(person) =>
               setTeam((prev) => {
                 const next = { ...prev };
@@ -805,11 +921,13 @@ function TeamRolePicker({
   label,
   required,
   selected,
+  error,
   onChange,
 }: {
   role: ProjectMemberRole;
   label: string;
   required?: boolean;
+  error?: string;
   selected: { id: number; name: string } | null;
   onChange: (person: { id: number; name: string } | null) => void;
 }) {
@@ -821,33 +939,20 @@ function TeamRolePicker({
         {label}
         {required && <span className="text-destructive"> *</span>}
       </Label>
-      <Select
-        value={selected ? String(selected.id) : ""}
+      <SearchableSelect
+        value={selected ? String(selected.id) : undefined}
         onValueChange={(v) => {
           const user = users.find((u) => String(u.id) === v);
           onChange(user ? { id: user.id, name: user.name } : null);
         }}
-      >
-        <SelectTrigger className="rounded-xl">
-          <SelectValue
-            placeholder={
-              loading ? "Loading…" : `Select ${label.toLowerCase()}${required ? "" : " (optional)"}`
-            }
-          />
-        </SelectTrigger>
-        <SelectContent>
-          {users.length === 0 && !loading && (
-            <div className="px-2 py-1.5 text-xs text-muted-foreground">
-              No {label.toLowerCase()}s on file
-            </div>
-          )}
-          {users.map((u) => (
-            <SelectItem key={u.id} value={String(u.id)}>
-              {u.name}
-            </SelectItem>
-          ))}
-        </SelectContent>
-      </Select>
+        options={users.map((u) => ({ value: String(u.id), label: u.name, description: u.email }))}
+        placeholder={`Select ${label.toLowerCase()}${required ? "" : " (optional)"}`}
+        searchPlaceholder={`Search ${label.toLowerCase()}s…`}
+        emptyText={`No ${label.toLowerCase()}s on file`}
+        loading={loading}
+        invalid={!!error}
+      />
+      <FieldError message={error} />
     </div>
   );
 }
@@ -870,8 +975,11 @@ function StepReview({ data }: { data: ProjectFormData }) {
           { label: "Client", value: data.client || "—" },
           { label: "Location", value: data.location || "—" },
           { label: "Project Manager", value: data.pm || "—" },
+          { label: "Project type", value: data.projectType || "—" },
           { label: "Risk", value: data.risk },
+          { label: "Planned start date", value: data.startDate || "—" },
           { label: "Due date", value: data.due || "—" },
+          { label: "Scope summary", value: data.scopeSummary.trim() ? data.scopeSummary.trim().slice(0, 120) + (data.scopeSummary.trim().length > 120 ? "…" : "") : "—" },
           { label: "Currency", value: data.currency },
           {
             label: "Total contract value",

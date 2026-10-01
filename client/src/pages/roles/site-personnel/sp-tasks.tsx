@@ -24,9 +24,9 @@ import { useAuth } from "@/auth/auth-context";
 import { useProjectMembers } from "@/features/project-members/hooks/use-project-members";
 import { useMyTasks } from "@/features/tasks/hooks/use-my-tasks";
 import { CompleteTaskDialog } from "@/components/tasks/complete-task-dialog";
+import { SearchableSelect } from "@/components/ui/searchable-select";
 import { ProjectPicker } from "@/components/shared/project-picker";
 import { useMilestones } from "@/features/milestones/hooks/use-milestones";
-import { MilestoneRepository } from "@/features/milestones/repositories/milestone.repository";
 import { isRealFileUrl, openFileUrl } from "@/lib/file-url";
 import { formatRelativeTime } from "@/lib/format-relative-time";
 import type { TaskRecord } from "@/features/tasks/repositories/task.repository";
@@ -132,7 +132,7 @@ export default function TasksPage() {
                                 <button
                                   type="button"
                                   className="text-primary underline-offset-2 hover:underline"
-                                  onClick={() => openFileUrl(t.completionFileUrl)}
+                                  onClick={() => void openFileUrl(t.completionFileUrl).catch(() => undefined)}
                                 >
                                   attachment
                                 </button>
@@ -200,6 +200,7 @@ function NewTaskCard({
     dueDate?: string;
     assignedToUserId?: number;
     assignedToName?: string;
+    milestoneId?: number;
   }) => Promise<{ id: number } | null>;
   creating: boolean;
 }) {
@@ -215,6 +216,10 @@ function NewTaskCard({
   const { milestones, loading: loadingMilestones } = useMilestones(projectCode);
   const linkableMilestones = milestones.filter((m) => m.status === "draft" || m.status === "active");
   const [milestoneId, setMilestoneId] = useState("");
+  const selectedMilestone = linkableMilestones.find((m) => String(m.id) === milestoneId);
+  // A task can't be due after the milestone it belongs to, and starts out due
+  // on the milestone's date (the server enforces both — tasks/service.ts).
+  const milestoneDue = selectedMilestone?.estimatedCompletionDate ?? undefined;
   const [title, setTitle] = useState("");
   const [description, setDescription] = useState("");
   const [priority, setPriority] = useState("Medium");
@@ -235,6 +240,10 @@ function NewTaskCard({
       setLocalError("Assign the task to a Site Personnel account.");
       return;
     }
+    if (milestoneDue && dueDate && dueDate > milestoneDue) {
+      setLocalError(`Due date can't be later than the milestone's due date (${milestoneDue}).`);
+      return;
+    }
     const assigned = sitePersonnel.find((m) => String(m.userId) === assignee);
     // taskCode is required and unique on the backend; generating it here keeps
     // the form to the fields a PM/Engineer actually cares about.
@@ -246,21 +255,14 @@ function NewTaskCard({
       description: description.trim() || undefined,
       priority,
       status: "Pending",
-      dueDate: dueDate || undefined,
+      dueDate: dueDate || milestoneDue || undefined,
       assignedToUserId: Number(assignee),
       assignedToName: assigned?.userName,
+      // Linked in the same request, so a due date the milestone rejects never
+      // leaves an unlinked task behind.
+      milestoneId: milestoneId ? Number(milestoneId) : undefined,
     });
     if (createdTask) {
-      if (milestoneId) {
-        // Best-effort: the task already exists, so a failed link shouldn't
-        // discard it — it can still be linked later once F4's UI grows a
-        // way to manage links after the fact.
-        try {
-          await MilestoneRepository.createLink(Number(milestoneId), "task", createdTask.id);
-        } catch (err) {
-          console.error(err);
-        }
-      }
       setCreated(taskCode);
       setTitle("");
       setDescription("");
@@ -310,31 +312,22 @@ function NewTaskCard({
           </div>
           <div className="space-y-1.5">
             <Label>Assign to</Label>
-            <Select value={assignee} onValueChange={setAssignee} disabled={!projectCode}>
-              <SelectTrigger className="rounded-xl">
-                <SelectValue
-                  placeholder={
-                    !projectCode
-                      ? "Select a project first"
-                      : loadingAssignees
-                      ? "Loading…"
-                      : "Select Site Personnel"
-                  }
-                />
-              </SelectTrigger>
-              <SelectContent>
-                {sitePersonnel.length === 0 && !loadingAssignees && (
-                  <div className="px-2 py-1.5 text-xs text-muted-foreground">
-                    No Site Personnel staffed on this project
-                  </div>
-                )}
-                {sitePersonnel.map((m) => (
-                  <SelectItem key={m.userId} value={String(m.userId)}>
-                    {m.userName}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
+            <SearchableSelect
+              value={assignee || undefined}
+              onValueChange={setAssignee}
+              disabled={!projectCode}
+              loading={loadingAssignees}
+              options={sitePersonnel.map((m) => ({ value: String(m.userId), label: m.userName }))}
+              placeholder={
+                !projectCode
+                  ? "Select a project first"
+                  : loadingAssignees
+                  ? "Loading…"
+                  : "Select Site Personnel"
+              }
+              searchPlaceholder="Search people…"
+              emptyText="No Site Personnel staffed on this project"
+            />
           </div>
           <div className="space-y-1.5">
             <Label>Priority</Label>
@@ -353,14 +346,29 @@ function NewTaskCard({
             <Label htmlFor="task-due">Due date</Label>
             <DatePicker
               id="task-due"
-              value={dueDate}
+              value={dueDate || milestoneDue || ""}
               onChange={setDueDate}
               placeholder="Select due date"
+              max={milestoneDue}
             />
+            {milestoneDue && (
+              <p className="text-[11px] text-muted-foreground">
+                Follows the milestone: no later than {milestoneDue}.
+              </p>
+            )}
           </div>
           <div className="space-y-1.5">
             <Label>Milestone (optional)</Label>
-            <Select value={milestoneId} onValueChange={setMilestoneId} disabled={!projectCode}>
+            <Select
+              value={milestoneId}
+              onValueChange={(v) => {
+                setMilestoneId(v);
+                // Back to "follow the milestone" — drop a manually picked date
+                // that may fall after the new milestone's.
+                setDueDate("");
+              }}
+              disabled={!projectCode}
+            >
               <SelectTrigger className="rounded-xl">
                 <SelectValue
                   placeholder={

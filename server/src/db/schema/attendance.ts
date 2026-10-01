@@ -31,6 +31,10 @@ export const attendance = pgTable("attendance", {
   photoUrl: varchar("photo_url", { length: 500 }),
   remarks: text("remarks"),
   logDate: date("log_date").notNull(),
+  // Where the record came from: a live "Clock-in" (photo + geofence) or a
+  // "Sheet" imported from a site attendance spreadsheet (no photo/geofence,
+  // so HR sees it needs verification — see attendance/import.ts).
+  source: varchar("source", { length: 20 }).notNull().default("Clock-in"),
   createdAt: timestamp("created_at").defaultNow(),
   // E1: a client-generated UUID an offline-queued clock-in/out carries so a
   // retried sync (the device coming back online more than once before the

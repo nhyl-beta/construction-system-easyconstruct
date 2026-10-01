@@ -13,6 +13,13 @@ export const REQUIREMENT_STATUSES = [
   "Rejected",
 ] as const;
 
+export interface RequirementAttachmentInput {
+  url: string;
+  filename: string;
+  contentType: string;
+  sizeBytes: number;
+}
+
 export interface RequirementRecord {
   id: number;
   requirementId: string;
@@ -21,6 +28,7 @@ export interface RequirementRecord {
   category: string;
   description: string;
   status: string;
+  attachments: RequirementAttachmentInput[];
   createdBy: string;
   createdAt: Date | null;
   updatedAt: Date | null;
@@ -33,6 +41,7 @@ export interface CreateRequirementInput {
   category: string;
   description: string;
   status?: string;
+  attachments: RequirementAttachmentInput[];
   createdBy: string;
 }
 

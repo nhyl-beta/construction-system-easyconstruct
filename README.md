@@ -46,9 +46,18 @@ DATABASE_URL=postgresql://user:password@host/dbname
 PORT=8000
 JWT_SECRET=change-me-in-prod
 CORS_ORIGIN=http://localhost:5173
-# Optional — origin used in password-reset links; defaults to CORS_ORIGIN
+# Origin the browser app is served from — used to build the link in recovery /
+# password-reset emails (CLIENT_URL is accepted too). Defaults to CORS_ORIGIN. The
+# link opens on the RECIPIENT's machine, so set the real public URL when deployed.
 APP_URL=http://localhost:5173
-# Optional — enables Vercel Blob storage for uploads; falls back to local disk storage if unset
+# Email (Gmail SMTP) for Owner fail-safe recovery and forgot-password. Gmail needs
+# 2-Step Verification on the sending account plus an App Password — the normal
+# Gmail password does not work. Without these the API answers 503, never a fake "sent".
+MAIL_USER=your.sending.account@gmail.com
+MAIL_APP_PASSWORD=xxxx xxxx xxxx xxxx
+# Optional — enables Vercel Blob storage for uploads (the store is PRIVATE; files are
+# served through the authenticated GET /api/uploads/file route). Falls back to local
+# disk (server/uploads) in development if unset.
 BLOB_READ_WRITE_TOKEN=
 # Required for the AI-validation decision-support layer (proposal validation,
 # cost-comparison, the five advisory signals under DecisionSupportSection) —
@@ -65,7 +74,7 @@ From `server/`:
 ```bash
 npm run db:generate   # generate Drizzle migrations from the schema (if needed)
 npm run db:migrate    # apply migrations to DATABASE_URL
-npm run db:seed       # create demo roles, employees, and login accounts
+npm run db:seed       # idempotent schema top-ups (server/src/scripts/ensure-demo-schema.ts) + demo roles, employees, and login accounts
 ```
 
 The seed script prints a table of demo accounts on completion — one per role (admin, project manager, HR, finance, architect, engineer, site personnel, consultant, owner, IT designer), all sharing the password `Demo@12345`.

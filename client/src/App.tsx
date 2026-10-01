@@ -181,11 +181,25 @@ function App() {
 
                   {/* ── Project Manager Routes ── */}
                   <Route path="/projects" element={<PMProjects />} />
+                  {/* Creating a project is the Project Manager's and Admin's
+                      (the API refuses everyone else), so a typed-in URL
+                      shouldn't open the wizard for any other role either. */}
                   <Route
                     path="/projects/create"
-                    element={<ProjectCreatePage />}
+                    element={
+                      <RequireRole allow={["project_manager", "admin"]}>
+                        <ProjectCreatePage />
+                      </RequireRole>
+                    }
                   />
-                  <Route path="/projects/new" element={<ProjectCreatePage />} />
+                  <Route
+                    path="/projects/new"
+                    element={
+                      <RequireRole allow={["project_manager", "admin"]}>
+                        <ProjectCreatePage />
+                      </RequireRole>
+                    }
+                  />
                   <Route path="/projects/:projectId" element={<ProjectDetailPage />} />
 
                   <Route path="/workflows" element={<PMWorkflows />} />
@@ -193,37 +207,37 @@ function App() {
                   <Route path="/documents" element={<DocumentsRouter />} />
 
                   {/* ── Human Resources Routes ── */}
-                  <Route path="/employees" element={<HREmployees />} />
+                  <Route path="/employees" element={<RequireRole allow={["human_resources","admin","it_designer"]}><HREmployees /></RequireRole>} />
                   <Route
                     path="/employees/create"
-                    element={<EmployeeCreatePage />}
+                    element={<RequireRole allow={["human_resources","admin","it_designer"]}><EmployeeCreatePage /></RequireRole>}
                   />
                   <Route
                     path="/employees/edit/:id"
-                    element={<EmployeeCreatePage />}
+                    element={<RequireRole allow={["human_resources","admin","it_designer"]}><EmployeeCreatePage /></RequireRole>}
                   />
                   <Route
                     path="/employees/new"
-                    element={<EmployeeCreatePage />}
+                    element={<RequireRole allow={["human_resources","admin","it_designer"]}><EmployeeCreatePage /></RequireRole>}
                   />
                   <Route
                     path="/employees/:id/edit"
-                    element={<EmployeeCreatePage />}
+                    element={<RequireRole allow={["human_resources","admin","it_designer"]}><EmployeeCreatePage /></RequireRole>}
                   />
                   <Route path="/attendance" element={<AttendanceRouter />} />
-                  <Route path="/payroll" element={<HRPayroll />} />
-                  <Route path="/workforce-reports" element={<HRWorkforce />} />
+                  <Route path="/payroll" element={<RequireRole allow={["human_resources","admin","it_designer"]}><HRPayroll /></RequireRole>} />
+                  <Route path="/workforce-reports" element={<RequireRole allow={["human_resources","admin","it_designer"]}><HRWorkforce /></RequireRole>} />
 
                   {/* ── Finance Routes ── */}
-                  <Route path="/budget" element={<FinanceBudget />} />
-                  <Route path="/expenses" element={<FinanceExpenses />} />
+                  <Route path="/budget" element={<RequireRole allow={["finance_manager","admin"]}><FinanceBudget /></RequireRole>} />
+                  <Route path="/expenses" element={<RequireRole allow={["finance_manager","admin"]}><FinanceExpenses /></RequireRole>} />
                   <Route
                     path="/payroll-review"
-                    element={<FinancePayrollReview />}
+                    element={<RequireRole allow={["finance_manager","admin"]}><FinancePayrollReview /></RequireRole>}
                   />
                   <Route
                     path="/impact-review"
-                    element={<FinanceImpactReview />}
+                    element={<RequireRole allow={["finance_manager","admin"]}><FinanceImpactReview /></RequireRole>}
                   />
 
                   {/* ── Architect Routes ── */}

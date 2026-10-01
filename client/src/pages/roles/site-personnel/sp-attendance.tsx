@@ -16,6 +16,7 @@ import { useProjects } from "@/features/projects/hooks/useProjects";
 import { ProjectMemberRepository } from "@/features/project-members/repositories/project-member.repository";
 import { useOfflineAttendanceSync } from "@/features/attendance/offline/useOfflineSync";
 import { enqueueAttendance } from "@/features/attendance/offline/queue";
+import { AttendanceSheetImport } from "@/features/attendance/components/AttendanceSheetImport";
 
 interface CachedSiteGeofence {
   siteLatitude: number;
@@ -364,6 +365,11 @@ export default function SPAttendancePage() {
             </div>
           </SectionCard>
         )}
+
+        {/* Several workers' attendance at once, from an Excel sheet. */}
+        <AttendanceSheetImport
+          projects={staffedProjects.filter((p) => ["Construction", "Closeout"].includes(p.status))}
+        />
       </PageContent>
     </PageContainer>
   );

@@ -11,6 +11,7 @@ import {
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { SearchableSelect } from "@/components/ui/searchable-select";
 import {
   Select,
   SelectContent,
@@ -311,26 +312,16 @@ export function NewWorkflowDialog({
                 return (
                   <div key={sequence} className="grid grid-cols-2 items-center gap-2">
                     <span className="text-sm text-muted-foreground">{stage.roleLabel}</span>
-                    <Select
-                      value={stageAssignments[sequence] ?? ""}
+                    <SearchableSelect
+                      value={stageAssignments[sequence] || undefined}
                       onValueChange={(v) =>
                         setStageAssignments((prev) => ({ ...prev, [sequence]: v }))
                       }
                       disabled={candidates.length === 0}
-                    >
-                      <SelectTrigger className="w-full">
-                        <SelectValue
-                          placeholder={candidates.length === 0 ? "No users with this role" : "Unassigned"}
-                        />
-                      </SelectTrigger>
-                      <SelectContent>
-                        {candidates.map((u) => (
-                          <SelectItem key={u.id} value={u.name}>
-                            {u.name}
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
+                      options={candidates.map((u) => ({ value: u.name, label: u.name, description: u.email }))}
+                      placeholder={candidates.length === 0 ? "No users with this role" : "Unassigned"}
+                      searchPlaceholder="Search people…"
+                    />
                   </div>
                 );
               })}

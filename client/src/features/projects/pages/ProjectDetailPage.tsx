@@ -12,7 +12,9 @@ import {
 } from "@/components/ui/select";
 import { ConfirmDialog } from "@/components/ui/confirm-dialog";
 import { ProjectRepository } from "@/features/projects/repositories/project.repository";
-import { PROJECT_CURRENCIES, RISK_LEVELS, type Project } from "@/features/projects/types/project.types";
+import { PROJECT_CURRENCIES, PROJECT_TYPES, RISK_LEVELS, type Project } from "@/features/projects/types/project.types";
+import { SearchableSelect } from "@/components/ui/searchable-select";
+import { openFileUrl } from "@/lib/file-url";
 import { formatCurrency } from "@/lib/format-currency";
 import { useProjectMembers } from "@/features/project-members/hooks/use-project-members";
 import { MilestonesPanel } from "@/features/milestones/components/MilestonesPanel";
@@ -32,11 +34,25 @@ import { useAuth } from "@/auth/auth-context";
 /**
  * Who may change the record itself. This mirrors the route guards on
  * /api/projects (server/src/projects/routes.ts): POST, PATCH and DELETE are
- * granted to project-manager, admin and it-designer, plus engineer on PATCH
- * for progress only. Everyone else — Owner, Consultant, Architect, HR,
- * Finance — can read a project but any write they attempt comes back 403.
+ * granted to project-manager and admin. Everyone else — IT Designer, Owner,
+ * Consultant, Architect, HR, Finance — can read a project but any write they
+ * attempt comes back 403. (IT Designer is system administration, not project
+ * delivery, so the Project section is read-only for it.)
  */
-const PROJECT_EDITORS = ["project-manager", "admin", "it-designer"];
+const PROJECT_EDITORS = ["project-manager", "admin"];
+
+/**
+ * Who may remove an uploaded document (server/src/documents/routes.ts). A
+ * governance action, separate from editing the project record.
+ */
+const DOCUMENT_REMOVERS = ["admin", "owner", "it-designer"];
+
+/** Today as yyyy-MM-dd in the browser's timezone. */
+const todayIso = () => {
+  const d = new Date();
+  const pad = (n: number) => String(n).padStart(2, "0");
+  return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`;
+};
 
 /**
  * Where "Back" goes for each role. A viewer who reached this page from their
@@ -66,6 +82,13 @@ export default function ProjectDetailPage() {
   const listRoute = LIST_ROUTE_BY_ROLE[role] ?? "/projects";
 
   const [project, setProject] = useState<Project | null>(null);
+  // The due date as loaded: an already-overdue project must still be savable
+  // when its due date is left alone, so "not in the past" only applies to a
+  // date that was actually changed.
+  const [loadedDue, setLoadedDue] = useState<string | null>(null);
+  const { users: pmOptions, loading: pmOptionsLoading } = useUsersByRole(
+    role === "admin" ? "project-manager" : null,
+  );
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [deleting, setDeleting] = useState(false);
@@ -81,6 +104,7 @@ export default function ProjectDetailPage() {
       .then((result) => {
         if (active) {
           setProject(result);
+          setLoadedDue(result?.due ?? null);
           if (!result) setError("Project not found.");
         }
       })
@@ -105,6 +129,14 @@ export default function ProjectDetailPage() {
       setError("Name, code, and due date are required.");
       return;
     }
+    if (project.due !== loadedDue && project.due < todayIso()) {
+      setError("Due date cannot be in the past.");
+      return;
+    }
+    if (project.plannedStartDate && project.due < project.plannedStartDate) {
+      setError("Due date must be on or after the planned start date.");
+      return;
+    }
     setSaving(true);
     setError(null);
     setMessage(null);
@@ -123,6 +155,11 @@ export default function ProjectDetailPage() {
         due: project.due,
         risk: project.risk,
         description: project.description,
+        projectType: project.projectType,
+        plannedStartDate: project.plannedStartDate,
+        scopeSummary: project.scopeSummary,
+        // Only Admin can reassign the PM (Project Managers see it read-only).
+        ...(role === "admin" ? { pm: project.pm } : {}),
         siteLatitude: project.siteLatitude,
         siteLongitude: project.siteLongitude,
         geofenceRadiusM: project.geofenceRadiusM,
@@ -243,6 +280,28 @@ export default function ProjectDetailPage() {
             ? <Input value={project.location} onChange={(e) => update("location", e.target.value)} />
             : <ReadOnlyValue value={project.location} />}
         </Field>
+        <Field label="Project type">
+          {canEdit ? (
+            <Select
+              value={project.projectType ?? undefined}
+              onValueChange={(v) => update("projectType", v)}
+            >
+              <SelectTrigger><SelectValue placeholder="Select project type" /></SelectTrigger>
+              <SelectContent>
+                {PROJECT_TYPES.map((t) => (
+                  <SelectItem key={t} value={t}>{t}</SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          ) : (
+            <ReadOnlyValue value={project.projectType} />
+          )}
+        </Field>
+        <Field label="Planned start date">
+          {canEdit
+            ? <DatePicker value={project.plannedStartDate ?? ""} onChange={(v) => update("plannedStartDate", v || null)} placeholder="Select start date" />
+            : <ReadOnlyValue value={project.plannedStartDate} />}
+        </Field>
         {/* Status is lifecycle-owned — see ProjectLifecyclePanel above, which
             is where it's actually changed (Advance/Hold/Resume/Cancel/
             Archive). Shown here as a plain badge, not an editable field, for
@@ -307,18 +366,46 @@ export default function ProjectDetailPage() {
         </Field>
         <Field label="Due date">
           {canEdit
-            ? <DatePicker value={project.due} onChange={(v) => update("due", v)} placeholder="Select due date" clearable={false} />
+            ? <DatePicker
+                value={project.due}
+                onChange={(v) => update("due", v)}
+                placeholder="Select due date"
+                clearable={false}
+                min={project.plannedStartDate ?? undefined}
+              />
             : <ReadOnlyValue value={project.due} />}
         </Field>
         <Field label="Project manager">
-          {canEdit
-            ? <Input value={project.pm ?? ""} onChange={(e) => update("pm", e.target.value)} />
-            : <ReadOnlyValue value={project.pm} />}
+          {role === "admin" ? (
+            <SearchableSelect
+              value={project.pm || undefined}
+              onValueChange={(v) => update("pm", v)}
+              options={[
+                // Keep the current PM selectable even if they are no longer
+                // listed (e.g. a deactivated account).
+                ...(project.pm && !pmOptions.some((u) => u.name === project.pm)
+                  ? [{ value: project.pm, label: project.pm }]
+                  : []),
+                ...pmOptions.map((u) => ({ value: u.name, label: u.name, description: u.email })),
+              ]}
+              placeholder="Select project manager"
+              searchPlaceholder="Search project managers…"
+              loading={pmOptionsLoading}
+            />
+          ) : (
+            // A Project Manager can't hand their own project to someone else.
+            <ReadOnlyValue value={project.pm} />
+          )}
         </Field>
         <Field label="Description" wide>
           {canEdit
-            ? <Textarea value={project.description ?? ""} onChange={(e) => update("description", e.target.value)} />
+            ? <Textarea value={project.description ?? ""} maxLength={500} onChange={(e) => update("description", e.target.value)} />
             : <ReadOnlyValue value={project.description} multiline />}
+        </Field>
+        <Field label="Scope summary" wide>
+          {canEdit
+            ? <Textarea value={project.scopeSummary ?? ""} maxLength={5000} onChange={(e) => update("scopeSummary", e.target.value)} />
+            : <ReadOnlyValue value={project.scopeSummary} multiline />}
         </Field>
 
         {/* Site geofence. attendance/service.ts measures every site clock-in
@@ -387,7 +474,7 @@ export default function ProjectDetailPage() {
           plus a read-only reflection of the Engineers panel above, so both
           facts of "who owns Design and what they've filed" are in one place. */}
       <div className="max-w-4xl">
-        <DesignStageSection projectCode={project.code} canManage={canEdit} />
+        <DesignStageSection projectCode={project.code} canManage={canEdit} canRemove={DOCUMENT_REMOVERS.includes(role)} />
       </div>
 
       <div className="max-w-4xl">
@@ -461,23 +548,16 @@ function TeamMemberPanel({
 
       {!readOnly && (
         <div className="flex flex-wrap items-center gap-2">
-          <Select value={selected} onValueChange={setSelected}>
-            <SelectTrigger className="w-64 rounded-xl">
-              <SelectValue placeholder={`Select a ${label.toLowerCase().replace(/s$/, "")}`} />
-            </SelectTrigger>
-            <SelectContent>
-              {availableToAdd.length === 0 && (
-                <div className="px-2 py-1.5 text-xs text-muted-foreground">
-                  No more people to add
-                </div>
-              )}
-              {availableToAdd.map((u) => (
-                <SelectItem key={u.id} value={String(u.id)}>
-                  {u.name}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
+          <div className="w-64">
+            <SearchableSelect
+              value={selected || undefined}
+              onValueChange={setSelected}
+              options={availableToAdd.map((u) => ({ value: String(u.id), label: u.name, description: u.email }))}
+              placeholder={`Select a ${label.toLowerCase().replace(/s$/, "")}`}
+              searchPlaceholder="Search people…"
+              emptyText="No more people to add"
+            />
+          </div>
           <Button size="sm" className="rounded-xl" disabled={!selected || saving} onClick={handleAdd}>
             <UserPlus className="h-3.5 w-3.5" /> Add
           </Button>
@@ -565,9 +645,11 @@ function LinkedDesignsPanel({ projectCode }: { projectCode: string }) {
 function DesignStageSection({
   projectCode,
   canManage,
+  canRemove,
 }: {
   projectCode: string;
   canManage: boolean;
+  canRemove: boolean;
 }) {
   const { members: engineers, loading: engineersLoading } = useProjectMembers(projectCode, "engineer");
 
@@ -575,7 +657,25 @@ function DesignStageSection({
   const [docsLoading, setDocsLoading] = useState(true);
   const [docsError, setDocsError] = useState<string | null>(null);
   const [uploading, setUploading] = useState(false);
+  const [pendingRemoval, setPendingRemoval] = useState<DocumentRecord | null>(null);
+  const [removing, setRemoving] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
+
+  const confirmRemoval = async () => {
+    if (!pendingRemoval) return;
+    setRemoving(true);
+    setDocsError(null);
+    try {
+      await documentsRepository.remove(pendingRemoval.id);
+      setPendingRemoval(null);
+      loadDocs();
+    } catch (err) {
+      setDocsError(err instanceof Error ? err.message : "Failed to delete document");
+      setPendingRemoval(null);
+    } finally {
+      setRemoving(false);
+    }
+  };
 
   const loadDocs = () => {
     setDocsLoading(true);
@@ -659,6 +759,16 @@ function DesignStageSection({
 
         {docsError && <p className="mt-2 text-sm text-destructive">{docsError}</p>}
 
+        <ConfirmDialog
+          open={pendingRemoval !== null}
+          onOpenChange={(open) => !open && setPendingRemoval(null)}
+          title={`Delete ${pendingRemoval?.title ?? "this file"}?`}
+          description="The file is permanently removed from the project and cannot be recovered. The deletion is recorded in the audit trail."
+          confirmLabel="Delete"
+          loading={removing}
+          onConfirm={() => void confirmRemoval()}
+        />
+
         {docsLoading ? (
           <p className="mt-2 text-sm text-muted-foreground">Loading…</p>
         ) : docs.length === 0 ? (
@@ -671,16 +781,35 @@ function DesignStageSection({
                   <FileText className="h-3.5 w-3.5 shrink-0 text-muted-foreground" />
                   <span className="truncate">{d.title}</span>
                 </span>
-                {d.fileUrl && (
-                  <a
-                    href={d.fileUrl}
-                    target="_blank"
-                    rel="noreferrer"
-                    className="shrink-0 text-xs text-primary hover:underline"
-                  >
-                    Download
-                  </a>
-                )}
+                <span className="flex shrink-0 items-center gap-3">
+                  {d.fileUrl && (
+                    // A bare <a href> to the stored URL opened the login page
+                    // in a new tab — files are private, so the click fetches
+                    // them with the caller's token instead (lib/file-url).
+                    <button
+                      type="button"
+                      className="text-xs text-primary hover:underline"
+                      onClick={() =>
+                        void openFileUrl(d.fileUrl).catch((err: unknown) =>
+                          setDocsError(err instanceof Error ? err.message : "Could not open the file"),
+                        )
+                      }
+                    >
+                      Download
+                    </button>
+                  )}
+                  {canRemove && (
+                    <button
+                      type="button"
+                      className="text-muted-foreground hover:text-destructive"
+                      title="Delete file"
+                      aria-label={`Delete ${d.title}`}
+                      onClick={() => setPendingRemoval(d)}
+                    >
+                      <Trash2 className="h-3.5 w-3.5" />
+                    </button>
+                  )}
+                </span>
               </li>
             ))}
           </ul>

@@ -12,9 +12,12 @@ export const createTaskSchema = z.object({
   dueDate: z.string().optional(),
   assignedToUserId: z.number().int().optional(),
   assignedToName: z.string().max(100).optional(),
+  milestoneId: z.number().int().positive().optional(),
 });
 
-export const updateTaskSchema = createTaskSchema.partial();
+// milestoneId links at creation only; an existing task's milestone links are
+// managed through /api/milestones/:id/links.
+export const updateTaskSchema = createTaskSchema.omit({ milestoneId: true }).partial();
 
 // Completing a task now carries evidence: a note describing what was done,
 // and optionally a photo/document. The note is only mandatory on the

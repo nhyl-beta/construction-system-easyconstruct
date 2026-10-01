@@ -4,6 +4,7 @@ import { unlink } from "node:fs/promises";
 import { HTTP } from "../constants/http-status.js";
 import { MSG } from "../constants/messages.js";
 import { formatSuccess } from "../utils/response.js";
+import { logAudit } from "../utils/audit.js";
 
 import * as service from "./service.js";
 
@@ -59,6 +60,27 @@ export const create = async (
           MSG.documents.created,
         ),
       );
+  } catch (err) {
+    return next(err);
+  }
+};
+
+export const remove = async (
+  req: AuthedRequest,
+  res: Response,
+  next: NextFunction,
+) => {
+  try {
+    const data = await service.remove(Number(req.params.id));
+    await logAudit({
+      entityType: "document",
+      entityId: String(data?.documentId ?? req.params.id),
+      action: "deleted",
+      actor: req.authUser?.name ?? "unknown",
+      summary: `Deleted document "${data?.title}" (${data?.documentId}) from project ${data?.project}`,
+      projectCode: data?.project,
+    });
+    return res.json(formatSuccess(data, "Document deleted"));
   } catch (err) {
     return next(err);
   }

@@ -55,6 +55,12 @@ async function main() {
     ALTER TABLE projects
       ADD COLUMN IF NOT EXISTS contract_value numeric(14, 2);
 
+    -- Bug-008: the New Project wizard collected these but nothing stored them.
+    ALTER TABLE projects
+      ADD COLUMN IF NOT EXISTS project_type varchar(50),
+      ADD COLUMN IF NOT EXISTS planned_start_date varchar(20),
+      ADD COLUMN IF NOT EXISTS scope_summary text;
+
     -- Move any amount that was written into the percentage column across.
     UPDATE projects
        SET contract_value = budget,
@@ -467,6 +473,30 @@ async function main() {
     -- in at all — every comment Finance typed was silently discarded.
     ALTER TABLE payroll_batches
       ADD COLUMN IF NOT EXISTS review_note text;
+
+    -- Account recovery: hashed single-use reset tokens, and a marker so a
+    -- password change signs out sessions issued under the old password.
+    ALTER TABLE users
+      ADD COLUMN IF NOT EXISTS password_changed_at timestamp;
+
+    CREATE TABLE IF NOT EXISTS password_reset_tokens (
+      id serial PRIMARY KEY,
+      user_id integer NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+      token_hash varchar(64) NOT NULL UNIQUE,
+      requested_by_user_id integer REFERENCES users(id) ON DELETE SET NULL,
+      expires_at timestamp NOT NULL,
+      used_at timestamp,
+      created_at timestamp DEFAULT now()
+    );
+
+    -- Requirements must carry at least one uploaded file (validated in the
+    -- API); existing rows predate that and start empty.
+    ALTER TABLE requirements
+      ADD COLUMN IF NOT EXISTS attachments jsonb NOT NULL DEFAULT '[]'::jsonb;
+
+    -- Attendance imported from a site spreadsheet (attendance/import.ts).
+    ALTER TABLE attendance
+      ADD COLUMN IF NOT EXISTS source varchar(20) NOT NULL DEFAULT 'Clock-in';
 
     -- H1: Design stage documents — nullable so existing documents (none of
     -- which were ever filed against a stage) keep working unfiltered.

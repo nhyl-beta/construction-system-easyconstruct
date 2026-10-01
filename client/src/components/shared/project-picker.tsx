@@ -10,13 +10,7 @@
 // on its own ("WMT-204") identifies nothing to a Finance Manager opening a
 // budget against it; the client is how the commercial side of the business
 // refers to the same engagement.
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
+import { SearchableSelect } from "@/components/ui/searchable-select";
 import { useProjects } from "@/features/projects/hooks/useProjects";
 
 interface ProjectPickerProps {
@@ -36,24 +30,23 @@ export function ProjectPicker({
 }: ProjectPickerProps) {
   const { projects, loading } = useProjects();
 
+  // Type-to-search over code, name and client, sorted by code — a portfolio
+  // outgrows a plain dropdown quickly.
   return (
-    <Select value={value || undefined} onValueChange={onChange} disabled={disabled}>
-      <SelectTrigger className={className}>
-        <SelectValue placeholder={loading ? "Loading projects…" : placeholder} />
-      </SelectTrigger>
-      <SelectContent>
-        {projects.length === 0 && !loading && (
-          <div className="px-2 py-1.5 text-xs text-muted-foreground">
-            No projects on file
-          </div>
-        )}
-        {projects.map((p) => (
-          <SelectItem key={p.code} value={p.code}>
-            {p.code} · {p.name}
-            {p.client && p.client !== "Unknown" ? ` · ${p.client}` : ""}
-          </SelectItem>
-        ))}
-      </SelectContent>
-    </Select>
+    <SearchableSelect
+      value={value || undefined}
+      onValueChange={onChange}
+      disabled={disabled}
+      loading={loading}
+      className={className}
+      options={projects.map((p) => ({
+        value: p.code,
+        label: `${p.code} · ${p.name}`,
+        description: p.client && p.client !== "Unknown" ? p.client : undefined,
+      }))}
+      placeholder={loading ? "Loading projects…" : placeholder}
+      searchPlaceholder="Search by code, name or client…"
+      emptyText="No projects on file"
+    />
   );
 }

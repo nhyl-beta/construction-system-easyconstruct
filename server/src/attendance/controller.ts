@@ -7,6 +7,8 @@ import type { AuthedRequest } from "../middleware/auth.js";
 import * as service from "./service.js";
 import * as employeeService from "../employees/service.js";
 import type { AttendanceFilters } from "./types.js";
+import * as sheetImport from "./import.js";
+import { ValidationError } from "../utils/errors.js";
 
 export const getAll = async (req: Request, res: Response, next: NextFunction) => {
   try {
@@ -84,6 +86,50 @@ export const remove = async (req: Request, res: Response, next: NextFunction) =>
   try {
     const data = await service.remove(Number(req.params.id));
     res.json(formatSuccess(data, MSG.attendance.deleted));
+  } catch (err) {
+    next(err);
+  }
+};
+
+// ── Spreadsheet import (attendance/import.ts) ───────────────────────────
+
+const sheetInput = (req: AuthedRequest) => {
+  if (!req.file) throw new ValidationError("Choose an Excel (.xlsx) file to upload.");
+  const projectCode = String(req.body.projectCode ?? "").trim();
+  return {
+    buffer: req.file.buffer,
+    fileName: req.file.originalname,
+    projectCode,
+    actor: { role: req.authUser!.role, userId: req.authUser!.id, name: req.authUser!.name },
+  };
+};
+
+export const importPreview = async (req: AuthedRequest, res: Response, next: NextFunction) => {
+  try {
+    const { buffer, fileName, projectCode, actor } = sheetInput(req);
+    const report = await sheetImport.previewSheet(buffer, fileName, projectCode, actor);
+    res.json(formatSuccess(report, "Attendance sheet checked"));
+  } catch (err) {
+    next(err);
+  }
+};
+
+export const importCommit = async (req: AuthedRequest, res: Response, next: NextFunction) => {
+  try {
+    const { buffer, fileName, projectCode, actor } = sheetInput(req);
+    const result = await sheetImport.commitSheet(buffer, fileName, projectCode, actor);
+    res.status(HTTP.CREATED).json(formatSuccess(result, `Imported ${result.imported} attendance record(s)`));
+  } catch (err) {
+    next(err);
+  }
+};
+
+export const importTemplate = async (_req: Request, res: Response, next: NextFunction) => {
+  try {
+    const buffer = await sheetImport.buildTemplate();
+    res.setHeader("Content-Type", "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet");
+    res.setHeader("Content-Disposition", 'attachment; filename="attendance-template.xlsx"');
+    res.send(buffer);
   } catch (err) {
     next(err);
   }

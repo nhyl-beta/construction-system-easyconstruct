@@ -19,6 +19,9 @@ interface BackendProject {
   currency?: string | null;
   workforce?: number | null;
   description?: string | null;
+  projectType?: string | null;
+  plannedStartDate?: string | null;
+  scopeSummary?: string | null;
   siteLatitude?: string | number | null;
   siteLongitude?: string | number | null;
   geofenceRadiusM?: number | null;
@@ -56,6 +59,13 @@ function normalizeProject(raw: BackendProject): Project {
     workforce: raw.workforce ?? 0,
     due: raw.due,
     risk: normalizeRisk(raw.risk),
+    // These three were collected by the New Project wizard but dropped on the
+    // way through (Bug-008); they are mapped here so the details page shows
+    // what was entered.
+    description: raw.description ?? null,
+    projectType: raw.projectType ?? null,
+    plannedStartDate: raw.plannedStartDate ?? null,
+    scopeSummary: raw.scopeSummary ?? null,
     // numeric() columns come back from drizzle as strings.
     siteLatitude: raw.siteLatitude == null ? null : Number(raw.siteLatitude),
     siteLongitude: raw.siteLongitude == null ? null : Number(raw.siteLongitude),
@@ -72,6 +82,12 @@ function serializeProject(patch: Partial<Project>): Record<string, unknown> {
   if (typeof patch.risk === "string") {
     payload.risk = patch.risk.charAt(0).toUpperCase() + patch.risk.slice(1).toLowerCase();
   }
+  // Optional text columns come back as null when unset; the API's zod schema
+  // wants them absent rather than null (or, for the enum/date ones, non-empty).
+  for (const key of ["description", "scopeSummary", "projectType", "plannedStartDate"] as const) {
+    if (payload[key] === null || payload[key] === undefined) delete payload[key];
+    else if ((key === "projectType" || key === "plannedStartDate") && payload[key] === "") delete payload[key];
+  }
   // id is a client-side concern; the backend rejects unknown/extra keys it
   // doesn't model on write.
   delete payload.id;
@@ -87,7 +103,43 @@ async function unwrap<T>(promise: Promise<unknown>): Promise<T> {
   return json as T;
 }
 
+export interface ProjectPageQuery {
+  page: number;
+  pageSize: number;
+  search?: string;
+  status?: string;
+  risk?: string;
+  projectType?: string;
+  excludeArchived?: boolean;
+}
+
+export interface ProjectPage {
+  items: Project[];
+  total: number;
+  page: number;
+  pageSize: number;
+  pages: number;
+}
+
 export const ProjectRepository = {
+  /** Server-side paged + filtered list (All projects table). */
+  async listPage(query: ProjectPageQuery): Promise<ProjectPage> {
+    const params = new URLSearchParams();
+    params.set("page", String(query.page));
+    params.set("pageSize", String(query.pageSize));
+    if (query.search) params.set("search", query.search);
+    if (query.status && query.status !== "all") params.set("status", query.status);
+    if (query.risk && query.risk !== "all") params.set("risk", query.risk);
+    if (query.projectType && query.projectType !== "all") params.set("projectType", query.projectType);
+    if (query.excludeArchived) params.set("excludeArchived", "1");
+    // apiClient returns the raw { success, message, data, meta } envelope.
+    const json = (await apiClient.get(`/projects?${params.toString()}`)) as {
+      data: BackendProject[];
+      meta: { total: number; page: number; pageSize: number; pages: number };
+    };
+    return { items: json.data.map(normalizeProject), ...json.meta };
+  },
+
   async list(q?: string): Promise<Project[]> {
     const path = q ? `/projects?search=${encodeURIComponent(q)}` : "/projects";
     const raw = await unwrap<BackendProject[]>(apiClient.get(path));

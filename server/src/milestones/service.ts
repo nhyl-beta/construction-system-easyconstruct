@@ -3,6 +3,8 @@ import { ForbiddenError, NotFoundError } from "../utils/errors.js";
 import * as notificationsService from "../notifications/service.js";
 import { assertProjectWritable, refreshProjectProgress } from "../lifecycle/service.js";
 import * as repo from "./repository.js";
+import * as tasksRepo from "../tasks/repository.js";
+import { resolveDueDateAgainstMilestone } from "../tasks/service.js";
 import type {
   CreateMilestoneInput,
   CreateMilestoneLinkInput,
@@ -55,6 +57,17 @@ export const update = async (id: number, input: UpdateMilestoneInput) => {
   const updated = await repo.update(id, input);
   if (!updated) throw new NotFoundError("Milestone", String(id));
 
+  // A moved milestone date carries its linked tasks with it: any unfinished
+  // task now due after the milestone (or with no due date) is pulled to the
+  // milestone's date, and the PM and the assignee are told. Tasks already due
+  // earlier are left alone — they still fit.
+  if (
+    input.estimatedCompletionDate &&
+    input.estimatedCompletionDate !== existing.estimatedCompletionDate
+  ) {
+    await syncLinkedTaskDueDates(updated);
+  }
+
   if (input.status && input.status !== existing.status) {
     const recipients = NOTIFY_ROLES_BY_STATUS[input.status] ?? [];
     await Promise.all(
@@ -73,6 +86,42 @@ export const update = async (id: number, input: UpdateMilestoneInput) => {
   return updated;
 };
 
+const syncLinkedTaskDueDates = async (milestone: {
+  id: number;
+  projectCode: string;
+  title: string;
+  estimatedCompletionDate: string | null;
+}) => {
+  const limit = milestone.estimatedCompletionDate;
+  if (!limit) return;
+  const links = await repo.findLinks(milestone.id);
+  const moved: string[] = [];
+  for (const link of links) {
+    if (link.linkType !== "task" || !link.task) continue;
+    const task = await tasksRepo.findById(link.task.id);
+    if (!task || task.status === "Completed") continue;
+    if (task.dueDate && task.dueDate <= limit) continue;
+    await tasksRepo.update(task.id, { dueDate: limit });
+    moved.push(task.title);
+    if (task.assignedToUserId != null) {
+      await notificationsService.create({
+        recipientUserId: task.assignedToUserId,
+        projectCode: task.projectCode,
+        title: "Task due date changed",
+        body: `"${task.title}" is now due ${limit}, following milestone "${milestone.title}".`,
+        link: "/tasks",
+      });
+    }
+  }
+  if (moved.length > 0) {
+    await notificationsService.notifyProject(milestone.projectCode, ["project-manager"], {
+      title: "Linked task due dates moved",
+      body: `Milestone "${milestone.title}" is now due ${limit}; ${moved.length} linked task(s) were brought in line: ${moved.join(", ")}`,
+      link: `/projects/${encodeURIComponent(milestone.projectCode)}`,
+    });
+  }
+};
+
 export const remove = async (id: number) => {
   const existing = await getById(id);
   const deleted = await repo.remove(id);
@@ -88,7 +137,7 @@ export const remove = async (id: number) => {
 // single requireRole() since it depends on the request BODY, not just the
 // role, so it's enforced here instead.
 const assertCanLink = (requesterRole: string, linkType: string) => {
-  if (["project-manager", "admin", "it-designer"].includes(requesterRole)) return;
+  if (["project-manager", "admin"].includes(requesterRole)) return;
   if (requesterRole === "engineer" && linkType === "task") return;
   throw new ForbiddenError(
     `Role '${requesterRole}' cannot link a '${linkType}' to a milestone`,
@@ -103,6 +152,16 @@ export const createLink = async (
   assertCanLink(requesterRole, input.linkType);
   const milestone = await getById(milestoneId);
   await assertProjectWritable(milestone.projectCode);
+
+  // A task can't outlive the milestone it is linked to: one already due later
+  // is refused, one with no date inherits the milestone's.
+  if (input.linkType === "task") {
+    const task = await tasksRepo.findById(input.linkId);
+    if (!task) throw new NotFoundError("Task", String(input.linkId));
+    const resolved = resolveDueDateAgainstMilestone(task.dueDate, milestone);
+    if (resolved && resolved !== task.dueDate) await tasksRepo.update(task.id, { dueDate: resolved });
+  }
+
   const created = await repo.createLink(milestoneId, input);
   if (!created) throw new Error("Failed to create milestone link");
   await refreshProjectProgress(milestone.projectCode);

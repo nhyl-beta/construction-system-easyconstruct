@@ -30,6 +30,20 @@ export const PROJECT_CURRENCIES: ReadonlyArray<{ code: string; label: string }> 
   { code: "AED", label: "UAE Dirham (AED)" },
 ];
 
+/**
+ * Project types the New Project wizard offers. Must stay in step with
+ * PROJECT_TYPES in server/src/validators/project-validator.ts.
+ */
+export const PROJECT_TYPES = [
+  "Commercial",
+  "Residential",
+  "Infrastructure",
+  "Industrial",
+  "Renewable Energy",
+] as const;
+
+export type ProjectType = (typeof PROJECT_TYPES)[number];
+
 export type StatusTone = "success" | "warning" | "destructive" | "neutral";
 
 export interface Project {
@@ -51,6 +65,10 @@ export interface Project {
   due: string; // ISO date or human string
   risk: RiskLevel;
   description?: string | null;
+  projectType?: string | null;
+  /** ISO yyyy-MM-dd. */
+  plannedStartDate?: string | null;
+  scopeSummary?: string | null;
   // Registered site position. Attendance clock-ins are measured against it
   // (server/src/attendance/service.ts); null means no geofence is enforced.
   siteLatitude?: number | null;
@@ -62,6 +80,7 @@ export interface ProjectsQuery {
   q?: string;
   status?: string;
   risk?: RiskLevel | "any";
+  projectType?: string;
   page?: number;
   perPage?: number;
 }

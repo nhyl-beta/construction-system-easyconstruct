@@ -12,8 +12,13 @@ import {
 export function useIssues() {
   const [issues, setIssues] = useState<IssueRecord[]>([]);
   const [loading, setLoading] = useState(true);
+  // `error` is about LOADING the list only. A failed status update used to
+  // share it, and the page renders `error` in place of the list — so one
+  // rejected update (e.g. empty resolution notes) replaced every issue with an
+  // error message. Update failures are kept per issue instead.
   const [error, setError] = useState<string | null>(null);
   const [updating, setUpdating] = useState<number | null>(null);
+  const [updateErrors, setUpdateErrors] = useState<Record<number, string>>({});
 
   const refresh = useCallback(async () => {
     setLoading(true);
@@ -35,14 +40,19 @@ export function useIssues() {
   const updateStatus = useCallback(
     async (id: number, input: UpdateIssueStatusInput) => {
       setUpdating(id);
-      setError(null);
+      setUpdateErrors((prev) => {
+        if (!(id in prev)) return prev;
+        const next = { ...prev };
+        delete next[id];
+        return next;
+      });
       try {
         const res = await issuesRepository.updateStatus(id, input);
         setIssues((prev) => prev.map((i) => (i.id === id ? res.data : i)));
         return res.data;
       } catch (e) {
         const message = e instanceof Error ? e.message : "Failed to update issue";
-        setError(message);
+        setUpdateErrors((prev) => ({ ...prev, [id]: message }));
         return null;
       } finally {
         setUpdating(null);
@@ -51,5 +61,14 @@ export function useIssues() {
     [],
   );
 
-  return { issues, loading, error, updating, updateStatus, refresh };
+  const clearUpdateError = useCallback((id: number) => {
+    setUpdateErrors((prev) => {
+      if (!(id in prev)) return prev;
+      const next = { ...prev };
+      delete next[id];
+      return next;
+    });
+  }, []);
+
+  return { issues, loading, error, updating, updateErrors, clearUpdateError, updateStatus, refresh };
 }

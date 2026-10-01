@@ -25,6 +25,8 @@ export interface AttendanceEntry {
   latitude: number | null;
   longitude: number | null;
   distanceFromSiteM: number | null;
+  /** "Clock-in" (live, photo + geofence) or "Sheet" (imported from a site attendance spreadsheet). */
+  source: string;
 }
 
 export interface AttendanceQuery {
@@ -61,6 +63,7 @@ interface BackendAttendance {
   latitude: string | number | null;
   longitude: string | number | null;
   distanceFromSiteM: number | null;
+  source?: string;
 }
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -92,6 +95,7 @@ function normalize(raw: BackendAttendance, nameLookup: Map<string, { name: strin
     latitude: raw.latitude != null ? Number(raw.latitude) : null,
     longitude: raw.longitude != null ? Number(raw.longitude) : null,
     distanceFromSiteM: raw.distanceFromSiteM ?? null,
+    source: raw.source ?? "Clock-in",
   };
 }
 

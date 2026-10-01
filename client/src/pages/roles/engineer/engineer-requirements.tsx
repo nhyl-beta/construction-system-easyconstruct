@@ -1,5 +1,5 @@
 import { useState, type FormEvent } from "react";
-import { FileText, ListChecks } from "lucide-react";
+import { FileText, ListChecks, Paperclip, Send } from "lucide-react";
 import { toast } from "sonner";
 
 import { PageContainer } from "@/components/refine-ui/views/page-container";
@@ -29,9 +29,14 @@ import {
 } from "@/components/ui/select";
 
 import { ProjectPicker } from "@/components/shared/project-picker";
+import { FileListPicker } from "@/components/shared/file-list-picker";
+import { uploadsRepository } from "@/features/uploads/repositories/uploads.repository";
+import { openFileUrl } from "@/lib/file-url";
 import { useRequirements } from "@/features/requirements/hooks/useRequirements";
 import {
   REQUIREMENT_CATEGORIES,
+  type Requirement,
+  type RequirementAttachment,
   type RequirementCategory,
 } from "@/features/requirements/types/requirements.types";
 import { RequirementService } from "@/features/requirements/services/requirement.service";
@@ -44,6 +49,30 @@ const STATUS_TONE: Record<string, string> = {
   Rejected: "bg-destructive/10 text-destructive border-destructive/20",
 };
 
+/** Reads a File and stores it through POST /api/uploads. */
+function readAsDataUrl(file: File): Promise<string> {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = () => resolve(reader.result as string);
+    reader.onerror = () => reject(new Error(`Could not read ${file.name}`));
+    reader.readAsDataURL(file);
+  });
+}
+
+async function uploadAttachments(files: File[]): Promise<RequirementAttachment[]> {
+  const uploaded: RequirementAttachment[] = [];
+  for (const file of files) {
+    const res = await uploadsRepository.upload(file.name, file.type || "application/octet-stream", await readAsDataUrl(file));
+    uploaded.push({
+      url: res.data.url,
+      filename: res.data.filename,
+      contentType: res.data.contentType,
+      sizeBytes: res.data.sizeBytes,
+    });
+  }
+  return uploaded;
+}
+
 function NewRequirementDialog({
   createRequirement,
   engineerName,
@@ -53,6 +82,7 @@ function NewRequirementDialog({
     project: string;
     category: RequirementCategory;
     description: string;
+    attachments: RequirementAttachment[];
     createdBy: string;
   }) => Promise<void>;
   engineerName: string;
@@ -63,24 +93,38 @@ function NewRequirementDialog({
   const [project, setProject] = useState("");
   const [category, setCategory] = useState<RequirementCategory | "">("");
   const [description, setDescription] = useState("");
+  const [files, setFiles] = useState<File[]>([]);
+  const [fileError, setFileError] = useState<string | null>(null);
+  const [triedSubmit, setTriedSubmit] = useState(false);
 
   const reset = () => {
     setTitle("");
     setProject("");
     setCategory("");
     setDescription("");
+    setFiles([]);
+    setFileError(null);
+    setTriedSubmit(false);
   };
 
   const handleSubmit = async (e: FormEvent) => {
     e.preventDefault();
+    setTriedSubmit(true);
     if (!title || !project || !category || !description) return;
+    // A requirement — even a draft — has to carry its supporting file.
+    if (files.length === 0) {
+      setFileError("Attach at least one file.");
+      return;
+    }
     setSubmitting(true);
     try {
+      const attachments = await uploadAttachments(files);
       await createRequirement({
         title,
         project,
         category,
         description,
+        attachments,
         createdBy: engineerName,
       });
       toast.success("Requirement saved as draft");
@@ -147,6 +191,22 @@ function NewRequirementDialog({
               required
             />
           </div>
+          <div className="space-y-1.5">
+            <Label>
+              Supporting file <span className="text-destructive">*</span>
+            </Label>
+            <FileListPicker
+              files={files}
+              onChange={(next) => {
+                setFiles(next);
+                if (next.length > 0) setFileError(null);
+              }}
+              onError={setFileError}
+              disabled={submitting}
+              invalid={triedSubmit && files.length === 0}
+            />
+            {fileError && <p role="alert" className="text-xs text-destructive">{fileError}</p>}
+          </div>
           <DialogFooter>
             <Button type="submit" disabled={submitting} className="rounded-xl">
               {submitting ? "Saving…" : "Save as draft"}
@@ -160,7 +220,35 @@ function NewRequirementDialog({
 
 export default function RequirementsPage() {
   const { user } = useAuth();
-  const { requirements, loading, createRequirement } = useRequirements();
+  const { requirements, loading, createRequirement, submitRequirement, addAttachments } = useRequirements();
+  const [busyId, setBusyId] = useState<number | null>(null);
+
+  const submitForApproval = async (r: Requirement) => {
+    setBusyId(r.dbId);
+    try {
+      await submitRequirement(r.dbId);
+      toast.success("Submitted — it's now in the Project Manager's approval queue");
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : "Failed to submit requirement");
+    } finally {
+      setBusyId(null);
+    }
+  };
+
+  // Older drafts may have no file on record; let the engineer add one so the
+  // draft can be submitted.
+  const attachTo = async (r: Requirement, picked: FileList | null) => {
+    if (!picked || picked.length === 0) return;
+    setBusyId(r.dbId);
+    try {
+      await addAttachments(r, await uploadAttachments(Array.from(picked)));
+      toast.success("File attached");
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : "Failed to attach file");
+    } finally {
+      setBusyId(null);
+    }
+  };
 
   const approved = RequirementService.countByStatus(requirements, "Approved");
   const underReview = RequirementService.countByStatus(requirements, "Under Review");
@@ -240,8 +328,52 @@ export default function RequirementsPage() {
                       </Badge>
                     </div>
                     <p className="text-sm text-muted-foreground">{r.description}</p>
-                    <div className="text-xs text-muted-foreground">
-                      {r.createdBy} · {r.updatedAgo}
+                    {r.attachments.length > 0 && (
+                      <ul className="flex flex-wrap gap-2">
+                        {r.attachments.map((a) => (
+                          <li key={a.url}>
+                            <button
+                              type="button"
+                              className="flex items-center gap-1 rounded-lg border border-border px-2 py-1 text-xs text-primary hover:bg-muted/40"
+                              onClick={() => void openFileUrl(a.url).catch((err: Error) => toast.error(err.message))}
+                            >
+                              <Paperclip className="h-3 w-3" /> {a.filename}
+                            </button>
+                          </li>
+                        ))}
+                      </ul>
+                    )}
+                    <div className="flex flex-wrap items-center justify-between gap-2">
+                      <div className="text-xs text-muted-foreground">
+                        {r.createdBy} · {r.updatedAgo}
+                      </div>
+                      {r.status === "Draft" && (
+                        <div className="flex items-center gap-2">
+                          {r.attachments.length === 0 && (
+                            <label className="cursor-pointer text-xs text-primary hover:underline">
+                              Attach a file to submit
+                              <input
+                                type="file"
+                                className="hidden"
+                                disabled={busyId === r.dbId}
+                                onChange={(e) => {
+                                  void attachTo(r, e.target.files);
+                                  e.target.value = "";
+                                }}
+                              />
+                            </label>
+                          )}
+                          <Button
+                            size="sm"
+                            className="h-7 rounded-lg text-xs"
+                            disabled={busyId === r.dbId || r.attachments.length === 0}
+                            title={r.attachments.length === 0 ? "Attach a file before submitting" : "Send to the Project Manager for approval"}
+                            onClick={() => void submitForApproval(r)}
+                          >
+                            <Send className="h-3 w-3" /> {busyId === r.dbId ? "Working…" : "Submit for approval"}
+                          </Button>
+                        </div>
+                      )}
                     </div>
                   </div>
                 ))}

@@ -10,7 +10,7 @@
 // can actually display, with an explicit, readable state for everything else
 // and for files that are no longer on the server. Opening in a new tab and
 // downloading stay available, they are just no longer the only outcome.
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import { Download, ExternalLink, FileWarning, Loader2 } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
@@ -22,7 +22,7 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
-import { isRealFileUrl, resolveFileUrl } from "@/lib/file-url";
+import { downloadFileUrl, isRealFileUrl, useFileObjectUrl } from "@/lib/file-url";
 
 type PreviewKind = "image" | "pdf" | "other";
 
@@ -51,35 +51,17 @@ export function FilePreviewDialog({
   title,
   description,
 }: FilePreviewDialogProps) {
-  const resolved = isRealFileUrl(url) ? resolveFileUrl(url as string) : null;
-  const kind = resolved ? previewKind(resolved) : "other";
+  const hasFile = isRealFileUrl(url);
+  const kind = hasFile ? previewKind(url as string) : "other";
 
-  // "available" is checked rather than assumed: rows survive their files (an
-  // upload written to a container's local disk is gone on the next deploy),
-  // and a reviewer needs to be told that rather than shown an empty frame.
-  const [available, setAvailable] = useState<boolean | null>(null);
-
-  useEffect(() => {
-    if (!open || !resolved) {
-      setAvailable(null);
-      return;
-    }
-
-    let active = true;
-    setAvailable(null);
-
-    fetch(resolved, { method: "HEAD" })
-      .then((response) => {
-        if (active) setAvailable(response.ok);
-      })
-      .catch(() => {
-        if (active) setAvailable(false);
-      });
-
-    return () => {
-      active = false;
-    };
-  }, [open, resolved]);
+  // The file is fetched WITH the caller's token (stored files are private —
+  // see lib/file-url.ts) and shown from an object URL. "available" is derived
+  // from that fetch: rows survive their files (an upload written to a
+  // container's local disk is gone on the next deploy), and a reviewer needs
+  // to be told that rather than shown an empty frame.
+  const { objectUrl: resolved, error, loading } = useFileObjectUrl(url, open && hasFile);
+  const available: boolean | null = !hasFile || loading ? null : error ? false : resolved ? true : null;
+  const [downloadError, setDownloadError] = useState<string | null>(null);
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
@@ -96,21 +78,21 @@ export function FilePreviewDialog({
         </DialogHeader>
 
         <div className="flex min-h-72 items-center justify-center overflow-hidden rounded-xl border border-border/70 bg-muted/30">
-          {!resolved && (
+          {!hasFile && (
             <PreviewNotice
               title="No file was attached"
               body="This record was created without an uploaded file, so there is nothing to display."
             />
           )}
 
-          {resolved && available === null && (
+          {hasFile && available === null && (
             <p className="flex items-center gap-2 px-6 py-12 text-sm text-muted-foreground">
               <Loader2 className="h-4 w-4 animate-spin" />
               Loading document…
             </p>
           )}
 
-          {resolved && available === false && (
+          {hasFile && available === false && (
             <PreviewNotice
               title="This file is no longer on the server"
               body="The record still references it, but the stored file cannot be found. Ask the uploader to attach it again."
@@ -145,32 +127,31 @@ export function FilePreviewDialog({
           <Button variant="ghost" onClick={() => onOpenChange(false)}>
             Close
           </Button>
-          {/* Gated on `resolved` only — NOT on `available`. These used to
-              only render once our own HEAD-request availability probe came
-              back `true`, so a probe that failed for any reason other than a
-              genuinely missing file (a HEAD request blocked by an extension,
-              a proxy/CDN that doesn't support HEAD, a slow or dropped
-              response) silently took away the only way to open or download a
-              document that was actually sitting on the server. A top-level
-              navigation (clicking a link) isn't subject to the same
-              restrictions a background `fetch` is, so it can succeed even
-              when the probe didn't — and if the file truly is gone, the
-              resulting browser error is no worse than what "not available"
-              already told the user. */}
-          {resolved && (
-            <div className="flex gap-2">
-              <Button variant="outline" asChild>
-                <a href={resolved} target="_blank" rel="noreferrer">
-                  <ExternalLink className="h-4 w-4" />
-                  Open in new tab
-                </a>
-              </Button>
-              <Button asChild>
-                <a href={resolved} download>
+          {hasFile && (
+            <div className="flex flex-col items-end gap-1">
+              <div className="flex gap-2">
+                <Button variant="outline" asChild disabled={!resolved}>
+                  <a href={resolved ?? undefined} target="_blank" rel="noreferrer">
+                    <ExternalLink className="h-4 w-4" />
+                    Open in new tab
+                  </a>
+                </Button>
+                <Button
+                  disabled={!resolved}
+                  onClick={() => {
+                    setDownloadError(null);
+                    downloadFileUrl(url).catch((err: Error) =>
+                      setDownloadError(err.message),
+                    );
+                  }}
+                >
                   <Download className="h-4 w-4" />
                   Download
-                </a>
-              </Button>
+                </Button>
+              </div>
+              {downloadError && (
+                <p className="text-xs text-destructive">{downloadError}</p>
+              )}
             </div>
           )}
         </DialogFooter>

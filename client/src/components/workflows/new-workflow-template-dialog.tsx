@@ -7,7 +7,7 @@
 // whatever had been seeded into the database, with no way to add another
 // without a migration.
 import { useState } from "react";
-import { GripVertical, Plus, Trash2 } from "lucide-react";
+import { ChevronDown, ChevronUp, GripVertical, Plus, Trash2 } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
 import {
@@ -52,7 +52,31 @@ const STAGE_ROLES: { value: string; label: string }[] = [
 // (see components/workflows/workflow-stage-pipeline.tsx's
 // WORKFLOW_STAGE_ICONS) — anything else silently falls back to a default,
 // so the picker only offers ones that render distinctly.
-const ICON_KEYS = ["UserCheck", "Wallet", "ShieldCheck", "FileSignature"] as const;
+//
+// The keys are component names (`UserCheck`), which is what the tester saw
+// listed verbatim. What a person picks is the kind of step, so each key gets
+// a readable label, and the roles allowed to hold it (same rules as
+// createWorkflowTemplateSchema on the server, which is the authority).
+const STEP_TYPES: { key: string; label: string; hint: string; roles: string[] | null }[] = [
+  { key: "UserCheck", label: "Review", hint: "Checks and comments on the request", roles: null },
+  { key: "FileSignature", label: "Submission", hint: "Prepares or submits the paperwork", roles: null },
+  { key: "Wallet", label: "Financial review", hint: "Checks cost and budget impact", roles: ["finance-manager"] },
+  { key: "ShieldCheck", label: "Sign-off", hint: "Final approval authority", roles: ["project-manager", "admin"] },
+];
+
+const stepTypesForRole = (role: string) =>
+  STEP_TYPES.filter((t) => !t.roles || t.roles.includes(role));
+
+/** A role's natural step type — chosen for it when the role is picked. */
+const DEFAULT_STEP_TYPE_BY_ROLE: Record<string, string> = {
+  "finance-manager": "Wallet",
+  "project-manager": "ShieldCheck",
+  admin: "ShieldCheck",
+  architect: "FileSignature",
+  engineer: "FileSignature",
+};
+
+const MAX_STAGES = 10;
 
 interface DraftStage {
   role: string;
@@ -60,7 +84,9 @@ interface DraftStage {
   iconKey: string;
 }
 
-const emptyStage = (): DraftStage => ({ role: "", roleLabel: "", iconKey: "UserCheck" });
+// No step type until a role is chosen: the old default of "UserCheck" meant a
+// stage looked configured before anyone had decided what it was.
+const emptyStage = (): DraftStage => ({ role: "", roleLabel: "", iconKey: "" });
 
 export interface NewWorkflowTemplateDialogProps {
   open: boolean;
@@ -94,7 +120,15 @@ export function NewWorkflowTemplateDialog({
 
   const handleRoleChange = (index: number, role: string) => {
     const roleLabel = STAGE_ROLES.find((r) => r.value === role)?.label ?? "";
-    updateStage(index, { role, roleLabel });
+    // Keep the current step type if this role may hold it, otherwise fall
+    // back to the role's natural one.
+    const current = stages[index]?.iconKey ?? "";
+    const allowed = stepTypesForRole(role).some((t) => t.key === current);
+    updateStage(index, {
+      role,
+      roleLabel,
+      iconKey: allowed ? current : (DEFAULT_STEP_TYPE_BY_ROLE[role] ?? "UserCheck"),
+    });
   };
 
   const moveStage = (index: number, direction: -1 | 1) => {
@@ -129,6 +163,17 @@ export function NewWorkflowTemplateDialog({
     }
     if (stages.some((s) => !s.role)) {
       setError("Every stage needs a role assigned to it.");
+      return;
+    }
+    if (stages.some((s) => !s.iconKey)) {
+      setError("Every stage needs a step type.");
+      return;
+    }
+    const roles = stages.map((s) => s.role);
+    const repeated = roles.find((r, i) => roles.indexOf(r) !== i);
+    if (repeated) {
+      const label = STAGE_ROLES.find((r) => r.value === repeated)?.label ?? repeated;
+      setError(`${label} is assigned to more than one stage. Each role can decide only one stage of a template.`);
       return;
     }
 
@@ -214,14 +259,14 @@ export function NewWorkflowTemplateDialog({
           <div className="grid gap-2 rounded-xl border border-border p-3">
             <div className="flex items-center justify-between">
               <Label className="text-xs uppercase tracking-wider text-muted-foreground">
-                Stages, in order
+                Stages, in order ({stages.length}/{MAX_STAGES})
               </Label>
               <Button
                 type="button"
                 size="sm"
                 variant="ghost"
                 className="h-7 rounded-lg text-xs"
-                disabled={creating || stages.length >= 10}
+                disabled={creating || stages.length >= MAX_STAGES}
                 onClick={() => setStages((prev) => [...prev, emptyStage()])}
               >
                 <Plus className="h-3.5 w-3.5" /> Add stage
@@ -231,7 +276,7 @@ export function NewWorkflowTemplateDialog({
             {stages.map((stage, index) => (
               <div
                 key={index}
-                className="grid grid-cols-[1.5rem_minmax(0,1fr)_7rem_2rem] items-center gap-2 rounded-lg bg-muted/30 p-2"
+                className="grid grid-cols-[1.5rem_minmax(0,1fr)_minmax(0,1fr)_auto_auto] items-center gap-2 rounded-lg bg-muted/30 p-2"
               >
                 <div className="flex flex-col items-center text-muted-foreground">
                   <GripVertical className="h-3.5 w-3.5" />
@@ -247,61 +292,73 @@ export function NewWorkflowTemplateDialog({
                   </SelectTrigger>
                   <SelectContent>
                     {STAGE_ROLES.map((r) => (
-                      <SelectItem key={r.value} value={r.value}>
+                      <SelectItem
+                        key={r.value}
+                        value={r.value}
+                        // A role already holding another stage is not offered
+                        // again (see the one-stage-per-role rule).
+                        disabled={stages.some((s, i) => i !== index && s.role === r.value)}
+                      >
                         {r.label}
                       </SelectItem>
                     ))}
                   </SelectContent>
                 </Select>
                 <Select
-                  value={stage.iconKey}
+                  value={stage.iconKey || undefined}
                   onValueChange={(v) => updateStage(index, { iconKey: v })}
-                  disabled={creating}
+                  disabled={creating || !stage.role}
                 >
                   <SelectTrigger className="h-9">
-                    <SelectValue />
+                    <SelectValue placeholder={stage.role ? "Step type" : "Pick a role first"} />
                   </SelectTrigger>
                   <SelectContent>
-                    {ICON_KEYS.map((key) => {
-                      const Icon = WORKFLOW_STAGE_ICONS[key];
+                    {stepTypesForRole(stage.role).map((type) => {
+                      const Icon = WORKFLOW_STAGE_ICONS[type.key];
                       return (
-                        <SelectItem key={key} value={key}>
+                        <SelectItem key={type.key} value={type.key}>
                           <span className="flex items-center gap-2">
-                            <Icon className="h-3.5 w-3.5" />
-                            {key}
+                            {Icon && <Icon className="h-3.5 w-3.5" />}
+                            {type.label}
                           </span>
                         </SelectItem>
                       );
                     })}
                   </SelectContent>
                 </Select>
-                <div className="flex flex-col">
+                {/* Reorder arrows sit in their own grid cell, beside the
+                    selects, instead of a 2rem column the old row squeezed
+                    them into (which is what pushed them out of the row). */}
+                <div className="flex items-center">
                   <button
                     type="button"
-                    className="text-muted-foreground hover:text-foreground disabled:opacity-30"
+                    className="rounded p-1 text-muted-foreground hover:bg-muted hover:text-foreground disabled:opacity-30"
                     disabled={creating || index === 0}
                     onClick={() => moveStage(index, -1)}
                     title="Move up"
+                    aria-label={`Move stage ${index + 1} up`}
                   >
-                    ▲
+                    <ChevronUp className="h-4 w-4" />
                   </button>
                   <button
                     type="button"
-                    className="text-muted-foreground hover:text-foreground disabled:opacity-30"
+                    className="rounded p-1 text-muted-foreground hover:bg-muted hover:text-foreground disabled:opacity-30"
                     disabled={creating || index === stages.length - 1}
                     onClick={() => moveStage(index, 1)}
                     title="Move down"
+                    aria-label={`Move stage ${index + 1} down`}
                   >
-                    ▼
+                    <ChevronDown className="h-4 w-4" />
                   </button>
                 </div>
                 <Button
                   type="button"
                   size="icon"
                   variant="ghost"
-                  className="col-span-4 h-7 w-fit justify-self-end rounded-lg text-destructive hover:text-destructive"
+                  className="h-8 w-8 rounded-lg text-destructive hover:text-destructive"
                   disabled={creating || stages.length <= 2}
                   title="Remove this stage"
+                  aria-label={`Remove stage ${index + 1}`}
                   onClick={() => setStages((prev) => prev.filter((_, i) => i !== index))}
                 >
                   <Trash2 className="h-3.5 w-3.5" />

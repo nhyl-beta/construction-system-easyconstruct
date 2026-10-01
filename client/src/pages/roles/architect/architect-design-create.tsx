@@ -19,7 +19,7 @@ import {
   type DesignFormData,
 } from "@/features/designs/hooks/useDesignCreate.ts";
 import { useProjectMembers } from "@/features/project-members/hooks/use-project-members";
-import { resolveFileUrl } from "@/lib/file-url";
+import { openFileUrl } from "@/lib/file-url";
 import { Checkbox } from "@/components/ui/checkbox";
 
 const STEPS: Step[] = [
@@ -507,14 +507,13 @@ function StepFiles({
                 key={f.url}
                 className="flex items-center justify-between gap-2 rounded-lg border border-border bg-card px-3 py-2 text-sm"
               >
-                <a
-                  href={resolveFileUrl(f.url)}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="truncate text-primary underline-offset-2 hover:underline"
+                <button
+                  type="button"
+                  onClick={() => void openFileUrl(f.url).catch(() => undefined)}
+                  className="truncate text-left text-primary underline-offset-2 hover:underline"
                 >
                   {f.name}
-                </a>
+                </button>
                 <button
                   type="button"
                   onClick={() => onRemove(f.url)}

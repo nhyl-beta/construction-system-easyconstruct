@@ -11,10 +11,18 @@
 // gap — an approver could not see what they were approving — so the fix
 // lives in one component rather than being applied twice and drifting.
 import { ApprovalQueuePanel } from "@/components/workflows/approval-queue-panel";
+import { RequirementApprovalsPanel } from "@/features/requirements/components/RequirementApprovalsPanel";
+import { useAuth } from "@/auth/auth-context";
 
 export default function ApprovalsPage() {
+  const { user } = useAuth();
+  // Engineers' submitted requirements are the Project Manager's to decide
+  // (the API enforces the same rule — requirements/service.ts).
+  const decidesRequirements = user?.role === "project-manager" || user?.role === "admin";
+
   return (
     <div className="flex-1 space-y-6 p-4 md:p-8">
+      {decidesRequirements && <RequirementApprovalsPanel />}
       <ApprovalQueuePanel />
     </div>
   );

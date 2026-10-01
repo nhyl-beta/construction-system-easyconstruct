@@ -5,6 +5,29 @@ import jwt from "jsonwebtoken";
 
 import { env } from "../config/env.js";
 import { UnauthorizedError, ForbiddenError } from "../utils/errors.js";
+import { findPasswordChangedAt } from "../auth/repository.js";
+
+// A password change (reset link, or IT Designer's admin reset) signs out every
+// session issued before it: the token's `iat` is compared with the account's
+// password_changed_at. The lookup is cached briefly per user so it is not a
+// query on every request; the process that performs a reset clears its own
+// entry immediately, other instances catch up within the TTL.
+const SESSION_CHECK_TTL_MS = 15_000;
+const passwordChangedCache = new Map<number, { at: number; changedAt: number | null }>();
+
+export const invalidateSessionCache = (userId: number) => {
+  passwordChangedCache.delete(userId);
+};
+
+const passwordChangedAtMs = async (userId: number): Promise<number | null | undefined> => {
+  const cached = passwordChangedCache.get(userId);
+  if (cached && Date.now() - cached.at < SESSION_CHECK_TTL_MS) return cached.changedAt;
+  const changedAt = await findPasswordChangedAt(userId);
+  if (changedAt === undefined) return undefined; // account no longer exists
+  const ms = changedAt ? changedAt.getTime() : null;
+  passwordChangedCache.set(userId, { at: Date.now(), changedAt: ms });
+  return ms;
+};
 
 export interface AuthedRequest extends Request {
   authUser?: {
@@ -15,7 +38,7 @@ export interface AuthedRequest extends Request {
   };
 }
 
-export function authenticate(
+export async function authenticate(
   req: AuthedRequest,
   _res: Response,
   next: NextFunction,
@@ -68,6 +91,19 @@ export function authenticate(
       return next(
         new UnauthorizedError("Invalid user ID in token"),
       );
+    }
+
+    // Signed out by a later password change? (`iat` is in whole seconds.)
+    const changedAt = await passwordChangedAtMs(userId);
+    if (changedAt === undefined) {
+      return next(new UnauthorizedError("Account no longer exists"));
+    }
+    if (
+      changedAt !== null &&
+      typeof verified.iat === "number" &&
+      verified.iat * 1000 < Math.floor(changedAt / 1000) * 1000
+    ) {
+      return next(new UnauthorizedError("Session expired — please sign in again"));
     }
 
     req.authUser = {

@@ -29,10 +29,50 @@ export const getById = async (id: number) => {
   return task;
 };
 
+/**
+ * A task linked to a milestone can never be due after it. Returns the due date
+ * the task should end up with: its own, if it fits; the milestone's, if it has
+ * none; and throws if it is later than the milestone's.
+ */
+export const resolveDueDateAgainstMilestone = (
+  dueDate: string | null | undefined,
+  milestone: { title: string; estimatedCompletionDate: string | null },
+): string | undefined => {
+  const limit = milestone.estimatedCompletionDate;
+  if (!limit) return dueDate ?? undefined;
+  if (!dueDate) return limit;
+  if (dueDate > limit) {
+    throw new ValidationError(
+      `Task due date (${dueDate}) cannot be later than the milestone "${milestone.title}" due date (${limit})`,
+    );
+  }
+  return dueDate;
+};
+
 export const create = async (input: CreateTaskInput) => {
   await assertProjectWritable(input.projectCode);
-  const task = await repo.create(input);
+  const { milestoneId, ...taskInput } = input;
+
+  // Validated before anything is written, so a rejected milestone link never
+  // leaves a half-created task behind.
+  let dueDate = taskInput.dueDate;
+  if (milestoneId != null) {
+    const milestone = await milestonesRepo.findById(milestoneId);
+    if (!milestone) throw new NotFoundError("Milestone", String(milestoneId));
+    if (milestone.projectCode !== taskInput.projectCode) {
+      throw new ValidationError("That milestone belongs to a different project");
+    }
+    if (milestone.status === "completed" || milestone.status === "cancelled") {
+      throw new ValidationError(`Milestone "${milestone.title}" is ${milestone.status} and can't take new tasks`);
+    }
+    dueDate = resolveDueDateAgainstMilestone(dueDate, milestone);
+  }
+
+  const task = await repo.create({ ...taskInput, dueDate });
   if (!task) throw new Error("Failed to create task");
+  if (milestoneId != null) {
+    await milestonesRepo.createLink(milestoneId, { linkType: "task", linkId: task.id });
+  }
   await refreshProjectProgress(task.projectCode);
   return task;
 };
@@ -113,6 +153,13 @@ export const updateStatus = async (
 export const update = async (id: number, input: UpdateTaskInput) => {
   const existing = await getById(id);
   await assertProjectWritable(existing.projectCode);
+
+  // A linked task can't be moved past any of its milestones' due dates.
+  if (input.dueDate) {
+    for (const milestone of await milestonesRepo.findMilestonesLinkedToTask(id)) {
+      resolveDueDateAgainstMilestone(input.dueDate, milestone);
+    }
+  }
   const updated = await repo.update(id, input);
   if (!updated) throw new NotFoundError("Task", String(id));
   await refreshProjectProgress(updated.projectCode);

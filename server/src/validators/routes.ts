@@ -35,11 +35,5 @@ router.post(
   validate(ownerRecoveryInitiateSchema),
   controller.initiateOwnerRecovery,
 );
-router.get(
-  "/owner-recovery/inbox",
-  authenticate,
-  requireRole("owner"),
-  controller.ownerRecoveryInbox,
-);
 
 export const authRoutes = router;

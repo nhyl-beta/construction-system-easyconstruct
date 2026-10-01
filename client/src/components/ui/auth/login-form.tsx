@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { EXPIRED_NOTICE_KEY } from "@/auth/session";
 import { Link } from "react-router";
 import { AlertCircle, CheckCircle2, Loader2, Mail } from "lucide-react";
 import {
@@ -22,6 +23,17 @@ export function LoginForm() {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [remember, setRemember] = useState(false);
+  // Set by the AuthProvider when a session ended on its own (expired token,
+  // or revoked by a password change) rather than by the user signing out.
+  const [sessionEnded] = useState(() => {
+    try {
+      const flag = sessionStorage.getItem(EXPIRED_NOTICE_KEY) === "1";
+      sessionStorage.removeItem(EXPIRED_NOTICE_KEY);
+      return flag;
+    } catch {
+      return false;
+    }
+  });
 
   const busy = status === "loading" || status === "success";
 
@@ -38,6 +50,14 @@ export function LoginForm() {
       </CardHeader>
 
       <CardContent className="space-y-5">
+        {sessionEnded && !formError && (
+          <Alert role="status">
+            <AlertCircle className="size-4" aria-hidden="true" />
+            <AlertDescription>
+              Your session has expired. Please sign in again.
+            </AlertDescription>
+          </Alert>
+        )}
         {formError && (
           <Alert variant="destructive" role="alert">
             <AlertCircle className="size-4" aria-hidden="true" />

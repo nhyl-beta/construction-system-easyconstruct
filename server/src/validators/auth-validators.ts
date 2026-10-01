@@ -13,7 +13,11 @@ export const forgotPasswordSchema = z.object({
 // client-side (client/src/hooks/use-auth-controllers.ts).
 export const resetPasswordSchema = z.object({
   token: z.string().min(1, "Reset token is required"),
-  password: z.string().min(10, "Password must be at least 10 characters"),
+  password: z
+    .string()
+    .min(10, "Password must be at least 10 characters")
+    .regex(/[A-Z]/, "Password needs an uppercase letter")
+    .regex(/\d/,"Password needs a number"),
 });
 
 export const ownerRecoveryInitiateSchema = z.object({

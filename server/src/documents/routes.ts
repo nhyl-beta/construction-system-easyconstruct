@@ -47,4 +47,12 @@ router.post(
   controller.upload,
 );
 
+// Removing an uploaded document is a governance action, not an editing one:
+// Admin, Owner and IT Designer only.
+router.delete(
+  "/:id",
+  requireRole("admin", "owner", "it-designer"),
+  controller.remove,
+);
+
 export default router;

@@ -1,5 +1,7 @@
 import * as repo from "./repository.js";
 import { assertProjectWritable, refreshProjectProgress } from "../lifecycle/service.js";
+import { deleteStoredFile } from "../uploads/service.js";
+import { NotFoundError } from "../utils/errors.js";
 
 import type {
   CreateDocumentInput,
@@ -25,6 +27,23 @@ export const create = async (
   // C5's Notice to Proceed, X2's Certificate of Completion).
   if (created) await refreshProjectProgress(created.project);
   return created;
+};
+
+/**
+ * Hard delete: the row and its stored file are removed. The audit log (written
+ * by the controller) is what keeps the record of who removed what and when —
+ * a soft-deleted row would also keep the file itself readable, which is the
+ * opposite of what removing an uploaded document is for.
+ */
+export const remove = async (id: number) => {
+  const existing = await repo.findById(id);
+  if (!existing) throw new NotFoundError("Document", String(id));
+  await assertProjectWritable(existing.project);
+  const deleted = await repo.remove(id);
+  if (existing.fileUrl) await deleteStoredFile(existing.fileUrl);
+  // Gate checks read document type (P5, C5, X2), so progress can change.
+  await refreshProjectProgress(existing.project);
+  return deleted;
 };
 
 export const upload = async ({

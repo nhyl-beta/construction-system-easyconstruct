@@ -16,6 +16,8 @@ export const ProjectsToolbar: React.FC<{
    * so the link would only ever lead to a form that 403s on submit.
    */
   showCreate?: boolean;
+  /** Filter controls rendered beside the search box (see ProjectsFilters). */
+  filters?: React.ReactNode;
   /** Archived is hidden by default (C12) — omitted callers just don't get the toggle. */
   showArchived?: boolean;
   onToggleArchived?: (next: boolean) => void;
@@ -28,6 +30,7 @@ export const ProjectsToolbar: React.FC<{
   view,
   setView,
   showCreate = true,
+  filters,
   showArchived,
   onToggleArchived,
   completedOnly,
@@ -51,6 +54,8 @@ export const ProjectsToolbar: React.FC<{
             className="h-9 rounded-xl border-border bg-muted/40 pl-9"
           />
         </div>
+
+        {filters}
 
         {showCreate && (
           <Button asChild className="rounded-xl">

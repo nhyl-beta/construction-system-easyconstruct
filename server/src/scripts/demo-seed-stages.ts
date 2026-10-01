@@ -331,6 +331,8 @@ async function buildPreConstructionPhase(code: string, t: Tokens, ids: Ids) {
         project: code,
         category,
         description: `Demo ${category.toLowerCase()} requirement for ${code}`,
+        // Requirements must carry a file (see requirement-validators.ts).
+        attachments: [{ url: "/uploads/generic/demo-requirement.pdf", filename: "demo-requirement.pdf", contentType: "application/pdf", sizeBytes: 1024 }],
         createdBy: "Paolo Mendoza",
       },
     });

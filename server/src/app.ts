@@ -1,5 +1,3 @@
-import os from "node:os";
-import path from "node:path";
 import express from "express";
 import designReviewsRoutes from "../src/designs/design-reviews/routes.js";
 import designRevisionsRoutes from "../src/designs/design-revisions/routes.js";
@@ -60,14 +58,9 @@ app.use(corsMiddleware);
 app.use(requestId);
 app.use(logger);
 
-app.use(
-  "/uploads",
-  express.static(
-    process.env.VERCEL
-      ? path.join(os.tmpdir(), "uploads")
-      : path.resolve(process.cwd(), "uploads"),
-  ),
-);
+// Uploaded files are deliberately NOT served statically: project documents
+// are private, so every stored file (Vercel Blob or local disk) is read
+// through the authenticated GET /api/uploads/file route instead.
 
 app.use("/api/projects", projectRoutes);
 app.use("/api/designs", designRoutes);

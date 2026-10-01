@@ -218,7 +218,7 @@ async function main() {
   for (const category of ["Materials", "Specifications"] as const) {
     const req = await api<{ id: number }>("/requirements", t.engineer, {
       method: "POST",
-      body: { title: `${category} requirement`, project: PROJECT_CODE, category, description: `Demo ${category.toLowerCase()} requirement for the walkthrough`, createdBy: "Paolo Mendoza" },
+      body: { title: `${category} requirement`, project: PROJECT_CODE, category, description: `Demo ${category.toLowerCase()} requirement for the walkthrough`, attachments: [{ url: "/uploads/generic/demo-requirement.pdf", filename: "demo-requirement.pdf", contentType: "application/pdf", sizeBytes: 1024 }], createdBy: "Paolo Mendoza" },
     });
     await api(`/requirements/${req.id}`, t.pm, { method: "PATCH", body: { status: "Approved" } });
   }

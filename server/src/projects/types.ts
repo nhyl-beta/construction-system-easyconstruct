@@ -16,6 +16,9 @@ export interface ProjectRecord {
   currency: string;
   workforce: number | null;
   description: string | null;
+  projectType: string | null;
+  plannedStartDate: string | null;
+  scopeSummary: string | null;
   siteLatitude: string | null;
   siteLongitude: string | null;
   geofenceRadiusM: number | null;
@@ -47,6 +50,9 @@ export interface CreateProjectInput {
   currency?: string;
   workforce?: number;
   description?: string;
+  projectType?: string;
+  plannedStartDate?: string;
+  scopeSummary?: string;
   siteLatitude?: number | string | null;
   siteLongitude?: number | string | null;
   geofenceRadiusM?: number | null;
@@ -62,5 +68,13 @@ export type UpdateProjectInput = Partial<
 export interface ProjectFilters {
   status?: string;
   risk?: string;
+  projectType?: string;
+  /** Hide the terminal Archived phase (the default view of the list). */
+  excludeArchived?: boolean;
   search?: string;
+  /** Project Manager scope (set by the service, never read from the request). */
+  pmUserId?: number;
+  pmName?: string;
+  page?: number;
+  pageSize?: number;
 }

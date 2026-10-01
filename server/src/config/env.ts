@@ -14,7 +14,17 @@ export const env = {
   CORS_ORIGIN:  process.env.CORS_ORIGIN ?? 'http://localhost:5173',
   // Origin the password-reset link points at. Defaults to the CORS origin,
   // which is already the browser app's address in every environment.
-  APP_URL:      process.env.APP_URL ?? process.env.CORS_ORIGIN ?? 'http://localhost:5173',
+  // CLIENT_URL is accepted as a synonym. Set it per environment to the
+  // address the browser app is actually served from — the link in a recovery
+  // email opens on the recipient's machine, so localhost only works when the
+  // client runs on that same machine.
+  APP_URL:      (process.env.APP_URL ?? process.env.CLIENT_URL ?? process.env.CORS_ORIGIN ?? 'http://localhost:5173').replace(/\/+$/, ''),
+  // Outgoing mail (Gmail SMTP). See mail/mailer.ts and .env.example.
+  MAIL_USER:         process.env.MAIL_USER,
+  MAIL_APP_PASSWORD: process.env.MAIL_APP_PASSWORD?.replace(/\s+/g, ''),
+  MAIL_FROM:         process.env.MAIL_FROM,
+  MAIL_HOST:         process.env.MAIL_HOST ?? 'smtp.gmail.com',
+  MAIL_PORT:         parseInt(process.env.MAIL_PORT ?? '465', 10),
   BLOB_READ_WRITE_TOKEN: process.env.BLOB_READ_WRITE_TOKEN,
   // Decision-support cost comparisons (server/src/ai-validation/cost.ts)
   // convert catalog USD prices to PHP with this dated constant rather than a

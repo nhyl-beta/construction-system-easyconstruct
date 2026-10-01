@@ -23,14 +23,13 @@ export interface OwnerRecoveryInitiateInput {
   targetUserId: number;
 }
 
-// The simulated "email" an Owner's fail-safe recovery request produces — see
-// auth/service.ts. No mail transport exists in this repo, so this record
-// stands in for an inbox: the reset link that would have been emailed.
-export interface OwnerRecoveryEmail {
+// What the Owner's fail-safe recovery request reports back. The reset link
+// itself is deliberately NOT here: it goes only to the Owner's mailbox.
+export interface OwnerRecoveryResult {
   to: string;
   targetUserId: number;
   targetName: string;
   targetEmail: string;
-  resetUrl: string;
+  expiresAt: string;
   createdAt: string;
 }

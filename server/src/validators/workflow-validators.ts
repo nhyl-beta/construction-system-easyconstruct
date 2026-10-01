@@ -52,6 +52,36 @@ export const workflowStageDefinitionSchema = z.object({
   iconKey: z.string().min(1).max(30).default("UserCheck"),
 });
 
+// ── Template authoring rules ─────────────────────────────────────────────
+//
+// Mirrored in client/src/components/workflows/new-workflow-template-dialog.tsx
+// (that copy only drives what the form offers; this one is the authority).
+//
+// Roles that can decide a stage — the requireRole() slugs. Owner is absent:
+// it is oversight-only everywhere else and never a decision-maker.
+export const TEMPLATE_STAGE_ROLES = [
+  "project-manager",
+  "admin",
+  "finance-manager",
+  "human-resources",
+  "architect",
+  "engineer",
+  "consultant",
+  "site-personnel",
+  "it-designer",
+] as const;
+
+// The step types (icon keys) a stage can have, and which roles may hold each.
+// A step type says what kind of decision the step is, so it can't be given to
+// any role at all: a financial review is Finance's, a sign-off is management's.
+// null = no restriction.
+export const TEMPLATE_STEP_TYPES: Record<string, readonly string[] | null> = {
+  UserCheck: null, // Review
+  FileSignature: null, // Submission
+  Wallet: ["finance-manager"], // Financial review
+  ShieldCheck: ["project-manager", "admin"], // Sign-off
+};
+
 // Admin/IT Designer defining a reusable workflow template — the steps/roles/
 // order a new workflow can later be started from (see workflows/service.ts
 // createTemplate). At least 2 stages: a 1-stage "workflow" is really just an
@@ -61,6 +91,32 @@ export const createWorkflowTemplateSchema = z.object({
   description: z.string().min(1).max(500),
   avgDurationHours: z.number().positive().max(10_000),
   defaultStages: z.array(workflowStageDefinitionSchema).min(2).max(10),
+}).superRefine((data, ctx) => {
+  const seen = new Set<string>();
+  data.defaultStages.forEach((stage, index) => {
+    const path = ["defaultStages", index];
+    if (!(TEMPLATE_STAGE_ROLES as readonly string[]).includes(stage.role)) {
+      ctx.addIssue({ code: "custom", path: [...path, "role"], message: `'${stage.role}' cannot be assigned to a workflow stage` });
+    }
+    if (!(stage.iconKey in TEMPLATE_STEP_TYPES)) {
+      ctx.addIssue({ code: "custom", path: [...path, "iconKey"], message: `Unknown step type '${stage.iconKey}'` });
+    } else {
+      const allowed = TEMPLATE_STEP_TYPES[stage.iconKey];
+      if (allowed && !allowed.includes(stage.role)) {
+        ctx.addIssue({
+          code: "custom",
+          path: [...path, "role"],
+          message: `A '${stage.iconKey}' step can only be assigned to: ${allowed.join(", ")}`,
+        });
+      }
+    }
+    // One stage per role. The same role twice in one chain is self-approval
+    // by another name, and the pipeline UI keys its stages by role.
+    if (seen.has(stage.role)) {
+      ctx.addIssue({ code: "custom", path: [...path, "role"], message: `Role '${stage.role}' is already assigned to another stage of this template` });
+    }
+    seen.add(stage.role);
+  });
 });
 
 export const decideStageSchema = z.object({

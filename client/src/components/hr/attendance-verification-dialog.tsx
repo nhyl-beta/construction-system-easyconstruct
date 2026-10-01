@@ -26,7 +26,7 @@ import {
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import type { AttendanceEntry } from "@/features/hr/attendance-api";
-import { isRealFileUrl, resolveFileUrl } from "@/lib/file-url";
+import { useFileObjectUrl } from "@/lib/file-url";
 
 interface AttendanceVerificationDialogProps {
   entry: AttendanceEntry | null;
@@ -53,9 +53,8 @@ export function AttendanceVerificationDialog({
     setSaving(null);
   }, [entry]);
 
-  const photo = isRealFileUrl(entry?.photoUrl)
-    ? resolveFileUrl(entry!.photoUrl as string)
-    : null;
+  // Stored photos are private — fetched with the caller's token (lib/file-url).
+  const { objectUrl: photo } = useFileObjectUrl(entry?.photoUrl);
 
   const hasPosition = entry?.latitude != null && entry?.longitude != null;
 

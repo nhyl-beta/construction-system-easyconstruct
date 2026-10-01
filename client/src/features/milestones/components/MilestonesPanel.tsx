@@ -110,28 +110,12 @@ export function MilestonesPanel({ projectCode, canManage }: MilestonesPanelProps
               </div>
               {canManage && (
                 <div className="flex shrink-0 items-center gap-1">
-                  <Select
-                    value={m.status}
-                    onValueChange={(v) => void update(m.id, { status: v as MilestoneStatus })}
-                    disabled={saving}
-                  >
-                    <SelectTrigger className="h-8 w-32 rounded-lg text-xs">
-                      <SelectValue />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="draft">Draft</SelectItem>
-                      <SelectItem value="active">Active</SelectItem>
-                      <SelectItem value="at-risk">At risk</SelectItem>
-                      <SelectItem value="completed">Completed</SelectItem>
-                      <SelectItem value="cancelled">Cancelled</SelectItem>
-                    </SelectContent>
-                  </Select>
                   <Button
                     variant="ghost"
                     size="icon"
                     className="h-8 w-8 rounded-lg"
                     disabled={saving}
-                    title="Edit date"
+                    title="Edit milestone"
                     onClick={() => setEditingMilestone(m)}
                   >
                     <Pencil className="h-3.5 w-3.5" />
@@ -184,7 +168,12 @@ function EditMilestoneDialog({
   saving: boolean;
   onSave: (
     id: number,
-    input: { title?: string; description?: string; estimatedCompletionDate?: string },
+    input: {
+      title?: string;
+      description?: string;
+      estimatedCompletionDate?: string;
+      status?: MilestoneStatus;
+    },
   ) => Promise<unknown>;
 }) {
   return (
@@ -216,9 +205,17 @@ function EditMilestoneForm({
   milestone: Milestone;
   saving: boolean;
   onCancel: () => void;
-  onSave: (input: { title: string; estimatedCompletionDate?: string }) => Promise<void>;
+  onSave: (input: {
+    title: string;
+    estimatedCompletionDate?: string;
+    status: MilestoneStatus;
+  }) => Promise<void>;
 }) {
   const [title, setTitle] = useState(milestone.title);
+  // Status used to be a dropdown on the row that saved the moment it changed.
+  // It lives in this form now, so nothing about a milestone is written until
+  // Save is clicked.
+  const [status, setStatus] = useState<MilestoneStatus>(milestone.status);
   const [estimatedCompletionDate, setEstimatedCompletionDate] = useState(
     milestone.estimatedCompletionDate ?? "",
   );
@@ -242,6 +239,21 @@ function EditMilestoneForm({
             placeholder="Select an estimated date"
           />
         </div>
+        <div className="grid gap-1.5">
+          <Label htmlFor="ms-edit-status">Status</Label>
+          <Select value={status} onValueChange={(v) => setStatus(v as MilestoneStatus)} disabled={saving}>
+            <SelectTrigger id="ms-edit-status">
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="draft">Draft</SelectItem>
+              <SelectItem value="active">Active</SelectItem>
+              <SelectItem value="at-risk">At risk</SelectItem>
+              <SelectItem value="completed">Completed</SelectItem>
+              <SelectItem value="cancelled">Cancelled</SelectItem>
+            </SelectContent>
+          </Select>
+        </div>
       </div>
       <DialogFooter>
         <Button variant="outline" disabled={saving} onClick={onCancel}>
@@ -249,7 +261,7 @@ function EditMilestoneForm({
         </Button>
         <Button
           disabled={saving || !title.trim()}
-          onClick={() => void onSave({ title: title.trim(), estimatedCompletionDate: estimatedCompletionDate || undefined })}
+          onClick={() => void onSave({ title: title.trim(), estimatedCompletionDate: estimatedCompletionDate || undefined, status })}
         >
           {saving ? "Saving…" : "Save"}
         </Button>

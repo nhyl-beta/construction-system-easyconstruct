@@ -1,27 +1,22 @@
 import bcrypt from "bcryptjs";
+import crypto from "node:crypto";
 import jwt from "jsonwebtoken";
 import * as repo from "./repository.js";
 import { NotFoundError, UnauthorizedError, ValidationError } from "../utils/errors.js";
 import { env } from "../config/env.js";
 import { logAudit } from "../utils/audit.js";
+import { assertMailConfigured, sendMail } from "../mail/mailer.js";
+import { invalidateSessionCache } from "../middleware/auth.js";
 import type {
   ForgotPasswordInput,
   LoginInput,
-  OwnerRecoveryEmail,
+  OwnerRecoveryResult,
   ResetPasswordInput,
 } from "./types.js";
 
 const JWT_EXPIRES_IN = "8h";
-const RESET_TOKEN_EXPIRES_IN = "30m";
-const RESET_TOKEN_TYPE = "password-reset";
+const RESET_TOKEN_TTL_MS = 30 * 60 * 1000;
 const PASSWORD_SALT_ROUNDS = 10;
-
-// A reset token is a JWT signed with the app secret *plus the user's current
-// password hash*. That makes it single-use for free: completing a reset
-// changes the hash, which changes the signing key, which invalidates every
-// token issued against the old one — no password_reset_tokens table, no
-// cleanup job, and no window where a leaked-then-used link still works.
-const resetSecret = (passwordHash: string) => `${env.JWT_SECRET}${passwordHash}`;
 
 /**
  * Records every sign-in attempt, successful or not, into the existing audit
@@ -104,25 +99,64 @@ export const login = async (input: LoginInput) => {
   };
 };
 
+// ---------------------------------------------------------------------------
+// Reset tokens
+//
+// A reset link carries a random 256-bit token. Only its SHA-256 is stored
+// (password_reset_tokens), so a database leak yields no usable links. A token
+// is bound to ONE user id — the account whose password it changes — expires
+// after 30 minutes, and is single use: redeeming it, or issuing a newer one
+// for the same account, marks it used.
+
+const hashToken = (token: string) =>
+  crypto.createHash("sha256").update(token).digest("hex");
+
+const buildResetUrl = (token: string) =>
+  `${env.APP_URL}/reset-password?token=${encodeURIComponent(token)}`;
+
+const issueResetToken = async (userId: number, requestedByUserId: number) => {
+  // Only the newest link should work.
+  await repo.revokeOpenResetTokens(userId);
+  const token = crypto.randomBytes(32).toString("base64url");
+  const expiresAt = new Date(Date.now() + RESET_TOKEN_TTL_MS);
+  await repo.createResetToken({
+    userId,
+    tokenHash: hashToken(token),
+    requestedByUserId,
+    expiresAt,
+  });
+  return { token, expiresAt, url: buildResetUrl(token) };
+};
+
+const resetEmailBody = (opts: {
+  greeting: string;
+  explanation: string;
+  url: string;
+}) => ({
+  text: `${opts.greeting}\n\n${opts.explanation}\n\n${opts.url}\n\nThis link expires in 30 minutes and can be used once. If you did not expect this email, ignore it — nothing changes until the link is used.`,
+  html: `<p>${opts.greeting}</p><p>${opts.explanation}</p><p><a href="${opts.url}">Set a new password</a></p><p style="color:#666;font-size:12px">Or paste this link into your browser:<br>${opts.url}</p><p style="color:#666;font-size:12px">This link expires in 30 minutes and can be used once. If you did not expect this email, ignore it — nothing changes until the link is used.</p>`,
+});
+
 export const requestPasswordReset = async (input: ForgotPasswordInput) => {
+  // Checked before the account lookup, so an unconfigured server fails the
+  // same way for every address instead of revealing which ones exist.
+  assertMailConfigured();
+
   const user = await repo.findByEmail(input.email);
 
   // Always report success. Telling an anonymous caller whether an address is
   // registered turns this endpoint into an account-enumeration oracle.
   if (!user || !user.isActive) return;
 
-  const token = jwt.sign(
-    { sub: user.id, typ: RESET_TOKEN_TYPE },
-    resetSecret(user.password),
-    { expiresIn: RESET_TOKEN_EXPIRES_IN },
-  );
+  const { url } = await issueResetToken(user.id, user.id);
 
-  const resetUrl = `${env.APP_URL}/reset-password?token=${encodeURIComponent(token)}`;
-
-  // No mail transport is configured anywhere in this repo, so delivery is
-  // logged instead of sent. Swapping this line for a real mailer is the only
-  // change needed to make recovery fully self-service.
-  console.log(`[auth] password reset link for ${user.email}: ${resetUrl}`);
+  const body = resetEmailBody({
+    greeting: `Hello ${user.name},`,
+    explanation:
+      "We received a request to reset the password for your EasyConstruct account. Use the link below to choose a new one.",
+    url,
+  });
+  await sendMail({ to: user.email, subject: "Reset your EasyConstruct password", ...body });
 
   await logAudit({
     entityType: "user",
@@ -134,45 +168,42 @@ export const requestPasswordReset = async (input: ForgotPasswordInput) => {
 };
 
 export const resetPassword = async (input: ResetPasswordInput) => {
-  // The user id has to be read before the signature can be checked, because
-  // the signing key is derived from that user's current password hash.
-  const decoded = jwt.decode(input.token);
+  const invalid = () => new ValidationError("This reset link is invalid or has expired");
 
-  if (
-    !decoded ||
-    typeof decoded === "string" ||
-    (typeof decoded.sub !== "string" && typeof decoded.sub !== "number")
-  ) {
-    throw new ValidationError("This reset link is invalid or has expired");
-  }
+  const record = await repo.findResetToken(hashToken(input.token));
+  if (!record || record.usedAt || record.expiresAt.getTime() < Date.now()) throw invalid();
 
-  const user = await repo.findById(Number(decoded.sub));
-  if (!user) throw new ValidationError("This reset link is invalid or has expired");
+  const user = await repo.findById(record.userId);
+  if (!user) throw invalid();
 
-  let verified: jwt.JwtPayload;
-  try {
-    verified = jwt.verify(input.token, resetSecret(user.password)) as jwt.JwtPayload;
-  } catch {
-    throw new ValidationError("This reset link is invalid or has expired");
-  }
-
-  // Reject a normal session token replayed here: only tokens minted by
-  // requestPasswordReset carry this claim.
-  if (verified.typ !== RESET_TOKEN_TYPE) {
-    throw new ValidationError("This reset link is invalid or has expired");
-  }
+  // Consume the token first, atomically: two concurrent submissions of the
+  // same link must not both succeed.
+  const consumed = await repo.consumeResetToken(record.id);
+  if (!consumed) throw invalid();
 
   await repo.updatePassword(
     user.id,
     await bcrypt.hash(input.password, PASSWORD_SALT_ROUNDS),
   );
+  // Any other outstanding link for this account is now meaningless.
+  await repo.revokeOpenResetTokens(user.id);
+  // Sessions issued before this moment are rejected from here on
+  // (middleware/auth.ts compares the token's iat with passwordChangedAt).
+  invalidateSessionCache(user.id);
+
+  const requestedBy =
+    record.requestedByUserId && record.requestedByUserId !== user.id
+      ? await repo.findById(record.requestedByUserId)
+      : null;
 
   await logAudit({
     entityType: "user",
     entityId: String(user.id),
     action: "updated",
     actor: user.name,
-    summary: `Completed a password reset for ${user.email}`,
+    summary: requestedBy
+      ? `Completed a password reset for ${user.email} (recovery requested by Owner ${requestedBy.email}); previous sessions were signed out`
+      : `Completed a password reset for ${user.email}; previous sessions were signed out`,
   });
 };
 
@@ -184,31 +215,25 @@ export const resetPassword = async (input: ResetPasswordInput) => {
 // account-management rights is doing the reset (IT Designer's admin reset —
 // see users/service.ts setPassword). Neither works if the IT Designer's own
 // account is the one that's locked out, since that role IS account
-// management. Owner is the one role above IT Designer in practice (it can
-// read everything, per role-tab.ts), so it gets a narrow, one-directional
-// escape hatch: recover the IT Designer account only, with the confirmation
-// link delivered to the OWNER's own registered email — never the IT
-// Designer's, since that mailbox may be exactly what's unreachable.
+// management. Owner is the one role above IT Designer in practice, so it gets
+// a narrow, one-directional escape hatch: recover the IT Designer account
+// only, with the link emailed to the OWNER's own registered address (the one
+// stored on the Owner account — never one supplied in the request, and never
+// the IT Designer's, since that mailbox may be exactly what's unreachable).
 //
-// It reuses the same signed-with-the-password-hash reset token as
-// requestPasswordReset/resetPassword above, so completing the flow is the
-// existing POST /api/auth/reset-password — no new "finish recovery" endpoint
-// needed, and the same single-use-by-construction guarantee applies.
+// Completing it is the ordinary POST /api/auth/reset-password: the token is
+// bound to the IT Designer's user id, so the new password lands on that
+// account and not the Owner's.
 const RECOVERABLE_ROLE = "it-designer";
-
-// No mail transport exists in this repo (see requestPasswordReset). Rather
-// than only logging to the server console, the generated link is also kept
-// here as a simulated inbox so the Owner can retrieve it from the UI itself
-// — this is a stand-in for real email delivery, not a persistence layer:
-// entries are per-process and are expected to be replaced by a real mailer.
-const ownerRecoveryInbox = new Map<number, OwnerRecoveryEmail>();
 
 export const initiateOwnerRecovery = async (
   ownerUserId: number,
   targetUserId: number,
-) => {
+): Promise<OwnerRecoveryResult> => {
+  assertMailConfigured();
+
   const owner = await repo.findById(ownerUserId);
-  if (!owner) throw new UnauthorizedError();
+  if (!owner || owner.role !== "owner") throw new UnauthorizedError();
 
   const target = await repo.findById(targetUserId);
   if (!target) throw new NotFoundError("User", String(targetUserId));
@@ -219,38 +244,46 @@ export const initiateOwnerRecovery = async (
     );
   }
 
-  const token = jwt.sign(
-    { sub: target.id, typ: RESET_TOKEN_TYPE },
-    resetSecret(target.password),
-    { expiresIn: RESET_TOKEN_EXPIRES_IN },
-  );
+  const { url, expiresAt } = await issueResetToken(target.id, owner.id);
 
-  const resetUrl = `${env.APP_URL}/reset-password?token=${encodeURIComponent(token)}`;
-
-  console.log(
-    `[auth] owner fail-safe recovery: link for IT Designer ${target.email} delivered to owner ${owner.email}: ${resetUrl}`,
-  );
-
-  const email: OwnerRecoveryEmail = {
-    to: owner.email,
-    targetUserId: target.id,
-    targetName: target.name,
-    targetEmail: target.email,
-    resetUrl,
-    createdAt: new Date().toISOString(),
-  };
-  ownerRecoveryInbox.set(owner.id, email);
-
+  // Audit the request before sending so a delivery failure is still on record.
   await logAudit({
     entityType: "user",
     entityId: String(target.id),
     action: "updated",
     actor: owner.name,
-    summary: `Owner fail-safe recovery: sent a password reset link for IT Designer account ${target.email} to ${owner.email}`,
+    summary: `Owner fail-safe recovery requested for IT Designer account ${target.email}; reset link emailed to ${owner.email}`,
   });
 
-  return email;
-};
+  const body = resetEmailBody({
+    greeting: `Hello ${owner.name},`,
+    explanation: `You requested recovery of the IT Designer account ${target.name} (${target.email}). Use the link below to set that account's new password.`,
+    url,
+  });
+  try {
+    await sendMail({
+      to: owner.email,
+      subject: `EasyConstruct: recover the IT Designer account (${target.name})`,
+      ...body,
+    });
+  } catch (error) {
+    await repo.revokeOpenResetTokens(target.id);
+    await logAudit({
+      entityType: "user",
+      entityId: String(target.id),
+      action: "updated",
+      actor: owner.name,
+      summary: `Owner fail-safe recovery email to ${owner.email} could not be delivered; link revoked`,
+    });
+    throw error;
+  }
 
-export const getOwnerRecoveryInbox = (ownerUserId: number) =>
-  ownerRecoveryInbox.get(ownerUserId) ?? null;
+  return {
+    to: owner.email,
+    targetUserId: target.id,
+    targetName: target.name,
+    targetEmail: target.email,
+    expiresAt: expiresAt.toISOString(),
+    createdAt: new Date().toISOString(),
+  };
+};

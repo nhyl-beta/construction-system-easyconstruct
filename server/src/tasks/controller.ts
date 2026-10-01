@@ -7,6 +7,7 @@ import { logAudit } from "../utils/audit.js";
 import * as service from "./service.js";
 import type { AuthedRequest } from "../middleware/auth.js";
 import type { TaskFilters } from "./types.js";
+import { scopeRowsToPm } from "../projects/service.js";
 
 export const getAll = async (req: AuthedRequest, res: Response, next: NextFunction) => {
   try {
@@ -24,7 +25,7 @@ export const getAll = async (req: AuthedRequest, res: Response, next: NextFuncti
           ? Number(req.query.assignedToUserId)
           : undefined,
     };
-    const data = await service.getAll(filters);
+    const data = await scopeRowsToPm(req.authUser, await service.getAll(filters), (t) => t.projectCode);
     res.json(formatSuccess(data, MSG.tasks.retrieved));
   } catch (err) {
     next(err);

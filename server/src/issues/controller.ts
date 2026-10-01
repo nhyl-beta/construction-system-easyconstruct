@@ -7,6 +7,7 @@ import { logAudit } from "../utils/audit.js";
 import * as service from "./service.js";
 import type { AuthedRequest } from "../middleware/auth.js";
 import type { IssueFilters } from "./types.js";
+import { scopeRowsToPm } from "../projects/service.js";
 
 export const getAll = async (req: AuthedRequest, res: Response, next: NextFunction) => {
   try {
@@ -19,7 +20,7 @@ export const getAll = async (req: AuthedRequest, res: Response, next: NextFuncti
       reportedByUserId:
         req.authUser?.role === "site-personnel" ? req.authUser.id : undefined,
     };
-    const data = await service.getAll(filters);
+    const data = await scopeRowsToPm(req.authUser, await service.getAll(filters), (i) => i.projectCode);
     res.json(formatSuccess(data, MSG.issues.retrieved));
   } catch (err) {
     next(err);
@@ -74,6 +75,7 @@ export const updateStatus = async (req: AuthedRequest, res: Response, next: Next
       req.body.status,
       req.body.resolutionNotes,
       req.authUser!.role,
+      { id: req.authUser!.id, name: req.authUser!.name },
     );
     await logAudit({
       entityType: "issue",

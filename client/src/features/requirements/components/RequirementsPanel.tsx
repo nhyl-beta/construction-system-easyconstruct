@@ -1,4 +1,5 @@
-import { Check, ClipboardList, X } from "lucide-react";
+import { Check, ClipboardList, Paperclip, X } from "lucide-react";
+import { openFileUrl } from "@/lib/file-url";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { useProjectRequirements } from "../hooks/useProjectRequirements";
@@ -62,7 +63,24 @@ export function RequirementsPanel({
                 </Badge>
               </div>
               <p className="text-sm text-muted-foreground">{r.description}</p>
-              {canDecide && (r.status === "Draft" || r.status === "Under Review") && (
+              {r.attachments.length > 0 && (
+                <ul className="flex flex-wrap gap-2">
+                  {r.attachments.map((a) => (
+                    <li key={a.url}>
+                      <button
+                        type="button"
+                        className="flex items-center gap-1 rounded-lg border border-border px-2 py-1 text-xs text-primary hover:bg-muted/40"
+                        onClick={() => void openFileUrl(a.url).catch(() => undefined)}
+                      >
+                        <Paperclip className="h-3 w-3" /> {a.filename}
+                      </button>
+                    </li>
+                  ))}
+                </ul>
+              )}
+              {/* Only a SUBMITTED requirement can be decided; a draft is still
+                  the engineer's (they submit it from their Requirements page). */}
+              {canDecide && r.status === "Under Review" && (
                 <div className="flex gap-2 pt-1">
                   <Button
                     size="sm"

@@ -6,6 +6,7 @@ import { ForbiddenError, NotFoundError, ValidationError } from "../utils/errors.
 import { assertProjectWritable, refreshProjectProgress } from "../lifecycle/service.js";
 import * as notificationsService from "../notifications/service.js";
 import * as repo from "./repository.js";
+import { projectCodesForPm } from "../projects/service.js";
 import type { CreateIssueInput, IssueFilters } from "./types.js";
 import { FEATURES } from "../config/features.js";
 
@@ -45,10 +46,23 @@ export const create = async (input: CreateIssueInput) => {
 };
 
 // Only reviewers can set an official resolution; the reporter can only view.
-export const updateStatus = async (id: number, status: string, resolutionNotes: string | undefined, actingRole: string) => {
+export const updateStatus = async (
+  id: number,
+  status: string,
+  resolutionNotes: string | undefined,
+  actingRole: string,
+  actor?: { id: number; name: string },
+) => {
   const existing = await getById(id);
   if (!["project-manager", "engineer"].includes(actingRole)) {
     throw new ForbiddenError("Only Project Managers or Engineers can update issue status");
+  }
+  // A Project Manager reviews the issues on their own projects only.
+  if (actingRole === "project-manager" && actor) {
+    const mine = await projectCodesForPm({ role: actingRole, userId: actor.id, name: actor.name });
+    if (!mine.has(existing.projectCode)) {
+      throw new ForbiddenError("You can only review issues on projects assigned to you");
+    }
   }
   await assertProjectWritable(existing.projectCode);
 

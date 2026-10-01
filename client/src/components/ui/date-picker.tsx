@@ -61,6 +61,12 @@ interface DatePickerProps {
   disabled?: boolean;
   /** Hides the clear button where the field is required. */
   clearable?: boolean;
+  /** Earliest selectable ISO date (inclusive). Earlier days are disabled. */
+  min?: string;
+  /** Latest selectable ISO date (inclusive). */
+  max?: string;
+  /** Marks the field invalid (red border) — set by the owning form. */
+  invalid?: boolean;
   className?: string;
 }
 
@@ -71,6 +77,9 @@ export function DatePicker({
   placeholder = "Pick a date",
   disabled = false,
   clearable = true,
+  min,
+  max,
+  invalid = false,
   className,
 }: DatePickerProps) {
   const [open, setOpen] = useState(false);
@@ -84,14 +93,25 @@ export function DatePicker({
     setText(selected ? format(selected, DISPLAY_FORMAT) : "");
   }, [value]); // eslint-disable-line react-hooks/exhaustive-deps
 
+  const minDate = toDate(min);
+  const maxDate = toDate(max);
+  const outOfRange = (date: Date) =>
+    (!!minDate && format(date, "yyyy-MM-dd") < format(minDate, "yyyy-MM-dd")) ||
+    (!!maxDate && format(date, "yyyy-MM-dd") > format(maxDate, "yyyy-MM-dd"));
+
   const commit = (date: Date | undefined) => {
+    if (date && outOfRange(date)) return;
     onChange(date ? format(date, "yyyy-MM-dd") : "");
     setOpen(false);
   };
 
   const commitTyped = () => {
     const parsed = parseTyped(text);
-    if (parsed) {
+    if (parsed && outOfRange(parsed)) {
+      // A typed date outside the allowed window is refused the same way the
+      // calendar refuses to select it — snap back to the last valid value.
+      setText(selected ? format(selected, DISPLAY_FORMAT) : "");
+    } else if (parsed) {
       onChange(format(parsed, "yyyy-MM-dd"));
     } else if (!text.trim()) {
       onChange("");
@@ -108,6 +128,7 @@ export function DatePicker({
         className={cn(
           "flex h-9 w-full items-center rounded-xl border border-input bg-transparent shadow-xs",
           "focus-within:ring-1 focus-within:ring-ring",
+          invalid && "border-destructive",
           disabled && "opacity-50",
           className,
         )}
@@ -146,7 +167,8 @@ export function DatePicker({
         <Calendar
           mode="single"
           selected={selected}
-          defaultMonth={selected}
+          defaultMonth={selected ?? minDate}
+          disabled={minDate || maxDate ? outOfRange : undefined}
           onSelect={commit}
           initialFocus
         />
@@ -156,6 +178,7 @@ export function DatePicker({
             variant="ghost"
             size="sm"
             className="rounded-lg"
+            disabled={outOfRange(new Date())}
             onClick={() => commit(new Date())}
           >
             Today

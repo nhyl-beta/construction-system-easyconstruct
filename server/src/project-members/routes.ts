@@ -11,13 +11,13 @@ router.use(authenticate);
 router.get("/", controller.getAll);
 router.post(
   "/",
-  requireRole("project-manager", "admin", "it-designer"),
+  requireRole("project-manager", "admin"),
   validate(createProjectMemberSchema),
   controller.create,
 );
 router.delete(
   "/:id",
-  requireRole("project-manager", "admin", "it-designer"),
+  requireRole("project-manager", "admin"),
   controller.remove,
 );
 

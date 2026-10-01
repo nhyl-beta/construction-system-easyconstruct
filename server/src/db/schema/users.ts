@@ -10,6 +10,10 @@ export const users = pgTable("users", {
   // a flag rather than a delete so audit history and FK references (employees,
   // project_members, workflows.createdBy) stay intact. Login rejects `false`.
   isActive: boolean("is_active").notNull().default(true),
+  // Bumped whenever the password changes. Session tokens issued before this
+  // instant are rejected (middleware/auth.ts), so a reset signs out whoever
+  // was using the old password.
+  passwordChangedAt: timestamp("password_changed_at"),
   createdAt: timestamp("created_at").defaultNow(),
   updatedAt: timestamp("updated_at").defaultNow(),
 });

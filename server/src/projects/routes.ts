@@ -8,6 +8,8 @@ import {
 import { authenticate, requireRole } from '../middleware/auth.js';
 import { ValidationError } from "../utils/errors.js";
 import lifecycleRoutes from "../lifecycle/routes.js";
+import * as service from "./service.js";
+import type { AuthedRequest } from "../middleware/auth.js";
 
 const router = Router();
 
@@ -31,11 +33,15 @@ const rejectLifecycleFields = (req: Request, _res: Response, next: NextFunction)
 
 router.use(authenticate);
 
+// IT Designer is deliberately absent from the write routes below: the Project
+// section is read-only for that role (system administration, not project
+// delivery). Enforced here, not just by hiding the buttons.
+
 router.get ('/',    controller.getAll);
 router.get ('/:id', controller.getById);
 router.post(
   '/',
-  requireRole("project-manager", "admin", "it-designer"),
+  requireRole("project-manager", "admin"),
   validate(createProjectSchema),
   controller.create,
 );
@@ -46,17 +52,34 @@ router.post(
 // engineer branch below is unreachable and removed.
 router.patch(
   '/:id',
-  requireRole("project-manager", "admin", "it-designer"),
+  requireRole("project-manager", "admin"),
   rejectLifecycleFields,
   validate(updateProjectSchema),
   controller.update,
 );
 router.delete(
   '/:id',
-  requireRole("project-manager", "admin", "it-designer"),
+  requireRole("project-manager", "admin"),
   controller.remove,
 );
 
-router.use('/:id/lifecycle', lifecycleRoutes);
+// A Project Manager can read or act on the lifecycle of their own projects
+// only — same ownership rule as the project record itself.
+const pmOwnsProject = async (req: AuthedRequest, _res: Response, next: NextFunction) => {
+  try {
+    if (req.authUser?.role === "project-manager") {
+      await service.getById(Number(req.params.id), {
+        role: req.authUser.role,
+        userId: req.authUser.id,
+        name: req.authUser.name,
+      });
+    }
+    next();
+  } catch (err) {
+    next(err);
+  }
+};
+
+router.use('/:id/lifecycle', pmOwnsProject, lifecycleRoutes);
 
 export default router;

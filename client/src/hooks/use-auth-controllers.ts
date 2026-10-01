@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { useAuth } from "@/auth/auth-context";
+import { apiUrl } from "@/services/api.client";
 
 type Status = "idle" | "loading" | "success" | "error";
 
@@ -28,7 +29,7 @@ export function useLoginController() {
 
     setStatus("loading");
     try {
-      const res = await fetch("/api/auth/login", {
+      const res = await fetch(apiUrl("/auth/login"), {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ email, password }),
@@ -56,18 +57,15 @@ export function useLoginController() {
 
 export function useLogoutController() {
   const navigate = useNavigate();
+  const auth = useAuth();
 
   const logout = () => {
-    // JWT here is stateless — no server-side session to invalidate,
-    // so signing out is purely client-side: clear whichever storage
-    // holds the token/user, then redirect. If a server-side session
-    // or refresh-token blacklist gets added later, this needs a
-    // POST /api/auth/logout call before clearing storage.
-    localStorage.removeItem("easyconstruct_token");
-    localStorage.removeItem("easyconstruct_user");
-    sessionStorage.removeItem("easyconstruct_token");
-    sessionStorage.removeItem("easyconstruct_user");
-
+    // JWT here is stateless — no server-side session to invalidate, so
+    // signing out is client-side: clear the stored session AND the auth
+    // context (clearing storage alone left the context signed in), then
+    // redirect. If a refresh-token blacklist gets added later, this needs a
+    // POST /api/auth/logout call first.
+    auth.logout();
     navigate("/login");
   };
 
@@ -84,7 +82,7 @@ export function useForgotPasswordController() {
 
     setStatus("loading");
     try {
-      const res = await fetch("/api/auth/forgot-password", {
+      const res = await fetch(apiUrl("/auth/forgot-password"), {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ email }),
@@ -114,6 +112,12 @@ export function useResetPasswordController() {
     if (password.length < 10) {
       return setErrors((e) => ({ ...e, password: "Must be at least 10 characters" }));
     }
+    if (!/[A-Z]/.test(password)) {
+      return setErrors((e) => ({ ...e, password: "Needs at least one uppercase letter" }));
+    }
+    if (!/\d/.test(password)) {
+      return setErrors((e) => ({ ...e, password: "Needs at least one number" }));
+    }
     if (password !== confirmPassword) {
       return setErrors((e) => ({ ...e, confirmPassword: "Passwords do not match" }));
     }
@@ -121,7 +125,7 @@ export function useResetPasswordController() {
     setStatus("loading");
     try {
       const token = new URLSearchParams(window.location.search).get("token");
-      const res = await fetch("/api/auth/reset-password", {
+      const res = await fetch(apiUrl("/auth/reset-password"), {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ token, password }),
