@@ -114,12 +114,8 @@ export default function ArchitectDashboard() {
       {/* K1: cross-project gate checks + workflow stages waiting on this architect */}
       <WaitingOnYouCard />
 
-      <div className="grid gap-4 lg:grid-cols-3">
-        <SectionCard
-          title="Active designs"
-          subtitle="Most recently updated"
-          className="lg:col-span-2"
-        >
+      <div className="grid gap-4">
+        <SectionCard title="Active designs" subtitle="Most recently updated">
           {c.loading ? (
             <div className="text-sm text-muted-foreground">Loading…</div>
           ) : c.recentDesigns.length === 0 ? (
@@ -145,43 +141,6 @@ export default function ArchitectDashboard() {
               ))}
             </div>
           )}
-        </SectionCard>
-
-        <SectionCard title="Quick actions">
-          <div className="space-y-2">
-            <QuickAction
-              icon={Upload}
-              label="Upload drawing"
-              description="Add a new DWG or PDF revision"
-              onClick={() => navigate("/designs/new")}
-            />
-            {/* Part C2: was hardcoded `disabled` even though POST
-                /design-reviews (server/src/designs/design-reviews/service.ts
-                create()) already works — a real design review is created
-                and shown to Consultant on /consultant/design-reviews. */}
-            <QuickAction
-              icon={Eye}
-              label="Request review"
-              description="Send a design to consultants"
-              onClick={() => setReviewDialogOpen(true)}
-            />
-            {/* Part C2: confirmed (grepped server/src) there is no general
-                discussion-thread table anywhere — only per-decision comment
-                fields on design reviews/workflow stages, never a standing
-                thread. Left disabled, relabeled to read as "not built"
-                rather than ambiguous. */}
-            <QuickAction
-              icon={MessageSquare}
-              label="Comment thread"
-              description="Not built yet — no discussion-thread table exists"
-              disabled
-            />
-            {/* Part C2: "Generate options / AI design variations" was a
-                fake-AI placeholder, never part of the real AI-validation
-                scope (proposal checks / cost-comparison / the five signal
-                rules) — removed outright, not wired up, same standard as
-                FEATURES.aiPlaceholders' surface table. */}
-          </div>
         </SectionCard>
       </div>
 
