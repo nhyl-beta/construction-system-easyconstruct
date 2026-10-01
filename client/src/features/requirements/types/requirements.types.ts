@@ -48,3 +48,32 @@ export interface CreateRequirementInput {
   attachments: RequirementAttachment[];
   createdBy: string;
 }
+
+export type StructuredSection = "objectives" | "materials" | "constraints" | "specifications";
+
+export interface StructuredSuggestion {
+  section: StructuredSection;
+  text: string;
+  reason: string;
+}
+
+export interface StructuredRewrite {
+  from: string;
+  to: string;
+}
+
+/** Output of POST /requirements/structure (rule-based, FEATURE_AI only). */
+export interface StructuredRequirement {
+  category: RequirementCategory;
+  workType: string;
+  sections: Record<StructuredSection, string[]>;
+  suggestions: StructuredSuggestion[];
+  rewrites: StructuredRewrite[];
+  description: string;
+}
+
+export interface StructureRequirementInput {
+  text: string;
+  title?: string;
+  category?: string;
+}

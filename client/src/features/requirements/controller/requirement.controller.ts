@@ -3,6 +3,7 @@ import type {
   Requirement,
   RequirementAttachment,
   RequirementFilters,
+  StructureRequirementInput,
 } from "../types/requirements.types";
 import { useEffect, useState } from "react";
 import { RequirementRepository } from "../repositories/requirement.repository";
@@ -63,5 +64,16 @@ export function useRequirementsController() {
     replace(await RequirementRepository.setAttachments(requirement.dbId, [...requirement.attachments, ...added]));
   };
 
-  return { requirements, loading, createRequirement, submitRequirement, addAttachments, reload: load };
+  /** Rule-based structuring of a rough note; saves nothing. */
+  const structureRequirement = (input: StructureRequirementInput) => RequirementRepository.structure(input);
+
+  return {
+    requirements,
+    loading,
+    createRequirement,
+    submitRequirement,
+    addAttachments,
+    structureRequirement,
+    reload: load,
+  };
 }

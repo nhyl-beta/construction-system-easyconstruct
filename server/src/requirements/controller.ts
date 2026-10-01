@@ -6,6 +6,9 @@ import type { AuthedRequest } from "../middleware/auth.js";
 import * as service from "./service.js";
 import type { RequirementFilters } from "./types.js";
 import { scopeRowsToPm } from "../projects/service.js";
+import { FEATURES } from "../config/features.js";
+import { NotFoundError } from "../utils/errors.js";
+import { structureRequirement } from "./structuring.js";
 
 export const getAll = async (req: Request, res: Response, next: NextFunction) => {
   try {
@@ -21,6 +24,16 @@ export const getAll = async (req: Request, res: Response, next: NextFunction) =>
       (r) => r.project,
     );
     res.json(formatSuccess(data, MSG.requirements.retrieved));
+  } catch (err) {
+    next(err);
+  }
+};
+
+// A: pure rule-based structuring; 404 when the AI feature flag is off.
+export const structure = async (req: Request, res: Response, next: NextFunction) => {
+  try {
+    if (!FEATURES.ai) throw new NotFoundError("Requirement structuring");
+    res.json(formatSuccess(structureRequirement(req.body), "Requirement structured"));
   } catch (err) {
     next(err);
   }

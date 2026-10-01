@@ -2,6 +2,8 @@ import type {
   CreateRequirementInput,
   Requirement,
   RequirementFilters,
+  StructureRequirementInput,
+  StructuredRequirement,
 } from "../types/requirements.types";
 import { RequirementRepository } from "../repositories/requirement.repository";
 
@@ -12,6 +14,10 @@ export const RequirementService = {
 
   async createRequirement(payload: CreateRequirementInput): Promise<Requirement> {
     return RequirementRepository.create(payload);
+  },
+
+  async structure(input: StructureRequirementInput): Promise<StructuredRequirement> {
+    return RequirementRepository.structure(input);
   },
 
   countByStatus(requirements: Requirement[], status: Requirement["status"]): number {

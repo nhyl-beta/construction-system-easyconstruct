@@ -30,6 +30,13 @@ export const createRequirementSchema = z.object({
   createdBy: z.string().min(2),
 });
 
+export const structureRequirementSchema = z.object({
+  text: z.string().trim().min(10, "Describe the requirement in at least 10 characters").max(5000),
+  title: z.string().max(255).optional(),
+  projectType: z.string().max(100).optional(),
+  category: z.string().max(50).optional(),
+});
+
 export const updateRequirementSchema = createRequirementSchema.partial();
 
 export type CreateRequirementInput = z.infer<typeof createRequirementSchema>;

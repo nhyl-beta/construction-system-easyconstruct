@@ -1,5 +1,5 @@
 import { useState, type FormEvent } from "react";
-import { FileText, ListChecks, Paperclip, Send } from "lucide-react";
+import { FileText, ListChecks, Paperclip, Send, Sparkles, Undo2 } from "lucide-react";
 import { toast } from "sonner";
 
 import { PageContainer } from "@/components/refine-ui/views/page-container";
@@ -12,6 +12,8 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
+import { Checkbox } from "@/components/ui/checkbox";
+import { FEATURES } from "@/config/features";
 import {
   Dialog,
   DialogContent,
@@ -38,7 +40,12 @@ import {
   type Requirement,
   type RequirementAttachment,
   type RequirementCategory,
+  type StructureRequirementInput,
+  type StructuredRequirement,
+  type StructuredRewrite,
+  type StructuredSuggestion,
 } from "@/features/requirements/types/requirements.types";
+import { appendToSection, undoRewrite } from "@/features/requirements/lib/structured-format";
 import { RequirementService } from "@/features/requirements/services/requirement.service";
 import { useAuth } from "@/auth/auth-context";
 
@@ -75,6 +82,7 @@ async function uploadAttachments(files: File[]): Promise<RequirementAttachment[]
 
 function NewRequirementDialog({
   createRequirement,
+  structureRequirement,
   engineerName,
 }: {
   createRequirement: (payload: {
@@ -85,6 +93,7 @@ function NewRequirementDialog({
     attachments: RequirementAttachment[];
     createdBy: string;
   }) => Promise<void>;
+  structureRequirement: (input: StructureRequirementInput) => Promise<StructuredRequirement>;
   engineerName: string;
 }) {
   const [open, setOpen] = useState(false);
@@ -96,8 +105,66 @@ function NewRequirementDialog({
   const [files, setFiles] = useState<File[]>([]);
   const [fileError, setFileError] = useState<string | null>(null);
   const [triedSubmit, setTriedSubmit] = useState(false);
+  // "Structure with AI" (rule-based). before holds what the engineer typed so
+  // the whole step can be undone; nothing is overwritten without a way back.
+  const [structuring, setStructuring] = useState(false);
+  const [structureError, setStructureError] = useState<string | null>(null);
+  const [before, setBefore] = useState<{ description: string; category: RequirementCategory | "" } | null>(null);
+  const [suggestions, setSuggestions] = useState<StructuredSuggestion[]>([]);
+  const [picked, setPicked] = useState<Set<string>>(new Set());
+  const [rewrites, setRewrites] = useState<StructuredRewrite[]>([]);
+
+  const clearStructuring = () => {
+    setBefore(null);
+    setSuggestions([]);
+    setPicked(new Set());
+    setRewrites([]);
+    setStructureError(null);
+  };
+
+  const runStructure = async () => {
+    setStructureError(null);
+    setStructuring(true);
+    try {
+      const result = await structureRequirement({ text: description, title: title || undefined });
+      // Re-structuring keeps the very first original so Undo goes all the way back.
+      setBefore((current) => current ?? { description, category });
+      setDescription(result.description);
+      setCategory(result.category);
+      setSuggestions(result.suggestions);
+      setPicked(new Set());
+      setRewrites(result.rewrites);
+    } catch (err) {
+      setStructureError(err instanceof Error ? err.message : "Could not structure the description.");
+    } finally {
+      setStructuring(false);
+    }
+  };
+
+  const undoStructuring = () => {
+    if (!before) return;
+    setDescription(before.description);
+    setCategory(before.category);
+    clearStructuring();
+  };
+
+  const addSelectedSuggestions = () => {
+    let next = description;
+    for (const s of suggestions) {
+      if (picked.has(s.text)) next = appendToSection(next, s.section, s.text);
+    }
+    setDescription(next);
+    setSuggestions((current) => current.filter((s) => !picked.has(s.text)));
+    setPicked(new Set());
+  };
+
+  const undoOneRewrite = (rewrite: StructuredRewrite) => {
+    setDescription((current) => undoRewrite(current, rewrite));
+    setRewrites((current) => current.filter((r) => r !== rewrite));
+  };
 
   const reset = () => {
+    clearStructuring();
     setTitle("");
     setProject("");
     setCategory("");
@@ -142,7 +209,7 @@ function NewRequirementDialog({
       <DialogTrigger asChild>
         <Button className="rounded-xl">New requirement</Button>
       </DialogTrigger>
-      <DialogContent className="sm:max-w-md">
+      <DialogContent className="max-h-[90vh] overflow-y-auto sm:max-w-md">
         <DialogHeader>
           <DialogTitle>Draft a requirement</DialogTitle>
         </DialogHeader>
@@ -182,14 +249,94 @@ function NewRequirementDialog({
             </div>
           </div>
           <div className="space-y-1.5">
-            <Label htmlFor="req-description">Description</Label>
+            <div className="flex items-center justify-between gap-2">
+              <Label htmlFor="req-description">Description</Label>
+              {FEATURES.ai && (
+                <div className="flex items-center gap-1">
+                  {before && (
+                    <Button type="button" variant="ghost" size="sm" className="h-7 gap-1 px-2 text-xs" onClick={undoStructuring}>
+                      <Undo2 className="h-3 w-3" /> Undo structuring
+                    </Button>
+                  )}
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    className="h-7 gap-1 rounded-lg px-2 text-xs"
+                    disabled={structuring || description.trim().length < 10}
+                    title={description.trim().length < 10 ? "Write a rough description first (10+ characters)" : "Organize into Objectives, Materials, Constraints and Specifications"}
+                    onClick={() => void runStructure()}
+                  >
+                    <Sparkles className="h-3 w-3" /> {structuring ? "Structuring…" : "Structure with AI"}
+                  </Button>
+                </div>
+              )}
+            </div>
             <Textarea
               id="req-description"
               value={description}
               onChange={(e) => setDescription(e.target.value)}
-              rows={4}
+              rows={before ? 10 : 4}
               required
             />
+            {structureError && (
+              <p role="alert" className="text-xs text-destructive">
+                {structureError} You can keep writing the description yourself.
+              </p>
+            )}
+            {FEATURES.ai && before && (
+              <div className="space-y-2 rounded-lg border border-border bg-muted/30 p-3 text-xs">
+                <p className="text-muted-foreground">
+                  Rule-based structuring — decision support only. Review the text above; nothing was saved.
+                </p>
+                {rewrites.length > 0 && (
+                  <ul className="space-y-1">
+                    {rewrites.map((r) => (
+                      <li key={r.from} className="flex items-start justify-between gap-2">
+                        <span>
+                          Reworded: <span className="font-medium">{r.from}</span> → {r.to}
+                        </span>
+                        <button type="button" className="shrink-0 text-primary hover:underline" onClick={() => undoOneRewrite(r)}>
+                          Undo
+                        </button>
+                      </li>
+                    ))}
+                  </ul>
+                )}
+                {suggestions.length > 0 ? (
+                  <div className="space-y-1.5">
+                    <p className="font-medium">Commonly required, not mentioned yet</p>
+                    {suggestions.map((s) => (
+                      <label key={s.text} className="flex cursor-pointer items-start gap-2">
+                        <Checkbox
+                          className="mt-0.5"
+                          checked={picked.has(s.text)}
+                          onCheckedChange={(on) =>
+                            setPicked((current) => {
+                              const next = new Set(current);
+                              if (on) next.add(s.text);
+                              else next.delete(s.text);
+                              return next;
+                            })
+                          }
+                        />
+                        <span>
+                          {s.text}
+                          <span className="block text-muted-foreground">
+                            {s.section} · {s.reason}
+                          </span>
+                        </span>
+                      </label>
+                    ))}
+                    <Button type="button" size="sm" variant="secondary" className="h-7 text-xs" disabled={picked.size === 0} onClick={addSelectedSuggestions}>
+                      Add selected
+                    </Button>
+                  </div>
+                ) : (
+                  <p className="text-muted-foreground">No further common elements to suggest.</p>
+                )}
+              </div>
+            )}
           </div>
           <div className="space-y-1.5">
             <Label>
@@ -220,7 +367,8 @@ function NewRequirementDialog({
 
 export default function RequirementsPage() {
   const { user } = useAuth();
-  const { requirements, loading, createRequirement, submitRequirement, addAttachments } = useRequirements();
+  const { requirements, loading, createRequirement, submitRequirement, addAttachments, structureRequirement } =
+    useRequirements();
   const [busyId, setBusyId] = useState<number | null>(null);
 
   const submitForApproval = async (r: Requirement) => {
@@ -262,6 +410,7 @@ export default function RequirementsPage() {
         actions={
           <NewRequirementDialog
             createRequirement={createRequirement}
+            structureRequirement={structureRequirement}
             engineerName={user?.name ?? "Unknown"}
           />
         }
@@ -327,7 +476,7 @@ export default function RequirementsPage() {
                         {r.status}
                       </Badge>
                     </div>
-                    <p className="text-sm text-muted-foreground">{r.description}</p>
+                    <p className="whitespace-pre-line text-sm text-muted-foreground">{r.description}</p>
                     {r.attachments.length > 0 && (
                       <ul className="flex flex-wrap gap-2">
                         {r.attachments.map((a) => (

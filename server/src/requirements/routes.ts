@@ -4,6 +4,7 @@ import { validate } from "../middleware/validate.js";
 import { authenticate, requireRole } from "../middleware/auth.js";
 import {
   createRequirementSchema,
+  structureRequirementSchema,
   updateRequirementSchema,
 } from "../validators/requirement-validators.js";
 
@@ -15,6 +16,13 @@ const router = Router();
 router.use(authenticate);
 
 router.get("/", controller.getAll);
+// A: rule-based structuring. Before "/:id" so "structure" isn't read as an id.
+router.post(
+  "/structure",
+  requireRole("engineer", "admin"),
+  validate(structureRequirementSchema),
+  controller.structure,
+);
 router.post(
   "/",
   requireRole("engineer", "admin"),
