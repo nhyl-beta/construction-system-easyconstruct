@@ -7,15 +7,23 @@
 // demo-full-cycle.ts (L5), but stopping seven separate projects at seven
 // different points instead of walking one project the whole way.
 //
-// For every stage except Construction, the project sits in that phase with
-// EVERY gate belonging to that phase (and every earlier phase) already
-// passing — a "fully qualified to advance, but hasn't been" snapshot, so a
-// reviewer can see a complete green checklist for that stage. Construction
-// (DEMO-STAGE-3) is deliberately left partial: a realistic ~60% done task
-// list (computeProgress's real 30+65*(done/total) formula, not a hardcoded
-// progress value), so K1 (all tasks completed) does NOT pass — that's the
-// point of a project mid-Construction, not a bug. See demo-and-ux-progress.md
-// P1 for exactly which underlying rows each gate reads.
+// For every stage except Construction and Closeout, the project sits in
+// that phase with EVERY gate belonging to that phase (and every earlier
+// phase) already passing — a "fully qualified to advance, but hasn't been"
+// snapshot, so a reviewer can see a complete green checklist for that
+// stage. Two deliberate exceptions, left unsatisfied on purpose:
+//   - Construction (DEMO-STAGE-3): a realistic ~60% done task list
+//     (computeProgress's real 30+65*(done/total) formula, not a hardcoded
+//     progress value), so K1 (all tasks completed) does NOT pass — that's
+//     the point of a project mid-Construction, not a bug.
+//   - Closeout (DEMO-STAGE-4): X1 ("Final inspection approved") is left
+//     pending (Submitted, not Approved) so a Project Manager visiting this
+//     project has a real, live Final Inspection to approve from /reports —
+//     see buildCloseoutPhase's own comment. Every other Closeout gate
+//     (X2-X4) still passes, and every project that advances PAST Closeout
+//     (Completed/Archived) still gets X1 approved for real, same as before.
+// See demo-and-ux-progress.md P1 for exactly which underlying rows each
+// gate reads.
 //
 // Idempotent: on every run, first deletes all rows (in FK-safe order) for
 // project codes DEMO-STAGE-0..6, then rebuilds them from scratch. Safe to
@@ -536,7 +544,17 @@ async function buildConstructionComplete(code: string, t: Tokens, ids: Ids, mile
 }
 
 // Builds every X1-X4 row. Never calls advance beyond Closeout.
-async function buildCloseoutPhase(code: string, t: Tokens) {
+//
+// X1 (Final Inspection approved) is the one exception to this file's usual
+// "every gate for this phase already passing" rule: when the TARGET phase
+// is Closeout itself, the report is deliberately left Submitted instead of
+// auto-approved here, so DEMO-STAGE-4 has a real, pending Final Inspection
+// a Project Manager can actually approve from /reports — the whole point of
+// a reviewer landing on a project sitting *at* Closeout is to see that
+// action, not a checklist that's already green. Every project that needs to
+// move PAST Closeout (target Completed/Archived) still gets it approved
+// here, same as before, since X1 has to really pass for advance() to work.
+async function buildCloseoutPhase(code: string, t: Tokens, leaveFinalInspectionPending: boolean) {
   const report = await api<{ id: number }>("/engineering-reports", t.engineer, {
     method: "POST",
     body: {
@@ -551,7 +569,9 @@ async function buildCloseoutPhase(code: string, t: Tokens) {
       recommendations: "Approve for closeout",
     },
   });
-  await api(`/engineering-reports/${report.id}`, t.pm, { method: "PATCH", body: { status: "Approved" } });
+  if (!leaveFinalInspectionPending) {
+    await api(`/engineering-reports/${report.id}`, t.pm, { method: "PATCH", body: { status: "Approved" } });
+  }
   await api("/documents", t.pm, {
     method: "POST",
     body: { documentId: shortDocId("C"), title: "Certificate of Completion", project: code, type: "Certificate of Completion", version: "1.0", uploadedBy: "Miguel Santos" },
@@ -683,7 +703,7 @@ async function main() {
     await advance(project.id, t);
 
     step("Closeout phase (X1-X4)");
-    await buildCloseoutPhase(code, t);
+    await buildCloseoutPhase(code, t, target === "Closeout");
     if (target === "Closeout") {
       const view = await api<{ phase: string; progress: number }>(`/projects/${project.id}/lifecycle`, t.pm);
       summary.push({ code, targetPhase: target, finalPhase: view.phase, progress: view.progress });

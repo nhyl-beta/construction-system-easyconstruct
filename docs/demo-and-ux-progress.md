@@ -1095,3 +1095,51 @@ Server `npx tsc --noEmit -p server`: clean. Client `npm run build`: clean.
 All five parts (A-E) are now built and live-verified in this round — see each section above for
 evidence. `FEATURES.aiPlaceholders`'s surface table was not touched; nothing fake-AI was
 resurrected (Part D's audit confirms every existing fake-AI surface stayed correctly gated).
+
+## Round 5 — PM couldn't see a Final Inspection to approve on DEMO-STAGE-4 (Closeout)
+
+User report: "pm doesnt see the final inspection approval on reports bucket" when visiting the
+Closeout-phase demo project.
+
+**Root cause, pinned down by live reproduction, not guessed:** every one of the Reports-page
+building blocks (nav entry, ACL, route, `GET /engineering-reports`, the Approve button's `PATCH`,
+the role guard) was already working correctly — confirmed by creating a throwaway pending Final
+Inspection as the engineer and clicking Approve as `pm@easyconstruct.demo` via Playwright,
+end-to-end, with no code changes. The actual bug was in `demo-seed-stages.ts`'s
+`buildCloseoutPhase()`: it immediately PATCHed every Closeout-stage project's Final Inspection
+report straight to `Approved` right after creating it — including `DEMO-STAGE-4` itself, the
+project meant to be *sitting at* Closeout, not past it. Gate X1 ("Final inspection approved") is a
+Closeout-*exit* check (`server/src/lifecycle/gates.ts` `evaluateCloseout`), not an entry
+requirement, so a project freshly at Closeout is supposed to have it still pending — that pending
+report is exactly what a PM is meant to see and act on in `/reports`. The seed script's own
+"every gate for this phase already passing" convention (deliberately chosen for every other stage
+to show a green checklist) papered over the one gate that's supposed to be the live demo moment at
+this specific stage, so there was never anything to approve.
+
+**Fix:** `buildCloseoutPhase(code, t, leaveFinalInspectionPending)` — the Final Inspection report
+is only auto-approved when `leaveFinalInspectionPending` is false. The seeding loop now passes
+`target === "Closeout"` for this flag, so `DEMO-STAGE-4` (target Closeout) leaves it `Submitted`,
+while `DEMO-STAGE-5`/`DEMO-STAGE-6` (target Completed/Archived — both legitimately past Closeout,
+needing X1 to really pass for `advance()`/`archive()` to succeed) still get it approved exactly as
+before. X2-X4 are unaffected and still pass on `DEMO-STAGE-4`, so the project doesn't regress on
+anything else. Updated the file's own top-of-file doc comment to document this as the second
+deliberate "left unsatisfied on purpose" exception (after Construction's K1).
+
+**Verified live, not assumed:**
+- Re-ran `npx tsx src/scripts/demo-seed-stages.ts` (idempotent re-run, all 7 projects rebuilt
+  clean). Direct SQL: `DEMO-STAGE-4`'s Final Inspection is `Submitted`; `DEMO-STAGE-5`/
+  `DEMO-STAGE-6`'s are `Approved`, unchanged from before.
+- `GET /projects/DEMO-STAGE-4/lifecycle` (as PM): `X1` → `passed: false`, `"No approved Final
+  Inspection report yet"`, `link: "/reports"`; `X2`/`X3`/`X4` → all `passed: true`. Phase still
+  correctly `Closeout`, progress `98%`, `canAdvance: false`.
+- Playwright, logged in as `pm@easyconstruct.demo`: sidebar → Reports → Pending tab shows the real
+  "Final inspection" row for `DEMO-STAGE-4`; clicked the actual per-row Approve button (not the
+  "Approved" tab — an early test run of mine mis-clicked that tab trigger by accident and briefly
+  looked like a broken button; the real Approve button works correctly) → `PATCH
+  /api/engineering-reports/27` → `200`, status flipped to `Approved`, row left the Pending tab.
+  Reset back to `Submitted` afterward so the demo project is left in its intended pending state for
+  an actual reviewer to use.
+- Server `npx tsc --noEmit`: clean. (No client changes this round — this was a seed-data/backend
+  fix only.)
+
+Commit: see git log.
