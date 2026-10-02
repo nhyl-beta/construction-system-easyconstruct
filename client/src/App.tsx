@@ -80,7 +80,6 @@ import AdminWorkflows from "./pages/roles/admin/admin-workflows";
 import AdminDocuments from "./pages/roles/admin/admin-documents";
 import AdminActivityLogs from "./pages/roles/admin/admin-activity-logs";
 import AdminSecurity from "./pages/roles/admin/admin-security";
-import AdminNotifications from "./pages/roles/admin/admin-notifications";
 import AdminRolesPermissions from "./pages/roles/admin/admin-roles-permissions";
 import AdminWorkflowConfiguration from "./pages/roles/admin/admin-workflow-configuration";
 import AdminApprovalHierarchy from "./pages/roles/admin/admin-approval-hierarchy";
@@ -358,14 +357,6 @@ function App() {
                     element={
                       <RequireRole allow={["admin", "it_designer"]}>
                         <AdminSecurity />
-                      </RequireRole>
-                    }
-                  />
-                  <Route
-                    path="/admin/notifications"
-                    element={
-                      <RequireRole allow={["admin", "it_designer"]}>
-                        <AdminNotifications />
                       </RequireRole>
                     }
                   />

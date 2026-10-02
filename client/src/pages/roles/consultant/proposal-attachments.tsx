@@ -22,7 +22,8 @@ import {
   type DocumentRecord,
 } from "@/features/documents/repositories/documents.repository";
 import { formatRelativeTime } from "@/lib/format-relative-time";
-import { SubmittedFiles, fileTypeLabel } from "@/components/shared/submitted-files";
+import { SubmittedFiles } from "@/components/shared/submitted-files";
+import { fileTypeLabel } from "@/lib/file-type-label";
 import { useProposalFiles } from "@/features/proposals/hooks/useProposalFiles";
 import type { Proposal } from "@/features/proposals/types/proposal.types";
 

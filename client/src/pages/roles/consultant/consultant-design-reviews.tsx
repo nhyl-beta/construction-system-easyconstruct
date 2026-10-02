@@ -4,7 +4,8 @@ import { Button } from "@/components/ui/button";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import { Check, X, Send } from "lucide-react";
 import { useDesignReviews } from "@/features/design-reviews/hooks/useDesignReviews";
-import { SubmittedFiles, fileTypeLabel } from "@/components/shared/submitted-files";
+import { SubmittedFiles } from "@/components/shared/submitted-files";
+import { fileTypeLabel } from "@/lib/file-type-label";
 
 // E1/E2: deciding a design review (Approved/Rejected/Changes Requested) is
 // the Consultant's call, enforced server-side (design-reviews/routes.ts:

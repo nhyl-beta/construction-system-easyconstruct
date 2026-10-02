@@ -263,11 +263,6 @@ const allResources: ResourceProps[] = [
     meta: { label: "Security", group: "Monitoring" },
   },
   {
-    name: "admin-notifications",
-    list: "/admin/notifications",
-    meta: { label: "Notifications", group: "Monitoring" },
-  },
-  {
     name: "admin-roles-permissions",
     list: "/admin/roles-permissions",
     meta: { label: "Roles & Permissions", group: "Configuration" },

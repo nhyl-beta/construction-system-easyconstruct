@@ -35,6 +35,9 @@ router.post("/import/preview", canImportSheets, sheetUpload.single("file"), cont
 router.post("/import/commit", canImportSheets, sheetUpload.single("file"), controller.importCommit);
 
 router.get("/", controller.getAll);
+// E1: declared before "/:id" so these are not read as ids.
+router.get("/heatmap", controller.heatmap);
+router.post("/bulk-verify", requireRole("human-resources", "admin"), controller.bulkVerify);
 router.get("/:id", controller.getById);
 router.post(
   "/",

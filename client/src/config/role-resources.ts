@@ -7,7 +7,6 @@ export const ROLE_RESOURCE_ACCESS: Record<string, string[]> = {
     "admin-documents",
     "admin-activity-logs",
     "admin-security",
-    "admin-notifications",
     "admin-roles-permissions",
     "admin-workflow-configuration",
     "admin-approval-hierarchy",

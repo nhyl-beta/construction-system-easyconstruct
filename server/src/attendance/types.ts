@@ -40,4 +40,8 @@ export interface AttendanceFilters {
   status?: string; // attendanceStatus: Present | Absent | Late | On Leave | Half Day
   dateFrom?: string;
   dateTo?: string;
+  /** Matches the employee id or name. */
+  search?: string;
+  /** Verification status (attendance.status): Verified | Pending | Flagged. */
+  verification?: string;
 }

@@ -3,6 +3,8 @@
  */
 
 import { eq } from "drizzle-orm";
+import { resolvePage } from "./paging.js";
+import { buildHeatmap, lastDays } from "./heatmap.js";
 
 import { db } from "../db/connection.js";
 import { projects } from "../db/schema/projects.js";
@@ -113,6 +115,29 @@ export const getAll = async (
 ) => {
   return repo.findAll(filters);
 };
+
+/** E1: one page of the filtered list plus counts across the whole filtered set. */
+export const getPage = async (
+  filters: AttendanceFilters,
+  requested: { page?: number; pageSize?: number },
+) => {
+  const total = await repo.countFiltered(filters);
+  const meta = resolvePage(requested, total);
+  const [items, summary] = await Promise.all([
+    repo.findPage(filters, meta.pageSize, meta.offset),
+    repo.summarize(filters),
+  ]);
+  return { items, meta: { total, page: meta.page, pageSize: meta.pageSize, pages: meta.pages, summary } };
+};
+
+const HEATMAP_DAYS = 14;
+
+export const getHeatmap = async () => {
+  const days = lastDays(HEATMAP_DAYS);
+  return buildHeatmap(await repo.findSince(days[0]!), HEATMAP_DAYS);
+};
+
+export const bulkVerify = async (filters: AttendanceFilters) => repo.verifyCleanPending(filters);
 
 /**
  * Get a single attendance record.

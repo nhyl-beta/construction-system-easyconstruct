@@ -115,6 +115,69 @@ export async function listAttendance(
   return raw.map((r) => normalize(r, nameLookup));
 }
 
+export interface AttendancePageQuery extends AttendanceQuery {
+  page: number;
+  pageSize: number;
+  /** Employee id, name or site. */
+  search?: string;
+  /** Verification status: Verified | Pending | Flagged. */
+  verification?: string;
+}
+
+export interface AttendanceSummary {
+  verified: number;
+  pending: number;
+  flagged: number;
+  geofenceFlags: number;
+  photoFailures: number;
+  /** Pending clock-ins with no geofence breach or failed photo — what Bulk verify will verify. */
+  bulkVerifiable: number;
+}
+
+export interface AttendancePage {
+  items: AttendanceEntry[];
+  total: number;
+  page: number;
+  pageSize: number;
+  pages: number;
+  /** Counts across the whole filtered set, not just this page. */
+  summary: AttendanceSummary;
+}
+
+/** Server-side pagination: one page of the filtered list (GET /attendance?page=…). */
+export async function listAttendancePage(
+  query: AttendancePageQuery,
+  nameLookup: Map<string, { name: string; initials: string }> = new Map(),
+): Promise<AttendancePage> {
+  const params = new URLSearchParams({ page: String(query.page), pageSize: String(query.pageSize) });
+  if (query.search) params.set("search", query.search);
+  if (query.verification && query.verification !== "all") params.set("verification", query.verification);
+  if (query.status && query.status !== "all") params.set("status", query.status);
+  const json = (await apiClient.get(`/attendance?${params.toString()}`)) as {
+    data: BackendAttendance[];
+    meta: Omit<AttendancePage, "items">;
+  };
+  return { items: json.data.map((r) => normalize(r, nameLookup)), ...json.meta };
+}
+
+export interface AttendanceHeatmap {
+  days: string[];
+  sites: { site: string; total: number; max: number; cells: { day: string; count: number }[] }[];
+  onTimeRate: number | null;
+  lateArrivalsPerDay: number | null;
+  avgShiftHours: number | null;
+}
+
+export async function getAttendanceHeatmap(): Promise<AttendanceHeatmap> {
+  return unwrap<AttendanceHeatmap>(apiClient.get("/attendance/heatmap"));
+}
+
+/** Verifies every pending clock-in with no geofence breach or failed photo. Returns how many. */
+export async function bulkVerifyAttendance(filters: { search?: string } = {}): Promise<number> {
+  const result = await unwrap<{ verified: number }>(apiClient.post("/attendance/bulk-verify", filters));
+  return result.verified;
+}
+
 export async function createAttendance(input: CreateAttendanceInput): Promise<void> {
   await apiClient.post("/attendance", input);
 }

@@ -260,14 +260,6 @@ export default function AdminDashboardPage() {
         <Card className="rounded-2xl border-border/70 shadow-sm lg:col-span-2">
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-4">
             <CardTitle className="text-lg">Notifications</CardTitle>
-            <Button
-              variant="ghost"
-              size="sm"
-              className="rounded-lg text-muted-foreground"
-              onClick={() => navigate("/admin/notifications")}
-            >
-              View all <ChevronRight className="h-4 w-4" />
-            </Button>
           </CardHeader>
           <CardContent className="space-y-3">
             {c.notificationsLoading ? (

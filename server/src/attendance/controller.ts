@@ -18,9 +18,52 @@ export const getAll = async (req: Request, res: Response, next: NextFunction) =>
       status: req.query.status as string,
       dateFrom: req.query.dateFrom as string,
       dateTo: req.query.dateTo as string,
+      search: req.query.search as string,
+      verification: req.query.verification as string,
     };
+    // Server-side pagination is opt-in (page/pageSize), same convention as
+    // GET /projects; every other caller still gets the whole list.
+    if (req.query.page !== undefined || req.query.pageSize !== undefined) {
+      const { items, meta } = await service.getPage(filters, {
+        page: Number(req.query.page) || 1,
+        pageSize: Number(req.query.pageSize) || undefined,
+      });
+      res.json({ ...formatSuccess(items, MSG.attendance.retrieved), meta });
+      return;
+    }
     const data = await service.getAll(filters);
     res.json(formatSuccess(data, MSG.attendance.retrieved));
+  } catch (err) {
+    next(err);
+  }
+};
+
+export const heatmap = async (_req: Request, res: Response, next: NextFunction) => {
+  try {
+    res.json(formatSuccess(await service.getHeatmap(), "Attendance heatmap retrieved"));
+  } catch (err) {
+    next(err);
+  }
+};
+
+export const bulkVerify = async (req: AuthedRequest, res: Response, next: NextFunction) => {
+  try {
+    const verified = await service.bulkVerify({
+      employeeId: req.body?.employeeId,
+      projectCode: req.body?.projectCode,
+      status: req.body?.status,
+      dateFrom: req.body?.dateFrom,
+      dateTo: req.body?.dateTo,
+      search: req.body?.search,
+    });
+    await logAudit({
+      entityType: "attendance",
+      entityId: "bulk",
+      action: "verified",
+      actor: req.authUser?.name ?? "unknown",
+      summary: `Bulk-verified ${verified} pending clock-in${verified === 1 ? "" : "s"}`,
+    });
+    res.json(formatSuccess({ verified }, `${verified} clock-in(s) verified`));
   } catch (err) {
     next(err);
   }

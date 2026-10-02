@@ -11,7 +11,6 @@ import {
 import {
   ActivitySquare,
   BarChart2,
-  Bell,
   CheckSquare,
   ClipboardList,
   Crown,
@@ -99,7 +98,6 @@ export const ROLE_CONFIGS: Record<string, RoleConfig> = {
         items: [
           { label: "Activity Logs", icon: ShieldCheck, route: "/admin/activity-logs" },
           { label: "Security", icon: ShieldAlert, route: "/admin/security" },
-          { label: "Notifications", icon: Bell, route: "/admin/notifications" },
         ],
       },
       {

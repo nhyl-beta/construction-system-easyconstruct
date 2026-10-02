@@ -1,7 +1,6 @@
 import {
   ActivitySquare,
   BarChart2,
-  Bell,
   BookOpen,
   CheckSquare,
   ClipboardList,
@@ -57,7 +56,6 @@ export const RESOURCE_ICONS: Record<string, LucideIcon> = {
   "admin-documents": FileText,
   "admin-activity-logs": ShieldCheck,
   "admin-security": ShieldAlert,
-  "admin-notifications": Bell,
   "admin-roles-permissions": UserCheck,
   "admin-workflow-configuration": GitBranch,
   "admin-approval-hierarchy": CheckSquare,

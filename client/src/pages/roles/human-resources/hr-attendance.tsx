@@ -2,6 +2,15 @@ import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { ConfirmDialog } from "@/components/ui/confirm-dialog";
+import { Input } from "@/components/ui/input";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import { Separator } from "@/components/ui/separator";
 import {
   Table,
@@ -18,17 +27,16 @@ import {
   StatusBadge,
 } from "@/pages/roles/shared/shared-hr";
 
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useState } from "react";
+import { toast } from "sonner";
 import {
-  listAttendance,
+  bulkVerifyAttendance,
   setAttendanceVerification,
   type AttendanceEntry,
 } from "@/features/hr/attendance-api";
-import { listEmployees } from "@/features/hr/hr-api";
+import { ATTENDANCE_PAGE_SIZES, useAttendancePaged } from "@/features/hr/hooks/use-attendance-paged";
 import { AttendanceVerificationDialog } from "@/components/hr/attendance-verification-dialog";
 
-import { toast } from "sonner";
-import { ConfirmDialog } from "@/components/ui/confirm-dialog";
 import {
   Camera,
   CheckCircle2,
@@ -37,135 +45,54 @@ import {
   Clock,
   FileSpreadsheet,
   MapPin,
+  Search,
   ShieldCheck,
+  X,
 } from "lucide-react";
 
-const PAGE_SIZE = 10;
-const HEATMAP_DAYS = 14;
-const HEATMAP_MAX_SITES = 6;
-
-const dayKey = (d: Date) =>
-  `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
-
-/** A clock-in with no measured breach and no failed photo — safe to verify in bulk. */
-const isCleanPending = (l: AttendanceEntry) =>
-  l.status === "Pending" && l.geofence !== "Outside" && l.photo !== "Failed";
+const VERIFICATION_OPTIONS = ["Pending", "Verified", "Flagged"];
+const DAY_STATUS_OPTIONS = ["Present", "Late", "Absent", "On Leave", "Half Day"];
 
 export default function HRAttendancePage() {
-  const [logs, setLogs] = useState<AttendanceEntry[]>([]);
-  const [loading, setLoading] = useState(true);
+  const a = useAttendancePaged();
   // The clock-in HR is currently confirming — photo and coordinates side by
   // side in AttendanceVerificationDialog.
   const [reviewing, setReviewing] = useState<AttendanceEntry | null>(null);
-  const [page, setPage] = useState(1);
   const [confirmBulk, setConfirmBulk] = useState(false);
   const [bulkBusy, setBulkBusy] = useState(false);
 
-  const load = useCallback(async () => {
-    setLoading(true);
-    const employees = await listEmployees();
-    const nameLookup = new Map(
-      employees.map((e) => [e.id, { name: e.name, initials: e.initials }]),
-    );
-    const rows = await listAttendance({}, nameLookup);
-    setLogs(rows);
-    setLoading(false);
-  }, []);
-
-  useEffect(() => {
-    void load();
-  }, [load]);
-
+  const { reload } = a;
   const verify = useCallback(
     async (id: number, status: "Verified" | "Flagged", remarks: string) => {
       await setAttendanceVerification(id, status, remarks || undefined);
-      await load();
+      await reload();
     },
-    [load],
+    [reload],
   );
 
-  // Newest first, then paged. The page is clamped when the list shrinks (for
-  // example after a bulk verify reloads it).
-  const sorted = useMemo(
-    () => [...logs].sort((a, b) => b.logDate.localeCompare(a.logDate) || b.clockIn.localeCompare(a.clockIn)),
-    [logs],
-  );
-  const pageCount = Math.max(1, Math.ceil(sorted.length / PAGE_SIZE));
-  const currentPage = Math.min(page, pageCount);
-  const pageRows = sorted.slice((currentPage - 1) * PAGE_SIZE, currentPage * PAGE_SIZE);
-  const firstShown = sorted.length === 0 ? 0 : (currentPage - 1) * PAGE_SIZE + 1;
-  const lastShown = Math.min(currentPage * PAGE_SIZE, sorted.length);
+  const summary = a.summary;
+  const bulkCount = summary?.bulkVerifiable ?? 0;
+  const skippedForReview = Math.max((summary?.pending ?? 0) - bulkCount, 0);
 
-  const bulkTargets = useMemo(() => logs.filter(isCleanPending), [logs]);
-  const skippedForReview = useMemo(
-    () => logs.filter((l) => l.status === "Pending" && !isCleanPending(l)).length,
-    [logs],
-  );
-
-  // Verifies every pending clock-in that has no geofence breach or failed
-  // photo; those stay for HR to check one by one.
+  // Verifies every pending clock-in (across all pages) that has no geofence
+  // breach or failed photo; those stay for HR to check one by one.
   const runBulkVerify = async () => {
     setBulkBusy(true);
-    const results = await Promise.allSettled(
-      bulkTargets.map((l) => setAttendanceVerification(l.id, "Verified")),
-    );
-    const failed = results.filter((r) => r.status === "rejected").length;
-    await load();
-    setBulkBusy(false);
-    setConfirmBulk(false);
-    if (failed > 0) toast.error(`${bulkTargets.length - failed} verified, ${failed} failed — try again`);
-    else toast.success(`${bulkTargets.length} clock-in${bulkTargets.length === 1 ? "" : "s"} verified`);
+    try {
+      const verified = await bulkVerifyAttendance({ search: a.query.trim() || undefined });
+      toast.success(`${verified} clock-in${verified === 1 ? "" : "s"} verified`);
+      setConfirmBulk(false);
+      await reload();
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : "Bulk verify failed — try again");
+    } finally {
+      setBulkBusy(false);
+    }
   };
 
-  // Heatmap + summary stats come from the loaded records: one row per site,
-  // one cell per day for the last 14 days, shaded by that day's share of the
-  // site's busiest day. Days with no records stay empty.
-  const heatmap = useMemo(() => {
-    const days: string[] = [];
-    const today = new Date();
-    for (let i = HEATMAP_DAYS - 1; i >= 0; i--) {
-      const d = new Date(today);
-      d.setDate(today.getDate() - i);
-      days.push(dayKey(d));
-    }
-    const bySite = new Map<string, Map<string, number>>();
-    for (const l of logs) {
-      const day = l.logDate.slice(0, 10);
-      if (!days.includes(day)) continue;
-      const counts = bySite.get(l.site) ?? new Map<string, number>();
-      counts.set(day, (counts.get(day) ?? 0) + 1);
-      bySite.set(l.site, counts);
-    }
-    const sites = [...bySite.entries()]
-      .map(([site, counts]) => ({
-        site,
-        total: [...counts.values()].reduce((a, b) => a + b, 0),
-        max: Math.max(...counts.values()),
-        cells: days.map((day) => ({ day, count: counts.get(day) ?? 0 })),
-      }))
-      .sort((a, b) => b.total - a.total)
-      .slice(0, HEATMAP_MAX_SITES);
-
-    const worked = logs.filter((l) => l.attendanceStatus === "Present" || l.attendanceStatus === "Late");
-    const late = worked.filter((l) => l.attendanceStatus === "Late");
-    const onTime = worked.length === 0 ? null : ((worked.length - late.length) / worked.length) * 100;
-    const daysWithRecords = new Set(worked.map((l) => l.logDate.slice(0, 10))).size;
-    const lateAvg = daysWithRecords === 0 ? null : late.length / daysWithRecords;
-    const shifts = logs.filter((l) => l.clockOut && l.hours > 0);
-    const avgShift = shifts.length === 0 ? null : shifts.reduce((s, l) => s + l.hours, 0) / shifts.length;
-    return { sites, onTime, lateAvg, avgShift };
-  }, [logs]);
-
-  const kpis = useMemo(() => {
-    const verified = logs.filter((l) => l.status === "Verified").length;
-    const pending = logs.filter((l) => l.status === "Pending").length;
-    // Only a measured breach counts as a flag. "Unverified" means the fence
-    // was never evaluated (no coordinates, or a project with no registered
-    // site) — that is work for HR, not a boundary violation.
-    const geofenceFlags = logs.filter((l) => l.geofence === "Outside").length;
-    const photoFailures = logs.filter((l) => l.photo === "Failed").length;
-    return { verified, pending, geofenceFlags, photoFailures };
-  }, [logs]);
+  const firstShown = a.total === 0 ? 0 : (a.page - 1) * a.pageSize + 1;
+  const lastShown = Math.min(a.page * a.pageSize, a.total);
+  const heatmap = a.heatmap;
 
   return (
     <div className="flex-1 space-y-6 p-4 md:p-6">
@@ -176,26 +103,26 @@ export default function HRAttendancePage() {
 
       <div className="grid grid-cols-2 gap-3 md:grid-cols-4">
         <KpiMini
-          label="Verified today"
-          value={String(kpis.verified)}
+          label="Verified"
+          value={summary ? String(summary.verified) : "…"}
           tone="success"
           icon={CheckCircle2}
         />
         <KpiMini
           label="Pending verification"
-          value={String(kpis.pending)}
+          value={summary ? String(summary.pending) : "…"}
           tone="warning"
           icon={Clock}
         />
         <KpiMini
           label="Geofence flags"
-          value={String(kpis.geofenceFlags)}
+          value={summary ? String(summary.geofenceFlags) : "…"}
           tone="destructive"
           icon={MapPin}
         />
         <KpiMini
           label="Photo auth failures"
-          value={String(kpis.photoFailures)}
+          value={summary ? String(summary.photoFailures) : "…"}
           tone="destructive"
           icon={Camera}
         />
@@ -205,9 +132,7 @@ export default function HRAttendancePage() {
         <Card className="min-w-0 rounded-2xl xl:col-span-2">
           <CardHeader className="flex flex-row items-center justify-between space-y-0">
             <div>
-              <CardTitle className="text-base">
-                Attendance log
-              </CardTitle>
+              <CardTitle className="text-base">Attendance log</CardTitle>
               <p className="text-xs text-muted-foreground">
                 Clock-ins, geofence and photo authentication results
               </p>
@@ -217,25 +142,69 @@ export default function HRAttendancePage() {
                 size="sm"
                 variant="outline"
                 className="rounded-xl"
-                disabled={loading || bulkTargets.length === 0}
+                disabled={a.loading || bulkCount === 0}
                 title={
-                  bulkTargets.length === 0
+                  bulkCount === 0
                     ? "No pending clock-ins without a geofence or photo problem"
-                    : `Verify ${bulkTargets.length} pending clock-in${bulkTargets.length === 1 ? "" : "s"}`
+                    : `Verify ${bulkCount} pending clock-in${bulkCount === 1 ? "" : "s"}`
                 }
                 onClick={() => setConfirmBulk(true)}
               >
-                Bulk verify{bulkTargets.length > 0 ? ` (${bulkTargets.length})` : ""}
+                Bulk verify{bulkCount > 0 ? ` (${bulkCount})` : ""}
               </Button>
               <Button size="sm" className="rounded-xl">
                 <ShieldCheck className="h-4 w-4" /> Resolve flags
               </Button>
             </div>
           </CardHeader>
+
+          <div className="flex flex-wrap items-center gap-2 px-6 pb-3">
+            <div className="relative w-56">
+              <Search className="pointer-events-none absolute left-2.5 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-muted-foreground" />
+              <Input
+                value={a.query}
+                onChange={(e) => a.setQuery(e.target.value)}
+                placeholder="Search name, ID or site…"
+                aria-label="Search attendance"
+                className="h-8 rounded-lg pl-8 text-xs"
+              />
+            </div>
+            <Select value={a.filters.verification} onValueChange={(v) => a.setFilter("verification", v)}>
+              <SelectTrigger aria-label="Filter by verification" className="h-8 w-36 rounded-lg text-xs">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">All verification</SelectItem>
+                {VERIFICATION_OPTIONS.map((s) => (
+                  <SelectItem key={s} value={s}>
+                    {s}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+            <Select value={a.filters.status} onValueChange={(v) => a.setFilter("status", v)}>
+              <SelectTrigger aria-label="Filter by attendance status" className="h-8 w-36 rounded-lg text-xs">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">All attendance</SelectItem>
+                {DAY_STATUS_OPTIONS.map((s) => (
+                  <SelectItem key={s} value={s}>
+                    {s}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+            {a.hasActiveFilters && (
+              <Button size="sm" variant="ghost" className="h-8 gap-1 rounded-lg px-2 text-xs" onClick={a.clearFilters}>
+                <X className="h-3 w-3" /> Clear
+              </Button>
+            )}
+          </div>
+
           <CardContent className="overflow-hidden px-0 [&_[data-slot=table-container]]:overflow-x-hidden [&_td]:whitespace-normal [&_td]:break-words [&_td]:px-2 [&_th]:px-2">
             {/* table-fixed + percentage widths (sum 100%) so long names/badges
-                wrap instead of forcing the table wider than the card, which
-                was producing a horizontal scrollbar. */}
+                wrap instead of forcing the table wider than the card. */}
             <Table className="table-fixed">
               <TableHeader>
                 <TableRow>
@@ -251,21 +220,28 @@ export default function HRAttendancePage() {
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {loading && (
+                {a.loading && a.rows.length === 0 && (
                   <TableRow>
                     <TableCell colSpan={9} className="py-8 text-center text-sm text-muted-foreground">
                       Loading attendance…
                     </TableCell>
                   </TableRow>
                 )}
-                {!loading && logs.length === 0 && (
+                {a.error && (
                   <TableRow>
-                    <TableCell colSpan={9} className="py-8 text-center text-sm text-muted-foreground">
-                      No attendance records yet.
+                    <TableCell colSpan={9} className="py-8 text-center text-sm text-destructive">
+                      Couldn't load attendance. {a.error}
                     </TableCell>
                   </TableRow>
                 )}
-                {pageRows.map((l) => (
+                {!a.loading && !a.error && a.rows.length === 0 && (
+                  <TableRow>
+                    <TableCell colSpan={9} className="py-8 text-center text-sm text-muted-foreground">
+                      {a.hasActiveFilters ? "No attendance records match these filters." : "No attendance records yet."}
+                    </TableCell>
+                  </TableRow>
+                )}
+                {a.rows.map((l) => (
                   <TableRow key={l.id} className="hover:bg-muted/40">
                     <TableCell>
                       <div className="flex items-center gap-2">
@@ -294,15 +270,9 @@ export default function HRAttendancePage() {
                         </Badge>
                       )}
                     </TableCell>
-                    <TableCell className="font-mono text-xs">
-                      {l.clockIn}
-                    </TableCell>
-                    <TableCell className="font-mono text-xs">
-                      {l.clockOut ?? "—"}
-                    </TableCell>
-                    <TableCell className="text-right text-sm">
-                      {l.hours.toFixed(1)}
-                    </TableCell>
+                    <TableCell className="font-mono text-xs">{l.clockIn}</TableCell>
+                    <TableCell className="font-mono text-xs">{l.clockOut ?? "—"}</TableCell>
+                    <TableCell className="text-right text-sm">{l.hours.toFixed(1)}</TableCell>
                     <TableCell>
                       <Badge
                         variant="outline"
@@ -351,12 +321,7 @@ export default function HRAttendancePage() {
                       <StatusBadge status={l.attendanceStatus} />
                     </TableCell>
                     <TableCell className="text-right">
-                      <Button
-                        size="sm"
-                        variant="outline"
-                        className="rounded-lg"
-                        onClick={() => setReviewing(l)}
-                      >
+                      <Button size="sm" variant="outline" className="rounded-lg" onClick={() => setReviewing(l)}>
                         Verify
                       </Button>
                     </TableCell>
@@ -364,31 +329,46 @@ export default function HRAttendancePage() {
                 ))}
               </TableBody>
             </Table>
-            {sorted.length > 0 && (
+
+            {a.total > 0 && (
               <div className="flex flex-wrap items-center justify-between gap-2 border-t px-4 pt-3 text-xs text-muted-foreground">
-                <span>
-                  Showing {firstShown}–{lastShown} of {sorted.length}
-                </span>
+                <div className="flex items-center gap-2">
+                  <span>
+                    Showing {firstShown}–{lastShown} of {a.total}
+                  </span>
+                  <Select value={String(a.pageSize)} onValueChange={(v) => a.setPageSize(Number(v))}>
+                    <SelectTrigger aria-label="Rows per page" className="h-7 w-24 rounded-lg text-xs">
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {ATTENDANCE_PAGE_SIZES.map((n) => (
+                        <SelectItem key={n} value={String(n)}>
+                          {n} / page
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
                 <div className="flex items-center gap-2">
                   <Button
                     size="sm"
                     variant="outline"
                     className="h-7 rounded-lg px-2"
-                    disabled={currentPage <= 1}
-                    onClick={() => setPage(currentPage - 1)}
+                    disabled={a.page <= 1}
+                    onClick={() => a.setPage(a.page - 1)}
                     aria-label="Previous page"
                   >
                     <ChevronLeft className="h-4 w-4" />
                   </Button>
                   <span className="tabular-nums">
-                    Page {currentPage} of {pageCount}
+                    Page {a.page} of {a.pages}
                   </span>
                   <Button
                     size="sm"
                     variant="outline"
                     className="h-7 rounded-lg px-2"
-                    disabled={currentPage >= pageCount}
-                    onClick={() => setPage(currentPage + 1)}
+                    disabled={a.page >= a.pages}
+                    onClick={() => a.setPage(a.page + 1)}
                     aria-label="Next page"
                   >
                     <ChevronRight className="h-4 w-4" />
@@ -403,15 +383,15 @@ export default function HRAttendancePage() {
           <CardHeader>
             <CardTitle className="text-base">Site heatmap</CardTitle>
             <p className="text-xs text-muted-foreground">
-              Clock-ins per day · last {HEATMAP_DAYS} days
+              Clock-ins per day · last {heatmap?.days.length ?? 14} days
             </p>
           </CardHeader>
           <CardContent>
-            {loading ? (
+            {!heatmap ? (
               <p className="text-sm text-muted-foreground">Loading…</p>
             ) : heatmap.sites.length === 0 ? (
               <p className="text-sm text-muted-foreground">
-                No clock-ins in the last {HEATMAP_DAYS} days.
+                No clock-ins in the last {heatmap.days.length} days.
               </p>
             ) : (
               <div className="space-y-3">
@@ -419,7 +399,9 @@ export default function HRAttendancePage() {
                   <div key={site}>
                     <div className="mb-1 flex items-center justify-between gap-2 text-xs">
                       <span className="truncate font-medium">{site}</span>
-                      <span className="shrink-0 text-muted-foreground">{total} in {HEATMAP_DAYS}d</span>
+                      <span className="shrink-0 text-muted-foreground">
+                        {total} in {heatmap.days.length}d
+                      </span>
                     </div>
                     <div className="flex gap-1">
                       {cells.map(({ day, count }) => (
@@ -446,19 +428,19 @@ export default function HRAttendancePage() {
               <div className="flex items-center justify-between">
                 <span className="text-muted-foreground">On-time rate</span>
                 <span className="font-medium text-success">
-                  {heatmap.onTime == null ? "—" : `${heatmap.onTime.toFixed(1)}%`}
+                  {heatmap?.onTimeRate == null ? "—" : `${heatmap.onTimeRate.toFixed(1)}%`}
                 </span>
               </div>
               <div className="flex items-center justify-between">
                 <span className="text-muted-foreground">Late arrivals (avg)</span>
                 <span className="font-medium">
-                  {heatmap.lateAvg == null ? "—" : `${heatmap.lateAvg.toFixed(1)} / day`}
+                  {heatmap?.lateArrivalsPerDay == null ? "—" : `${heatmap.lateArrivalsPerDay.toFixed(1)} / day`}
                 </span>
               </div>
               <div className="flex items-center justify-between">
                 <span className="text-muted-foreground">Avg shift length</span>
                 <span className="font-medium">
-                  {heatmap.avgShift == null ? "—" : `${heatmap.avgShift.toFixed(1)} h`}
+                  {heatmap?.avgShiftHours == null ? "—" : `${heatmap.avgShiftHours.toFixed(1)} h`}
                 </span>
               </div>
             </div>
@@ -471,7 +453,7 @@ export default function HRAttendancePage() {
         onOpenChange={(open) => !bulkBusy && setConfirmBulk(open)}
         title="Verify pending clock-ins?"
         description={
-          `${bulkTargets.length} pending clock-in${bulkTargets.length === 1 ? "" : "s"} will be marked Verified.` +
+          `${bulkCount} pending clock-in${bulkCount === 1 ? "" : "s"} (across all pages) will be marked Verified.` +
           (skippedForReview > 0
             ? ` ${skippedForReview} with a geofence breach or failed photo are left for you to check one by one.`
             : "")
