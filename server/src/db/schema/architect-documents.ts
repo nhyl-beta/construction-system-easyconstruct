@@ -4,6 +4,9 @@ import { designs } from './designs.js';
 export const architectDocuments = pgTable('architect_documents', {
   id: serial('id').primaryKey(),
   designId: integer('design_id').references(() => designs.id),
+  // Set for plans/drawings tracked in the Revisions page that belong to a
+  // project without a design. Nullable: older rows reach their project via designId.
+  projectCode: varchar('project_code', { length: 50 }),
   title: varchar('title', { length: 255 }).notNull(),
   category: varchar('category', { length: 50 }).notNull(),
   version: varchar('version', { length: 20 }).notNull().default('v1.0'),
