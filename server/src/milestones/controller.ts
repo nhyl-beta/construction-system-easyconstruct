@@ -54,7 +54,7 @@ export const update = async (req: AuthedRequest, res: Response, next: NextFuncti
     const data = await service.update(
       Number(req.params.id),
       req.body,
-      req.authUser ? { id: req.authUser.id, role: req.authUser.role } : undefined,
+      req.authUser ? { id: req.authUser.id, role: req.authUser.role, name: actor } : undefined,
     );
     await logAudit({
       entityType: "milestone",

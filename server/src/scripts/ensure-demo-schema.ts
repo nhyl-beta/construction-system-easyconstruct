@@ -536,6 +536,11 @@ async function main() {
     ALTER TABLE documents
       ADD COLUMN IF NOT EXISTS related_type varchar(20),
       ADD COLUMN IF NOT EXISTS related_id integer;
+
+    -- D2: who completed a milestone and when.
+    ALTER TABLE milestones
+      ADD COLUMN IF NOT EXISTS completed_by varchar(100),
+      ADD COLUMN IF NOT EXISTS completed_at timestamp;
   `);
 
   console.log("Demo schema tables and compatibility columns are ready.");

@@ -1,6 +1,6 @@
 import { test, describe } from "node:test";
 import assert from "node:assert/strict";
-import { assertEngineerMayUpdate } from "./permissions.js";
+import { assertEngineerMayUpdate, openLinkedTasks } from "./permissions.js";
 import { ForbiddenError } from "../utils/errors.js";
 
 describe("assertEngineerMayUpdate", () => {
@@ -29,5 +29,29 @@ describe("assertEngineerMayUpdate", () => {
     for (const from of ["draft", "cancelled", "completed"]) {
       assert.throws(() => assertEngineerMayUpdate({ status: "completed" }, from, true), ForbiddenError);
     }
+  });
+});
+
+describe("openLinkedTasks", () => {
+  test("lists linked tasks that are not Completed", () => {
+    assert.deepEqual(
+      openLinkedTasks([
+        { linkType: "task", task: { title: "Pour slab", status: "In Progress" } },
+        { linkType: "task", task: { title: "Cure slab", status: "Completed" } },
+        { linkType: "task", task: { title: "Inspect", status: "Pending" } },
+      ]),
+      ["Pour slab", "Inspect"],
+    );
+  });
+
+  test("ignores non-task links, missing tasks, and returns [] when everything is done", () => {
+    assert.deepEqual(
+      openLinkedTasks([
+        { linkType: "document", task: undefined },
+        { linkType: "task", task: null },
+        { linkType: "task", task: { title: "Done", status: "Completed" } },
+      ]),
+      [],
+    );
   });
 });

@@ -22,7 +22,10 @@ export const create = async (
   return created ?? null;
 };
 
-export const update = async (id: number, data: UpdateMilestoneInput) => {
+export const update = async (
+  id: number,
+  data: UpdateMilestoneInput & { completedBy?: string | null; completedAt?: Date | null },
+) => {
   const [updated] = await db
     .update(milestones)
     .set({ ...data, updatedAt: new Date() })

@@ -38,6 +38,9 @@ export function EngineerMilestonesCard() {
           <div className="truncate text-sm font-medium">{m.title}</div>
           <div className="text-xs text-muted-foreground">
             {m.projectCode} · est. {m.estimatedCompletionDate ?? "no date set"}
+            {m.status === "completed" && m.completedBy
+              ? ` · completed by ${m.completedBy}${m.completedAt ? ` on ${m.completedAt.slice(0, 10)}` : ""}`
+              : ""}
           </div>
         </div>
       </div>

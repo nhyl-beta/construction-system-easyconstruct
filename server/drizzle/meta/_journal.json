@@ -120,6 +120,13 @@
       "when": 1790100000000,
       "tag": "0016_advisory_related_item",
       "breakpoints": true
+    },
+    {
+      "idx": 17,
+      "version": "7",
+      "when": 1790200000000,
+      "tag": "0017_milestone_completion",
+      "breakpoints": true
     }
   ]
 }

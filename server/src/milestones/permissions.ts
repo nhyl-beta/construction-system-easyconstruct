@@ -26,3 +26,16 @@ export const assertEngineerMayUpdate = (
     throw new ForbiddenError(`Only an active or at-risk milestone can be marked completed (this one is ${existingStatus})`);
   }
 };
+
+/**
+ * Completion rule for every role: a milestone cannot be completed while a task
+ * linked to it is still open. The caller sees which tasks, and finishes (or
+ * unlinks) them first — completing would otherwise leave "done" work with
+ * unfinished tasks underneath it.
+ */
+export const openLinkedTasks = (
+  links: { linkType: string; task?: { title: string; status: string } | null }[],
+): string[] =>
+  links
+    .filter((l) => l.linkType === "task" && l.task && l.task.status !== "Completed")
+    .map((l) => l.task!.title);

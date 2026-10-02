@@ -34,9 +34,17 @@ export interface LifecycleActor {
 
 export const computeProgress = (phase: string, snapshot: LifecycleSnapshot): number => {
   if (phase === "Construction") {
-    const total = snapshot.tasks.length;
+    // Tasks and live milestones (active / at-risk / completed) are the units
+    // of work, so completing a milestone moves the percentage. Drafts and
+    // cancelled milestones are not commitments and are not counted.
+    const milestones = (snapshot.milestones ?? []).filter(
+      (m) => m.status === "active" || m.status === "at-risk" || m.status === "completed",
+    );
+    const total = snapshot.tasks.length + milestones.length;
     if (total === 0) return 30;
-    const done = snapshot.tasks.filter((t) => t.status === "Completed").length;
+    const done =
+      snapshot.tasks.filter((t) => t.status === "Completed").length +
+      milestones.filter((m) => m.status === "completed").length;
     return Math.round(30 + 65 * (done / total));
   }
   if (phase === "Completed" || phase === "Archived") return 100;

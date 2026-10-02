@@ -3,6 +3,7 @@ import * as projectMemberRepo from "../project-members/repository.js";
 import * as usersRepo from "../users/repository.js";
 import { ForbiddenError, NotFoundError, ValidationError } from "../utils/errors.js";
 import { assertProjectWritable } from "../lifecycle/service.js";
+import { sortProjects } from "./ordering.js";
 import type {
   CreateProjectInput,
   UpdateProjectInput,
@@ -114,10 +115,10 @@ const visibleProjects = async (filters: ProjectFilters, scope?: ProjectScope) =>
       : filters,
   );
 
-  if (!scope || !MEMBERSHIP_SCOPED_ROLES.has(scope.role)) return projects;
+  if (!scope || !MEMBERSHIP_SCOPED_ROLES.has(scope.role)) return sortProjects(projects);
 
   const assigned = await assignedProjectCodes(scope.userId);
-  const visible = projects.filter((project) => assigned.has(project.code));
+  const visible = sortProjects(projects.filter((project) => assigned.has(project.code)));
 
   // Consultant additionally loses the commercial columns: it is an advisory
   // role, so contract value, budget utilisation and headcount are outside

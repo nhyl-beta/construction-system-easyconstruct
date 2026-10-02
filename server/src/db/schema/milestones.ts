@@ -31,6 +31,9 @@ export const milestones = pgTable("milestones", {
   // projects.due — an ESTIMATE at draft time, not a hard deadline.
   estimatedCompletionDate: varchar("estimated_completion_date", { length: 20 }),
   createdBy: varchar("created_by", { length: 100 }).notNull(),
+  // Set when the milestone moves to "completed" (milestones/service.ts).
+  completedBy: varchar("completed_by", { length: 100 }),
+  completedAt: timestamp("completed_at"),
   createdAt: timestamp("created_at").defaultNow(),
   updatedAt: timestamp("updated_at").defaultNow(),
 });

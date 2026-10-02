@@ -95,6 +95,24 @@ describe("computeProgress", () => {
     assert.equal(computeProgress("Construction", snapshot), 73);
   });
 
+  test("Construction counts live milestones, so completing one raises progress", () => {
+    const snapshot = emptySnapshot("Construction");
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    (snapshot as any).tasks = [{ id: 1, status: "Completed" }];
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    (snapshot as any).milestones = [
+      { id: 1, status: "active" },
+      { id: 2, status: "draft" },
+      { id: 3, status: "cancelled" },
+    ];
+    // 1 of 2 units done -> 30 + 65 * 0.5 = 62.5 -> 63 (draft/cancelled ignored)
+    assert.equal(computeProgress("Construction", snapshot), 63);
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    (snapshot as any).milestones[0].status = "completed";
+    // 2 of 2 units done -> 95
+    assert.equal(computeProgress("Construction", snapshot), 95);
+  });
+
   test("Construction with zero tasks sits at the band's start, not 0", () => {
     const snapshot = emptySnapshot("Construction");
     assert.equal(computeProgress("Construction", snapshot), PHASE_BANDS.Construction.start);

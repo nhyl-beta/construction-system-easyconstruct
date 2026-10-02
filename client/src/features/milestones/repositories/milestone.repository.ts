@@ -11,6 +11,9 @@ export interface Milestone {
   status: MilestoneStatus;
   estimatedCompletionDate: string | null;
   createdBy: string;
+  /** Set when the milestone was completed (null for older rows / not completed). */
+  completedBy?: string | null;
+  completedAt?: string | null;
   createdAt: string | null;
   updatedAt: string | null;
 }

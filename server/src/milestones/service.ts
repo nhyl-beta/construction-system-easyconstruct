@@ -1,10 +1,10 @@
 // server/src/milestones/service.ts — NEW
-import { ForbiddenError, NotFoundError } from "../utils/errors.js";
+import { ConflictError, ForbiddenError, NotFoundError } from "../utils/errors.js";
 import * as notificationsService from "../notifications/service.js";
 import { assertProjectWritable, refreshProjectProgress } from "../lifecycle/service.js";
 import * as repo from "./repository.js";
 import * as projectMemberRepo from "../project-members/repository.js";
-import { assertEngineerMayUpdate } from "./permissions.js";
+import { assertEngineerMayUpdate, openLinkedTasks } from "./permissions.js";
 import * as tasksRepo from "../tasks/repository.js";
 import { resolveDueDateAgainstMilestone } from "../tasks/service.js";
 import type {
@@ -56,7 +56,7 @@ export const create = async (input: CreateMilestoneInput, createdBy: string) => 
 export const update = async (
   id: number,
   input: UpdateMilestoneInput,
-  actor?: { id: number; role: string },
+  actor?: { id: number; role: string; name?: string },
 ) => {
   const existing = await getById(id);
   // C: an Engineer may only mark an active/at-risk milestone completed, on a
@@ -70,7 +70,26 @@ export const update = async (
     assertEngineerMayUpdate(input, existing.status, staffed.length > 0);
   }
   await assertProjectWritable(existing.projectCode);
-  const updated = await repo.update(id, input);
+
+  // D2: completing records who and when, and is refused while any linked task
+  // is still open (see milestones/permissions.ts openLinkedTasks).
+  const completing = input.status === "completed" && existing.status !== "completed";
+  if (completing) {
+    const open = openLinkedTasks(existing.links);
+    if (open.length > 0) {
+      throw new ConflictError(
+        `Finish the linked task${open.length === 1 ? "" : "s"} first: ${open.slice(0, 5).join(", ")}${open.length > 5 ? ` and ${open.length - 5} more` : ""}`,
+      );
+    }
+  }
+  const updated = await repo.update(
+    id,
+    completing
+      ? { ...input, completedBy: actor?.name ?? "unknown", completedAt: new Date() }
+      : input.status && input.status !== "completed" && existing.status === "completed"
+        ? { ...input, completedBy: null, completedAt: null }
+        : input,
+  );
   if (!updated) throw new NotFoundError("Milestone", String(id));
 
   // A moved milestone date carries its linked tasks with it: any unfinished

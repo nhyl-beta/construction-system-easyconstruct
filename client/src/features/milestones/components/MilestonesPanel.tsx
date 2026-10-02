@@ -107,6 +107,12 @@ export function MilestonesPanel({ projectCode, canManage }: MilestonesPanelProps
                     Estimated {formatDue(m.estimatedCompletionDate)}
                   </p>
                 )}
+                {m.status === "completed" && m.completedBy && (
+                  <p className="mt-1 text-xs text-muted-foreground">
+                    Completed by {m.completedBy}
+                    {m.completedAt ? ` on ${m.completedAt.slice(0, 10)}` : ""}
+                  </p>
+                )}
               </div>
               {canManage && (
                 <div className="flex shrink-0 items-center gap-1">
