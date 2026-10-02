@@ -5,7 +5,7 @@ import { MSG } from "../constants/messages.js";
 import { formatSuccess } from "../utils/response.js";
 import * as service from "./service.js";
 import type { AuthedRequest } from "../middleware/auth.js";
-import { assertAssignedToDesign, scopeRowsByDesign } from "../projects/scope.js";
+import { assertAssignedToDesign, assertAssignedToProject, scopeRowsByDesign } from "../projects/scope.js";
 
 export const getAll = async (req: Request, res: Response, next: NextFunction) => {
   try {
@@ -13,6 +13,8 @@ export const getAll = async (req: Request, res: Response, next: NextFunction) =>
       (req as AuthedRequest).authUser,
       await service.getAll({ category: req.query.category as string, search: req.query.search as string }),
       (d) => d.designId,
+      // Plans started from the Revisions page belong to a project directly.
+      (d) => d.projectCode,
     );
     res.json(formatSuccess(data, MSG.architectDocuments.retrieved));
   } catch (err) { next(err); }
@@ -20,7 +22,8 @@ export const getAll = async (req: Request, res: Response, next: NextFunction) =>
 export const getById = async (req: Request, res: Response, next: NextFunction) => {
   try {
     const doc = await service.getById(Number(req.params.id));
-    await assertAssignedToDesign((req as AuthedRequest).authUser, doc.designId, "documents");
+    if (doc.projectCode) await assertAssignedToProject((req as AuthedRequest).authUser, doc.projectCode, "documents");
+    else await assertAssignedToDesign((req as AuthedRequest).authUser, doc.designId, "documents");
     res.json(formatSuccess(doc, MSG.architectDocuments.single));
   } catch (err) { next(err); }
 };

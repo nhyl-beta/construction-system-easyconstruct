@@ -6,7 +6,8 @@ import { formatBytes } from "@/features/uploads/lib/upload-file";
 import { useRevisionCompare } from "../hooks/useRevisionCompare";
 import type { RevisionDetail } from "../types/revision.types";
 import { RevisionFilePreview } from "./RevisionFilePreview";
-import { RevisionStatusBadge, formatDateTime, versionText } from "./RevisionBadges";
+import { RevisionStatusBadge } from "./RevisionBadges";
+import { formatDateTime, versionText } from "../lib/revision-format";
 
 const Row = ({ label, left, right, changed }: { label: string; left: React.ReactNode; right: React.ReactNode; changed: boolean }) => (
   <div className={`grid grid-cols-[7rem_1fr_1fr] gap-3 rounded-lg px-2 py-1.5 text-sm ${changed ? "bg-warning/10" : ""}`}>

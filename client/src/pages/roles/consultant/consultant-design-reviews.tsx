@@ -5,6 +5,13 @@ import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import { Check, X, Send } from "lucide-react";
 import { useDesignReviews } from "@/features/design-reviews/hooks/useDesignReviews";
 import { SubmittedFiles } from "@/components/shared/submitted-files";
+import { VersionHistorySheet } from "@/features/revisions/components/VersionHistorySheet";
+import { RevisionStatusBadge } from "@/features/revisions/components/RevisionBadges";
+import { versionText } from "@/features/revisions/lib/revision-format";
+import { useCurrentRevisions } from "@/features/revisions/hooks/useCurrentRevisions";
+import type { RevisionItemType } from "@/features/revisions/types/revision.types";
+import { useState } from "react";
+import { GitBranch } from "lucide-react";
 import { fileTypeLabel } from "@/lib/file-type-label";
 
 // E1/E2: deciding a design review (Approved/Rejected/Changes Requested) is
@@ -16,6 +23,8 @@ import { fileTypeLabel } from "@/lib/file-type-label";
 // no changes, so it moved here rather than being rebuilt.
 export default function ConsultantDesignReviews() {
   const c = useDesignReviews();
+  const currentRevisions = useCurrentRevisions("design");
+  const [revisionsOf, setRevisionsOf] = useState<{ itemType: RevisionItemType; itemId: number } | null>(null);
 
   return (
     <div className="flex-1 space-y-6 p-4 md:p-8">
@@ -53,6 +62,21 @@ export default function ConsultantDesignReviews() {
                     </div>
                     <StatusBadge status={r.status} />
                   </div>
+                  {currentRevisions[r.designId] && (
+                    <div className="mt-2 flex flex-wrap items-center gap-2 text-xs">
+                      <span className="text-muted-foreground">Latest revision:</span>
+                      <span className="font-medium">{versionText(currentRevisions[r.designId]!)}</span>
+                      <RevisionStatusBadge status={currentRevisions[r.designId]!.status} />
+                      <Button
+                        size="sm"
+                        variant="ghost"
+                        className="h-6 gap-1 px-2 text-xs"
+                        onClick={() => setRevisionsOf({ itemType: "design", itemId: r.designId })}
+                      >
+                        <GitBranch className="h-3 w-3" /> Version history
+                      </Button>
+                    </div>
+                  )}
                   <div className="mt-2">
                     <SubmittedFiles
                       compact
@@ -102,6 +126,8 @@ export default function ConsultantDesignReviews() {
           )}
         </TabsContent>
       </Tabs>
+
+      <VersionHistorySheet item={revisionsOf} onOpenChange={(open) => !open && setRevisionsOf(null)} />
     </div>
   );
 }

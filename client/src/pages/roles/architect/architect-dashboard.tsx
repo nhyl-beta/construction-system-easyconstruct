@@ -24,20 +24,20 @@ import { useAuth } from "@/auth/auth-context";
 import { useDesignReviews } from "@/features/design-reviews/hooks/useDesignReviews";
 import {
   CheckSquare,
-  Eye,
   FileText,
   GitCompare,
   Library,
-  MessageSquare,
   PencilRuler,
   Plus,
   Upload,
 } from "lucide-react";
 import { useState } from "react";
+import { useRevisionSummary } from "@/features/revisions/hooks/useRevisionSummary";
 import { useNavigate } from "react-router";
 
 export default function ArchitectDashboard() {
   const navigate = useNavigate();
+  const revisionSummary = useRevisionSummary();
   const c = useArchitectDashboardController();
   const { user } = useAuth();
   const { create } = useDesignReviews();
@@ -189,7 +189,11 @@ export default function ArchitectDashboard() {
           <QuickAction
             icon={GitCompare}
             label="Revisions"
-            description="Design revisions and history"
+            description={
+              revisionSummary
+                ? `${revisionSummary.pending} awaiting review · ${revisionSummary.underReview} under review`
+                : "Design revisions and history"
+            }
             onClick={() => navigate("/revisions")}
           />
           <QuickAction

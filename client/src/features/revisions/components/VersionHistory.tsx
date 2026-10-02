@@ -9,7 +9,8 @@ import { Textarea } from "@/components/ui/textarea";
 import { formatBytes } from "@/features/uploads/lib/upload-file";
 import { downloadRevision } from "../lib/revision-file";
 import type { Revision, RevisionStatus } from "../types/revision.types";
-import { RevisionStatusBadge, formatDateTime, versionText } from "./RevisionBadges";
+import { RevisionStatusBadge } from "./RevisionBadges";
+import { formatDateTime, versionText } from "../lib/revision-format";
 
 interface Props {
   versions: Revision[];

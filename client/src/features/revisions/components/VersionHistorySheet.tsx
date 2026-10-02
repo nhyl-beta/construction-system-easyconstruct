@@ -8,7 +8,8 @@ import { useAuth } from "@/auth/auth-context";
 import { useRevisionHistory } from "../hooks/useRevisionHistory";
 import type { Revision, RevisionItemType } from "../types/revision.types";
 import { CompareDialog } from "./CompareDialog";
-import { ItemTypeBadge, versionText } from "./RevisionBadges";
+import { ItemTypeBadge } from "./RevisionBadges";
+import { versionText } from "../lib/revision-format";
 import { RevisionFilePreview } from "./RevisionFilePreview";
 import { VersionHistory } from "./VersionHistory";
 

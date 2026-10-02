@@ -5,6 +5,8 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Button } from "@/components/ui/button";
 import { ProjectPicker } from "@/components/shared/project-picker";
+import { RevisionLink } from "@/features/revisions/components/RevisionLink";
+import { useCurrentRevisions } from "@/features/revisions/hooks/useCurrentRevisions";
 import {
   Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
 } from "@/components/ui/select";
@@ -117,6 +119,7 @@ function NewBlueprintDialog({
 
 export default function ArchitectBlueprints() {
   const c = useBlueprints();
+  const currentRevisions = useCurrentRevisions("blueprint");
 
   return (
     <div className="flex-1 space-y-6 p-4 md:p-8">
@@ -173,6 +176,9 @@ export default function ArchitectBlueprints() {
               <div className="mt-2 flex items-center justify-between text-[11px] text-muted-foreground">
                 <span>{b.author}</span>
                 <span>Rev {b.revision}</span>
+              </div>
+              <div className="mt-2 border-t pt-2">
+                <RevisionLink itemType="blueprint" itemId={b.id} current={currentRevisions[b.id]} />
               </div>
             </div>
           ))}

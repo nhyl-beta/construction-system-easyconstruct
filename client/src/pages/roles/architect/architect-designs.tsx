@@ -21,10 +21,13 @@ import {
 import { useDesigns } from "@/features/designs/hooks/useDesigns";
 import { PencilRuler, Plus, Search } from "lucide-react";
 import { useNavigate } from "react-router";
+import { RevisionLink } from "@/features/revisions/components/RevisionLink";
+import { useCurrentRevisions } from "@/features/revisions/hooks/useCurrentRevisions";
 
 export default function ArchitectDesigns() {
   const navigate = useNavigate();
   const c = useDesigns();
+  const currentRevisions = useCurrentRevisions("design");
 
   return (
     <div className="flex-1 space-y-6 p-4 md:p-8">
@@ -110,6 +113,7 @@ export default function ArchitectDesigns() {
               <TableHead>Discipline</TableHead>
               <TableHead>Version</TableHead>
               <TableHead>Lead</TableHead>
+              <TableHead>Latest revision</TableHead>
               <TableHead>Status</TableHead>
             </TableRow>
           </TableHeader>
@@ -135,6 +139,9 @@ export default function ArchitectDesigns() {
                 </TableCell>
                 <TableCell className="text-xs text-muted-foreground">
                   {d.leadArchitect}
+                </TableCell>
+                <TableCell>
+                  <RevisionLink itemType="design" itemId={d.id} current={currentRevisions[d.id]} stopPropagation />
                 </TableCell>
                 <TableCell>
                   <StatusBadge status={d.status} />

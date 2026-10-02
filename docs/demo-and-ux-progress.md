@@ -1173,3 +1173,43 @@ issue, milestones, dashboard links and Tasks all still work.
 - The single schema change is `drizzle/0016_advisory_related_item.sql` (hand-written, idempotent, like
   `0015_payroll_lifecycle.sql`; `drizzle-kit generate` needs an interactive rename prompt against the current
   snapshots) and is mirrored in `ensure-demo-schema.ts`.
+
+
+## Revision management (Architect → Revisions)
+
+Branch `feature/architect-revisions`. Seed: `npm --prefix server run demo:revisions` (after `demo:seed`) builds
+three tracked items on `DEMO-STAGE-3` with several versions each (a design, a blueprint, a new "Ground floor plan"),
+reviewed by the demo Consultant so every status appears. Safe to re-run: an item that already has revisions is skipped.
+
+### Demo script — Architect (`architect@easyconstruct.demo`)
+
+1. **Revisions** — KPI strip (items tracked / awaiting review / under review / approved), search, project / type /
+   status / date filters, pagination. "No revisions recorded yet." appears only when there are none at all.
+2. Click a row → **version history** drawer: every version newest first, current one highlighted, reviewer outcome and
+   comment on each, **Preview** and **Download** per version.
+3. **New version** (in the drawer) or **Create revision** (page header): pick project → item type → item (or "Start a
+   new plan"), attach a file (progress bar; PDF, DWG/DXF, Office or image up to `MAX_UPLOAD_MB`), write what changed.
+   The version number it will get is shown; the previous current version becomes *Superseded* (or keeps Approved /
+   Rejected).
+4. Tick two versions in the drawer → **Compare selected**: metadata diff plus side-by-side previews for images and PDFs
+   (other types show metadata and download only — there is no visual diff).
+5. Links: **Designs** (Latest revision column), **Blueprints**, **Documentation** cards ("View revisions"), and the
+   dashboard's Revisions quick link (live counts).
+
+### Demo script — Consultant / Project Manager
+
+- **Consultant → Design Reviews** (Approved tab for the seeded design): "Latest revision" with **Version history**.
+  In the drawer the Consultant can **Start review / Approve / Reject** the current version (a rejection needs a comment);
+  the Architect is notified.
+- **Project Manager → project page** (`DEMO-STAGE-3`): a **Revisions** card with each item's latest version; same drawer.
+
+### Rules worth knowing
+
+- History is immutable: there is no edit or delete endpoint. A new upload is a new row; Approved / Rejected / Superseded
+  are final.
+- Version numbers are assigned by the server in a transaction behind a per-item lock (8 simultaneous uploads got
+  consecutive numbers 5–12 with exactly one current version).
+- Architects see and create revisions only on projects they are assigned to (403 otherwise, including by direct id and
+  download). PM: own projects. Consultant: staffed projects. Admin: all.
+- Files are uploaded through the shared large-file utility (direct to Blob on Vercel, streamed to disk locally) and then
+  recorded with `POST /api/revisions` (JSON, not multipart: serverless request bodies are capped around 4.5 MB).

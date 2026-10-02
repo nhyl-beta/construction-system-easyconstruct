@@ -3,6 +3,8 @@ import { Button } from "@/components/ui/button";
 import { SectionCard } from "@/components/ui/section-card";
 import { StatusBadge } from "@/components/ui/status-badge";
 import { useDesignDetail } from "@/features/designs/hooks/useDesignDetail";
+import { RevisionLink } from "@/features/revisions/components/RevisionLink";
+import { useCurrentRevisions } from "@/features/revisions/hooks/useCurrentRevisions";
 import { useDesignReviews } from "@/features/design-reviews/hooks/useDesignReviews";
 import { useAuth } from "@/auth/auth-context";
 import { ChevronLeft, Eye, Trash2 } from "lucide-react";
@@ -14,6 +16,7 @@ export default function ArchitectDesignDetail() {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
   const c = useDesignDetail(id!);
+  const currentRevisions = useCurrentRevisions("design");
   const { user } = useAuth();
   const { reviews, create: createReview } = useDesignReviews();
   const [confirmDelete, setConfirmDelete] = useState(false);
@@ -98,6 +101,7 @@ export default function ArchitectDesignDetail() {
         description={`${d.code} · ${d.projectCode}`}
         actions={
           <>
+            <RevisionLink itemType="design" itemId={d.id} current={currentRevisions[d.id]} />
             <Button
               size="sm"
               variant="outline"

@@ -7,9 +7,61 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { formatBytes } from "@/features/uploads/lib/upload-file";
 import { downloadRevision } from "../lib/revision-file";
 import type { Revision } from "../types/revision.types";
-import { ItemTypeBadge, RevisionStatusBadge, formatDateTime, versionText } from "./RevisionBadges";
+import { ItemTypeBadge, RevisionStatusBadge } from "./RevisionBadges";
+import { formatDateTime, versionText } from "../lib/revision-format";
 
+function RevisionCard({ r, onOpen }: { r: Revision; onOpen: (r: Revision) => void }) {
+  return (
+    <li className="space-y-2 p-4">
+      <button
+        type="button"
+        onClick={() => onOpen(r)}
+        className="block w-full space-y-1.5 text-left focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+        aria-label={`Open version history of ${r.itemTitle}, ${versionText(r)}`}
+      >
+        <div className="flex flex-wrap items-center gap-1.5">
+          <span className="text-sm font-medium">{r.itemTitle}</span>
+          <ItemTypeBadge type={r.itemType} />
+          <RevisionStatusBadge status={r.status} />
+        </div>
+        <p className="text-xs text-muted-foreground">{r.changeSummary}</p>
+        <p className="text-[11px] text-muted-foreground">
+          {r.projectCode} · {versionText(r)}
+          {r.isCurrent ? " (current)" : ""} · {r.createdBy} · {formatDateTime(r.createdAt)}
+        </p>
+        <p className="text-[11px] text-muted-foreground">
+          {r.fileName} · {formatBytes(r.fileSize)}
+        </p>
+      </button>
+      <Button
+        size="sm"
+        variant="outline"
+        className="h-7 rounded-lg text-xs"
+        onClick={() => downloadRevision(r).catch((e: Error) => toast.error(e.message))}
+      >
+        <Download className="h-3 w-3" /> Download
+      </Button>
+    </li>
+  );
+}
+
+/** Table from md up; stacked cards on phones, where eight columns would not fit. */
 export function RevisionsTable({ rows, onOpen }: { rows: Revision[]; onOpen: (r: Revision) => void }) {
+  return (
+    <>
+      <ul className="divide-y md:hidden" aria-label="Revisions">
+        {rows.map((r) => (
+          <RevisionCard key={r.id} r={r} onOpen={onOpen} />
+        ))}
+      </ul>
+      <div className="hidden md:block">
+        <RevisionsGrid rows={rows} onOpen={onOpen} />
+      </div>
+    </>
+  );
+}
+
+function RevisionsGrid({ rows, onOpen }: { rows: Revision[]; onOpen: (r: Revision) => void }) {
   return (
     <Table className="table-fixed">
       <TableHeader>

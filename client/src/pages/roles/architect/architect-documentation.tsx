@@ -10,9 +10,12 @@ import { FileText, Search, Upload } from "lucide-react";
 import { useArchitectDocuments } from "@/features/architect-documents/hooks/useArchitectDocuments";
 import { UploadDocumentDialog } from "@/components/documents/upload-document-dialog";
 import { useFieldDocuments } from "@/features/documents/hooks/use-field-documents";
+import { RevisionLink } from "@/features/revisions/components/RevisionLink";
+import { useCurrentRevisions } from "@/features/revisions/hooks/useCurrentRevisions";
 
 export default function ArchitectDocumentation() {
   const c = useArchitectDocuments();
+  const currentRevisions = useCurrentRevisions("plan");
   // H7: separate from useArchitectDocuments' own read-only table above — an
   // As-Built Drawing (gate X-check territory) has to land in the shared
   // `documents` table every other role's uploads and the lifecycle gates
@@ -73,6 +76,9 @@ export default function ArchitectDocumentation() {
               <div className="mt-3 flex items-center justify-between text-[11px] text-muted-foreground">
                 <span>{d.owner}</span>
                 <span>{d.updatedAt ? new Date(d.updatedAt).toLocaleDateString() : "—"}</span>
+              </div>
+              <div className="mt-2 border-t pt-2">
+                <RevisionLink itemType="plan" itemId={d.id} current={currentRevisions[d.id]} />
               </div>
             </div>
           ))}

@@ -254,7 +254,14 @@ function App() {
                     path="/architect/projects"
                     element={<ArchitectProjects />}
                   />
-                  <Route path="/revisions" element={<ArchitectRevisions />} />
+                  <Route
+                    path="/revisions"
+                    element={
+                      <RequireRole allow={["architect", "admin", "project_manager", "consultant"]}>
+                        <ArchitectRevisions />
+                      </RequireRole>
+                    }
+                  />
                   <Route
                     path="/architect/documents"
                     element={<ArchitectDocumentation />}
