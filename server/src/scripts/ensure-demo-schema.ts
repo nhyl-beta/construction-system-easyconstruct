@@ -567,6 +567,15 @@ async function main() {
     CREATE INDEX IF NOT EXISTS "revisions_project_idx" ON "revisions" ("project_code");
     ALTER TABLE "architect_documents" ADD COLUMN IF NOT EXISTS "project_code" varchar(50);
 
+    -- Reports filed under a mis-cased project code (drizzle/0019_fix_report_project_case.sql).
+    UPDATE "engineering_reports" r
+       SET "project" = p."code"
+      FROM "projects" p
+     WHERE lower(p."code") = lower(r."project")
+       AND p."code" <> r."project"
+       AND NOT EXISTS (SELECT 1 FROM "projects" x WHERE x."code" = r."project")
+       AND (SELECT count(*) FROM "projects" y WHERE lower(y."code") = lower(r."project")) = 1;
+
     -- D2: who completed a milestone and when.
     ALTER TABLE milestones
       ADD COLUMN IF NOT EXISTS completed_by varchar(100),

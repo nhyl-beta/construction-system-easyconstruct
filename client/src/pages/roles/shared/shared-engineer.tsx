@@ -207,7 +207,10 @@ export function NewReportDialog({
         title: form.title,
         type: form.type,
         priority: form.priority,
-        project: form.project.toUpperCase(),
+        // Exactly as picked: project codes are case-sensitive keys (e.g. "Zh-01"), and
+        // upper-casing one filed the report against a project that does not exist,
+        // so it never reached the Project Manager.
+        project: form.project,
         location: form.location,
         date: form.date || TODAY(),
         engineer: engineerName,

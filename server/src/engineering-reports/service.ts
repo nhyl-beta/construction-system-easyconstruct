@@ -1,6 +1,8 @@
 import * as repo from "./repository.js";
-import { ForbiddenError, NotFoundError } from "../utils/errors.js";
+import { ForbiddenError, NotFoundError, ValidationError } from "../utils/errors.js";
 import { refreshProjectProgress } from "../lifecycle/service.js";
+import * as projectsRepo from "../projects/repository.js";
+import { resolveProjectCode } from "./project-code.js";
 import type {
   CreateEngineeringReportInput,
   UpdateEngineeringReportInput,
@@ -31,7 +33,17 @@ export const getById = async (id: number) => {
   return report;
 };
 
+// The report must carry a project's stored code, or the PM (whose list is scoped
+// by project) and gate X1 would never see it.
+const requireStoredProjectCode = async (project: string): Promise<string> => {
+  const candidates = await projectsRepo.findAll({ search: project.trim() });
+  const resolved = resolveProjectCode(project, candidates.map((p) => p.code));
+  if (!resolved) throw new ValidationError(`No project found with code "${project}"`);
+  return resolved;
+};
+
 export const create = async (input: CreateEngineeringReportInput) => {
+  input = { ...input, project: await requireStoredProjectCode(input.project) };
   const reportId =
     input.reportId ??
     `SR-${Date.now().toString(36)}${Math.random().toString(36).slice(2, 6)}`.toUpperCase();
@@ -47,6 +59,7 @@ export const update = async (
 ) => {
   await getById(id);
   assertCanSetStatus(input.status, actorRole);
+  if (input.project) input = { ...input, project: await requireStoredProjectCode(input.project) };
   const updated = await repo.update(id, input);
   if (!updated) throw new NotFoundError("Engineering report", String(id));
   // Gate X1 reads type='Final Inspection' + status='Approved'.
