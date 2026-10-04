@@ -107,6 +107,8 @@ import SharedBlueprintReviews from "./pages/roles/shared/shared-blueprint-review
 import AiValidationReferencePage from "./pages/roles/shared/ai-validation-reference";
 import { FEATURES } from "./config/features";
 import SharedResources from "./pages/roles/shared/shared-resources";
+import SharedArchiveSearch from "./pages/roles/shared/shared-archive-search";
+import SharedLegacyImport from "./pages/roles/shared/shared-legacy-import";
 
 import "./App.css";
 import ArchitectDesignCreate from "./pages/roles/architect/architect-design-create";
@@ -185,6 +187,8 @@ function App() {
                       list read-only, same convention as /reports above. */}
                   <Route path="/blueprint-reviews" element={<SharedBlueprintReviews />} />
                   <Route path="/resources" element={<SharedResources />} />
+                  <Route path="/archive" element={<SharedArchiveSearch />} />
+                  <Route path="/legacy-import" element={<SharedLegacyImport />} />
 
                   {/* ── Project Manager Routes ── */}
                   <Route path="/projects" element={<PMProjects />} />

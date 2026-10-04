@@ -108,6 +108,16 @@ const allResources: ResourceProps[] = [
     meta: { label: "Revisions", group: "Workspace" },
   },
   {
+    name: "archive-search",
+    list: "/archive",
+    meta: { label: "Archive search", group: "Workspace" },
+  },
+  {
+    name: "legacy-import",
+    list: "/legacy-import",
+    meta: { label: "Legacy import", group: "Workspace" },
+  },
+  {
     name: "requests",
     list: "/requests",
     meta: { label: "Requests", group: "Workspace" },

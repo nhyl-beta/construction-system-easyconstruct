@@ -12,6 +12,8 @@ export const ROLE_RESOURCE_ACCESS: Record<string, string[]> = {
     "admin-approval-hierarchy",
     "admin-support",
     "requests",
+    "archive-search",
+    "legacy-import",
   ],
   owner: [
     "dashboard",
@@ -50,6 +52,8 @@ export const ROLE_RESOURCE_ACCESS: Record<string, string[]> = {
     "documents",
     "requests",
     "resources",
+    "archive-search",
+    "legacy-import",
     "reports",
   ],
   human_resources: [
@@ -86,6 +90,8 @@ export const ROLE_RESOURCE_ACCESS: Record<string, string[]> = {
     "blueprints",
     "architect-documents",
     "requests",
+    "archive-search",
+    "legacy-import",
   ],
   engineer: [
     "dashboard",

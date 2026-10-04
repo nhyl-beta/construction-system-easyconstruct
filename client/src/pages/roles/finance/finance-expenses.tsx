@@ -26,8 +26,9 @@ import {
   DialogTrigger,
 } from "@/components/ui/dialog";
 import { ProjectPicker } from "@/components/shared/project-picker";
-import { Receipt, Search, Plus, Truck, Wallet, ListChecks, Sparkles, Paperclip } from "lucide-react";
+import { Receipt, Search, Plus, Truck, Wallet, ListChecks, Sparkles, Paperclip, Download } from "lucide-react";
 import { formatCurrency } from "@/lib/format-currency";
+import { downloadCsv } from "@/lib/export-csv";
 import { FEATURES } from "@/config/features";
 import { useExpensesController, type CreateExpenseInput } from "@/features/finance/hooks/use-expenses";
 import {
@@ -167,6 +168,22 @@ export default function FinanceExpensesPage() {
               subtitle="All vendor expenses across active projects"
               actions={
                 <>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    className="h-8 rounded-lg text-xs"
+                    disabled={c.expenses.length === 0}
+                    title="Export the rows currently shown as CSV (opens in Excel)"
+                    onClick={() =>
+                      downloadCsv(
+                        "expenses",
+                        ["ID", "Vendor", "Project", "Category", "Amount", "Submitted", "Status", "Anomaly score", "Anomaly reason"],
+                        c.expenses.map((e) => [e.id, e.vendor, e.project, e.category, e.amount, e.submittedAt, e.status, e.anomalyScore ?? "", e.anomalyReason ?? ""]),
+                      )
+                    }
+                  >
+                    <Download className="h-3.5 w-3.5" /> Export
+                  </Button>
                   <div className="relative w-56">
                     <Search className="pointer-events-none absolute left-2.5 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-muted-foreground" />
                     <Input

@@ -24,7 +24,7 @@ import {
 
 import type { UploadDocumentInput } from "@/features/documents/repositories/documents.repository";
 
-const DOC_TYPES = [
+export const DOC_TYPES = [
   "Field Report",
   "Site Photo",
   "Progress Evidence",
