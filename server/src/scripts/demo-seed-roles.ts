@@ -371,6 +371,8 @@ async function workflows() {
   const specs: { title: string; code: string; template: string; by: Account; advance?: ("human-resources" | "engineer" | "consultant")[]; stallHours?: number }[] = [
     { title: "Document compliance review - structural drawings", code: "DEMO-S2", template: "Document Compliance Review", by: team("DEMO-S2").consultant },
     { title: "Subcontractor onboarding - formwork contractor", code: "DEMO-S4", template: "Subcontractor onboarding", by: s.hr, advance: ["human-resources"] },
+    // Started by the PM, so it sits at the HR stage: HR has an item waiting on it.
+    { title: "Subcontractor onboarding - electrical contractor", code: "DEMO-S4", template: "Subcontractor onboarding", by: team("DEMO-S4").pm },
     { title: "Change order - additional mezzanine slab", code: "DEMO-S4", template: "Change Order Request", by: team("DEMO-S4").pm, stallHours: 130 },
     { title: "Public works compliance - health center permits", code: "DEMO-S3", template: "Public works compliance", by: team("DEMO-S3").architect },
     { title: "Structural requirement - column grid revision", code: "DEMO-S3", template: "Structural Requirement Request", by: team("DEMO-S3").engineer!, advance: ["engineer"], stallHours: 75 },
@@ -391,7 +393,7 @@ async function workflows() {
         const actor = role === "human-resources" ? s.hr : role === "engineer" ? team(w.code).engineer! : team(w.code).consultant;
         await api(`/workflows/${wf.id}/stages/${st.id}/decision`, actor.token, { method: "PATCH", body: { decision: "approve" } });
       }
-      const view = await api<{ stages: { id: number; status: string }[] }>(`/workflows/${wf.id}`, s.admin.token);
+      const view = await api<{ stages: { id: number; role: string; status: string }[] }>(`/workflows/${wf.id}`, s.admin.token);
       current = view.stages.find((x) => x.status === "current") ?? current;
       if (w.stallHours && current) await pool.query("UPDATE workflow_stages SET updated_at = now() - ($2 || ' hours')::interval WHERE id = $1", [current.id, String(w.stallHours)]);
       bump("workflows");

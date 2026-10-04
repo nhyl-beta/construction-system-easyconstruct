@@ -1096,7 +1096,6 @@ All five parts (A-E) are now built and live-verified in this round — see each 
 evidence. `FEATURES.aiPlaceholders`'s surface table was not touched; nothing fake-AI was
 resurrected (Part D's audit confirms every existing fake-AI surface stayed correctly gated).
 
-<<<<<<< HEAD
 
 ## Demo script (engineer / site personnel / consultant alignment pass)
 
@@ -1214,7 +1213,6 @@ reviewed by the demo Consultant so every status appears. Safe to re-run: an item
   download). PM: own projects. Consultant: staffed projects. Admin: all.
 - Files are uploaded through the shared large-file utility (direct to Blob on Vercel, streamed to disk locally) and then
   recorded with `POST /api/revisions` (JSON, not multipart: serverless request bodies are capped around 4.5 MB).
-=======
 ## Round 5 — PM couldn't see a Final Inspection to approve on DEMO-STAGE-4 (Closeout)
 
 User report: "pm doesnt see the final inspection approval on reports bucket" when visiting the
@@ -1262,4 +1260,203 @@ deliberate "left unsatisfied on purpose" exception (after Construction's K1).
   fix only.)
 
 Commit: see git log.
->>>>>>> 5c10b5d (fix(demo-seed): Closeout demo project had no pending Final Inspection for PM to approve)
+
+
+## Clean slate — all projects removed, 100-person roster, DEMO-S1..S7, role sample data (2026-10-04)
+
+Branch `prod`. Request: wipe every project, reset employees to exactly 100, reseed one project per lifecycle
+phase and give each of the 10 roles populated pages, **without touching accounts**.
+
+### Target database and guard (decision recorded)
+The only database configured (`server/.env`) is the Neon cloud DB `neondb` on
+`ep-icy-meadow-ao4hqnb1-pooler.c-2.ap-southeast-1.aws.neon.tech` — not local, and the same one the deployed app uses.
+`pg_dump` is not installed on this machine. Both would normally stop the run; the owner then explicitly instructed
+"reset the database that is connected to the prod". So the host was added to `DEMO_RESET_ALLOWED_HOSTS` explicitly
+and the backup is a Node-side full-table JSON dump (Neon point-in-time restore is the second safety net).
+
+`server/src/scripts/reset-demo-data.ts` (`npm run demo:reset`):
+- refuses without `ALLOW_DEMO_RESET=true` — shown: `REFUSED: set ALLOW_DEMO_RESET=true to run this script.`
+- refuses a non-local host that is not listed in `DEMO_RESET_ALLOWED_HOSTS` — shown: `REFUSED: host ep-icy-meadow-… is neither local nor listed in DEMO_RESET_ALLOWED_HOSTS.`
+- prints host + database name first; aborts if any public table is not classified (preserve / delete / special)
+- writes + verifies a backup **before** any delete: `server/backups/neondb-backup-2026-10-04T10-16-58-166Z.json`
+  (51 tables, 8054 rows, 2811 KB; `server/backups/` is gitignored)
+- runs every delete, the employee reset and the roster insert in **one transaction**, re-checks the account
+  checksums and `count(*) = 100` inside it and rolls back on any mismatch.
+
+### Part 0 — audit (from the live schema, not memory)
+- Real FKs are few: budget children → `budgets`; `workflows.budget_id`; `proposals.workflow_id`; workflow children
+  (`stages`, `line_items`, `attachments`, `validation_results`) cascade; `design_*`/`blueprints`/`architect_documents` → `designs`;
+  `milestone_links` → `milestones` (cascade); several tables → `users` (all `NO ACTION`).
+  **Everything keyed by project is a loose string code** (`project_code` / `project`): tasks, milestones, issues, requirements,
+  documents, engineering_reports, expenses, budgets, attendance, payroll_batches, notifications, project_members,
+  project_phase_history, revisions, blueprints, designs, proposals, workflows — none cascade, all deleted explicitly.
+- Account ↔ employee link lives on the **employee side** (`employees.user_id → users.id`). 50 of 60 users have an employee row
+  (`EMP-DEMO-01…50`); the 10 `*grace@` accounts and `nhylcyrusgervasio@gmail.com` have none. Those 50 linked rows survive untouched.
+- The four named people did not exist and have no accounts, so nothing was linked (linking would not need a `users` write, but there is no account to link to).
+- Before: projects 26, employees 100 (50 linked + 50 unlinked `EMP-ROSTER-*`), users 60.
+- Preserved: `users`, `password_reset_tokens`, `roles`, `workflow_templates` (incl. `Project Closeout`), `reference_snapshots` (411),
+  `audit_logs` (rows kept), and every notification **not** tied to a project code (117 kept, 1416 deleted).
+  There is no feature-flag / system-settings / approval-hierarchy table: those are code config (`FEATURES`) or live in `workflow_templates`.
+
+### Dry run (verbatim, `npm run demo:reset -- --dry-run`)
+```
+validation_results 22 | workflow_attachments 53 | workflow_line_items 23 | workflow_stages 215 | proposals 27 | workflows 65
+budget_adjustments 3 | budget_approval_steps 132 | budgets 33 | milestone_links 32 | milestones 45 | tasks 74 | issues 21
+requirements 47 | architect_documents 2 | blueprints 22 | design_reviews 22 | design_engineers 28 | designs 28 | revisions 10
+engineering_reports 18 | documents 78 | expenses 7 | payroll 831 | payroll_batch_decisions 6 | payroll_batches 19
+attendance 854 | project_phase_history 96 | project_members 145 | projects 26
+notifications (project_code IS NOT NULL) 1416 | employees (user_id IS NULL) 50
+(all other listed tables: 0 rows)   Employees after reset: 50 linked + 50 roster
+Dry run complete — nothing changed.
+```
+
+### Account checksums (md5 of every row, before the wipe → after wipe → after ALL seeding; `npm run demo:verify`)
+```
+users                  60 rows md5=48ac4a39f4d831152ff883e987618e40   identical at all three points
+password_reset_tokens   4 rows md5=c7b81d12a72ee80868221ac4671044b2   identical
+roles                  10 rows md5=9862b9954753a87ed4dbe4814a260deb   identical
+employee↔user links    50 rows md5=e219ef69c441caafa3ece0f6b0bc8ddb   identical
+```
+Zero INSERT/UPDATE/DELETE on any of these tables. Seeding logs in as the existing accounts; it never writes them.
+
+### Parts A/B — result
+Orphan check across 18 project-code tables = 0 everywhere (`demo:verify` §8). `employees` = **100**: 88 Active, 8 Inactive,
+3 On Leave, 1 Archived; 45 Field Operations, 10 Engineering, 6 each Project Management / HR / Design / Finance / Administration,
+5 each Executive / Advisory / IT. The 4 names exist exactly as written (`EMP-ROSTER-001…004`: Dirk Louisse R. Villaflor – Site Engineer,
+Gian Carl Q. Dela Rosa – Safety Officer, Mark Gabriel A. Yoldi – Foreman, Nhyl Cyrus J. Gervasio – Surveyor, all Active). The other 46:
+varied Filipino names, no duplicate full names, trades weighted to the field, pay rates inside realistic PH bands (`Daily 610–1700`,
+`Hourly 120–185`, `Monthly 19k–52k`), hire dates 2018–2026, sites spread over the seven demo projects. Contact data is synthetic
+(`emp-roster-NNN@example.com`, `0900-000-xxxx`); the employees table holds no government IDs.
+Generator: `demo-roster.ts` (fixed seed 20261004, upsert on `employee_id`, never overwrites a `user_id` row). `npm run demo:employees` run twice →
+employee-table md5 identical (`468f5fe1febd6d432e331c20a3c30eb8`, 100 rows).
+
+### Part C — seven projects (built through the real HTTP API as the real accounts)
+`DEMO-S1…S7`, definitions in `demo-projects.ts`, builder `demo-seed-stages.ts`. Each project has its own client, municipality, geofence,
+contract value and dates. Gate output straight from `GET /projects/:id/lifecycle`:
+```
+DEMO-S1 Proposal          6%   P1:true  P2:true  P3:true  P4:false P5:false
+DEMO-S2 Design           15%   D1:true  D2:false D3:false
+DEMO-S3 Pre-Construction 28%   C1:true  C2:true  C3:true  C4:false C5:false
+DEMO-S4 Construction     61%   K1:false K2:false K3:false K4:false   (13 tasks, 7 done)
+DEMO-S5 Closeout         97%   X1:true  X2:true  X3:false X4:false
+DEMO-S6 Completed       100%   (terminal)  completed_at 2026-04-27
+DEMO-S7 Archived        100%   (terminal)  completed 2025-05-26, archived_at 2025-11-24
+```
+Phases were reached with the real `advance()` / `archive` endpoints, so the earlier-phase gates are genuinely true. Progress is from
+`refreshProjectProgress()`. Budgets: four approved lines per project (Materials 45 %, Labor 30 %, Equipment 15 %, Contingency 10 %) summing to the contract value.
+**S7 rejects writes** (`assertProjectWritable`): `POST /tasks`, `POST /milestones`, `PATCH /projects/:id` → **409 "Project is Archived — changes are locked"**.
+
+**DEMO-S4 Budget Change Request** (real `validateWorkflowLineItems()`, `FEATURE_AI=true`, reference prices from `reference_snapshots`):
+```
+"Ready-mix concrete (3000-4000 PSI), delivered"  -> within-range   (+1.0%)
+"Concrete slab, poured and finished"             -> above-typical  (+165.7%)
+"Miscellaneous sitework contingency"             -> no-match       (line has no quantity)
+```
+**All five advisory signals fire on DEMO-S4** (the old `AISIG-*` scenario was folded in): `npm run demo:ai-signals` → 7 passed, 0 failed:
+cost-variance (critical, +165.7 %), cumulative-change-impact (warn, +10.5 % — an approved "Change Order" budget line), burn-vs-progress (warn, 79 % of
+budget consumed at 54 % of tasks complete), issue-recurrence (warn, 3rd Material issue in 30 days), stalled-stage (warn, BCR at Finance Review ~2 days).
+The verifier also proves gate checks / `canAdvance` equal the pure `evaluateGate` output (advice never blocks).
+
+**Staffing (accounts only; nobody is on all seven, so server scoping is visible):**
+
+| Project | PM | Architect | Consultant | Engineer | Site |
+|---|---|---|---|---|---|
+| S1 | pm@ | architect@ | consultant@ | — | — |
+| S2 | pm@ | architect@ | consultant@ | engineer@ | — |
+| S3 | pm@ | architect@ | consultant@ | engineer@ | site@ |
+| S4 | pm@ | architect@ | consultant@ | engineer@ | site@ |
+| S5 | pm@ | architect1@ | consultant1@ | engineer@ | site@ |
+| S6 | projectmanager1@ | architect1@ | consultant@ | engineer1@ | site@ |
+| S7 | projectmanager1@ | architect1@ | consultant1@ | engineer1@ | sitepersonnel1@ |
+
+Idempotency: `npm run demo:seed` run a second time leaves every row count and every project id unchanged (a project already at its target phase is skipped;
+a half-built one is deleted and rebuilt). Counts before = after: projects 7, employees 100, project_members 25, proposals 14, designs 10, blueprints 11,
+requirements 18, tasks 65, milestones 19, issues 10, engineering_reports 9, documents 35, budgets 21, budget_adjustments 4, expenses 19, workflows 24,
+payroll_batches 7, payroll 51, attendance 490, architect_documents 5, revisions 9. Ids: `54 S1, 55 S2, 56 S3, 59 S4, 61 S5, 62 S6, 63 S7`.
+Project search: `?search=DEMO` / `DEMO ·` returns the demo projects together; `?search=DEMO-S4` resolves a code (this is what the AI-reference "see it live" links use).
+
+### Part D
+- D1: `ai-validation-reference.tsx` DemoLinks repointed (`DEMO-STAGE-0 → DEMO-S1`, `DEMO-STAGE-3 → DEMO-S4`, every `AISIG-DEMO → DEMO-S4`);
+  `demo-ai-signals.ts` is now a verifier of S4 instead of a project builder; `demo-seed-revisions.ts` default project is `DEMO-S3`.
+  Unit-test fixtures that merely contain the string `DEMO-STAGE-x` were left (they do not touch the database). Older sections of this doc keep the old codes as history.
+- D2: HR `GET /workforce-reports/summary` vs SQL: total 100 = 100, active 88 = 88, inactive 12 = 8 Inactive + 3 On Leave + 1 Archived, department split identical
+  (Field Operations 45, Engineering 10, …). Attendance table: 490 rows over 25 working days (375 Present, 48 Late, 31 Absent, 36 Half Day, 20 outside the geofence).
+- D3: every list endpoint used by a sidebar page returns 200 with data for the role that owns it (matrix below); notification bell: owner 55, PM 71, site 21 items.
+
+### Part E — role data
+**E0 gap list after Parts A–C (before role seeding):** attendance 0, architect_documents 0, revisions 0, budget_adjustments 0, expenses 5, payroll_batches 3,
+issues 7 (none site-reported), engineering_reports 3 (all Final Inspections), documents 19 (only gate documents), proposals 7 (one status per project),
+workflows 11, requirements 10 (all Approved), blueprints 5, designs 6. **After `demo:seed-roles`:** see counts above (attendance 490, architect_documents 5, revisions 9,
+budget_adjustments 4, expenses 19, payroll_batches 7, issues 10, engineering_reports 9, documents 35, proposals 14, workflows 24, requirements 18, blueprints 11, designs 10).
+
+`demo-seed-roles.ts` (`npm run demo:seed-roles`, which also runs `demo-seed-revisions.ts`) creates, always through the real endpoints and with real uploaded
+PDF/PNG files (private Blob store, authenticated download): 7 more proposals (5 waiting on the Consultant, 1 Revision Requested, 1 Rejected, 1 fully Approved), 4 more designs with
+reviews (Approved/Rejected/Pending), 6 blueprints (Pending, Superseded, Rejected, Revision Required, Approved), architect documentation, 8 requirements (Draft / Under Review / Approved / Rejected, each with a file),
+3 site-reported issues with photos, 6 engineering reports across statuses, 12 field/advisory/turnover documents (advisory ones linked to a real proposal or design), 14 expenses with receipts
+(pending / approved / rejected), 4 budget adjustments, 6 extra workflows (HR, Consultant, Engineer, PM, Architect waiting; 2 backdated to be stalled), 490 attendance rows for the S4/S5 crews
+(admin back-fill path) + 15 site clock-ins with photo and coordinates (2 outside the radius), and 4 payroll batches built by the real payroll generator (statutory deductions from `ph-statutory.ts`):
+approved, pending Finance, draft, rejected (`revision_required`). Idempotent: second run creates nothing.
+
+**Role × page matrix (`npm run demo:verify` §5 — rows each page's endpoint returns; every row PASS except the three documented gaps):**
+
+| Role (account) | Pages → rows |
+|---|---|
+| Owner (owner@) | dashboard 7, portfolio 7, proposals 14, audit trail 3637, oversight 13, reports 9, **account recovery — n/a** |
+| Admin (admin@) | projects 7, workflows 13, documents 35, activity logs 3638, security 4, roles 10, workflow configuration 10, approval hierarchy 10, **support — n/a** |
+| IT Designer (itdesigner1@) | users 60, proposals 14, projects 7, workflows 13, documents 35, roles 10, activity logs 3640, security 4, **support — n/a** |
+| Project Manager (pm@) | projects 5, workflows 13, approvals 3, issues 8, tasks 33, documents 25, reports 7 |
+| Human Resources (hr@) | employees 100, attendance 490, payroll batches 7, workforce summary 7, approvals 1 (Subcontractor onboarding at HR stage), reports 5 |
+| Finance (finance@) | summary 8, budgets 21, payroll batches 6, expenses 19, approvals 1, impact review 1, profitability 5 |
+| Architect (architect@) | projects 4, designs 7, proposals 11, approvals 1, revisions 9, blueprints 8, documentation 5 |
+| Engineer (engineer@) | projects 4, tasks 65, requirements 18, approvals 1, issues 10 |
+| Site Personnel (site@) | tasks 48, attendance 490, requirements 18, documents 35, issues 3 |
+| Consultant (consultant@) | projects 5, proposals 14, designs 10, design reviews 10, advisory documents 35, blueprints 11 |
+
+(The HR "approvals" row was empty on the first matrix run; fixed by adding a Subcontractor onboarding workflow started by the PM so it waits on HR.)
+
+**Scoping proof (`demo:verify` §6; direct API calls with another project's id):**
+```
+role                 sees              foreign   GET /projects/:id  GET /lifecycle  /designs?projectCode=foreign
+architect@           S1,S2,S3,S4       DEMO-S5   403                403             0 rows
+consultant@          S1,S2,S3,S4,S6    DEMO-S5   403                403             1 row   <- not scoped (see findings)
+engineer@            S2,S3,S4,S5       DEMO-S1   403                403             0 rows
+pm@                  S1,S2,S3,S4,S5    DEMO-S6   403                403             1 row   <- not scoped
+projectmanager1@     S6,S7             DEMO-S2   403                403             3 rows  <- not scoped
+site@                S3,S4,S5,S6       DEMO-S1   403                403             0 rows
+```
+**Seeded files** (`demo:verify` §9/§10): design PNG, advisory PDF, attendance photo, expense receipt, field-document PNG, requirement PDF and proposal attachment all return 200 with the right
+magic bytes (`.PNG` / `%PDF`); **all 150 distinct file URLs referenced by seeded rows download with 200, 0 failing.**
+
+### Findings, gaps and deviations (honest list)
+1. **Dead pages / modules that do not exist in this codebase** (skipped, no feature built): Support (Admin, IT Designer) has no table or endpoint; Leave, Purchase requests, Vendor payments,
+   Reimbursements and Inspections have no sidebar page (tables for the last three exist but are empty and unused by any UI); Account Recovery shows the 4 pre-existing
+   `password_reset_tokens` rows and was not seeded (creating requests needs an account-table write).
+2. **Payroll has no "paid" state** (statuses: draft / pending / approved / revision_required); one batch of each of those exists. "Paid" was not invented.
+3. **Modules with no file column**, so their records cannot point to a file: blueprints (`file_type`/`size_kb` only), architect documentation, engineering reports.
+   Their companion records (designs, documents, requirements, proposal workflow attachments) carry real files.
+4. **Direct SQL where no service path exists:** back-dating of `projects.created_at/completed_at/archived_at`, `project_phase_history.created_at`, closeout `payroll_batches.created_at` and the
+   stalled `workflow_stages.updated_at` (history timestamps are always "now" through the API); the 50 roster employees (employee reset happens inside the wipe transaction); and S5–S7 projects are created with
+   today's date then PATCHed to their real dates because the create validator forbids past dates. Everything else is API.
+5. **Server scoping gap (pre-existing, not changed here):** the project list and `GET /projects/:id` are scoped for Architect, Consultant, Engineer, PM, Site, but `GET /designs?projectCode=…`
+   still returns another project's designs to Consultant and PM (Architect/Engineer/Site are scoped). Reported, not fixed (this task builds no features).
+6. **Accounts:** `itdesigner@easyconstruct.demo` does not accept `Demo@12345` any more (its password was changed outside the seed). Accounts were not touched, so `itdesigner1@` was used for the IT Designer checks.
+7. **DEMO-S4 progress is 61 %** (target "60–70 %"): 7 of 13 tasks done. Its burn-vs-progress signal needs spend far ahead of completion, so S4's approved spend (≈ PHP 56 M of 70.9 M planned) is deliberately heavy.
+8. **Files of deleted records** (≈ 150 blobs from the old data) remain in the Blob store as unreferenced objects; they were not deleted.
+9. A pre-existing "Resolve flags" button on the HR attendance page is still non-functional (unchanged, out of scope).
+10. `FEATURES.aiPlaceholders` is still `false` (`client/src/config/features.ts:17`); no anomaly score or placeholder AI surface was added. Only rule-based advisory output from the real code paths is shown.
+
+### Build / tests
+`npx tsc --noEmit -p server` → exit 0. `npm run build` (client) → built, exit 0. `npm test` (server) → 223 pass, 0 fail.
+
+### Re-run everything
+```
+cd server
+$env:ALLOW_DEMO_RESET='true'; $env:DEMO_RESET_ALLOWED_HOSTS='<db host>'     # PowerShell; use export on bash
+npm run demo:reset -- --dry-run      # prints row counts, changes nothing
+npm run demo:reset                   # backup → one transaction (projects, employees → 100)
+npm run ai:seed-references           # only if reference_snapshots is empty
+npm run dev                          # separate terminal, FEATURE_AI=true
+npm run demo:seed                    # S1..S7, then demo:seed-roles (+ revisions)
+npm run demo:ai-signals              # asserts the five signals on DEMO-S4
+npm run demo:verify                  # every table in this section
+```

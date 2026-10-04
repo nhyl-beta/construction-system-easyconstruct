@@ -16,6 +16,8 @@
     "db:backfill-employee-links": "tsx src/scripts/backfill-employee-user-links.ts",
     "ai:seed-references": "tsx src/scripts/seed-reference-data.ts",
     "demo:reset": "tsx src/scripts/reset-demo-data.ts",
+    "demo:verify": "tsx src/scripts/demo-verify.ts",
+    "demo:employees": "tsx src/scripts/demo-employees.ts",
     "demo:audit": "tsx src/scripts/demo-audit.ts",
     "demo:seed": "tsx src/scripts/demo-seed-stages.ts && npm run demo:seed-roles",
     "demo:seed-roles": "tsx src/scripts/demo-seed-roles.ts && tsx src/scripts/demo-seed-revisions.ts",

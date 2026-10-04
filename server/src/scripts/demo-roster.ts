@@ -176,7 +176,7 @@ export async function upsertRoster(client: PoolClient): Promise<number> {
          name=EXCLUDED.name, initials=EXCLUDED.initials, role=EXCLUDED.role, department=EXCLUDED.department,
          site=EXCLUDED.site, status=EXCLUDED.status, attendance_rate=EXCLUDED.attendance_rate,
          performance=EXCLUDED.performance, hired_on=EXCLUDED.hired_on, email=EXCLUDED.email, phone=EXCLUDED.phone,
-         pay_rate=EXCLUDED.pay_rate, rate_type=EXCLUDED.rate_type, updated_at=now()
+         pay_rate=EXCLUDED.pay_rate, rate_type=EXCLUDED.rate_type
        WHERE employees.user_id IS NULL`,
       [r.employeeId, r.name, r.initials, r.role, r.department, r.site, r.status, r.attendanceRate, r.performance, r.hiredOn, r.email, r.phone, r.payRate, r.rateType],
     );

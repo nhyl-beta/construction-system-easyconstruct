@@ -193,10 +193,13 @@ async function main() {
     ]);
   }
 
+  // Re-use the plan item from an earlier run (keyed on its title) so re-running adds nothing.
+  const planDocs = await api<{ id: number; title: string }[]>("/architect-documents", architect);
+  const existingPlan = planDocs.find((d) => d.title === "Ground floor plan");
   await addVersions(
     architect,
     consultant,
-    { itemType: "plan", newTitle: "Ground floor plan", title: "Ground floor plan" },
+    { itemType: "plan", itemId: existingPlan?.id, newTitle: "Ground floor plan", title: "Ground floor plan" },
     [
       { label: "P1", summary: "Ground floor plan, first coordinated issue.", file: { name: "ground-floor-p1.png", type: "image/png", bytes: planPng(2) }, review: [{ status: "Approved" }] },
       { label: "P2", summary: "Loading bay widened; fire door added to the east wall.", file: { name: "ground-floor-p2.png", type: "image/png", bytes: planPng(3) }, review: [{ status: "Under Review" }] },
