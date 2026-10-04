@@ -135,4 +135,5 @@ export function addDays(iso: string, n: number): string {
   d.setUTCDate(d.getUTCDate() + n);
   return d.toISOString().slice(0, 10);
 }
-export const TODAY = "2026-10-04";
+/** Today in the business timezone (the create validator rejects past dates). */
+export const TODAY = new Date().toLocaleDateString("en-CA", { timeZone: "Asia/Manila" });

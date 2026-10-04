@@ -319,6 +319,19 @@ const TEMPLATES = [
       { role: "admin", roleLabel: "Admin Final Approval", iconKey: "ShieldCheck" },
     ],
   },
+  // Design delivery projects: the turnover of the plan sets to the client.
+  // Name must be exactly "Design Turnover" — matched by string in lifecycle/delivery.ts.
+  {
+    name: "Design Turnover",
+    description: "Architect hands over the plan sets; Consultant reviews; PM and Admin sign off the turnover to the client.",
+    avgDurationHours: "60.0",
+    defaultStages: [
+      { role: "architect", roleLabel: "Architect Handover", iconKey: "FileSignature" },
+      { role: "consultant", roleLabel: "Consultant Review", iconKey: "UserCheck" },
+      { role: "project-manager", roleLabel: "PM Sign-off", iconKey: "ShieldCheck" },
+      { role: "admin", roleLabel: "Admin Final Approval", iconKey: "ShieldCheck" },
+    ],
+  },
 ] as const;
 
 function initials(name: string) {

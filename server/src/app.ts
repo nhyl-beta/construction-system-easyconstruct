@@ -4,6 +4,7 @@ import designRevisionsRoutes from "../src/designs/design-revisions/routes.js";
 import revisionsRoutes from "../src/revisions/routes.js";
 import designRequestsRoutes from "../src/design-requests/routes.js";
 import transmittalsRoutes from "../src/transmittals/routes.js";
+import deliverablesRoutes from "../src/deliverables/routes.js";
 import architectDocumentsRoutes from "./architect-documents/routes.js";
 import blueprintsRoutes from "./blueprints/routes.js";
 import designRoutes from "./designs/routes.js";
@@ -72,6 +73,7 @@ app.use("/api/design-revisions", designRevisionsRoutes);
 app.use("/api/revisions", revisionsRoutes);
 app.use("/api/design-requests", designRequestsRoutes);
 app.use("/api/transmittals", transmittalsRoutes);
+app.use("/api/deliverables", deliverablesRoutes);
 app.use("/api/design-reviews", designReviewsRoutes);
 app.use("/api/architect-documents", architectDocumentsRoutes);
 app.use("/api/blueprints", blueprintsRoutes)

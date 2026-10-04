@@ -22,6 +22,7 @@ import { LocationMapPicker } from "@/components/maps/location-map-picker";
 import { useProjectDesigns } from "@/features/designs/hooks/useProjectDesigns";
 import { ProjectRevisionsPanel } from "@/features/designs/components/ProjectRevisionsPanel";
 import { ProjectRequestsSection } from "@/features/requests/components/ProjectRequestsSection";
+import { PlanSetsSection } from "../components/PlanSetsSection";
 import { StatusBadge } from "@/components/ui/status-badge";
 import { documentsRepository, type DocumentRecord } from "@/features/documents/repositories/documents.repository";
 import { ProjectLifecyclePanel } from "@/features/lifecycle/components/ProjectLifecyclePanel";
@@ -205,6 +206,7 @@ export default function ProjectDetailPage() {
     );
   }
 
+  const isDesignProject = project.deliveryType === "Design";
   const riskLabel =
     RISK_LEVELS.find((level) => level.value === project.risk)?.label ?? project.risk;
 
@@ -298,6 +300,9 @@ export default function ProjectDetailPage() {
           ) : (
             <ReadOnlyValue value={project.projectType} />
           )}
+        </Field>
+        <Field label="Delivery">
+          <ReadOnlyValue value={project.deliveryType === "Design" ? `Design only — ${(project.designDisciplines ?? []).join(", ") || "no plan sets chosen"}` : "Construction"} />
         </Field>
         <Field label="Planned start date">
           {canEdit
@@ -414,7 +419,9 @@ export default function ProjectDetailPage() {
             against these three columns. Was three plain number inputs for
             lat/lng/radius — accurate coordinates are hard to type by hand, so
             this is now a map pin instead, with the geofence derived from it
-            automatically (see LocationMapPicker). */}
+            automatically (see LocationMapPicker). A Design project has no site
+            works, so no geofence. */}
+        {!isDesignProject && (<>
         <div className="md:col-span-2">
           <h2 className="text-sm font-semibold">Site geofence</h2>
           <p className="mt-0.5 text-xs text-muted-foreground">
@@ -444,6 +451,7 @@ export default function ProjectDetailPage() {
             <ReadOnlyValue value={null} />
           )}
         </div>
+        </>)}
 
       </div>
 
@@ -462,7 +470,9 @@ export default function ProjectDetailPage() {
           }
         />
         <TeamMemberPanel projectCode={project.code} role="architect" label="Architects" readOnly={!canEdit} />
-        <TeamMemberPanel projectCode={project.code} role="site-personnel" label="Site Personnel" readOnly={!canEdit} />
+        {!isDesignProject && (
+          <TeamMemberPanel projectCode={project.code} role="site-personnel" label="Site Personnel" readOnly={!canEdit} />
+        )}
         <TeamMemberPanel projectCode={project.code} role="consultant" label="Consultants" readOnly={!canEdit} />
       </div>
 
@@ -471,6 +481,12 @@ export default function ProjectDetailPage() {
           filed against the stage. The designs used to sit in a separate
           "Linked designs" card, so the architect's submitted files never
           showed up under "Design stage files". */}
+      {isDesignProject && (
+        <div className="max-w-4xl">
+          <PlanSetsSection projectCode={project.code} />
+        </div>
+      )}
+
       <div className="max-w-4xl">
         <DesignStageSection projectCode={project.code} canManage={canEdit} canRemove={DOCUMENT_REMOVERS.includes(role)} />
       </div>
@@ -485,20 +501,26 @@ export default function ProjectDetailPage() {
         <ProjectRequestsSection projectCode={project.code} />
       </div>
 
-      <div className="max-w-4xl">
-        {/* F1: matches requirements/service.ts assertCanSetStatus exactly —
-            project-manager or admin, not the broader PROJECT_EDITORS set
-            (it-designer can edit the project record but can't decide a
-            requirement, and would just 403 on click). */}
-        <RequirementsPanel
-          projectCode={project.code}
-          canDecide={role === "project-manager" || role === "admin"}
-        />
-      </div>
+      {/* Requirements and milestones feed the Pre-Construction/Construction gates,
+          which a Design project never reaches — hidden there. */}
+      {!isDesignProject && (
+        <>
+          <div className="max-w-4xl">
+            {/* F1: matches requirements/service.ts assertCanSetStatus exactly —
+                project-manager or admin, not the broader PROJECT_EDITORS set
+                (it-designer can edit the project record but can't decide a
+                requirement, and would just 403 on click). */}
+            <RequirementsPanel
+              projectCode={project.code}
+              canDecide={role === "project-manager" || role === "admin"}
+            />
+          </div>
 
-      <div className="max-w-4xl">
-        <MilestonesPanel projectCode={project.code} canManage={canEdit} />
-      </div>
+          <div className="max-w-4xl">
+            <MilestonesPanel projectCode={project.code} canManage={canEdit} />
+          </div>
+        </>
+      )}
 
       {/* Was inside the top info grid, above the Team and Milestones
           sections — on a real project it saved somewhere in the middle of

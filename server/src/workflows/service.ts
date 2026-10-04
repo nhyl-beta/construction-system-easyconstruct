@@ -2,6 +2,7 @@ import { ConflictError, ForbiddenError, NotFoundError, ValidationError } from ".
 import { assertProjectWritable, refreshProjectProgress } from "../lifecycle/service.js";
 import { CLOSEOUT_TEMPLATE_NAME } from "../lifecycle/repository.js";
 import { filterRowsToCodes } from "../projects/visibility.js";
+import { DESIGN_TURNOVER_TEMPLATE_NAME, normalizeDeliveryType } from "../lifecycle/delivery.js";
 import { proposalRepository } from "../proposals/repository.js";
 import * as notificationsService from "../notifications/service.js";
 import { validateWorkflowLineItems } from "../ai-validation/service.js";
@@ -314,6 +315,23 @@ export const createWorkflow = async (
   // Inspection stage opens it) may start one — mirrors the "auto-approve the
   // initiator's own stage" assumption below, which requires the initiator's
   // role to actually be the template's first stage's role.
+  // Delivery type decides which hand-over workflow applies: a Design project
+  // closes with Design Turnover (once it is at Turnover), a Construction
+  // project with Project Closeout — never the other way round.
+  {
+    const target = await projectsRepo.findByCode(input.projectCode);
+    const isDesignProject = normalizeDeliveryType(target?.deliveryType) === "Design";
+    if (template.name === DESIGN_TURNOVER_TEMPLATE_NAME) {
+      if (!isDesignProject) throw new ConflictError("Design Turnover applies to Design projects only");
+      if (target!.status !== "Closeout") {
+        throw new ConflictError(`Design Turnover can start once the project is at Turnover (currently "${target!.status}")`);
+      }
+    }
+    if (template.name === CLOSEOUT_TEMPLATE_NAME && isDesignProject) {
+      throw new ConflictError("A Design project is handed over with the Design Turnover workflow, not Project Closeout");
+    }
+  }
+
   if (template.name === CLOSEOUT_TEMPLATE_NAME) {
     // assertProjectWritable above already guarantees this project exists.
     const project = await projectsRepo.findByCode(input.projectCode);

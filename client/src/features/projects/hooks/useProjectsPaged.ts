@@ -7,11 +7,12 @@ export const PAGE_SIZES = [10, 20, 50] as const;
 
 export interface ProjectFilterState {
   projectType: string;
+  deliveryType: string;
   status: string;
   risk: string;
 }
 
-const NO_FILTERS: ProjectFilterState = { projectType: "all", status: "all", risk: "all" };
+const NO_FILTERS: ProjectFilterState = { projectType: "all", deliveryType: "all", status: "all", risk: "all" };
 
 /**
  * The All projects table: server-side search, filters and pagination.

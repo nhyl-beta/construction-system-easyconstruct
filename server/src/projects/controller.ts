@@ -21,6 +21,7 @@ export const getAll = async (
       status: req.query.status as string,
       risk: req.query.risk as string,
       projectType: req.query.projectType as string,
+      deliveryType: req.query.deliveryType as string,
       excludeArchived: req.query.excludeArchived === "1",
       search: req.query.search as string,
     };

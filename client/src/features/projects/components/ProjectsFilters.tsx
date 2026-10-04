@@ -8,7 +8,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { PROJECT_TYPES, RISK_LEVELS } from "../types/project.types";
+import { DELIVERY_TYPES, PROJECT_TYPES, RISK_LEVELS } from "../types/project.types";
 import type { ProjectFilterState } from "../hooks/useProjectsPaged";
 
 // Lifecycle phases (server/src/lifecycle/phases.ts), in pipeline order.
@@ -40,6 +40,18 @@ export const ProjectsFilters: React.FC<{
         <SelectItem value="all">All types</SelectItem>
         {PROJECT_TYPES.map((t) => (
           <SelectItem key={t} value={t}>{t}</SelectItem>
+        ))}
+      </SelectContent>
+    </Select>
+
+    <Select value={filters.deliveryType} onValueChange={(v) => onChange("deliveryType", v)}>
+      <SelectTrigger aria-label="Filter by delivery type" className="h-9 w-40 rounded-xl text-xs">
+        <SelectValue />
+      </SelectTrigger>
+      <SelectContent>
+        <SelectItem value="all">All deliveries</SelectItem>
+        {DELIVERY_TYPES.map((t) => (
+          <SelectItem key={t} value={t}>{t === "Design" ? "Design only" : "Construction"}</SelectItem>
         ))}
       </SelectContent>
     </Select>

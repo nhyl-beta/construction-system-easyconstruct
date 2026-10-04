@@ -109,7 +109,12 @@ export function ProjectLifecyclePanel({
     );
   }
 
-  const stepIndex = SEQUENCED_PHASES.indexOf(view.phase as (typeof SEQUENCED_PHASES)[number]);
+  // The path comes from the server so a Design project shows its own phases
+  // (no Pre-Construction / Construction, and Closeout reads "Turnover").
+  const path = view.phasePath ?? SEQUENCED_PHASES.map((p) => ({ phase: p, label: p }));
+  const labelOf = (phase: string) => path.find((p) => p.phase === phase)?.label ?? phase;
+  const stepIndex = path.findIndex((p) => p.phase === view.phase);
+  const isDesignProject = view.deliveryType === "Design";
   const isFrozen = view.phase === "On Hold" || view.phase === "Cancelled";
 
   return (
@@ -117,8 +122,13 @@ export function ProjectLifecyclePanel({
       <div className="flex flex-wrap items-center justify-between gap-3">
         <div className="flex items-center gap-3">
           <Badge variant="outline" className={`rounded-full px-3 py-1 text-sm ${TONE_CLASS[view.phase] ?? ""}`}>
-            {view.phase}
+            {labelOf(view.phase)}
           </Badge>
+          {view.planSets && view.planSets.total > 0 && (
+            <span className="text-xs text-muted-foreground">
+              {view.planSets.total} plan set{view.planSets.total === 1 ? "" : "s"} · {view.planSets.averagePoints}% delivered
+            </span>
+          )}
           {view.constructionTasks && (
             <span className="text-xs text-muted-foreground">
               {view.constructionTasks.done} of {view.constructionTasks.total} tasks done
@@ -138,7 +148,7 @@ export function ProjectLifecyclePanel({
                       disabled={acting || !view.canAdvance}
                       onClick={() => void advance()}
                     >
-                      Advance to {view.nextPhase}
+                      Advance to {labelOf(view.nextPhase)}
                     </Button>
                   </span>
                 </TooltipTrigger>
@@ -228,7 +238,7 @@ export function ProjectLifecyclePanel({
 
           {/* Phase stepper */}
           <div className="flex flex-wrap items-center gap-1.5 text-xs">
-            {SEQUENCED_PHASES.map((phase, i) => (
+            {path.map(({ phase, label }, i) => (
               <span
                 key={phase}
                 className={`rounded-full border px-2.5 py-1 ${
@@ -239,7 +249,7 @@ export function ProjectLifecyclePanel({
                       : "border-border text-muted-foreground"
                 }`}
               >
-                {phase}
+                {label}
               </span>
             ))}
           </div>
@@ -247,7 +257,7 @@ export function ProjectLifecyclePanel({
           {view.checks.length > 0 && (
             <div className="space-y-2">
               <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
-                Checks for {view.phase}
+                Checks for {labelOf(view.phase)}
               </p>
               <ul className="space-y-1.5">
                 {view.checks.map((check) => (
@@ -306,7 +316,7 @@ export function ProjectLifecyclePanel({
       {/* H6/K2: everything Closeout cares about (documents, budgets, payroll,
           the closeout workflow) in one place, rather than four screens —
           also shown once Completed, so the record stays visible afterward. */}
-      {(view.phase === "Closeout" || view.phase === "Completed") && (
+      {!isDesignProject && (view.phase === "Closeout" || view.phase === "Completed") && (
         <CloseoutSummaryCard projectId={projectId} projectCode={projectCode} onWorkflowStarted={reload} />
       )}
 

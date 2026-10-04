@@ -16,7 +16,14 @@ export const ProjectCard: React.FC<{ p: Project }> = ({ p }) => {
           <div className="flex items-start justify-between gap-2">
             <div>
               <div className="text-xs font-mono text-muted-foreground">{p.code}</div>
-              <div className="mt-0.5 font-medium leading-tight group-hover:text-primary">{p.name}</div>
+              <div className="mt-0.5 font-medium leading-tight group-hover:text-primary">
+            {p.name}
+            {p.deliveryType === "Design" && (
+              <Badge variant="outline" className="ml-2 rounded-md border-violet-500/40 bg-violet-500/10 px-1.5 text-[10px] font-medium text-violet-700 dark:text-violet-300">
+                Design
+              </Badge>
+            )}
+          </div>
             </div>
             <Badge variant="outline" className={`rounded-full px-2 py-0.5 text-[10px] ${STATUS_TONE_CLASS[p.statusTone]}`}>
               {p.status}
