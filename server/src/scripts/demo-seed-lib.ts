@@ -72,8 +72,8 @@ export async function raw(path: string, token: string, opts: { method?: string; 
     headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
     body: opts.body !== undefined ? JSON.stringify(opts.body) : undefined,
   });
-  const json = (await res.json().catch(() => ({}))) as { data?: any; message?: string };
-  return { status: res.status, data: json.data, message: json.message };
+  const json = (await res.json().catch(() => ({}))) as { data?: any; message?: string; meta?: any };
+  return { status: res.status, data: json.data, message: json.message, meta: json.meta };
 }
 
 export interface Account {

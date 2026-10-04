@@ -141,6 +141,13 @@
       "when": 1790400000000,
       "tag": "0019_fix_report_project_case",
       "breakpoints": true
+    },
+    {
+      "idx": 20,
+      "version": "7",
+      "when": 1790500000000,
+      "tag": "0020_design_revision_demo_flag",
+      "breakpoints": true
     }
   ]
 }

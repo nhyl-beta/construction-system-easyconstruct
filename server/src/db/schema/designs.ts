@@ -1,6 +1,6 @@
 import {
   pgTable, serial, varchar,
-  integer, text, timestamp, jsonb,
+  integer, text, timestamp, jsonb, boolean,
 } from 'drizzle-orm/pg-core';
 import { users } from './users.js';
 
@@ -27,6 +27,8 @@ export const designs = pgTable('designs', {
   assignedEngineerName: varchar('assigned_engineer_name', { length: 100 }),
   aiCompleteness: integer('ai_completeness').notNull().default(0),
   aiConfidence:   integer('ai_confidence').notNull().default(0),
+  // True for the placeholder design created by the demo-revisions generator.
+  isDemo:         boolean('is_demo').notNull().default(false),
   createdAt:      timestamp('created_at').defaultNow(),
   updatedAt:      timestamp('updated_at').defaultNow(),
 });

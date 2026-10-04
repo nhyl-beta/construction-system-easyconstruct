@@ -576,6 +576,11 @@ async function main() {
        AND NOT EXISTS (SELECT 1 FROM "projects" x WHERE x."code" = r."project")
        AND (SELECT count(*) FROM "projects" y WHERE lower(y."code") = lower(r."project")) = 1;
 
+    -- Demo-generated design revisions are flagged so they can be removed (drizzle/0020_design_revision_demo_flag.sql).
+    ALTER TABLE "design_revisions" ADD COLUMN IF NOT EXISTS "is_demo" boolean NOT NULL DEFAULT false;
+    ALTER TABLE "designs" ADD COLUMN IF NOT EXISTS "is_demo" boolean NOT NULL DEFAULT false;
+    CREATE UNIQUE INDEX IF NOT EXISTS "design_revisions_design_version_uq" ON "design_revisions" ("design_id", "version");
+
     -- D2: who completed a milestone and when.
     ALTER TABLE milestones
       ADD COLUMN IF NOT EXISTS completed_by varchar(100),

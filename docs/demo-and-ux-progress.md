@@ -1460,3 +1460,74 @@ npm run demo:seed                    # S1..S7, then demo:seed-roles (+ revisions
 npm run demo:ai-signals              # asserts the five signals on DEMO-S4
 npm run demo:verify                  # every table in this section
 ```
+
+
+## Design revisions — project link, Design change history panel, demo generator (2026-10-04)
+
+Branch `prod`. Extends `design_revisions` (the per-design version log). No second seeder: `demo:seed-roles` calls the new generator.
+
+### Findings checked against HEAD (what was right, what was stale)
+1. **Two-hop link, nothing queried it — confirmed.** `design_revisions.design_id → designs.id`, `designs.project_code` (free text) → `projects.code`. Now joined in one query (`findDetailed` / `findByProjectCode`).
+2. **No `projectCode` filter / scoping — partly stale.** The list was already narrowed for the Architect (`scopeRowsByDesign`), but only for that one role; PM, Engineer, Consultant, Site read everything and any role could write. Fixed (A3/A4).
+3. **`useDesignRevisionsController` raw `fetch` without a token — confirmed, but dead code.** Nothing renders it any more: the Architect Revisions page was rebuilt earlier on the newer `revisions` module (`useRevisions`, `apiClient`). The controller was moved to `apiClient` via the new repository anyway.
+4. **Architect page shows `Design #id` — stale.** That page (`architect-revisions.tsx`) already shows item titles, project code and a project filter; the only gap was the project code not being a link — now a link to `/projects/<code>`.
+5. **Project page shows no revision history — partly stale.** `ProjectDetailPage` already renders `ProjectRevisionsCard` (current version of each item, from the `revisions` module). It never showed the `design_revisions` log, which is what the new panel adds. **The two coexist on purpose and are labelled differently ("Revisions" vs "Design change history") — see Decisions needed.**
+6. **`create` was a bare insert — confirmed.** No numbering, parent version, lock check, duplicate check, `designs.version/revision` update or audit.
+7. **Seeders never created revisions — confirmed** (0 rows in `design_revisions` before this change).
+
+### Backend
+- Schema: `is_demo boolean not null default false` on `design_revisions` and `designs` (Drizzle `design-revisions.ts`, `designs.ts`), plus a unique index on `(design_id, version)`. Mechanism used: hand-written idempotent migration `server/drizzle/0020_design_revision_demo_flag.sql` + journal entry **and** the same statements in `ensure-demo-schema.ts` (the repo has both; `drizzle-kit generate` needs an interactive prompt). Applied to the database: `is_demo` present on both tables.
+- `GET /api/design-revisions?projectCode=…` → items joined with `designCode/designName/discipline/projectCode/isDemo`, plus `meta` = `{ total, designsWithRevisions, latestVersion, latestChangeAt, awaitingApproval, byStatus, demoAllowed }`. Visibility is the project's own: the service resolves the project and calls the existing `projects/service.getById(id, scope)` (so a PM sees only their own, Engineer/Architect/Site/Consultant only staffed projects).
+- Without `projectCode` the list is restricted to the caller's visible projects through a new `visibleProjectCodes(scope)` helper in `projects/service.ts` (same rules as the project list). `GET /:id` and writes also check the design's project.
+- Writes: `POST/PATCH/DELETE` now `requireRole("architect","admin")`. `create` runs in one transaction: design row locked, duplicate `(designId, version)` → 409, `revisionNumber` = max+1, `parentVersion` defaults to the design's current version (none for a design's first revision), `designs.version/revision/updatedAt` updated, `approvedAt` set when Approved, author taken from the session for non-admins, `assertProjectWritable`, and an audit entry (`design-revision`, created / status-changed / deleted).
+- Demo generator `designs/design-revisions/demo.ts` — `ensureProjectRevisionDemo(code, { dryRun, includeProposal })`. Idempotent (a project with any revision, real or demo, is left alone), deterministic (FNV hash of project + design code seeds the PRNG), 3–5 revisions per design (≤ 3 designs), `v0.1 → v1.0 → v1.1 → v2.0 → v2.1` with each `parentVersion` the previous one, reasons by discipline (Structural/Architectural/MEPF/Civil, ≤ 255 chars), earlier revisions Approved (one Rejected mid-chain on 4–5-long chains), the latest `Under Review` in Design and `Approved` afterwards. Dates run from the project's `created_at` to now, or to its completion date for a finished project, strictly increasing and never in the future; authors are architect/engineer names staffed on the project. Proposal-phase projects are skipped unless `--include-proposal`. If a project has no design it creates `DSN-<code>-DEMO` flagged `is_demo` (none was needed here — every demo project already has a design).
+  It writes through `service.create` with an internal `bypassLock` (never reachable from a request body) because the seeded S7 is Archived and would otherwise reject its own history; flags and back-dated timestamps are accepted only on that internal path.
+- `POST /api/design-revisions/demo?projectCode=` — admin only; 403 when `NODE_ENV=production` unless `ALLOW_DEMO_SEED=true` (`isDemoAllowed`, unit-tested).
+
+### Commands
+```
+cd server
+npm run demo:revisions -- --dry-run            # print the plan, write nothing
+npm run demo:revisions                         # generate for every project that has none (Proposal skipped)
+npm run demo:revisions -- --project DEMO-S4    # one project
+npm run demo:revisions -- --include-proposal
+npm run demo:revisions -- --remove             # deletes ONLY is_demo revisions (then is_demo designs left empty)
+npm run demo:seed-roles                        # now also runs demo-revisions.ts at the end
+```
+`npm run demo:revisions` used to run the `revisions`-module seeder (`demo-seed-revisions.ts`); that file still runs inside `demo:seed-roles`, only the npm alias moved.
+
+### Frontend
+`features/designs/`: `types/design-revision.types.ts` (+`ProjectRevision`, `ProjectRevisionSummary`), `repositories/design-revision.repository.ts` (apiClient, unwraps `.data`/`.meta`, normalises status text and dates), `hooks/useProjectRevisions.ts` (stale-response guard), `components/ProjectRevisionsPanel.tsx`, mounted in `ProjectDetailPage` right after the Design stage / linked-designs block. Summary strip, design + status filters, per-design timeline (`parent → version`, `Rev N`, status badge, reason, expandable summary, author, relative time with the absolute date in `title`, approval date), a "Demo data" badge, three distinct empty states (Proposal phase / no designs / designs but no revisions), an admin-only "Generate demo revisions" button behind the existing confirm dialog (hidden when `meta.demoAllowed` is false), and inline errors that never blank the page. `RevisionsTable` now links the project code.
+
+### Evidence
+Counts: `design_revisions` 0 → 41 (S2 11, S3 10, S4 7, S5 3, S6 5, S7 5; S1 skipped as Proposal), all `is_demo`; `designs` 10, `is_demo` designs 0.
+```
+--dry-run          : "Dry run — nothing written. Would create 41 revision(s)"   before 0 / after 0
+run 1              : Created 41 revision(s)                                     after 41 (41 demo)
+run 2              : Created 0 revision(s)  (every project "already has revisions")  after 41
+--remove           : Removed 41 demo revision(s) and 0 demo design(s)           after 0, designs still 10
+regenerate         : Created 41
+dates check        : 0 rows with created_at/approved_at in the future or approved before created
+```
+`npx tsx src/scripts/demo-verify-design-revisions.ts` (live API): **33 of 33 checks PASS** —
+- `?projectCode=DEMO-S4` count 7 = SQL join count 7; items carry design code/name/project;
+- PM who does not own S4 (`projectmanager1`) 403, engineer not staffed (`engineer1`) 403, site not staffed on S2 403; owning PM, admin, staffed consultant, staffed engineer 200;
+- unfiltered lists: `architect@` only S2,S3,S4; `architect1@` only S5,S6,S7; `pm@` only S2–S5; admin S2–S7; `architect@` GET by id of an S5 revision 403;
+- **no write on read:** row counts and md5 of both tables identical before/after every GET (all roles, all seven projects, plus `/designs`);
+- create: 201, author from the session (`Ana Villanueva`, not the body's name), `revisionNumber` 3→4, `parentVersion` = previous version, `approvedAt` set, `designs.version/revision` = `v9.0/4`, duplicate version 409, one audit row; write on Archived S7 → `409 Project is Archived — changes are locked`; engineer / PM / HR writes 403 (the probe row was deleted and the design restored);
+- `POST /design-revisions/demo`: architect 403, PM 403, admin 200 `created=0 (already has revisions)`, Proposal project skipped; production guard unit-tested (`isDemoAllowed("production", undefined)` false, with `"true"` true).
+UI (headless Chrome against the dev client, signed in as the real accounts): S2 shows the panel with 11 revisions, "Latest v2.1 / Awaiting approval 3 / Last change 17 days ago", timeline grouped by design with Demo-data badges; S4 7, S7 5 (dated inside its life, before its completion); **S1 as the staffed architect: "Revisions start once a design exists. This project is still in the Proposal phase."**; S3 with its demo rows removed shows "No revisions recorded — This project has designs, but none of them has a revision history yet." plus the button, the confirm dialog text, and after confirming the panel shows the 10 generated revisions. No console errors.
+Checks: `npx tsc --noEmit -p server` clean, client `npm run build` clean, `npm test` 230 pass / 0 fail (7 new). Account tables unchanged: users `48ac4a39…`, password_reset_tokens `c7b81d12…`, roles `9862b995…` — identical to the values recorded before the clean-slate wipe.
+
+### Decisions needed
+1. **Who else may write revisions?** Only Architect and Admin now. The Engineer assigned to a design could reasonably propose a revision; not added.
+2. **Proposal-phase projects** get no demo revisions by default (no design can exist yet). Use `--include-proposal` if the demo should show one.
+3. **Should any role see revisions of projects it is not staffed on?** Currently none (Owner, Admin and IT Designer are unrestricted, as for the project list).
+4. **Two revision histories.** The newer `revisions` module (files, review workflow, the "Revisions" card and Architect page) and this `design_revisions` log both describe design changes; the project page now shows both under different titles. Decide whether `design_revisions` should be retired or fed from the newer module.
+
+### Permission changes (may touch the Chapter 1 manuscript)
+Reading design revisions is now limited to the caller's visible projects (PM: own projects; Engineer/Architect/Consultant/Site: staffed projects) — previously any signed-in role could read all. Writing is limited to Architect and Admin — previously any signed-in role could create, edit or delete.
+
+### Not done
+- Hold/On-Hold lock was not exercised separately (same `assertProjectWritable` as Archived, which was).
+- The `POST /design-revisions/demo` production branch is covered by a unit test of the guard, not by running the server with `NODE_ENV=production`.

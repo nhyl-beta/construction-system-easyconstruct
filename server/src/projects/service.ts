@@ -105,6 +105,19 @@ const assignedProjectCodes = async (userId: number): Promise<Set<string>> => {
   return new Set(memberships.map((m) => m.projectCode));
 };
 
+/**
+ * The project codes this caller may see, by the same rules as the project list
+ * and getById: a PM's own projects, a staffed role's assigned projects, and
+ * `null` (no restriction) for everyone else. Lets other modules scope their own
+ * lists without copying the visibility rules.
+ */
+export const visibleProjectCodes = async (scope?: ProjectScope): Promise<Set<string> | null> => {
+  if (!scope) return null;
+  if (scope.role === "project-manager") return projectCodesForPm(scope);
+  if (MEMBERSHIP_SCOPED_ROLES.has(scope.role)) return assignedProjectCodes(scope.userId);
+  return null;
+};
+
 const visibleProjects = async (filters: ProjectFilters, scope?: ProjectScope) => {
   // A Project Manager's portfolio is the projects assigned to them — applied
   // in the query itself, so the list, the dashboard counts built from it and

@@ -1,4 +1,5 @@
 import { Download, History } from "lucide-react";
+import { Link } from "react-router";
 import { toast } from "sonner";
 
 import { Badge } from "@/components/ui/badge";
@@ -102,7 +103,16 @@ function RevisionsGrid({ rows, onOpen }: { rows: Revision[]; onOpen: (r: Revisio
                 {r.changeSummary}
               </p>
             </TableCell>
-            <TableCell className="whitespace-normal break-words font-mono text-xs">{r.projectCode}</TableCell>
+            <TableCell className="whitespace-normal break-words font-mono text-xs">
+                <Link
+                  to={`/projects/${encodeURIComponent(r.projectCode)}`}
+                  className="text-primary hover:underline"
+                  onClick={(e) => e.stopPropagation()}
+                  aria-label={`Open project ${r.projectCode}`}
+                >
+                  {r.projectCode}
+                </Link>
+              </TableCell>
             <TableCell className="whitespace-normal text-sm">
               {versionText(r)}
               {r.isCurrent && (
