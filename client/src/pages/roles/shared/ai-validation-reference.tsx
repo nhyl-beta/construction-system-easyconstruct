@@ -143,7 +143,7 @@ export default function AiValidationReferencePage() {
               <RuleCard
                 title="Rule-based proposal validation"
                 stage="Proposal"
-                demo={<DemoLink code="DEMO-STAGE-0">DEMO · 1 Proposal</DemoLink>}
+                demo={<DemoLink code="DEMO-S1">DEMO · 1 Proposal</DemoLink>}
               >
                 <p>
                   Runs on every proposal create/submit (<code>proposals/validation.ts
@@ -161,7 +161,7 @@ export default function AiValidationReferencePage() {
               <RuleCard
                 title="Line-item cost comparison"
                 stage="Construction (Budget Change Request / Change Order Request)"
-                demo={<DemoLink code="DEMO-STAGE-3">DEMO · 4 Construction</DemoLink>}
+                demo={<DemoLink code="DEMO-S4">DEMO · 4 Construction</DemoLink>}
               >
                 <p>
                   Every line item with a quantity and unit is matched against the cached
@@ -189,7 +189,7 @@ export default function AiValidationReferencePage() {
                 <RuleCard
                   title="cost-variance"
                   stage="Construction"
-                  demo={<DemoLink code="AISIG-DEMO">AISIG-DEMO scenario</DemoLink>}
+                  demo={<DemoLink code="DEMO-S4">DEMO · 4 Construction (signals)</DemoLink>}
                 >
                   <p>
                     Fires when a workflow line item's cost-comparison verdict is above/below
@@ -201,7 +201,7 @@ export default function AiValidationReferencePage() {
                 <RuleCard
                   title="cumulative-change-impact"
                   stage="Construction"
-                  demo={<DemoLink code="AISIG-DEMO">AISIG-DEMO scenario</DemoLink>}
+                  demo={<DemoLink code="DEMO-S4">DEMO · 4 Construction (signals)</DemoLink>}
                 >
                   <p>
                     Sums every approved budget change against the project's original contract
@@ -214,7 +214,7 @@ export default function AiValidationReferencePage() {
                 <RuleCard
                   title="burn-vs-progress"
                   stage="Construction"
-                  demo={<DemoLink code="AISIG-DEMO">AISIG-DEMO scenario</DemoLink>}
+                  demo={<DemoLink code="DEMO-S4">DEMO · 4 Construction (signals)</DemoLink>}
                 >
                   <p>
                     Compares real task-completion percentage (not the lifecycle's own
@@ -228,7 +228,7 @@ export default function AiValidationReferencePage() {
                 <RuleCard
                   title="issue-recurrence"
                   stage="Construction"
-                  demo={<DemoLink code="AISIG-DEMO">AISIG-DEMO scenario</DemoLink>}
+                  demo={<DemoLink code="DEMO-S4">DEMO · 4 Construction (signals)</DemoLink>}
                 >
                   <p>
                     Groups open issues by category within a{" "}
@@ -244,7 +244,7 @@ export default function AiValidationReferencePage() {
                 <RuleCard
                   title="stalled-stage"
                   stage="Any (whichever role owns the stalled workflow stage)"
-                  demo={<DemoLink code="AISIG-DEMO">AISIG-DEMO scenario</DemoLink>}
+                  demo={<DemoLink code="DEMO-S4">DEMO · 4 Construction (signals)</DemoLink>}
                 >
                   <p>
                     Fires when a workflow's current stage has sat un-decided for longer than a

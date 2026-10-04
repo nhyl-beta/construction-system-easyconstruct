@@ -1,7 +1,7 @@
 // server/src/scripts/demo-seed-revisions.ts
 //
 // Demo data for the Architect's Revisions page: three tracked items on
-// DEMO-STAGE-3, each with several versions, built through the real API (same
+// DEMO-S3, each with several versions, built through the real API (same
 // path the UI uses: upload the file, then POST /revisions) and reviewed by the
 // demo Consultant so every status shows up. Idempotent: an item that already
 // has revisions is left alone.
@@ -13,7 +13,7 @@ import zlib from "node:zlib";
 
 const BASE = process.env.SMOKE_BASE_URL ?? "http://localhost:8000/api";
 const PASSWORD = "Demo@12345";
-const PROJECT = process.env.REVISION_DEMO_PROJECT ?? "DEMO-STAGE-3";
+const PROJECT = process.env.REVISION_DEMO_PROJECT ?? "DEMO-S3";
 
 async function api<T = any>(path: string, token: string, opts: { method?: string; body?: unknown; form?: FormData } = {}): Promise<T> {
   const res = await fetch(`${BASE}${path}`, {
