@@ -18,7 +18,6 @@ import { downloadFileUrl } from "@/lib/file-url";
 import { formatCurrency } from "@/lib/format-currency";
 import { useProjectMembers } from "@/features/project-members/hooks/use-project-members";
 import { MilestonesPanel } from "@/features/milestones/components/MilestonesPanel";
-import { ProjectRevisionsCard } from "@/features/revisions/components/ProjectRevisionsCard";
 import { LocationMapPicker } from "@/components/maps/location-map-picker";
 import { useProjectDesigns } from "@/features/designs/hooks/useProjectDesigns";
 import { ProjectRevisionsPanel } from "@/features/designs/components/ProjectRevisionsPanel";
@@ -494,14 +493,6 @@ export default function ProjectDetailPage() {
       <div className="max-w-4xl">
         <MilestonesPanel projectCode={project.code} canManage={canEdit} />
       </div>
-
-      {/* Revisions are visible (read-only, with review actions for reviewers)
-          to the roles the server lets read them. */}
-      {["project-manager", "admin", "consultant", "architect"].includes(role) && (
-        <div className="max-w-4xl">
-          <ProjectRevisionsCard projectCode={project.code} />
-        </div>
-      )}
 
       {/* Was inside the top info grid, above the Team and Milestones
           sections — on a real project it saved somewhere in the middle of
