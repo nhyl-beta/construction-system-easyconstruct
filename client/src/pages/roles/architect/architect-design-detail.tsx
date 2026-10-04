@@ -9,6 +9,7 @@ import { useDesignReviews } from "@/features/design-reviews/hooks/useDesignRevie
 import { useAuth } from "@/auth/auth-context";
 import { ChevronLeft, Eye, MessageSquareQuote, Trash2 } from "lucide-react";
 import { CreateRequestDialog } from "@/features/requests/components/CreateRequestDialog";
+import { ImpactAwarenessCard } from "@/features/lifecycle/components/ImpactAwarenessCard";
 import { useMemo, useState } from "react";
 import { useNavigate, useParams } from "react-router";
 import { ConfirmDialog } from "@/components/ui/confirm-dialog";
@@ -164,6 +165,9 @@ export default function ArchitectDesignDetail() {
           )}
         </SectionCard>
       </div>
+
+      {/* Read-only advisories for this design's project (cost, change, schedule, quality). */}
+      <ImpactAwarenessCard projectCode={d.projectCode} />
 
       <ConfirmDialog
         open={confirmDelete}

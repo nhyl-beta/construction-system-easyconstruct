@@ -129,7 +129,7 @@ export default function FinanceExpensesPage() {
     <PageContainer>
       <PageHeader
         title="Expense Management"
-        description="Track operational expenses, purchase requests, vendor payments, reimbursements and AI anomaly detection."
+        description="Track operational expenses, purchase requests, vendor payments and reimbursements."
         actions={
           <RecordExpenseDialog creating={c.creating} error={c.createError} onCreate={c.createExpense} />
         }
@@ -213,7 +213,7 @@ export default function FinanceExpensesPage() {
                       <TableHead className="text-right">Amount</TableHead>
                       <TableHead>Submitted</TableHead>
                       <TableHead>Receipt</TableHead>
-                      {FEATURES.aiPlaceholders && <TableHead>AI</TableHead>}
+                      {FEATURES.ai && <TableHead>Anomaly</TableHead>}
                       <TableHead>Status</TableHead>
                     </TableRow>
                   </TableHeader>
@@ -229,10 +229,11 @@ export default function FinanceExpensesPage() {
                         <TableCell>
                           <Paperclip className="h-3.5 w-3.5 text-muted-foreground" />
                         </TableCell>
-                        {FEATURES.aiPlaceholders && (
+                        {FEATURES.ai && (
                           <TableCell>
-                            {e.anomalyScore !== null && (
+                            {e.anomalyScore !== null && e.anomalyScore > 0 && (
                               <Badge
+                                title={e.anomalyReason ?? undefined}
                                 variant="outline"
                                 className={`rounded-full text-[10px] ${
                                   e.anomalyScore > 0.6
@@ -271,8 +272,8 @@ export default function FinanceExpensesPage() {
                   </ResponsiveContainer>
                 </div>
               </SectionCard>
-              {FEATURES.aiPlaceholders && (
-                <SectionCard title="AI anomaly detection" subtitle="Outliers worth investigating">
+              {FEATURES.ai && (
+                <SectionCard title="Anomaly detection" subtitle="Rule-based: duplicate payments and amounts far above history. Advisory only.">
                   <ul className="space-y-2">
                     {c.expenses
                       .filter((e) => (e.anomalyScore ?? 0) >= 0.4)
@@ -288,6 +289,7 @@ export default function FinanceExpensesPage() {
                           <p className="mt-1 text-[11px] text-muted-foreground">
                             {formatCurrency(e.amount)} · {e.category} · {e.project}
                           </p>
+                          {e.anomalyReason && <p className="mt-1 text-xs">{e.anomalyReason}</p>}
                         </li>
                       ))}
                   </ul>

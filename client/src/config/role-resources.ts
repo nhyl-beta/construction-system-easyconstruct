@@ -49,6 +49,7 @@ export const ROLE_RESOURCE_ACCESS: Record<string, string[]> = {
     "tasks",
     "documents",
     "requests",
+    "resources",
     "reports",
   ],
   human_resources: [

@@ -22,6 +22,7 @@ import { useOwnerDashboardController } from "@/features/dashboard/controllers/ow
 import { formatDue } from "@/features/projects/lib/project-format";
 import { formatRelativeTime } from "@/lib/format-relative-time";
 import { useNavigate } from "react-router";
+import { ImpactAwarenessCard } from "@/features/lifecycle/components/ImpactAwarenessCard";
 
 const riskToneClasses: Record<string, string> = {
   high: "text-destructive font-medium",
@@ -302,6 +303,8 @@ export default function OwnerDashboardPage() {
       </section>
 
       {/* ── Footer status ── */}
+      <ImpactAwarenessCard />
+
       <div className="flex items-center justify-center gap-2 pt-2 text-xs text-muted-foreground">
         <Crown className="h-3 w-3" />
         Read-only executive view{c.loading ? " · loading…" : ""}

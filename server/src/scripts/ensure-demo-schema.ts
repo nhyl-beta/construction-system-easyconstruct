@@ -710,6 +710,9 @@ async function main() {
            '[{"role":"architect","roleLabel":"Architect Handover","iconKey":"FileSignature"},{"role":"consultant","roleLabel":"Consultant Review","iconKey":"UserCheck"},{"role":"project-manager","roleLabel":"PM Sign-off","iconKey":"ShieldCheck"},{"role":"admin","roleLabel":"Admin Final Approval","iconKey":"ShieldCheck"}]'::jsonb
     WHERE NOT EXISTS (SELECT 1 FROM "workflow_templates" WHERE "name" = 'Design Turnover');
 
+    -- Expense anomaly reason (drizzle/0023_expense_anomaly_reason.sql).
+    ALTER TABLE "expenses" ADD COLUMN IF NOT EXISTS "anomaly_reason" text;
+
     -- D2: who completed a milestone and when.
     ALTER TABLE milestones
       ADD COLUMN IF NOT EXISTS completed_by varchar(100),

@@ -80,6 +80,8 @@ export const expenses = pgTable("expenses", {
   submittedAt: timestamp("submitted_at").defaultNow().notNull(),
   status: varchar("status", { length: 32 }).notNull(), // pending | approved | rejected
   anomalyScore: real("anomaly_score"), // 0-1, nullable
+  // Plain-language reasons behind a non-zero score (finance/expenses/anomaly.ts).
+  anomalyReason: text("anomaly_reason"),
   receiptUrl: text("receipt_url"),
 });
 

@@ -1,4 +1,5 @@
 import { and, desc, eq, ilike, or } from "drizzle-orm";
+import type { ExpenseLike } from "./anomaly.js";
 
 import { db } from "../../db/connection.js";
 import { expenses } from "../../db/schema/finance.js";
@@ -51,6 +52,16 @@ export const expensesRepository = {
       .values({ id, ...input, amount: input.amount, status: "pending" })
       .returning();
     return row;
+  },
+
+  /** Every expense as the anomaly rules see it (amount, vendor, project, category, date, status). */
+  async findAllForAnomaly(): Promise<ExpenseLike[]> {
+    const rows = await db.select().from(expenses);
+    return rows.map((r) => ({ id: r.id, vendor: r.vendor, project: r.project, category: r.category, amount: Number(r.amount), submittedAt: r.submittedAt, status: r.status }));
+  },
+
+  async setAnomaly(id: string, score: number, reason: string | null) {
+    await db.update(expenses).set({ anomalyScore: score, anomalyReason: reason }).where(eq(expenses.id, id));
   },
 
   async updateStatus(id: string, status: "approved" | "rejected") {

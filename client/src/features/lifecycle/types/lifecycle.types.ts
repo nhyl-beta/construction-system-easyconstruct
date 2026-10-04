@@ -89,6 +89,11 @@ export interface LifecycleView {
   signals?: Signal[];
 }
 
+export interface ImpactAwareness {
+  enabled: boolean;
+  projects: { projectCode: string; projectName: string; phase: string; signals: Signal[] }[];
+}
+
 // H6
 export interface CloseoutSummary {
   phase: ProjectPhase;

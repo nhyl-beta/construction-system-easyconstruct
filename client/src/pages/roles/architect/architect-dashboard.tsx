@@ -20,6 +20,7 @@ import { SectionCard } from "@/components/ui/section-card";
 import { StatusBadge } from "@/components/ui/status-badge";
 import { useArchitectDashboardController } from "@/features/dashboard/controllers/architect-dashboard.controller";
 import { WaitingOnYouCard } from "@/features/lifecycle/components/WaitingOnYouCard";
+import { ImpactAwarenessCard } from "@/features/lifecycle/components/ImpactAwarenessCard";
 import { useAuth } from "@/auth/auth-context";
 import { useDesignReviews } from "@/features/design-reviews/hooks/useDesignReviews";
 import {
@@ -113,6 +114,8 @@ export default function ArchitectDashboard() {
 
       {/* K1: cross-project gate checks + workflow stages waiting on this architect */}
       <WaitingOnYouCard />
+
+      <ImpactAwarenessCard />
 
       <div className="grid gap-4">
         <SectionCard title="Active designs" subtitle="Most recently updated">
