@@ -9,3 +9,5 @@ server/uploads/documents
 # when no Vercel Blob store is usable; see server/src/uploads/service.ts
 server/uploads/generic
 .claude/worktrees/
+
+server/backups/
