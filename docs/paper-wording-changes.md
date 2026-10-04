@@ -57,29 +57,57 @@ proposal or design / on-demand validation summary; removal of "Coming soon" plac
 |---|---|---|---|
 | P1 | Task Management: tasks "categorized and associated with milestones" | "Tasks are prioritized, tracked by status, and associated with milestones." | reworded in paper (task categories: `build later`) |
 | P2 | Report Monitoring: "progress, incident, inspection and project completion reports" | "The Project Manager can monitor engineering reports of the following kinds: progress and technical reports, site and quality inspections, safety observations and non-conformance reports, and the Final Inspection report used for project closeout. Field-reported incidents are handled as Issues." | reworded in paper |
-| P3 | (not in scope) Resources page | The Resources placeholder was removed from the Project Manager navigation; no wording is needed. | reworded in paper (n/a) |
+| P3 | Resources page | "The Project Manager has a Resources & Tools page with working checklists, downloadable templates (meeting minutes, punch list, daily report, submittal log, RFI/RFA note) and links to the relevant agencies." | **built** (supersedes the earlier removal) |
 
 ## Finance Manager
 
 | # | Scope bullet | Replacement sentence | Choice |
 |---|---|---|---|
-| F1 | Expenses: "AI-assisted expense anomaly detection" | "Expense review is supported by cost-reference comparison against a published cost catalog; automated expense anomaly detection is identified as future work." | reworded in paper (rule-based duplicate-payment / outlier scoring: `build later`) |
+| F1 | Expenses: "AI-assisted expense anomaly detection" | "Expense review is supported by cost-reference comparison against a published cost catalog and by rule-based anomaly flags: a possible duplicate payment (same vendor and amount within 30 days) and an amount several times the vendor's or category's usual amount. The flags are advisory and state their reason; they never block a payment." Do not describe it as machine learning. | **built** (rule-based, not "AI"; supersedes the earlier future-work wording) |
 
 ## Architect
 
 | # | Scope bullet | Replacement sentence | Choice |
 |---|---|---|---|
 | R1 | Proposal Submission: recommendations "using construction standards, historical project data and relevant external sources" | "The Architect receives rule-based completeness recommendations on a submitted proposal (title, project, description and amount); they are decision support only." | reworded in paper (proposal reference check: `build later`) |
-| R2 | Impact Awareness Viewing | "Impact awareness views for the Architect are identified as future work." | reworded in paper (read-only impact view: `build later`) |
+| R2 | Impact Awareness Viewing | "The Architect sees a read-only impact-awareness view of the projects they are staffed on, listing rule-based advisories on cost, change, schedule and quality, with a link to where each is acted on. The same view is available to the Owner and IT Designer across all projects." | **built** (supersedes the earlier future-work wording) |
 | R3 | "Structural requirement requests" | Remove the phrase, or: "Architects can request reviews through the available workflow templates (Design Proposal Approval, Document Compliance Review and Change Order Request)." (No "structural requirement request" template exists.) | reworded in paper (new template: `build later`) |
+
+## Requests for Information / Approval (RFI / RFA) and transmittal
+
+| # | Topic | Wording | Choice |
+|---|---|---|---|
+| Q1 | RFI/RFA module | "A Request for Information (RFI) or Request for Approval (RFA) is raised by the Project Manager or Engineer against a project, addressed to the responsible Architect or Consultant, and answered inside the system. Each request carries a reference number of the form KIND-PROJECTCODE-DISCIPLINE-SEQ-YY, a due date (three days for an RFI and four days for an RFA by default, editable per request), and a printable form." | **built** |
+| Q2 | Transmittal | "Documents sent out are recorded on a transmittal numbered PROJECTCODE-DOC-SEQ-YY, listing the documents, the purpose of issue and the recipient, with a printable form and recorded acknowledgement." | **built** |
+| Q3 | Escalation | "An overdue request is flagged once to its assignee and to the Admin; the Admin and Owner see a Needs-attention list of overdue requests. Escalation is notification only; the system does not reassign or approve automatically." | **built** (replaces "escalation sequences" in the approval hierarchy, which stays future work) |
+| Q4 | Closing rule | "A project cannot leave Closeout (Construction) or Turnover (Design) while any RFI or RFA on it is still open." | **built** (gate X5) |
+| Q5 | Change order link | "A request that states a cost impact can start a Change Order Request workflow pre-filled with the request''s subject and amount." | **built** |
+
+## Design project type
+
+| # | Topic | Wording | Choice |
+|---|---|---|---|
+| D1 | Delivery type | "A project is either a Construction project or a Design project (plan sets only). A Design project follows Proposal, Design, Turnover, Completed and Archived; it has no Pre-Construction or Construction phase, no site crew, attendance or geofence." | **built** |
+| D2 | Plan sets | "A Design project lists the plan sets it will deliver (Architectural, Structural, MEP, Civil, Interior). Each plan set is marked delivered when its drawings are filed; Turnover requires every plan set delivered and a signed Client Acceptance document." | **built** |
+| D3 | Turnover approval | "The Design Turnover workflow is approved by the Architect, then the Consultant, then the Project Manager, then the Admin." | **built** |
+
+## Payroll
+
+| # | Scope bullet | Replacement sentence | Choice |
+|---|---|---|---|
+| Y1 | Payroll limitations | Do not state that payroll is limited to basic pay. The system computes the SSS, PhilHealth and Pag-IBIG contributions and BIR withholding tax (with employer shares and a payslip) from versioned rate tables, and exports tracksheets and agency contribution reports as CSV. State instead that the rate tables must be kept current by HR and that Finance reviews and approves each batch. | corrected in paper |
+
+## Also built in this pass (remove from "future work")
+
+- Archive search across completed and archived projects and their documents, within each role''s own project visibility.
+- Legacy import: bulk upload of existing documents from a CSV manifest plus files, through the normal upload checks. Importing historic *projects* (past dates, completed phases) is not supported: project creation forces the Proposal phase and a future start date.
+- CSV export on Budget, Expenses, Payroll review and Payroll.
+- Project Manager dashboard charts (projects by phase, open workload).
 
 ## Not built in this pass
 
 These stay unbuilt on purpose; pick `build later` above only if the manuscript must keep the claim:
 
-- Finance expense anomaly scoring (nothing writes `anomalyScore`).
-- Owner / IT Designer impact-report cards.
-- Approval-hierarchy editing and escalation sequences.
+- Approval-hierarchy editing and escalation sequences (overdue RFI/RFA notification is built; reassignment is not).
 - Task categories for the Project Manager.
-- Architect impact view.
 - Proposal reference check (standards / historical data).
