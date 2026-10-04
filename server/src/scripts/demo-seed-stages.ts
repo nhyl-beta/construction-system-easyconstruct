@@ -1,799 +1,675 @@
-// server/src/scripts/demo-seed-stages.ts — NEW (demo-and-ux-progress P2-P8)
+// server/src/scripts/demo-seed-stages.ts
 //
-// Creates 7 demo projects, DEMO-STAGE-0 through DEMO-STAGE-6, one per
-// lifecycle phase (Proposal, Design, Pre-Construction, Construction,
-// Closeout, Completed, Archived), each one built up entirely through real
-// API calls against a live dev server — the same shape as
-// demo-full-cycle.ts (L5), but stopping seven separate projects at seven
-// different points instead of walking one project the whole way.
+// Clean-slate demo projects: DEMO-S1 .. DEMO-S7, one per lifecycle phase
+// (Proposal, Design, Pre-Construction, Construction, Closeout, Completed,
+// Archived), each built through the real HTTP API as the real demo accounts —
+// the same validators, services, workflow engine and upload path a user's data
+// goes through. A project sits at its phase because its records satisfy every
+// earlier phase's exit gates and `advance()` really moved it; progress comes
+// from refreshProjectProgress(), never a hardcoded number.
 //
-// For every stage except Construction and Closeout, the project sits in
-// that phase with EVERY gate belonging to that phase (and every earlier
-// phase) already passing — a "fully qualified to advance, but hasn't been"
-// snapshot, so a reviewer can see a complete green checklist for that
-// stage. Two deliberate exceptions, left unsatisfied on purpose:
-//   - Construction (DEMO-STAGE-3): a realistic ~60% done task list
-//     (computeProgress's real 30+65*(done/total) formula, not a hardcoded
-//     progress value), so K1 (all tasks completed) does NOT pass — that's
-//     the point of a project mid-Construction, not a bug.
-//   - Closeout (DEMO-STAGE-4): X1 ("Final inspection approved") is left
-//     pending (Submitted, not Approved) so a Project Manager visiting this
-//     project has a real, live Final Inspection to approve from /reports —
-//     see buildCloseoutPhase's own comment. Every other Closeout gate
-//     (X2-X4) still passes, and every project that advances PAST Closeout
-//     (Completed/Archived) still gets X1 approved for real, same as before.
-// See demo-and-ux-progress.md P1 for exactly which underlying rows each
-// gate reads.
+// Current-phase gate pattern (see docs/demo-and-ux-progress.md "Clean slate"):
+//   S1 Proposal      P1-P3 pass, P4 pending (workflow at Consultant stage), P5 pending
+//   S2 Design        D1 passes, D2 pending (review requested, undecided), D3 pending
+//   S3 Pre-Constr.   C1-C3 pass, C4 + C5 pending (tasks not fully planned, no NTP)
+//   S4 Construction  mixed done/pending tasks; K4 fails (Budget Change Request active)
+//   S5 Closeout      X1, X2 pass; X3 pending (payroll), X4 pending (Closeout workflow)
+//   S6 Completed     everything passes
+//   S7 Archived      completed, then archived by Admin; writes are rejected
 //
-// Idempotent: on every run, first deletes all rows (in FK-safe order) for
-// project codes DEMO-STAGE-0..6, then rebuilds them from scratch. Safe to
-// re-run any number of times.
+// Idempotent: a project that already exists at its target phase is left alone
+// (ids stay stable); a half-built one is removed (children first) and rebuilt.
+// `npm run demo:seed` runs this and then demo-seed-roles.ts.
 //
-// Prerequisites:
-//   - `npm run dev` running against DATABASE_URL (a live server, same as L5)
-//   - `npm run db:seed` already applied (demo accounts + workflow templates)
-//   - ideally `npm run ai:seed-references` already applied so DEMO-STAGE-3's
-//     Budget Change Request line items match a real, broad catalog. If that
-//     hasn't been run (or this environment can't reach EstimationPro.ai at
-//     all — see demo-and-ux-progress.md's AV-6 deviation), this script seeds
-//     one `reference_snapshots` fallback row itself (see ensureFallback
-//     ReferenceRow below) so the matcher always has something real to match
-//     against — the same low/typical/high values ai-validation/cost.test.ts
-//     already uses for its own worked trace, not invented numbers.
-//
-// Run with: npx tsx src/scripts/demo-seed-stages.ts
+// Prerequisites: API running (`npm run dev`) with FEATURE_AI=true, accounts
+// seeded (`npm run db:seed`), reference prices cached (`npm run ai:seed-references`).
 import "dotenv/config";
-import { db } from "../db/connection.js";
-import { sql } from "drizzle-orm";
-import { referenceSnapshots } from "../db/schema/ai-validation.js";
+import pg from "pg";
+import { DEMO_PROJECTS, type DemoProject } from "./demo-projects.js";
+import {
+  api,
+  addDays,
+  openSession,
+  TEAMS,
+  TODAY,
+  type Account,
+  type Session,
+  type Team,
+} from "./demo-seed-lib.js";
+import { uploadPdf, uploadPng, type StoredUpload } from "./demo-files.js";
 
-const BASE = process.env.SMOKE_BASE_URL ?? "http://localhost:8000/api";
-const PASSWORD = "Demo@12345";
+const pool = new pg.Pool({ connectionString: process.env.DATABASE_URL });
 
-const STAGE_CODES = [
-  "DEMO-STAGE-0",
-  "DEMO-STAGE-1",
-  "DEMO-STAGE-2",
-  "DEMO-STAGE-3",
-  "DEMO-STAGE-4",
-  "DEMO-STAGE-5",
-  "DEMO-STAGE-6",
-] as const;
+const step = (label: string) => console.log(`  ▶ ${label}`);
 
-const TARGET_PHASE = [
-  "Proposal",
-  "Design",
-  "Pre-Construction",
-  "Construction",
-  "Closeout",
-  "Completed",
-  "Archived",
-] as const;
-
-// A1: human-readable display names, "DEMO · N <Phase>", 1-indexed so they
-// read naturally ("DEMO · 1 Proposal" .. "DEMO · 7 Archived"). Project
-// `name` has no character restriction beyond `min(2)` (see
-// project-validator.ts createProjectSchema) so the middle-dot is safe.
-// Codes are deliberately left as the existing DEMO-STAGE-0..6 rather than
-// renamed to DEMO-S1..7 — those codes are already referenced by
-// demo-ai-signals.ts's comments, README.md, and this file's own prior
-// progress-doc entries; renaming them would be pure churn with no
-// functional benefit now that the *name* (not the code) is what a human
-// reads in the UI. See docs/demo-and-ux-progress.md A1 for this decision.
-const DISPLAY_NAME = [
-  "DEMO · 1 Proposal",
-  "DEMO · 2 Design",
-  "DEMO · 3 Pre-Construction",
-  "DEMO · 4 Construction",
-  "DEMO · 5 Closeout",
-  "DEMO · 6 Completed",
-  "DEMO · 7 Archived",
-] as const;
-
-interface Tokens {
-  pm: string;
-  architect: string;
-  consultant: string;
-  engineer: string;
-  site: string;
-  finance: string;
-  hr: string;
-  admin: string;
-}
-interface Ids {
-  architect: number;
-  consultant: number;
-  engineer: number;
-  site: number;
+// ── Idempotent cleanup (only for a half-built project) ────────────────────
+async function cleanup(code: string) {
+  const q = (sql: string) => pool.query(sql, [code]);
+  await q("DELETE FROM validation_results WHERE project_code = $1");
+  await q("DELETE FROM proposals WHERE project_code = $1");
+  await q("DELETE FROM workflows WHERE project_code = $1");
+  await q("DELETE FROM milestones WHERE project_code = $1");
+  await q("DELETE FROM tasks WHERE project_code = $1");
+  await q("DELETE FROM issues WHERE project_code = $1");
+  await q("DELETE FROM requirements WHERE project = $1");
+  await q("DELETE FROM documents WHERE project = $1");
+  await q("DELETE FROM engineering_reports WHERE project = $1");
+  await q("DELETE FROM revisions WHERE project_code = $1");
+  await q("DELETE FROM blueprints WHERE project_code = $1");
+  for (const t of ["design_reviews", "design_revisions", "architect_documents"]) {
+    await q(`DELETE FROM ${t} WHERE design_id IN (SELECT id FROM designs WHERE project_code = $1)`);
+  }
+  await q("DELETE FROM designs WHERE project_code = $1");
+  for (const t of ["budget_adjustments", "budget_allocations", "budget_approval_steps", "budget_comments", "budget_documents", "budget_history"]) {
+    await q(`DELETE FROM ${t} WHERE budget_id IN (SELECT id FROM budgets WHERE project = $1)`);
+  }
+  await q("DELETE FROM budgets WHERE project = $1");
+  await q("DELETE FROM expenses WHERE project = $1");
+  await q("DELETE FROM payroll WHERE batch_id IN (SELECT id FROM payroll_batches WHERE project_code = $1)");
+  await q("DELETE FROM payroll_batch_decisions WHERE batch_id IN (SELECT id FROM payroll_batches WHERE project_code = $1)");
+  await q("DELETE FROM payroll_batches WHERE project_code = $1");
+  await q("DELETE FROM attendance WHERE project_code = $1");
+  await q("DELETE FROM project_members WHERE project_code = $1");
+  await q("DELETE FROM project_phase_history WHERE project_code = $1");
+  await q("DELETE FROM notifications WHERE project_code = $1");
+  await q("DELETE FROM projects WHERE code = $1");
 }
 
-async function login(email: string): Promise<string> {
-  const res = await fetch(`${BASE}/auth/login`, {
+// Ensure the matcher has something real to compare against.
+async function ensureReferenceRows() {
+  const r = await pool.query("SELECT count(*)::int n FROM reference_snapshots");
+  if (r.rows[0].n === 0) {
+    throw new Error("reference_snapshots is empty — run `npm run ai:seed-references` first.");
+  }
+}
+
+interface Ctx {
+  p: DemoProject;
+  code: string;
+  projectId: number;
+  s: Session;
+  team: { pm: Account; architect: Account; consultant: Account; engineer?: Account; site?: Account };
+  finance: Account;
+  hr: Account;
+  admin: Account;
+}
+
+let docSeq = 0;
+
+// ── File helpers ───────────────────────────────────────────────────────────
+const pdf = (who: Account, name: string, title: string, lines: string[]) => uploadPdf(baseUrl, who.token, name, title, lines);
+const png = (who: Account, name: string, lines: string[], variant = 0) => uploadPng(baseUrl, who.token, name, lines, variant);
+import { BASE as baseUrl } from "./demo-seed-lib.js";
+
+const fileLines = (c: Ctx, what: string) => [
+  `Project: ${c.code}  ${c.p.subtitle}`,
+  `Client: ${c.p.client}`,
+  `Location: ${c.p.location}`,
+  `Document: ${what}`,
+  `Prepared for the EasyConstruct demo data set (synthetic).`,
+];
+
+async function docRecord(c: Ctx, type: string, title: string, who: Account) {
+  const f = await pdf(who, `${c.code}-${type.replace(/\s+/g, "-")}.pdf`, title, fileLines(c, title));
+  docSeq += 1;
+  return api("/documents", who.token, {
     method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ email, password: PASSWORD }),
+    body: {
+      documentId: `${c.code.replace("DEMO-", "D")}-${String(docSeq).padStart(3, "0")}`,
+      title: `${title} - ${c.p.subtitle}`,
+      project: c.code,
+      type,
+      version: "1.0",
+      size: `${Math.max(1, Math.round(f.sizeBytes / 1024))} KB`,
+      fileUrl: f.url,
+      uploadedBy: who.name,
+    },
   });
-  const json = (await res.json()) as { data?: { token?: string }; message?: string };
-  if (!res.ok) throw new Error(`Login failed for ${email}: ${json.message}`);
-  return json.data!.token!;
 }
 
-async function api<T = any>(
-  path: string,
-  token: string,
-  opts: { method?: string; body?: unknown } = {},
-): Promise<T> {
-  const res = await fetch(`${BASE}${path}`, {
-    method: opts.method ?? "GET",
-    headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
-    body: opts.body !== undefined ? JSON.stringify(opts.body) : undefined,
-  });
-  const json = (await res.json()) as { data?: T; message?: string };
-  if (!res.ok) {
-    throw new Error(`${opts.method ?? "GET"} ${path} -> ${res.status}: ${json.message ?? JSON.stringify(json)}`);
-  }
-  return json.data as T;
-}
+// ── Phase builders ─────────────────────────────────────────────────────────
 
-let docCounter = 0;
-function shortDocId(prefix: string): string {
-  docCounter += 1;
-  return `${prefix}${docCounter}`.slice(0, 20);
-}
-
-// ── Idempotent cleanup ──────────────────────────────────────────────────
-// Raw SQL, children before parents. Every table below is either FK-free
-// text-matched by project code (no ON DELETE CASCADE exists from a project
-// row to its children — see demo-and-ux-progress.md P1) or a child of a
-// table already being cleared here. workflows/milestones/designs deletes
-// cascade their own dependents automatically (workflow_stages,
-// workflow_line_items, validation_results, workflow_attachments,
-// milestone_links, design_reviews... no: design_reviews/design_revisions
-// are NOT cascade — cleared explicitly below).
-async function cleanup(codes: readonly string[]) {
-  // `sql.join` builds a real `IN ($1, $2, ...)` list — embedding the JS
-  // array directly (`ANY(${codes})`) makes drizzle bind it as a
-  // comma-tuple of scalar params instead of a Postgres array, which
-  // `ANY()` then rejects.
-  const list = () => sql.join(codes.map((c) => sql`${c}`), sql`, `);
-
-  // proposals.workflow_id -> workflows.id has no ON DELETE CASCADE, so the
-  // proposal must go first.
-  await db.execute(sql`DELETE FROM proposals WHERE project_code IN (${list()})`);
-  await db.execute(sql`DELETE FROM workflows WHERE project_code IN (${list()})`);
-  await db.execute(sql`DELETE FROM milestones WHERE project_code IN (${list()})`);
-  await db.execute(sql`DELETE FROM tasks WHERE project_code IN (${list()})`);
-  await db.execute(sql`DELETE FROM issues WHERE project_code IN (${list()})`);
-  await db.execute(sql`DELETE FROM requirements WHERE project IN (${list()})`);
-  await db.execute(sql`DELETE FROM documents WHERE project IN (${list()})`);
-  await db.execute(sql`DELETE FROM engineering_reports WHERE project IN (${list()})`);
-  await db.execute(sql`DELETE FROM blueprints WHERE project_code IN (${list()})`);
-  await db.execute(
-    sql`DELETE FROM design_reviews WHERE design_id IN (SELECT id FROM designs WHERE project_code IN (${list()}))`,
-  );
-  await db.execute(
-    sql`DELETE FROM design_revisions WHERE design_id IN (SELECT id FROM designs WHERE project_code IN (${list()}))`,
-  );
-  await db.execute(
-    sql`DELETE FROM architect_documents WHERE design_id IN (SELECT id FROM designs WHERE project_code IN (${list()}))`,
-  );
-  await db.execute(sql`DELETE FROM designs WHERE project_code IN (${list()})`);
-  const budgetChildTables = [
-    "budget_adjustments",
-    "budget_allocations",
-    "budget_approval_steps",
-    "budget_comments",
-    "budget_documents",
-    "budget_history",
-  ] as const;
-  for (const t of budgetChildTables) {
-    await db.execute(
-      sql`DELETE FROM ${sql.identifier(t)} WHERE budget_id IN (SELECT id FROM budgets WHERE project IN (${list()}))`,
-    );
-  }
-  await db.execute(sql`DELETE FROM budgets WHERE project IN (${list()})`);
-  await db.execute(sql`DELETE FROM expenses WHERE project IN (${list()})`);
-  await db.execute(sql`DELETE FROM payroll_batches WHERE project_code IN (${list()})`);
-  await db.execute(sql`DELETE FROM attendance WHERE project_code IN (${list()})`);
-  await db.execute(sql`DELETE FROM project_members WHERE project_code IN (${list()})`);
-  await db.execute(sql`DELETE FROM project_phase_history WHERE project_code IN (${list()})`);
-  await db.execute(sql`DELETE FROM notifications WHERE project_code IN (${list()})`);
-  await db.execute(sql`DELETE FROM audit_logs WHERE project_code IN (${list()})`);
-  await db.execute(sql`DELETE FROM projects WHERE code IN (${list()})`);
-}
-
-// If `npm run ai:seed-references` hasn't been run (or can't reach
-// EstimationPro.ai — see demo-and-ux-progress.md AV-6), DEMO-STAGE-3's
-// Budget Change Request would have nothing to match against and every line
-// would be a "no-match". Upserts one row on the same
-// (source, source_item_id) conflict key seed-reference-data.ts uses, so a
-// later real fetch just overwrites it — this never shadows real data.
-async function ensureFallbackReferenceRow() {
-  const [existing] = await db.select().from(referenceSnapshots).limit(1);
-  if (existing) return;
-  console.log(
-    "  (no reference_snapshots rows found — seeding one fallback row so the matcher has something real to compare against; run `npm run ai:seed-references` for the full catalog)",
-  );
-  await db
-    .insert(referenceSnapshots)
-    .values({
-      source: "estimationpro",
-      sourceItemId: "rebar-4-half-inch",
-      trade: "concrete",
-      description: "Rebar #4 (1/2 inch)",
-      unit: "lf",
-      lowUsd: "80",
-      typicalUsd: "100",
-      highUsd: "120",
-      regionMultiplier: "1",
-      volatility: "medium",
-      currency: "USD",
-      sourceUrl: "https://estimationpro.ai/api/v1/costs?trade=concrete",
-      rawPayload: { seeded: "demo-seed-stages fallback — see demo-and-ux-progress.md AV-6" },
-    })
-    .onConflictDoNothing();
-}
-
-function step(label: string) {
-  console.log(`  ▶ ${label}`);
-}
-
-// ── Phase builders — each returns whatever the next phase needs ─────────
-
-async function staffProject(code: string, t: Tokens, ids: Ids) {
-  for (const [role, key, userName] of [
-    ["architect", "architect", "Ana Villanueva"],
-    ["consultant", "consultant", "Elena Bautista"],
-    ["engineer", "engineer", "Paolo Mendoza"],
-    ["site-personnel", "site", "Rico Domingo"],
-  ] as const) {
-    await api("/project-members", t.pm, {
+async function staff(c: Ctx) {
+  const members: [Account | undefined, string][] = [
+    [c.team.architect, "architect"],
+    [c.team.consultant, "consultant"],
+    [c.team.engineer, "engineer"],
+    [c.team.site, "site-personnel"],
+  ];
+  for (const [acc, role] of members) {
+    if (!acc) continue;
+    await api("/project-members", c.team.pm.token, {
       method: "POST",
-      body: { projectCode: code, userId: ids[key], userName, role },
+      body: { projectCode: c.code, userId: acc.id, userName: acc.name, role },
     });
   }
 }
 
-// Builds every P1-P5 row. Never calls advance.
-async function buildProposalPhase(code: string, t: Tokens) {
+/** P1-P5. `complete` false leaves P4 (workflow at the Consultant stage) and P5 pending. */
+async function buildProposal(c: Ctx, complete: boolean) {
+  const { architect, consultant, pm } = c.team;
   const submitted = await api<{
     proposal: { id: number };
     workflow: { id: number; stages: { id: number; role: string; status: string }[] };
-  }>("/proposals/submit", t.architect, {
+  }>("/proposals/submit", architect.token, {
     method: "POST",
     body: {
-      proposalId: `PRP-${code}`,
-      title: `${code} design proposal`,
-      projectCode: code,
-      submittedBy: "Ana Villanueva",
-      amount: "500000",
+      proposalId: `PRP-${c.code}`,
+      title: `${c.p.subtitle} - design proposal`,
+      projectCode: c.code,
+      submittedBy: architect.name,
+      amount: String(c.p.contractValue),
+      content: `${c.p.description} Client: ${c.p.client}. Location: ${c.p.location}.`,
     },
   });
+  const wfId = submitted.workflow.id;
+  const prop = await pdf(architect, `${c.code}-proposal.pdf`, `Design Proposal - ${c.p.subtitle}`, [
+    ...fileLines(c, "Design proposal"),
+    `Proposed contract value: PHP ${c.p.contractValue.toLocaleString("en-PH")}`,
+    `Planned start: ${c.p.plannedStartDate}   Target completion: ${c.p.due}`,
+  ]);
+  await api(`/workflows/${wfId}/attachments`, architect.token, {
+    method: "POST",
+    body: { kind: "document", label: "Design proposal document", fileUrl: prop.url, fileName: prop.filename, fileSize: `${Math.round(prop.sizeBytes / 1024)} KB` },
+  });
+  if (!complete) return { proposalId: submitted.proposal.id, workflowId: wfId };
+
   const consultantStage = submitted.workflow.stages.find((s) => s.role === "consultant")!;
-  await api(`/workflows/${submitted.workflow.id}/stages/${consultantStage.id}/decision`, t.consultant, {
+  await api(`/workflows/${wfId}/stages/${consultantStage.id}/decision`, consultant.token, {
     method: "PATCH",
-    body: { decision: "approve" },
+    body: { decision: "approve", comments: "Scope, assumptions and cost basis are consistent with the brief." },
   });
-  const after = await api<{ stages: { id: number; role: string; status: string }[] }>(
-    `/workflows/${submitted.workflow.id}`,
-    t.pm,
-  );
+  const after = await api<{ stages: { id: number; role: string }[] }>(`/workflows/${wfId}`, pm.token);
   const pmStage = after.stages.find((s) => s.role === "project-manager")!;
-  await api(`/workflows/${submitted.workflow.id}/stages/${pmStage.id}/decision`, t.pm, {
+  await api(`/workflows/${wfId}/stages/${pmStage.id}/decision`, pm.token, {
     method: "PATCH",
-    body: { decision: "approve" },
+    body: { decision: "approve", comments: "Approved for award." },
   });
-  for (const type of ["Notice of Award", "Contract"]) {
-    await api("/documents", t.pm, {
-      method: "POST",
-      body: { documentId: shortDocId("D"), title: type, project: code, type, version: "1.0", uploadedBy: "Miguel Santos" },
-    });
-  }
+  await docRecord(c, "Notice of Award", "Notice of Award", pm);
+  await docRecord(c, "Contract", "Construction Contract", pm);
+  return { proposalId: submitted.proposal.id, workflowId: wfId };
 }
 
-// Builds every D1-D3 row. Never calls advance.
-async function buildDesignPhase(code: string, t: Tokens, ids: Ids) {
-  const design = await api<{ id: number }>("/designs", t.architect, {
+/** D1-D3. `decided` false leaves the design review undecided and no blueprint. */
+async function buildDesign(c: Ctx, decided: boolean) {
+  const { architect, consultant, engineer } = c.team;
+  const planImg = await png(architect, `${c.code}-structural-plan.png`, [c.code, "STRUCTURAL PLAN", c.p.subtitle, "SHEET S-101"], 0);
+  const planPdf = await pdf(architect, `${c.code}-structural-design.pdf`, `Structural Design - ${c.p.subtitle}`, fileLines(c, "Structural design package"));
+  const design = await api<{ id: number }>("/designs", architect.token, {
     method: "POST",
     body: {
-      code: `DSN-${code}`,
-      name: `${code} structural design`,
-      projectCode: code,
+      code: `DSN-${c.code}`,
+      name: `${c.p.subtitle} structural design`,
+      projectCode: c.code,
       discipline: "Structural",
       category: "Structural",
-      leadArchitect: "Ana Villanueva",
-      fileUrls: [{ name: "plan.dwg", url: "https://example.com/plan.dwg" }],
-      assignedEngineers: [{ userId: ids.engineer, userName: "Paolo Mendoza" }],
+      leadArchitect: architect.name,
+      fileUrls: [
+        { name: planImg.filename, url: planImg.url },
+        { name: planPdf.filename, url: planPdf.url },
+      ],
+      assignedEngineers: engineer ? [{ userId: engineer.id, userName: engineer.name }] : [],
     },
   });
-  const review = await api<{ id: number }>("/design-reviews", t.consultant, {
+  const review = await api<{ id: number }>("/design-reviews", consultant.token, {
     method: "POST",
-    body: { code: `REV-${code}`, designId: design.id, requestedBy: "Ana Villanueva" },
+    body: { code: `REV-${c.code}`, designId: design.id, requestedBy: architect.name },
   });
-  await api(`/design-reviews/${review.id}/decide`, t.consultant, { method: "POST", body: { decision: "Approved" } });
-  await api("/blueprints", t.architect, {
+  if (!decided) return { designId: design.id, reviewId: review.id };
+  await api(`/design-reviews/${review.id}/decide`, consultant.token, { method: "POST", body: { decision: "Approved" } });
+  await api("/blueprints", architect.token, {
     method: "POST",
     body: {
-      drawingNumber: `BP-${code}`,
-      title: `${code} blueprint`,
+      drawingNumber: `BP-${c.code}`,
+      title: `${c.p.subtitle} - approved drawing set`,
       folder: "Structural",
-      author: "Ana Villanueva",
+      discipline: "Structural",
+      scale: "1:100",
+      revision: "A",
+      author: architect.name,
       approval: "Approved",
       status: "Current",
-      projectCode: code,
+      fileType: "PDF",
+      sizeKb: Math.max(1, Math.round(planPdf.sizeBytes / 1024)),
+      projectCode: c.code,
       designId: design.id,
     },
   });
-  return { designId: design.id };
+  return { designId: design.id, reviewId: review.id };
 }
 
-// Builds every C1-C5 row. Never calls advance. Returns the approved budget
-// id so Construction (DEMO-STAGE-3) can raise a real Budget Change Request
-// against it.
-async function buildPreConstructionPhase(code: string, t: Tokens, ids: Ids) {
+const TASK_PLAN: { milestone: string; tasks: string[] }[] = [
+  { milestone: "Site preparation and substructure", tasks: ["Site clearing and layout staking", "Excavation and footing forms", "Rebar fabrication for footings", "Footing concrete pour"] },
+  { milestone: "Superstructure", tasks: ["Column rebar installation", "Formwork for columns and slabs", "Slab pour - level 1", "Slab pour - level 2"] },
+  { milestone: "Envelope and MEP rough-in", tasks: ["CHB wall laying", "Electrical conduit rough-in", "Plumbing rough-in", "Roof framing and deck"] },
+  { milestone: "Finishes and turnover", tasks: ["Plastering and skim coat", "Tiling and flooring", "Interior painting", "Punch list and cleaning"] },
+];
+
+/** C1-C5. `complete` false leaves C4 (unplanned active milestones) and C5 (no NTP) pending. */
+async function buildPreConstruction(c: Ctx, opts: { complete: boolean; taskCount: number }) {
+  const { engineer, pm, architect } = c.team;
+  const eng = engineer!;
   for (const category of ["Materials", "Specifications"] as const) {
-    const req = await api<{ id: number }>("/requirements", t.engineer, {
+    const f = await pdf(eng, `${c.code}-${category.toLowerCase()}-requirement.pdf`, `${category} requirement - ${c.p.subtitle}`, fileLines(c, `${category} requirement`));
+    const req = await api<{ id: number }>("/requirements", eng.token, {
       method: "POST",
       body: {
-        title: `${category} requirement`,
-        project: code,
+        title: `${category} requirement - ${c.p.subtitle}`,
+        project: c.code,
         category,
-        description: `Demo ${category.toLowerCase()} requirement for ${code}`,
-        // Requirements must carry a file (see requirement-validators.ts).
-        attachments: [{ url: "/uploads/generic/demo-requirement.pdf", filename: "demo-requirement.pdf", contentType: "application/pdf", sizeBytes: 1024 }],
-        createdBy: "Paolo Mendoza",
+        description: `${category} requirement for ${c.p.subtitle}: grades, quantities and acceptance criteria for the works.`,
+        attachments: [{ url: f.url, filename: f.filename, contentType: f.contentType, sizeBytes: f.sizeBytes }],
+        createdBy: eng.name,
       },
     });
-    await api(`/requirements/${req.id}`, t.pm, { method: "PATCH", body: { status: "Approved" } });
+    await api(`/requirements/${req.id}`, pm.token, { method: "PATCH", body: { status: "Approved" } });
   }
-  const budget = await api<{ id: number }>("/finance/budgets", t.finance, {
-    method: "POST",
-    body: { project: code, category: "Materials", owner: "Carlo Ramos", planned: 1000000, fiscalYear: "2026" },
-  });
-  for (const stage of ["draft", "pending-review", "finance-review", "manager-review"] as const) {
-    await api("/finance/budget-approval-steps/decide", t.finance, {
+
+  // Budget: four lines that add up to the contract value, each through the full approval chain.
+  const shares: [string, number][] = [["Materials", 0.45], ["Labor", 0.3], ["Equipment", 0.15], ["Contingency", 0.1]];
+  const budgetIds: Record<string, number> = {};
+  for (const [category, share] of shares) {
+    const b = await api<{ id: number }>("/finance/budgets", c.finance.token, {
       method: "POST",
-      body: { budgetId: budget.id, stage, decision: "approved", actor: "Carlo Ramos" },
+      body: { project: c.code, category, owner: c.finance.name, planned: Math.round(c.p.contractValue * share), fiscalYear: c.p.plannedStartDate.slice(0, 4) },
     });
-  }
-  const milestone = await api<{ id: number }>("/milestones", t.pm, {
-    method: "POST",
-    body: { projectCode: code, title: "Foundation complete", estimatedCompletionDate: "2026-12-01" },
-  });
-  await api(`/milestones/${milestone.id}`, t.pm, { method: "PATCH", body: { status: "active" } });
-  const task = await api<{ id: number }>("/tasks", t.pm, {
-    method: "POST",
-    body: {
-      taskCode: `TSK-${code}-0`,
-      projectCode: code,
-      title: "Pour foundation",
-      assignedToUserId: ids.site,
-      assignedToName: "Rico Domingo",
-      status: "Pending",
-      progress: 0,
-    },
-  });
-  await api(`/milestones/${milestone.id}/links`, t.engineer, { method: "POST", body: { linkType: "task", linkId: task.id } });
-  await api("/documents", t.pm, {
-    method: "POST",
-    body: { documentId: shortDocId("N"), title: "Notice to Proceed", project: code, type: "Notice to Proceed", version: "1.0", uploadedBy: "Miguel Santos" },
-  });
-  await api(`/projects/${await projectIdOf(code, t.pm)}`, t.pm, {
-    method: "PATCH",
-    body: { siteLatitude: 14.5, siteLongitude: 121.0 },
-  });
-  return { budgetId: budget.id, milestoneId: milestone.id };
-}
-
-async function projectIdOf(code: string, token: string): Promise<number> {
-  const list = await api<{ id: number; code: string }[]>(`/projects?code=${encodeURIComponent(code)}`, token);
-  const found = Array.isArray(list) ? list.find((p) => p.code === code) : undefined;
-  if (found) return found.id;
-  // fallback: some list endpoints don't support ?code — scan all projects.
-  const all = await api<{ id: number; code: string }[]>("/projects", token);
-  const project = all.find((p) => p.code === code);
-  if (!project) throw new Error(`Could not resolve project id for ${code}`);
-  return project.id;
-}
-
-// Construction (DEMO-STAGE-3): a realistic 8-task list, 4 completed — real
-// ~60% via computeProgress's 30 + 65*(done/total) formula (30+65*0.5=62.5%,
-// rounds to 63) — plus attendance/expense records so Construction views
-// aren't empty, plus a real Budget Change Request workflow with 3 line
-// items run through the real validateWorkflowLineItems() service
-// (FEATURE_AI=true), one in-range, one clearly above-typical, one with no
-// quantity. NOT completed (K1-K4 are meant to still fail here).
-async function buildConstructionPartial(code: string, t: Tokens, ids: Ids, budgetId: number) {
-  const projectId = await projectIdOf(code, t.pm);
-  const taskIds: number[] = [];
-  for (let i = 1; i <= 8; i++) {
-    const task = await api<{ id: number }>("/tasks", t.pm, {
-      method: "POST",
-      body: {
-        taskCode: `TSK-${code}-${i}`,
-        projectCode: code,
-        title: `Construction task ${i}`,
-        assignedToUserId: ids.site,
-        assignedToName: "Rico Domingo",
-        status: "Pending",
-        progress: 0,
-      },
-    });
-    taskIds.push(task.id);
-  }
-  for (let i = 0; i < 4; i++) {
-    await api(`/tasks/${taskIds[i]}/status`, t.site, { method: "PATCH", body: { status: "In Progress" } });
-    await api(`/tasks/${taskIds[i]}/status`, t.site, {
-      method: "PATCH",
-      body: { status: "Completed", completionNote: `Task ${i + 1} finished on schedule` },
-    });
-  }
-
-  // Attendance so Construction views aren't empty (G1: requires the acting
-  // site-personnel to be staffed on this project, project must be
-  // Construction/Closeout — both true here).
-  await api("/attendance", t.site, {
-    method: "POST",
-    body: {
-      employeeId: "EMP-DEMO-07",
-      site: "Main site",
-      projectCode: code,
-      clockIn: "07:00",
-      clockOut: "16:00",
-      attendanceStatus: "Present",
-      // One employee (EMP-DEMO-07) records attendance across several of
-      // these demo projects — the "one clock-in per employee per day"
-      // constraint means each project needs its own date.
-      logDate: `2026-10-${String(1 + (STAGE_CODES.indexOf(code as (typeof STAGE_CODES)[number]) % 28)).padStart(2, "0")}`,
-      photoUrl: "https://example.com/demo-clock-in.jpg",
-      latitude: 14.5,
-      longitude: 121.0,
-    },
-  });
-
-  // A "Materials" expense, approved, so it flows into the budget's `spent`.
-  const expense = await api<{ id: string }>("/finance/expenses", t.finance, {
-    method: "POST",
-    body: { vendor: "ABC Hardware Supply", project: code, category: "Materials", amount: 42000 },
-  });
-  await api(`/finance/expenses/${expense.id}/approve`, t.finance, { method: "PATCH" });
-
-  // Real Budget Change Request workflow, real validateWorkflowLineItems()
-  // call via createWorkflow (FEATURE_AI=true + template name match).
-  const templates = await api<{ id: number; name: string }[]>("/workflows/templates", t.engineer);
-  const bcrTemplateId = templates.find((tpl) => tpl.name === "Budget Change Request")!.id;
-  const workflow = await api<{
-    id: number;
-    aiNote: string | null;
-    lineItems: { description: string; validation: { verdict: string; basisSummary: string } | null }[];
-  }>("/workflows", t.engineer, {
-    method: "POST",
-    body: {
-      title: `Budget change — rebar quantities (${code})`,
-      projectCode: code,
-      templateId: bcrTemplateId,
-      budgetId,
-      amount: 850000,
-      lineItems: [
-        {
-          category: "materials",
-          description: "Rebar installation, #4 bar",
-          currentAmount: 0,
-          requestedAmount: 850000,
-          quantity: 128.5,
-          unit: "lf",
-        },
-        {
-          category: "materials",
-          description: "Rebar installation, #4 bar",
-          currentAmount: 0,
-          requestedAmount: 8500000,
-          quantity: 128.5,
-          unit: "lf",
-        },
-        {
-          category: "other",
-          description: "Site fencing rental",
-          currentAmount: 0,
-          requestedAmount: 45000,
-        },
-      ],
-    },
-  });
-
-  console.log(`    Budget Change Request workflow ${workflow.id} created. aiNote: "${workflow.aiNote}"`);
-  for (const li of workflow.lineItems) {
-    console.log(`      line "${li.description}" -> ${li.validation ? `${li.validation.verdict}: ${li.validation.basisSummary}` : "(no validation — FEATURE_AI off?)"}`);
-  }
-
-  return { projectId, workflow };
-}
-
-// Engineer / Site Personnel / Consultant demo extras, added to the
-// Construction-stage project (DEMO-STAGE-3) only — it is the one project that
-// is writable, non-archived, and has every demo role staffed. Not used for
-// the completed stages: open issues would block their Construction exit gate.
-// Extends the existing seed (docs/demo-and-ux-progress.md "Demo script").
-async function buildRoleDemoExtras(code: string, t: Tokens) {
-  // Engineer milestone completion (Task C): a second active milestone, so
-  // completing one in the demo leaves another to show.
-  const m = await api<{ id: number }>("/milestones", t.pm, {
-    method: "POST",
-    body: { projectCode: code, title: "Slab pour complete", estimatedCompletionDate: "2026-12-15" },
-  });
-  await api(`/milestones/${m.id}`, t.pm, { method: "PATCH", body: { status: "active" } });
-
-  // Issue precedents (Task B): two Resolved issues with notes in similar
-  // categories, plus one open issue similar to the first.
-  const resolved = [
-    {
-      title: "Hairline cracks on concrete slab surface",
-      description: "Hairline cracks appeared on the warehouse concrete slab surface a few days after the pour",
-      resolutionNotes: "Mapped the cracks, injected low-viscosity epoxy and extended moist curing to 7 days; re-inspected with no further growth.",
-    },
-    {
-      title: "Honeycombing at column base after pour",
-      description: "Voids and honeycombing found at the base of column C4 after formwork removal",
-      resolutionNotes: "Chipped out loose concrete, applied bonding agent and repaired with non-shrink grout; vibration procedure reviewed with the crew.",
-    },
-  ];
-  for (const [i, r] of resolved.entries()) {
-    const issue = await api<{ id: number }>("/issues", t.engineer, {
-      method: "POST",
-      body: { issueCode: `ISS-${code}-R${i + 1}`, projectCode: code, category: "Quality", severity: "Medium", title: r.title, description: r.description },
-    });
-    await api(`/issues/${issue.id}/status`, t.pm, {
-      method: "PATCH",
-      body: { status: "Resolved", resolutionNotes: r.resolutionNotes },
-    });
-  }
-  await api("/issues", t.engineer, {
-    method: "POST",
-    body: {
-      issueCode: `ISS-${code}-O1`,
-      projectCode: code,
-      category: "Quality",
-      severity: "Medium",
-      title: "Cracks on warehouse slab surface after curing",
-      description: "Cracks on the concrete slab surface noticed after curing, near the loading bay",
-    },
-  });
-}
-
-// Used from DEMO-STAGE-4 onward: fully completes Construction (K1-K4) so
-// advance() to Closeout is legitimately allowed. Reuses the same 8-task
-// list shape as buildConstructionPartial but finishes every task, closes
-// the milestone, resolves an issue, and lets any workflows finish.
-async function buildConstructionComplete(code: string, t: Tokens, ids: Ids, milestoneId: number, budgetId: number) {
-  const { workflow } = await buildConstructionPartial(code, t, ids, budgetId);
-  // Finish the remaining 4 tasks.
-  const tasks = await api<{ id: number; status: string }[]>(`/tasks?projectCode=${code}`, t.pm);
-  for (const task of tasks) {
-    if (task.status !== "Completed") {
-      await api(`/tasks/${task.id}/status`, t.site, { method: "PATCH", body: { status: "In Progress" } }).catch(() => {});
-      await api(`/tasks/${task.id}/status`, t.site, {
-        method: "PATCH",
-        body: { status: "Completed", completionNote: "Completed for closeout" },
+    budgetIds[category] = b.id;
+    for (const stage of ["draft", "pending-review", "finance-review", "manager-review"] as const) {
+      await api("/finance/budget-approval-steps/decide", c.finance.token, {
+        method: "POST",
+        body: { budgetId: b.id, stage, decision: "approved", actor: c.finance.name },
       });
     }
   }
-  await api(`/milestones/${milestoneId}`, t.pm, { method: "PATCH", body: { status: "completed" } });
-  const issue = await api<{ id: number }>("/issues", t.engineer, {
-    method: "POST",
-    body: { issueCode: `ISS-${code}`, projectCode: code, title: "Minor rebar spacing deviation", description: "Spacing on grid line 4 slightly out of tolerance, corrected on site" },
-  });
-  await api(`/issues/${issue.id}/status`, t.pm, { method: "PATCH", body: { status: "Resolved", resolutionNotes: "Re-inspected and corrected on site" } });
-  // Walk the Budget Change Request workflow to completion so K4 (no active
-  // workflows) passes too.
-  const stagesList = await api<{ stages: { id: number; role: string; status: string }[] }>(`/workflows/${workflow.id}`, t.pm);
-  const roleToken: Record<string, string> = { "finance-manager": t.finance, "project-manager": t.pm, admin: t.admin };
-  let current = stagesList.stages.find((s) => s.status === "current");
-  while (current) {
-    const actor = roleToken[current.role] ?? t.admin;
-    await api(`/workflows/${workflow.id}/stages/${current.id}/decision`, actor, { method: "PATCH", body: { decision: "approve" } });
-    const refreshed = await api<{ stages: { id: number; role: string; status: string }[] }>(`/workflows/${workflow.id}`, t.pm);
-    current = refreshed.stages.find((s) => s.status === "current");
+
+  // Milestones (dated, active) and the task plan.
+  const span = Math.max(60, Math.round((Date.parse(c.p.due) - Date.parse(c.p.plannedStartDate)) / 86_400_000));
+  const milestoneIds: number[] = [];
+  const nMilestones = opts.complete ? 4 : 3;
+  for (let m = 0; m < nMilestones; m++) {
+    const ms = await api<{ id: number }>("/milestones", pm.token, {
+      method: "POST",
+      body: {
+        projectCode: c.code,
+        title: TASK_PLAN[m]!.milestone,
+        description: `${TASK_PLAN[m]!.milestone} for ${c.p.subtitle}.`,
+        estimatedCompletionDate: addDays(c.p.plannedStartDate, Math.round((span * (m + 1)) / 4)),
+      },
+    });
+    await api(`/milestones/${ms.id}`, pm.token, { method: "PATCH", body: { status: "active" } });
+    milestoneIds.push(ms.id);
   }
+
+  // Tasks: for a complete plan every milestone gets tasks; for S3 only the first milestone does.
+  const taskIds: { id: number; idx: number; assignee: Account }[] = [];
+  const planMilestones = opts.complete ? nMilestones : 1;
+  let idx = 0;
+  for (let m = 0; m < planMilestones; m++) {
+    for (const title of TASK_PLAN[m]!.tasks) {
+      if (idx >= opts.taskCount) break;
+      // Engineers can plan tasks but only site personnel can move them, so only a pending S4 task is engineer-owned.
+      const engineerOwned = c.code === "DEMO-S4" && idx === 9;
+      const assignee = engineerOwned ? c.team.engineer! : (c.team.site ?? c.team.engineer!);
+      const t = await api<{ id: number }>("/tasks", pm.token, {
+        method: "POST",
+        body: {
+          taskCode: `TSK-${c.code.replace("DEMO-", "")}-${String(idx + 1).padStart(2, "0")}`,
+          projectCode: c.code,
+          title,
+          description: `${title} - ${c.p.subtitle}`,
+          priority: (["High", "Medium", "Low"] as const)[idx % 3],
+          status: "Pending",
+          progress: 0,
+          dueDate: addDays(c.p.plannedStartDate, Math.round(((idx + 1) * span) / 17)),
+          assignedToUserId: assignee.id,
+          assignedToName: assignee.name,
+          milestoneId: milestoneIds[m],
+        },
+      });
+      taskIds.push({ id: t.id, idx, assignee });
+      idx += 1;
+    }
+  }
+
+  if (opts.complete) {
+    await docRecord(c, "Notice to Proceed", "Notice to Proceed", pm);
+  }
+  await api(`/projects/${c.projectId}`, pm.token, {
+    method: "PATCH",
+    body: { siteLatitude: c.p.lat, siteLongitude: c.p.lng, geofenceRadiusM: c.p.geofenceRadiusM },
+  });
+  void architect;
+  return { budgetIds, milestoneIds, taskIds };
 }
 
-// Builds every X1-X4 row. Never calls advance beyond Closeout.
-//
-// X1 (Final Inspection approved) is the one exception to this file's usual
-// "every gate for this phase already passing" rule: when the TARGET phase
-// is Closeout itself, the report is deliberately left Submitted instead of
-// auto-approved here, so DEMO-STAGE-4 has a real, pending Final Inspection
-// a Project Manager can actually approve from /reports — the whole point of
-// a reviewer landing on a project sitting *at* Closeout is to see that
-// action, not a checklist that's already green. Every project that needs to
-// move PAST Closeout (target Completed/Archived) still gets it approved
-// here, same as before, since X1 has to really pass for advance() to work.
-async function buildCloseoutPhase(code: string, t: Tokens, leaveFinalInspectionPending: boolean) {
-  const report = await api<{ id: number }>("/engineering-reports", t.engineer, {
+interface Built {
+  budgetIds: Record<string, number>;
+  milestoneIds: number[];
+  taskIds: { id: number; idx: number; assignee: Account }[];
+}
+
+async function completeTask(c: Ctx, t: Built["taskIds"][number], withPhoto: boolean) {
+  // Only site personnel may move a task (tasks/routes.ts), so completed tasks are always site-assigned.
+  const who = t.assignee;
+  await api(`/tasks/${t.id}/status`, who.token, { method: "PATCH", body: { status: "In Progress" } }).catch(() => {});
+  let fileUrl: string | undefined;
+  if (withPhoto) {
+    const f = await png(who, `${c.code}-task-${t.idx + 1}-evidence.png`, [c.code, `TASK ${t.idx + 1} COMPLETE`, "SITE PHOTO", "2026"], t.idx);
+    fileUrl = f.url;
+  }
+  await api(`/tasks/${t.id}/status`, who.token, {
+    method: "PATCH",
+    body: { status: "Completed", completionNote: "Work completed and checked against the drawings with the foreman.", completionFileUrl: fileUrl },
+  });
+}
+
+/** Construction content for S4: ~54% of tasks done, expenses, issues, and the Budget Change Request. */
+async function buildConstructionPartial(c: Ctx, built: Built) {
+  const { pm, engineer, site } = c.team;
+  const eng = engineer!;
+  const s = site!;
+  void s;
+  // 7 of the first 13 tasks done; two in progress.
+  const done = built.taskIds.filter((t) => t.idx < 7);
+  for (const t of done) await completeTask(c, t, t.idx % 3 === 0);
+  for (const t of built.taskIds.filter((t) => t.idx === 7 || t.idx === 8)) {
+    await api(`/tasks/${t.id}/status`, t.assignee.token, { method: "PATCH", body: { status: "In Progress" } });
+  }
+  // Foundation milestone closed.
+  await api(`/milestones/${built.milestoneIds[0]}`, pm.token, { method: "PATCH", body: { status: "completed" } });
+
+  // Approved expenses (real spend against the matching budget lines); a large one so burn runs ahead of completion.
+  const expenses: [string, string, number][] = [
+    ["Holcim Ready-Mix Concrete", "Materials", 15_800_000],
+    ["Steel Asia Rebar Supply", "Materials", 11_700_000],
+    ["Pasig Manpower Services", "Labor", 17_400_000],
+    ["Hi-Lift Equipment Rental", "Equipment", 8_900_000],
+    ["Site Contingency (dewatering)", "Contingency", 2_300_000],
+  ];
+  for (const [i, [vendor, category, amount]] of expenses.entries()) {
+    const receipt = await pdf(c.finance, `${c.code}-receipt-${i + 1}.pdf`, `Official Receipt - ${vendor}`, [`Vendor: ${vendor}`, `Project: ${c.code}`, `Category: ${category}`, `Amount: PHP ${amount.toLocaleString("en-PH")}`]);
+    const ex = await api<{ id: string }>("/finance/expenses", c.finance.token, {
+      method: "POST",
+      body: { vendor, project: c.code, category, amount, receiptUrl: receipt.url },
+    });
+    await api(`/finance/expenses/${ex.id}/approve`, c.finance.token, { method: "PATCH", body: {} });
+  }
+
+  // Extra approved budget line (change order) pushing planned ~10% over the contract value.
+  const co = await api<{ id: number }>("/finance/budgets", c.finance.token, {
+    method: "POST",
+    body: { project: c.code, category: "Change Order", owner: c.finance.name, planned: Math.round(c.p.contractValue * 0.105), fiscalYear: "2026" },
+  });
+  for (const stage of ["draft", "pending-review", "finance-review", "manager-review"] as const) {
+    await api("/finance/budget-approval-steps/decide", c.finance.token, {
+      method: "POST",
+      body: { budgetId: co.id, stage, decision: "approved", actor: c.finance.name },
+    });
+  }
+
+  // Issues: 3 Material in the last 30 days (one resolved with a note) + open Quality/Safety items.
+  const issues: [string, string, string, "Material" | "Quality" | "Safety", boolean][] = [
+    ["ISS-S4-01", "Cracked batch of floor tiles", "Delivered tile batch for level 1 had visible cracking on pallets 3 and 4.", "Material", true],
+    ["ISS-S4-02", "Rebar delivery below specified diameter", "Spot check of the latest rebar delivery found bars under the specified 16 mm diameter.", "Material", false],
+    ["ISS-S4-03", "Honeycombing at column base C4", "Voids found at the base of column C4 after formwork removal.", "Material", false],
+    ["ISS-S4-04", "Scaffold base plates missing on grid B", "Two scaffold bays on grid B are missing base plates; work paused in that bay.", "Safety", false],
+  ];
+  for (const [code, title, description, category, resolve] of issues) {
+    const i = await api<{ id: number }>("/issues", eng.token, {
+      method: "POST",
+      body: { issueCode: code, projectCode: c.code, title, description, category, severity: category === "Safety" ? "High" : "Medium", reportedByName: eng.name },
+    });
+    if (resolve) {
+      await api(`/issues/${i.id}/status`, pm.token, {
+        method: "PATCH",
+        body: { status: "Resolved", resolutionNotes: "Replaced with a batch from a different supplier; defective pallets returned for credit." },
+      });
+    }
+  }
+
+  // Budget Change Request through the real validateWorkflowLineItems() path.
+  const templates = await api<{ id: number; name: string }[]>("/workflows/templates", eng.token);
+  const bcrTemplate = templates.find((t) => t.name === "Budget Change Request")!;
+  const bcr = await api<{ id: number; aiNote: string | null; stages: { id: number; role: string; status: string }[]; lineItems: { description: string; validation: { verdict: string; basisSummary: string } | null }[] }>("/workflows", eng.token, {
     method: "POST",
     body: {
-      title: "Final inspection",
-      type: "Final Inspection",
-      project: code,
-      location: "Site",
-      date: "2026-12-15",
-      engineer: "Paolo Mendoza",
-      description: "Final walkthrough of completed works",
-      findings: "All systems inspected and functioning as designed",
-      recommendations: "Approve for closeout",
+      title: `Budget change - slab and concrete quantities (${c.code})`,
+      projectCode: c.code,
+      templateId: bcrTemplate.id,
+      budgetId: built.budgetIds["Materials"],
+      lineItems: [
+        { category: "materials", description: "Ready-mix concrete (3000-4000 PSI), delivered", currentAmount: 0, requestedAmount: 95_000, quantity: 10, unit: "cy" },
+        { category: "materials", description: "Concrete slab, poured and finished", currentAmount: 0, requestedAmount: 500_000, quantity: 500, unit: "sqft" },
+        { category: "other", description: "Miscellaneous sitework contingency", currentAmount: 0, requestedAmount: 20_000 },
+      ],
     },
   });
-  if (!leaveFinalInspectionPending) {
-    await api(`/engineering-reports/${report.id}`, t.pm, { method: "PATCH", body: { status: "Approved" } });
-  }
-  await api("/documents", t.pm, {
-    method: "POST",
-    body: { documentId: shortDocId("C"), title: "Certificate of Completion", project: code, type: "Certificate of Completion", version: "1.0", uploadedBy: "Miguel Santos" },
-  });
-  const closeoutTemplates = await api<{ id: number; name: string }[]>("/workflows/templates", t.engineer);
-  const closeoutTemplateId = closeoutTemplates.find((tpl) => tpl.name === "Project Closeout")!.id;
-  const closeoutWf = await api<{ id: number; stages: { id: number; role: string; status: string }[] }>("/workflows", t.engineer, {
-    method: "POST",
-    body: { title: `Closeout ${code}`, projectCode: code, templateId: closeoutTemplateId },
-  });
-  const roleToken: Record<string, string> = { "finance-manager": t.finance, "project-manager": t.pm, admin: t.admin };
-  for (const role of ["finance-manager", "project-manager", "admin"] as const) {
-    const stages = await api<{ stages: { id: number; role: string; status: string }[] }>(`/workflows/${closeoutWf.id}`, t.pm);
-    const stage = stages.stages.find((s) => s.role === role && s.status === "current")!;
-    await api(`/workflows/${closeoutWf.id}/stages/${stage.id}/decision`, roleToken[role]!, { method: "PATCH", body: { decision: "approve" } });
-  }
-  const payroll = await api<{ batch: { id: string } }>("/payroll/generate", t.hr, {
-    method: "POST",
-    body: { period: `Closeout ${code}`, projectCode: code, entries: [{ employeeId: "EMP-DEMO-07", hoursWorked: 8 }], submit: true },
-  });
-  await api(`/finance/payroll-review/${payroll.batch.id}/decide`, t.finance, {
-    method: "POST",
-    body: { decision: "approved", reviewedBy: "Carlo Ramos" },
-  });
+  console.log(`    Budget Change Request ${bcr.id}; aiNote: ${bcr.aiNote}`);
+  for (const li of bcr.lineItems) console.log(`      "${li.description}" -> ${li.validation ? `${li.validation.verdict}: ${li.validation.basisSummary}` : "(no validation)"}`);
+  // Stalled-stage signal: the current stage has been waiting ~50 hours.
+  const current = bcr.stages.find((st) => st.status === "current");
+  if (current) await pool.query("UPDATE workflow_stages SET updated_at = now() - interval '50 hours' WHERE id = $1", [current.id]);
+  return { bcrId: bcr.id };
 }
 
-async function advance(projectId: number, t: Tokens) {
-  return api<{ phase: string; progress: number }>(`/projects/${projectId}/lifecycle/advance`, t.pm, {
+/** Everything done: used by S5-S7 so advance() to Closeout is legitimate. */
+async function buildConstructionComplete(c: Ctx, built: Built) {
+  const { pm } = c.team;
+  for (const t of built.taskIds) await completeTask(c, t, t.idx % 4 === 0);
+  for (const m of built.milestoneIds) await api(`/milestones/${m}`, pm.token, { method: "PATCH", body: { status: "completed" } });
+  const eng = c.team.engineer!;
+  const i = await api<{ id: number }>("/issues", eng.token, {
     method: "POST",
-    body: {},
+    body: { issueCode: `ISS-${c.code.replace("DEMO-", "")}-01`, projectCode: c.code, category: "Quality", severity: "Low", title: "Minor rebar spacing deviation", description: "Spacing on grid line 4 slightly out of tolerance, corrected on site.", reportedByName: eng.name },
   });
+  await api(`/issues/${i.id}/status`, pm.token, { method: "PATCH", body: { status: "Resolved", resolutionNotes: "Re-inspected and corrected on site before the pour." } });
+}
+
+/** X1-X4. `pendingTail` leaves X3 (payroll) and X4 (Closeout workflow) pending. */
+async function buildCloseout(c: Ctx, pendingTail: boolean) {
+  const { pm, engineer } = c.team;
+  const eng = engineer!;
+  const report = await api<{ id: number }>("/engineering-reports", eng.token, {
+    method: "POST",
+    body: {
+      title: `Final inspection - ${c.p.subtitle}`,
+      type: "Final Inspection",
+      project: c.code,
+      location: c.p.location,
+      date: pendingTail ? "2026-09-28" : addDays(c.p.due, -10),
+      engineer: eng.name,
+      description: "Final walkthrough of the completed works with the client's representative.",
+      findings: "All systems inspected and functioning as designed; punch-list items closed out.",
+      recommendations: "Approve for closeout and turnover.",
+    },
+  });
+  await api(`/engineering-reports/${report.id}`, pm.token, { method: "PATCH", body: { status: "Approved" } });
+  await docRecord(c, "Certificate of Completion", "Certificate of Completion", pm);
+
+  const templates = await api<{ id: number; name: string }[]>("/workflows/templates", eng.token);
+  const tpl = templates.find((t) => t.name === "Project Closeout")!;
+  const wf = await api<{ id: number }>("/workflows", eng.token, {
+    method: "POST",
+    body: { title: `Project closeout - ${c.p.subtitle}`, projectCode: c.code, templateId: tpl.id },
+  });
+  const roleToken: Record<string, string> = { "finance-manager": c.finance.token, "project-manager": pm.token, admin: c.admin.token };
+  // Pending tail: only Finance has signed; the PM stage is where it sits.
+  const roles = pendingTail ? (["finance-manager"] as const) : (["finance-manager", "project-manager", "admin"] as const);
+  for (const role of roles) {
+    const view = await api<{ stages: { id: number; role: string; status: string }[] }>(`/workflows/${wf.id}`, pm.token);
+    const stage = view.stages.find((s) => s.role === role && s.status === "current");
+    if (!stage) continue;
+    await api(`/workflows/${wf.id}/stages/${stage.id}/decision`, roleToken[role]!, { method: "PATCH", body: { decision: "approve" } });
+  }
+
+  const employeeId = c.team.site?.employeeId ?? "EMP-DEMO-07";
+  const payroll = await api<{ batch: { id: string } }>("/payroll/generate", c.hr.token, {
+    method: "POST",
+    body: { period: `Closeout ${c.code}`, projectCode: c.code, entries: [{ employeeId, hoursWorked: 64 }], submit: true },
+  });
+  if (!pendingTail) {
+    await api(`/finance/payroll-review/${payroll.batch.id}/decide`, c.finance.token, {
+      method: "POST",
+      body: { decision: "approved", reviewedBy: c.finance.name },
+    });
+  }
+  return { payrollBatchId: payroll.batch.id };
+}
+
+// ── Backdating (direct SQL: no API writes history timestamps) ──────────────
+const HISTORY_DATES: Record<string, Record<string, string>> = {
+  "DEMO-S1": { created: "2026-09-21" },
+  "DEMO-S2": { created: "2026-06-08", Design: "2026-08-03" },
+  "DEMO-S3": { created: "2026-03-02", Design: "2026-04-27", "Pre-Construction": "2026-07-13" },
+  "DEMO-S4": { created: "2025-10-06", Design: "2025-11-24", "Pre-Construction": "2026-01-12", Construction: "2026-02-09" },
+  "DEMO-S5": { created: "2025-04-07", Design: "2025-05-19", "Pre-Construction": "2025-07-14", Construction: "2025-09-08", Closeout: "2026-09-14" },
+  "DEMO-S6": { created: "2024-10-07", Design: "2024-11-25", "Pre-Construction": "2025-01-13", Construction: "2025-03-10", Closeout: "2026-03-16", Completed: "2026-04-27" },
+  "DEMO-S7": { created: "2024-01-08", Design: "2024-02-19", "Pre-Construction": "2024-04-01", Construction: "2024-06-10", Closeout: "2025-04-14", Completed: "2025-05-26", Archived: "2025-11-24" },
+};
+
+async function backdate(c: Ctx) {
+  const d = HISTORY_DATES[c.code]!;
+  await pool.query("UPDATE projects SET created_at = $2 WHERE code = $1", [c.code, `${d.created} 09:00`]);
+  for (const [phase, date] of Object.entries(d)) {
+    if (phase === "created") continue;
+    await pool.query("UPDATE project_phase_history SET created_at = $3 WHERE project_code = $1 AND to_status = $2", [c.code, phase, `${date} 09:30`]);
+  }
+  if (d.Completed) await pool.query("UPDATE projects SET completed_at = $2 WHERE code = $1", [c.code, `${d.Completed} 15:00`]);
+  if (d.Archived) await pool.query("UPDATE projects SET archived_at = $2 WHERE code = $1", [c.code, `${d.Archived} 10:00`]);
+  // Closeout payroll batches were created inside the Closeout window.
+  const closeoutAt = d.Closeout;
+  if (closeoutAt) {
+    const stop = d.Completed ?? TODAY;
+    await pool.query("UPDATE payroll_batches SET created_at = $2 WHERE project_code = $1", [c.code, `${addDays(closeoutAt, d.Completed ? 10 : 3)} 11:00`]);
+    void stop;
+  }
+}
+
+// ── Orchestration ──────────────────────────────────────────────────────────
+
+async function gateReport(c: Ctx) {
+  const view = await api<{ phase: string; progress: number; canAdvance: boolean; checks: { key: string; passed: boolean }[] }>(`/projects/${c.projectId}/lifecycle`, c.team.pm.token);
+  return view;
+}
+
+async function advance(c: Ctx) {
+  return api(`/projects/${c.projectId}/lifecycle/advance`, c.team.pm.token, { method: "POST", body: {} });
+}
+
+async function buildProject(s: Session, p: DemoProject) {
+  const code = p.code;
+  const team = TEAMS[code]!;
+  const acc = (k?: keyof Session) => (k ? s[k] : undefined);
+  const resolved = { pm: s[team.pm], architect: s[team.architect], consultant: s[team.consultant], engineer: acc(team.engineer), site: acc(team.site) };
+  const pm = resolved.pm;
+
+  // Create with today's date (the create validator forbids past dates), then PATCH the real dates.
+  const created = await api<{ id: number }>("/projects", pm.token, {
+    method: "POST",
+    body: {
+      name: p.name,
+      code,
+      pm: pm.name,
+      plannedStartDate: TODAY,
+      due: "2027-12-31",
+      client: p.client,
+      projectType: p.projectType,
+      location: p.location,
+      description: `${p.subtitle}. ${p.description}`.slice(0, 500),
+      contractValue: p.contractValue,
+      siteLatitude: p.lat,
+      siteLongitude: p.lng,
+      geofenceRadiusM: p.geofenceRadiusM,
+    },
+  });
+  await api(`/projects/${created.id}`, pm.token, {
+    method: "PATCH",
+    body: { plannedStartDate: p.plannedStartDate, due: p.due, scopeSummary: p.description },
+  });
+  const c: Ctx = { p, code, projectId: created.id, s, team: resolved, finance: s.finance, hr: s.hr, admin: s.admin };
+  step(`Created ${code} (id ${created.id}) — PM ${pm.name}`);
+  await staff(c);
+  const phaseIdx = DEMO_PROJECTS.findIndex((x) => x.code === code);
+
+  step("Proposal phase");
+  await buildProposal(c, phaseIdx > 0);
+  if (phaseIdx === 0) return c;
+  await advance(c);
+
+  step("Design phase");
+  await buildDesign(c, phaseIdx > 1);
+  if (phaseIdx === 1) return c;
+  await advance(c);
+
+  step("Pre-Construction phase");
+  const isS3 = phaseIdx === 2;
+  const taskCount = phaseIdx === 3 ? 13 : isS3 ? 4 : 16;
+  const built = await buildPreConstruction(c, { complete: !isS3, taskCount });
+  if (isS3) return c;
+  await advance(c);
+
+  step("Construction phase");
+  if (phaseIdx === 3) {
+    await buildConstructionPartial(c, built);
+    return c;
+  }
+  await buildConstructionComplete(c, built);
+  await advance(c);
+
+  step("Closeout phase");
+  await buildCloseout(c, phaseIdx === 4);
+  if (phaseIdx === 4) return c;
+  await advance(c);
+  if (phaseIdx === 5) return c;
+
+  step("Archive (Admin)");
+  await api(`/projects/${created.id}/lifecycle/archive`, s.admin.token, { method: "POST", body: {} });
+  return c;
 }
 
 async function main() {
-  console.log("Cleaning up any existing DEMO-STAGE-* rows (idempotent re-run)...");
-  await cleanup(STAGE_CODES);
-  await ensureFallbackReferenceRow();
+  await ensureReferenceRows();
+  const s = await openSession();
+  const existing = await api<{ id: number; code: string; status: string }[]>("/projects", s.admin.token);
+  const summary: { code: string; target: string; phase: string; progress: number; gates: string }[] = [];
 
-  console.log("Logging in every role...");
-  const t: Tokens = {
-    pm: await login("pm@easyconstruct.demo"),
-    architect: await login("architect@easyconstruct.demo"),
-    consultant: await login("consultant@easyconstruct.demo"),
-    engineer: await login("engineer@easyconstruct.demo"),
-    site: await login("site@easyconstruct.demo"),
-    finance: await login("finance@easyconstruct.demo"),
-    hr: await login("hr@easyconstruct.demo"),
-    admin: await login("admin@easyconstruct.demo"),
-  };
-  const users = await api<{ id: number; name: string; email: string }[]>("/users", t.admin);
-  const byEmail = (email: string) => users.find((u) => u.email === email)!.id;
-  const ids: Ids = {
-    architect: byEmail("architect@easyconstruct.demo"),
-    consultant: byEmail("consultant@easyconstruct.demo"),
-    engineer: byEmail("engineer@easyconstruct.demo"),
-    site: byEmail("site@easyconstruct.demo"),
-  };
-
-  const summary: { code: string; targetPhase: string; finalPhase: string; progress: number }[] = [];
-
-  for (let i = 0; i < STAGE_CODES.length; i++) {
-    const code = STAGE_CODES[i]!;
-    const target = TARGET_PHASE[i]!;
-    console.log(`\n=== ${code} → ${target} ===`);
-
-    const project = await api<{ id: number; code: string }>("/projects", t.pm, {
-      method: "POST",
-      body: {
-        name: DISPLAY_NAME[i]!,
-        code,
-        pm: "Miguel Santos",
-        // createProjectSchema now requires a planned start that is not in the past.
-        plannedStartDate: new Date().toISOString().slice(0, 10),
-        due: "2027-06-30",
-        client: "Demo Client",
-        // A4: the Construction-stage project is the one that also carries a
-        // real Budget Change Request through validateWorkflowLineItems() —
-        // point at the separate AISIG-DEMO scenario (all five signal rules)
-        // right in the description so "see everything AI-validation does"
-        // is reachable from either bookmarkable project.
-        description:
-          code === "DEMO-STAGE-3"
-            ? "Demonstrates the real cost-comparison engine (EstimationPro.ai citations on a Budget Change Request). For the five decision-support signal rules firing together, see the AISIG-DEMO project."
-            : undefined,
-      },
+  for (const p of DEMO_PROJECTS) {
+    console.log(`\n=== ${p.code} · ${p.name} → ${p.phase} ===`);
+    const found = existing.find((x) => x.code === p.code);
+    let ctx: Ctx | null = null;
+    const rebuild = (process.env.REBUILD ?? "").split(",").includes(p.code);
+    if (found && found.status === p.phase && !rebuild) {
+      console.log(`  already at ${p.phase} (id ${found.id}) — left as is`);
+      ctx = { p, code: p.code, projectId: found.id, s, team: { pm: s[TEAMS[p.code]!.pm], architect: s[TEAMS[p.code]!.architect], consultant: s[TEAMS[p.code]!.consultant] }, finance: s.finance, hr: s.hr, admin: s.admin };
+    } else {
+      if (found) {
+        console.log(`  found at ${found.status}, expected ${p.phase} — removing and rebuilding`);
+        await cleanup(p.code);
+      }
+      ctx = await buildProject(s, p);
+      await backdate(ctx);
+      await api(`/projects/${ctx.projectId}/lifecycle`, ctx.team.pm.token).catch(() => null);
+    }
+    const view = await gateReport(ctx);
+    summary.push({
+      code: p.code,
+      target: p.phase,
+      phase: view.phase,
+      progress: view.progress,
+      gates: view.checks.map((k) => `${k.key}:${k.passed ? "✓" : "✗"}`).join(" "),
     });
-    step(`Created project ${code} (id ${project.id})`);
-    await staffProject(code, t, ids);
-
-    let budgetId: number | undefined;
-    let milestoneId: number | undefined;
-
-    step("Proposal phase (P1-P5)");
-    await buildProposalPhase(code, t);
-    await api(`/projects/${project.id}`, t.pm, { method: "PATCH", body: { contractValue: 500000 } });
-    if (target === "Proposal") {
-      const view = await api<{ phase: string; progress: number }>(`/projects/${project.id}/lifecycle`, t.pm);
-      summary.push({ code, targetPhase: target, finalPhase: view.phase, progress: view.progress });
-      continue;
-    }
-    await advance(project.id, t);
-
-    step("Design phase (D1-D3)");
-    await buildDesignPhase(code, t, ids);
-    if (target === "Design") {
-      const view = await api<{ phase: string; progress: number }>(`/projects/${project.id}/lifecycle`, t.pm);
-      summary.push({ code, targetPhase: target, finalPhase: view.phase, progress: view.progress });
-      continue;
-    }
-    await advance(project.id, t);
-
-    step("Pre-Construction phase (C1-C5)");
-    const pre = await buildPreConstructionPhase(code, t, ids);
-    budgetId = pre.budgetId;
-    milestoneId = pre.milestoneId;
-    if (target === "Pre-Construction") {
-      const view = await api<{ phase: string; progress: number }>(`/projects/${project.id}/lifecycle`, t.pm);
-      summary.push({ code, targetPhase: target, finalPhase: view.phase, progress: view.progress });
-      continue;
-    }
-    await advance(project.id, t);
-
-    step("Construction phase");
-    if (target === "Construction") {
-      await buildConstructionPartial(code, t, ids, budgetId!);
-      await buildRoleDemoExtras(code, t);
-      const view = await api<{ phase: string; progress: number }>(`/projects/${project.id}/lifecycle`, t.pm);
-      summary.push({ code, targetPhase: target, finalPhase: view.phase, progress: view.progress });
-      continue;
-    }
-    await buildConstructionComplete(code, t, ids, milestoneId!, budgetId!);
-    await advance(project.id, t);
-
-    step("Closeout phase (X1-X4)");
-    await buildCloseoutPhase(code, t, target === "Closeout");
-    if (target === "Closeout") {
-      const view = await api<{ phase: string; progress: number }>(`/projects/${project.id}/lifecycle`, t.pm);
-      summary.push({ code, targetPhase: target, finalPhase: view.phase, progress: view.progress });
-      continue;
-    }
-    await advance(project.id, t);
-
-    if (target === "Completed") {
-      const view = await api<{ phase: string; progress: number }>(`/projects/${project.id}/lifecycle`, t.pm);
-      summary.push({ code, targetPhase: target, finalPhase: view.phase, progress: view.progress });
-      continue;
-    }
-
-    step("Archive (Admin)");
-    await api(`/projects/${project.id}/lifecycle/archive`, t.admin, { method: "POST", body: {} });
-    const view = await api<{ phase: string; progress: number }>(`/projects/${project.id}/lifecycle`, t.pm);
-    summary.push({ code, targetPhase: target, finalPhase: view.phase, progress: view.progress });
   }
 
   console.log("\n=== Summary ===");
-  for (const row of summary) {
-    console.log(`  ${row.code.padEnd(14)} target=${row.targetPhase.padEnd(16)} actual phase=${row.finalPhase.padEnd(16)} progress=${row.progress}%`);
-  }
+  console.table(summary);
 }
 
 main()
   .catch((err) => {
     console.error("\n✘ demo-seed-stages failed:", err.message);
-    if (err.cause) console.error("cause:", err.cause);
     process.exitCode = 1;
   })
-  .finally(() => {
-    // db is a pg Pool-backed drizzle instance; let the process exit
-    // naturally rather than forcing pool.end() here, since ai-validation's
-    // own cache module may still hold an in-flight promise.
+  .finally(async () => {
+    await pool.end();
     setTimeout(() => process.exit(process.exitCode ?? 0), 250);
   });
