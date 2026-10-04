@@ -42,6 +42,7 @@ const DELETE_ORDER = [
   "revisions", "engineering_reports", "documents", "expenses", "financial_risks", "cash_flow_entries",
   "ai_insights", "approvals_queue", "procurement_orders", "purchase_requests", "reimbursements",
   "scheduled_reports", "payroll", "payroll_batch_decisions", "payroll_batches", "attendance",
+  "transmittal_acknowledgements", "transmittal_items", "transmittals", "design_request_files", "design_requests",
   "project_phase_history", "project_members", "projects",
 ];
 

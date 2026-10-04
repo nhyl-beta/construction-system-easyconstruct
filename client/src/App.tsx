@@ -53,6 +53,10 @@ import ArchitectDocumentation from "./pages/roles/architect/architect-documentat
 import ArchitectProjects from "./pages/roles/architect/architect-projects";
 import ArchitectProposals from "./pages/roles/architect/architect-proposals";
 import ArchitectRevisions from "./pages/roles/architect/architect-revisions";
+import SharedRequests from "./pages/roles/shared/shared-requests";
+import SharedTransmittals from "./pages/roles/shared/shared-transmittals";
+import { RequestPrintPage, TransmittalPrintPage } from "./pages/roles/shared/print-pages";
+import { AttentionCard } from "./features/requests/components/AttentionCard";
 
 // ── Engineer Pages ──
 // eslint-disable-next-line @typescript-eslint/no-unused-vars
@@ -148,6 +152,10 @@ function App() {
                   <Route path="/reset-password" element={<ResetPasswordPage />} />
 
                   <Route element={<ProtectedRoutes />}>
+                    {/* Printable RFI/RFA and transmittal forms: signed-in, but outside the
+                        app Layout so no sidebar or header ends up on the paper. */}
+                    <Route path="/requests/:id/print" element={<RequestPrintPage />} />
+                    <Route path="/transmittals/:id/print" element={<TransmittalPrintPage />} />
                     <Route
                   element={
                     <Layout>
@@ -267,6 +275,9 @@ function App() {
                     element={<ArchitectDocumentation />}
                   />
                   <Route path="/blueprints" element={<ArchitectBlueprints />} />
+                  {/* RFI / RFA requests and transmittal cover sheets; every list is project-scoped on the server. */}
+                  <Route path="/requests" element={<SharedRequests />} />
+                  <Route path="/transmittals" element={<SharedTransmittals />} />
 
                   {/* ── Engineer Routes ── */}
                   <Route path="/progress" element={<EngineerProgress />} />
@@ -434,7 +445,12 @@ function App() {
                     path="/owner/oversight"
                     element={
                       <RequireRole allow={["owner"]}>
-                        <AdminSecurity />
+                        <>
+                          <div className="p-4 pb-0 md:p-8 md:pb-0">
+                            <AttentionCard />
+                          </div>
+                          <AdminSecurity />
+                        </>
                       </RequireRole>
                     }
                   />

@@ -21,6 +21,7 @@ import { MilestonesPanel } from "@/features/milestones/components/MilestonesPane
 import { LocationMapPicker } from "@/components/maps/location-map-picker";
 import { useProjectDesigns } from "@/features/designs/hooks/useProjectDesigns";
 import { ProjectRevisionsPanel } from "@/features/designs/components/ProjectRevisionsPanel";
+import { ProjectRequestsSection } from "@/features/requests/components/ProjectRequestsSection";
 import { StatusBadge } from "@/components/ui/status-badge";
 import { documentsRepository, type DocumentRecord } from "@/features/documents/repositories/documents.repository";
 import { ProjectLifecyclePanel } from "@/features/lifecycle/components/ProjectLifecyclePanel";
@@ -477,6 +478,11 @@ export default function ProjectDetailPage() {
       {/* Design change history (design_revisions): version-to-version log per design. Read-only; the panel handles its own loading, errors and empty states. */}
       <div className="max-w-4xl">
         <ProjectRevisionsPanel projectCode={project.code} projectStatus={project.status} />
+      </div>
+
+      {/* RFI / RFA requests on this project (an open one blocks closing it). */}
+      <div className="max-w-4xl">
+        <ProjectRequestsSection projectCode={project.code} />
       </div>
 
       <div className="max-w-4xl">

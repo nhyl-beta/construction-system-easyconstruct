@@ -7,7 +7,8 @@ import { RevisionLink } from "@/features/revisions/components/RevisionLink";
 import { useCurrentRevisions } from "@/features/revisions/hooks/useCurrentRevisions";
 import { useDesignReviews } from "@/features/design-reviews/hooks/useDesignReviews";
 import { useAuth } from "@/auth/auth-context";
-import { ChevronLeft, Eye, Trash2 } from "lucide-react";
+import { ChevronLeft, Eye, MessageSquareQuote, Trash2 } from "lucide-react";
+import { CreateRequestDialog } from "@/features/requests/components/CreateRequestDialog";
 import { useMemo, useState } from "react";
 import { useNavigate, useParams } from "react-router";
 import { ConfirmDialog } from "@/components/ui/confirm-dialog";
@@ -22,6 +23,9 @@ export default function ArchitectDesignDetail() {
   const [confirmDelete, setConfirmDelete] = useState(false);
   const [requestingReview, setRequestingReview] = useState(false);
   const [reviewError, setReviewError] = useState<string | null>(null);
+  const [raisingRfi, setRaisingRfi] = useState(false);
+  // Only the PM and Engineers raise RFIs/RFAs; designers answer them.
+  const canRaiseRequest = user?.role === "project-manager" || user?.role === "engineer" || user?.role === "admin";
 
   // C2 follow-up: "Request review" previously only existed as a dialog
   // buried in the Architect Dashboard's Quick Actions, not reachable from
@@ -102,6 +106,11 @@ export default function ArchitectDesignDetail() {
         actions={
           <>
             <RevisionLink itemType="design" itemId={d.id} current={currentRevisions[d.id]} />
+            {canRaiseRequest && (
+              <Button size="sm" variant="outline" className="rounded-xl" onClick={() => setRaisingRfi(true)}>
+                <MessageSquareQuote className="mr-1 h-3.5 w-3.5" /> Raise RFI
+              </Button>
+            )}
             <Button
               size="sm"
               variant="outline"
@@ -164,6 +173,12 @@ export default function ArchitectDesignDetail() {
         confirmLabel="Delete design"
         loading={c.deleting}
         onConfirm={handleDelete}
+      />
+      <CreateRequestDialog
+        open={raisingRfi}
+        onOpenChange={setRaisingRfi}
+        initial={{ projectCode: d.projectCode, designId: d.id, kind: "RFI", subject: `${d.name}: ` }}
+        onCreated={() => navigate("/requests")}
       />
     </div>
   );

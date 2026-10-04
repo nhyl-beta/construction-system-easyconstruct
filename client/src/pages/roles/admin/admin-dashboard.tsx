@@ -20,6 +20,7 @@ import { Progress } from "@/components/ui/progress";
 import { useRoleConfig } from "@/hooks/use-role-config";
 import { useAdminDashboardController } from "@/features/dashboard/controllers/admin-dashboard.controller";
 import { WaitingOnYouCard } from "@/features/lifecycle/components/WaitingOnYouCard";
+import { AttentionCard } from "@/features/requests/components/AttentionCard";
 import { RefreshReferencesCard } from "@/features/lifecycle/components/RefreshReferencesCard";
 import { WorkforceSnapshotCard } from "@/features/workforce/components/WorkforceSnapshotCard";
 import { FEATURES } from "@/config/features";
@@ -111,6 +112,8 @@ export default function AdminDashboardPage() {
       />
 
       {/* K1: admin can decide any workflow stage (EC-003) — cross-project */}
+      <AttentionCard />
+
       <WaitingOnYouCard />
 
       {/* ai-signals E6: nice-to-have manual refresh, admin only */}

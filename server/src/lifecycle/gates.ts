@@ -470,7 +470,26 @@ const x4 = (s: LifecycleSnapshot): GateCheck => {
   };
 };
 
-const evaluateCloseout = (s: LifecycleSnapshot): GateCheck[] => [x1(s), x2(s), x3(s), x4(s)];
+// X5 — an unanswered RFI/RFA hard-blocks closing the project. (Named X5 because it
+// belongs to the Closeout exit; the K-series is the Construction exit.)
+export const noOpenRequestsCheck = (s: LifecycleSnapshot, key: string): GateCheck => {
+  const open = s.openRequests ?? [];
+  return {
+    key,
+    label: "No open RFI/RFA",
+    ownerRoles: ["project-manager", "admin"],
+    passed: open.length === 0,
+    detail:
+      open.length === 0
+        ? "No open RFI/RFA"
+        : `${open.length} open request(s): ${open.slice(0, 3).map((r) => r.number).join(", ")}${open.length > 3 ? "…" : ""}`,
+    link: "/requests",
+  };
+};
+
+const x5 = (s: LifecycleSnapshot): GateCheck => noOpenRequestsCheck(s, "X5");
+
+const evaluateCloseout = (s: LifecycleSnapshot): GateCheck[] => [x1(s), x2(s), x3(s), x4(s), x5(s)];
 
 export const evaluateGate = (phase: SequencedPhase, snapshot: LifecycleSnapshot): GateCheck[] => {
   switch (phase) {
