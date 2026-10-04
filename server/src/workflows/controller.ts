@@ -7,6 +7,7 @@ import { formatError, formatSuccess } from "../utils/response.js";
 import { logAudit } from "../utils/audit.js";
 import * as service from "./service.js";
 import type { ApprovalScope } from "./types.js";
+import { assertProjectVisible, scopeRowsToVisible, visibleProjectCodes } from "../projects/service.js";
 
 export const getTemplates = async (_req: AuthedRequest, res: Response, next: NextFunction) => {
   try {
@@ -51,9 +52,15 @@ export const deleteTemplate = async (req: AuthedRequest, res: Response, next: Ne
   }
 };
 
-export const getAll = async (_req: AuthedRequest, res: Response, next: NextFunction) => {
+// Project visibility for the caller (PM: own projects; staffed roles: assigned projects; null = unrestricted).
+const scopeOf = (req: AuthedRequest) =>
+  req.authUser ? { role: req.authUser.role, userId: req.authUser.id, name: req.authUser.name } : undefined;
+const assertWorkflowVisible = async (req: AuthedRequest, workflowId: number) =>
+  assertProjectVisible(req.authUser, await service.getWorkflowProjectCode(workflowId), "workflows");
+
+export const getAll = async (req: AuthedRequest, res: Response, next: NextFunction) => {
   try {
-    const data = await service.getActiveWorkflows();
+    const data = await scopeRowsToVisible(req.authUser, await service.getActiveWorkflows(), (w) => w.projectCode);
     res.json(formatSuccess(data, MSG.workflows.retrieved));
   } catch (err) {
     next(err);
@@ -63,6 +70,7 @@ export const getAll = async (_req: AuthedRequest, res: Response, next: NextFunct
 export const getById = async (req: AuthedRequest, res: Response, next: NextFunction) => {
   try {
     const data = await service.getWorkflowById(Number(req.params.id));
+    await assertProjectVisible(req.authUser, data.projectCode, "workflows");
     res.json(formatSuccess(data, MSG.workflows.single));
   } catch (err) {
     next(err);
@@ -72,6 +80,7 @@ export const getById = async (req: AuthedRequest, res: Response, next: NextFunct
 export const update = async (req: AuthedRequest, res: Response, next: NextFunction) => {
   try {
     const actor = req.authUser?.name ?? "unknown";
+    await assertWorkflowVisible(req, Number(req.params.id));
     const data = await service.updateWorkflow(
       Number(req.params.id),
       req.body,
@@ -95,6 +104,7 @@ export const update = async (req: AuthedRequest, res: Response, next: NextFuncti
 export const remove = async (req: AuthedRequest, res: Response, next: NextFunction) => {
   try {
     const actor = req.authUser?.name ?? "unknown";
+    await assertWorkflowVisible(req, Number(req.params.id));
     const data = await service.deleteWorkflow(
       Number(req.params.id),
       req.authUser?.role ?? "",
@@ -117,6 +127,7 @@ export const remove = async (req: AuthedRequest, res: Response, next: NextFuncti
 export const create = async (req: AuthedRequest, res: Response, next: NextFunction) => {
   try {
     const createdBy = req.authUser?.name ?? req.authUser?.email ?? "unknown";
+    await assertProjectVisible(req.authUser, req.body.projectCode, "workflows");
     const data = await service.createWorkflow(req.body, createdBy, req.authUser?.role, req.authUser?.id);
     await logAudit({
       entityType: "workflow",
@@ -136,6 +147,7 @@ export const decideStage = async (req: AuthedRequest, res: Response, next: NextF
   try {
     const decidedBy = req.authUser?.name ?? req.authUser?.email ?? "unknown";
     const requesterRole = req.authUser?.role ?? "";
+    await assertWorkflowVisible(req, Number(req.params.id));
     const data = await service.decideStage(
       Number(req.params.id),
       Number(req.params.stageId),
@@ -159,6 +171,7 @@ export const decideStage = async (req: AuthedRequest, res: Response, next: NextF
 export const resubmitStage = async (req: AuthedRequest, res: Response, next: NextFunction) => {
   try {
     const actor = { role: req.authUser?.role ?? "", name: req.authUser?.name ?? "unknown" };
+    await assertWorkflowVisible(req, Number(req.params.id));
     const data = await service.resubmitStage(
       Number(req.params.id),
       Number(req.params.stageId),
@@ -184,7 +197,8 @@ export const getApprovals = async (req: AuthedRequest, res: Response, next: Next
     const scope = (req.query.scope as ApprovalScope) ?? "pending";
     const role = req.authUser?.role ?? "";
     const name = req.authUser?.name ?? req.authUser?.email ?? "";
-    const data = await service.getApprovalQueue(scope, role, name);
+    const codes = await visibleProjectCodes(scopeOf(req));
+    const data = await service.getApprovalQueue(scope, role, name, codes);
     res.json(formatSuccess(data, MSG.workflows.retrieved));
   } catch (err) {
     next(err);
@@ -195,7 +209,8 @@ export const getApprovalStats = async (req: AuthedRequest, res: Response, next: 
   try {
     const role = req.authUser?.role ?? "";
     const name = req.authUser?.name ?? req.authUser?.email ?? "";
-    const data = await service.getApprovalStats(role, name);
+    const codes = await visibleProjectCodes(scopeOf(req));
+    const data = await service.getApprovalStats(role, name, codes);
     res.json(formatSuccess(data, MSG.workflows.retrieved));
   } catch (err) {
     next(err);
@@ -204,6 +219,7 @@ export const getApprovalStats = async (req: AuthedRequest, res: Response, next: 
 export const addAttachment = async (req: AuthedRequest, res: Response, next: NextFunction) => {
   try {
     const actor = req.authUser?.name ?? req.authUser?.email ?? "unknown";
+    await assertWorkflowVisible(req, Number(req.params.id));
     const data = await service.addAttachment(Number(req.params.id), req.body, actor);
     await logAudit({
       entityType: "workflow",
@@ -231,6 +247,7 @@ export const uploadAttachment = async (req: AuthedRequest, res: Response, next: 
     }
 
     const actor = req.authUser?.name ?? req.authUser?.email ?? "unknown";
+    await assertWorkflowVisible(req, Number(req.params.id));
     const sizeInMb = req.file.size / (1024 * 1024);
     const fileSize =
       sizeInMb >= 1
@@ -271,6 +288,7 @@ export const uploadAttachment = async (req: AuthedRequest, res: Response, next: 
 // swallows those and just returns the workflow unchanged.
 export const revalidate = async (req: AuthedRequest, res: Response, next: NextFunction) => {
   try {
+    await assertWorkflowVisible(req, Number(req.params.id));
     const data = await service.revalidateWorkflow(Number(req.params.id));
     res.json(formatSuccess(data, MSG.workflows.updated));
   } catch (err) {
@@ -281,12 +299,16 @@ export const revalidate = async (req: AuthedRequest, res: Response, next: NextFu
 // Finance's budget-change review: every request raised from the Budget Change
 // Request template, each carrying the line items behind its headline amount.
 export const getBudgetChangeRequests = async (
-  _req: AuthedRequest,
+  req: AuthedRequest,
   res: Response,
   next: NextFunction,
 ) => {
   try {
-    const data = await service.getWorkflowsByTemplateName("Budget Change Request");
+    const data = await scopeRowsToVisible(
+      req.authUser,
+      await service.getWorkflowsByTemplateName("Budget Change Request"),
+      (w) => w.projectCode,
+    );
     res.json(formatSuccess(data, MSG.workflows.retrieved));
   } catch (err) {
     next(err);

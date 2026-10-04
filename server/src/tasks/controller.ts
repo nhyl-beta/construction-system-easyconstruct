@@ -7,7 +7,7 @@ import { logAudit } from "../utils/audit.js";
 import * as service from "./service.js";
 import type { AuthedRequest } from "../middleware/auth.js";
 import type { TaskFilters } from "./types.js";
-import { scopeRowsToPm } from "../projects/service.js";
+import { assertProjectVisible, scopeRowsToVisible } from "../projects/service.js";
 
 export const getAll = async (req: AuthedRequest, res: Response, next: NextFunction) => {
   try {
@@ -25,7 +25,8 @@ export const getAll = async (req: AuthedRequest, res: Response, next: NextFuncti
           ? Number(req.query.assignedToUserId)
           : undefined,
     };
-    const data = await scopeRowsToPm(req.authUser, await service.getAll(filters), (t) => t.projectCode);
+    // Site personnel keep their stricter own-tasks filter (above); everyone else sees staffed/own projects only.
+    const data = await scopeRowsToVisible(req.authUser, await service.getAll(filters), (t) => t.projectCode, { skipRoles: ["site-personnel"] });
     res.json(formatSuccess(data, MSG.tasks.retrieved));
   } catch (err) {
     next(err);
@@ -35,6 +36,7 @@ export const getAll = async (req: AuthedRequest, res: Response, next: NextFuncti
 export const getById = async (req: AuthedRequest, res: Response, next: NextFunction) => {
   try {
     const data = await service.getById(Number(req.params.id));
+    await assertProjectVisible(req.authUser, data.projectCode, "tasks");
     res.json(formatSuccess(data, MSG.tasks.single));
   } catch (err) {
     next(err);

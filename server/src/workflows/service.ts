@@ -1,6 +1,7 @@
 import { ConflictError, ForbiddenError, NotFoundError, ValidationError } from "../utils/errors.js";
 import { assertProjectWritable, refreshProjectProgress } from "../lifecycle/service.js";
 import { CLOSEOUT_TEMPLATE_NAME } from "../lifecycle/repository.js";
+import { filterRowsToCodes } from "../projects/visibility.js";
 import { proposalRepository } from "../proposals/repository.js";
 import * as notificationsService from "../notifications/service.js";
 import { validateWorkflowLineItems } from "../ai-validation/service.js";
@@ -248,6 +249,13 @@ export const revalidateWorkflow = async (id: number): Promise<WorkflowWithStages
     console.error(`[ai-validation] revalidateWorkflow(${id}) threw:`, error),
   );
   return getWorkflowById(id);
+};
+
+/** Project code of a workflow, for visibility checks that must not load stages and attachments. */
+export const getWorkflowProjectCode = async (id: number): Promise<string> => {
+  const row = await repo.findWorkflowById(id);
+  if (!row) throw new NotFoundError("Workflow", String(id));
+  return row.projectCode;
 };
 
 export const getActiveWorkflows = async (): Promise<WorkflowWithStages[]> => {
@@ -727,13 +735,17 @@ export const getApprovalQueue = async (
   scope: ApprovalScope,
   requesterRole: string,
   requesterName: string,
+  /** Project codes the caller may see; null/undefined = no restriction (admin, HR, Finance…). */
+  visibleCodes?: ReadonlySet<string> | null,
 ): Promise<ApprovalQueueItem[]> => {
-  const rows =
+  const allRows =
     scope === "pending"
       ? await repo.findPendingStagesForRole(requesterRole, PRIVILEGED_READ_ROLES.includes(requesterRole))
       : scope === "mine"
         ? await repo.findDecidedStagesBy(requesterName)
         : await repo.findAllDecidedStages();
+  // A stage owner only sees the queue entries of projects they may see.
+  const rows = filterRowsToCodes(allRows, visibleCodes ?? null, (r) => r.workflow.projectCode);
 
   // A queue row that does not say whether anything was submitted gives the
   // approver no reason to open the detail view at all.
@@ -777,9 +789,13 @@ export const getApprovalQueue = async (
   }));
 };
 
-export const getApprovalStats = async (requesterRole: string, requesterName: string) => {
-  const pending = await getApprovalQueue("pending", requesterRole, requesterName);
-  const history = await getApprovalQueue("history", requesterRole, requesterName);
+export const getApprovalStats = async (
+  requesterRole: string,
+  requesterName: string,
+  visibleCodes?: ReadonlySet<string> | null,
+) => {
+  const pending = await getApprovalQueue("pending", requesterRole, requesterName, visibleCodes);
+  const history = await getApprovalQueue("history", requesterRole, requesterName, visibleCodes);
 
   const overdue = pending.filter((p) => {
     if (!p.createdAt) return false;

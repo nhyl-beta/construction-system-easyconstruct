@@ -7,7 +7,7 @@ import { logAudit } from "../utils/audit.js";
 import * as service from "./service.js";
 import type { AuthedRequest } from "../middleware/auth.js";
 import type { IssueFilters } from "./types.js";
-import { scopeRowsToPm } from "../projects/service.js";
+import { assertProjectVisible, scopeRowsToVisible } from "../projects/service.js";
 
 export const getAll = async (req: AuthedRequest, res: Response, next: NextFunction) => {
   try {
@@ -20,7 +20,7 @@ export const getAll = async (req: AuthedRequest, res: Response, next: NextFuncti
       reportedByUserId:
         req.authUser?.role === "site-personnel" ? req.authUser.id : undefined,
     };
-    const data = await scopeRowsToPm(req.authUser, await service.getAll(filters), (i) => i.projectCode);
+    const data = await scopeRowsToVisible(req.authUser, await service.getAll(filters), (i) => i.projectCode, { skipRoles: ["site-personnel"] });
     res.json(formatSuccess(data, MSG.issues.retrieved));
   } catch (err) {
     next(err);
@@ -50,6 +50,7 @@ export const getPrecedentsForIssue = async (req: AuthedRequest, res: Response, n
 export const getById =async (req: AuthedRequest, res: Response, next: NextFunction) => {
   try {
     const data = await service.getById(Number(req.params.id));
+    if (req.authUser?.role !== "site-personnel") await assertProjectVisible(req.authUser, data.projectCode, "issues");
     res.json(formatSuccess(data, MSG.issues.single));
   } catch (err) {
     next(err);
