@@ -1531,3 +1531,22 @@ Reading design revisions is now limited to the caller's visible projects (PM: ow
 ### Not done
 - Hold/On-Hold lock was not exercised separately (same `assertProjectWritable` as Archived, which was).
 - The `POST /design-revisions/demo` production branch is covered by a unit test of the guard, not by running the server with `NODE_ENV=production`.
+
+
+## Access scoping, RFI/RFA, Design type, scope gaps (branch `dev`)
+
+| Phase | Commit | What | Evidence |
+|---|---|---|---|
+| 1 | 1e032dd | Project-visibility scoping on tasks, issues, milestones, engineering reports, requirements, workflows and approval queues/stats (`scopeRowsToVisible`); HR/Finance queues stay org-wide | `visibility.test.ts`; `scripts/verify-phase1-scoping.ts` against the live API |
+| 2 | f5cd005 | RFI/RFA module, numbering, transmittals (migration 0021), hourly overdue sweep, Needs-attention list, change-order link, closing gate X5 | `design-requests/rules.test.ts`, gate tests; `scripts/verify-phase2-requests.ts` |
+| 3 | de7789b | Design project type (migration 0022): plan sets, Client Acceptance, Design Turnover template, Proposal, Design, Closeout, Completed, Archived path | `delivery.test.ts`, `design-delivery.test.ts`; `scripts/verify-phase3-design.ts`; headless-Chrome UI check |
+| 4 | 3803337 | PM Resources & Tools page, Impact awareness cards (Architect, Owner, IT Designer), rule-based expense anomaly detection writing `anomalyScore`/`anomalyReason` (migration 0023) | `anomaly.test.ts` (13); live rescore flagged 4 of 20 expenses with reasons |
+| 5 | 877b2bb | PM dashboard donut and workload bars, CSV export (Budget, Expenses, Payroll review), Legacy import, Archive search | headless-Chrome render check, client build |
+| 6 | d98ab83 | Docs only: `paper-wording-changes.md` | n/a |
+
+Results at Phase 5: server `tsc` clean, 291 server tests passing, client build passing.
+
+Deviations and notes:
+- The closing gate is named X5 (the K series is the Construction exit); it blocks leaving Closeout/Turnover while an RFI/RFA is open.
+- Legacy import covers documents only; historic projects cannot be created because project creation forces the Proposal phase and rejects past dates.
+- The overdue sweep runs on an in-process timer; on Vercel call `POST /design-requests/sweep` from an external cron.
