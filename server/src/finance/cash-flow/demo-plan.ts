@@ -41,7 +41,11 @@ export const assignSlots = (count: number, months: number): number[] => {
   return slots;
 };
 
-/** Never after `now`, never before `notBefore` (a project's start). */
+/**
+ * Never after `now`, never before `notBefore` (a project's start). Depends on
+ * `now` only through its calendar day, so re-runs on the same day give the
+ * same instant.
+ */
 export const pickInstant = (key: string, seed: string, now: Date, notBefore?: Date): Date => {
   const [y, m] = key.split("-").map(Number) as [number, number];
   const lastDay = new Date(Date.UTC(y, m, 0)).getUTCDate();
@@ -52,7 +56,14 @@ export const pickInstant = (key: string, seed: string, now: Date, notBefore?: Da
     day = notBefore.getUTCDate();
     when = new Date(Math.max(at(day).getTime(), notBefore.getTime()));
   }
-  if (when > now) when = new Date(now.getTime() - 60_000);
+  if (when > now) {
+    // Current month, hashed day still ahead. Days strictly before today are
+    // always past whatever the time; with none left (the 1st, or a project
+    // starting today) use today's midnight.
+    const today = now.getUTCDate();
+    const floor = notBefore && monthKey(notBefore) === key ? notBefore.getUTCDate() : 1;
+    when = floor < today ? at(Math.max(floor, 1 + (hashString(seed) % (today - 1)))) : new Date(Date.UTC(y, m - 1, today));
+  }
   return when;
 };
 

@@ -29,6 +29,23 @@ describe("pickInstant", () => {
     const start = new Date("2026-05-20T00:00:00Z");
     for (const seed of ["a", "b", "c", "d", "e"]) assert.ok(pickInstant("2026-05", seed, now, start) >= start, seed);
   });
+  test("in the current month it depends on the day of `now`, not the time, and stays inside the month", () => {
+    const morning = new Date("2026-10-05T00:30:00Z");
+    const evening = new Date("2026-10-05T23:59:00Z");
+    for (const seed of ["a", "b", "c", "d", "e", "PAY-1", "EXP-9"]) {
+      const early = pickInstant("2026-10", seed, morning);
+      assert.deepEqual(early, pickInstant("2026-10", seed, evening), seed);
+      assert.ok(early <= morning && early >= new Date("2026-10-01T00:00:00Z"), seed);
+    }
+  });
+  test("a current-month start date is still respected when clamping", () => {
+    const start = new Date("2026-10-03T00:00:00Z");
+    const today = new Date("2026-10-05T12:00:00Z");
+    for (const seed of ["a", "b", "c", "d", "e"]) {
+      const at = pickInstant("2026-10", seed, today, start);
+      assert.ok(at >= start && at <= today, `${seed}: ${at.toISOString()}`);
+    }
+  });
 });
 
 describe("projectInflow", () => {
