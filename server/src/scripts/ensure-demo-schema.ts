@@ -713,6 +713,15 @@ async function main() {
     -- Expense anomaly reason (drizzle/0023_expense_anomaly_reason.sql).
     ALTER TABLE "expenses" ADD COLUMN IF NOT EXISTS "anomaly_reason" text;
 
+    -- One cash flow row per month (drizzle/0024_cash_flow_month_unique.sql).
+    DELETE FROM "cash_flow_entries" a USING "cash_flow_entries" b WHERE a."month" = b."month" AND a."id" < b."id";
+    DO $$
+    BEGIN
+      IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname = 'cash_flow_entries_month_unique') THEN
+        ALTER TABLE "cash_flow_entries" ADD CONSTRAINT "cash_flow_entries_month_unique" UNIQUE ("month");
+      END IF;
+    END $$;
+
     -- D2: who completed a milestone and when.
     ALTER TABLE milestones
       ADD COLUMN IF NOT EXISTS completed_by varchar(100),

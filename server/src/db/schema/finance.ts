@@ -169,7 +169,7 @@ export const financialRisks = pgTable("financial_risks", {
 // ── Cash flow entries (monthly rollups) ────────────────────────────────────
 export const cashFlowEntries = pgTable("cash_flow_entries", {
   id: serial("id").primaryKey(),
-  month: varchar("month", { length: 16 }).notNull(), // "Jan 2026"
+  month: varchar("month", { length: 16 }).notNull().unique(), // "Jan 2026"
   inflow: numeric("inflow", {
     precision: 14,
     scale: 2,

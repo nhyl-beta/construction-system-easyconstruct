@@ -33,7 +33,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useBudgetAllocationController } from "@/features/finance/budgets/controllers/budget-allocation.controller.js";
 import { useBudgetAdjustments } from "@/features/finance/budgets/hooks/useBudgetAdjustments";
 import { useBudgets } from "@/features/finance/budgets/hooks/useBudgets";
-import { formatCompactCurrency, formatCurrency } from "@/lib/format-currency";
+import { formatAxisCurrency, formatCompactCurrency, formatCurrency } from "@/lib/format-currency";
 import { useEffect, useMemo, useState } from "react";
 
 import {
@@ -503,7 +503,7 @@ export default function FinanceBudget() {
                     <XAxis
                       type="number"
                       {...CHART_AXIS_STYLE}
-                      tickFormatter={(v) => `$${(v / 1_000_000).toFixed(0)}M`}
+                      tickFormatter={(v) => formatAxisCurrency(Number(v))}
                     />
                     <YAxis
                       dataKey="label"

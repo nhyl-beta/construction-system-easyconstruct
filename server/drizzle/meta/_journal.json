@@ -169,6 +169,13 @@
       "when": 1790800000000,
       "tag": "0023_expense_anomaly_reason",
       "breakpoints": true
+    },
+    {
+      "idx": 24,
+      "version": "7",
+      "when": 1790900000000,
+      "tag": "0024_cash_flow_month_unique",
+      "breakpoints": true
     }
   ]
 }

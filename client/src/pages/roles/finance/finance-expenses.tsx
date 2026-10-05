@@ -27,7 +27,7 @@ import {
 } from "@/components/ui/dialog";
 import { ProjectPicker } from "@/components/shared/project-picker";
 import { Receipt, Search, Plus, Truck, Wallet, ListChecks, Sparkles, Paperclip, Download } from "lucide-react";
-import { formatCurrency } from "@/lib/format-currency";
+import { formatAxisCurrency, formatCurrency } from "@/lib/format-currency";
 import { downloadCsv } from "@/lib/export-csv";
 import { FEATURES } from "@/config/features";
 import { useExpensesController, type CreateExpenseInput } from "@/features/finance/hooks/use-expenses";
@@ -282,7 +282,7 @@ export default function FinanceExpensesPage() {
                     <BarChart data={c.breakdown}>
                       <CartesianGrid stroke="hsl(var(--border))" strokeOpacity={0.4} vertical={false} />
                       <XAxis dataKey="category" tick={{ fontSize: 10 }} stroke="hsl(var(--muted-foreground))" />
-                      <YAxis tick={{ fontSize: 10 }} stroke="hsl(var(--muted-foreground))" tickFormatter={(v) => `$${(v / 1000).toFixed(0)}k`} />
+                      <YAxis tick={{ fontSize: 10 }} stroke="hsl(var(--muted-foreground))" tickFormatter={(v) => formatAxisCurrency(Number(v))} />
                       <Tooltip formatter={(v: number) => formatCurrency(Number(v))} />
                       <Bar dataKey="amount" fill="#10b981" radius={[6, 6, 0, 0]} />
                     </BarChart>
