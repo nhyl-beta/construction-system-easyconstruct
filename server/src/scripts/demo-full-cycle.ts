@@ -13,6 +13,8 @@
 // `npm run db:seed` already applied (needs the Project Closeout template
 // and the demo accounts/employees it creates).
 import "dotenv/config";
+import { assertDemoApi, assertDemoDatabase } from "./demo-guard.js";
+import { linkedEmployeeIds, requireLinkedEmployees } from "./demo-seed-lib.js";
 
 const BASE = process.env.SMOKE_BASE_URL ?? "http://localhost:8000/api";
 const PASSWORD = "Demo@12345";
@@ -87,6 +89,8 @@ function recordPhase(view: { phase: string; progress: number }) {
 }
 
 async function main() {
+  assertDemoDatabase();
+  assertDemoApi(BASE);
   step("Logging in every role");
   const t: Tokens = {
     pm: await login("pm@easyconstruct.demo"),
@@ -314,9 +318,12 @@ async function main() {
   }
 
   step("Closeout: payroll batch generated and approved since entering Closeout");
+  const siteEmail = "site@easyconstruct.demo";
+  const links = await linkedEmployeeIds([siteEmail]);
+  requireLinkedEmployees(links, [siteEmail]);
   const payroll = await api<{ batch: { id: string } }>("/payroll/generate", t.hr, {
     method: "POST",
-    body: { period: `Closeout ${PROJECT_CODE}`, projectCode: PROJECT_CODE, entries: [{ employeeId: "EMP-DEMO-07", hoursWorked: 8 }], submit: true },
+    body: { period: `Closeout ${PROJECT_CODE}`, projectCode: PROJECT_CODE, entries: [{ employeeId: links.get(siteEmail)!, hoursWorked: 8 }], submit: true },
   });
   await api(`/finance/payroll-review/${payroll.batch.id}/decide`, t.finance, {
     method: "POST",

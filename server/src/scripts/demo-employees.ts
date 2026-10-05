@@ -6,11 +6,13 @@
 // its transaction; this entry point is for re-running it on its own.
 import "dotenv/config";
 import pg from "pg";
+import { assertDemoDatabase } from "./demo-guard.js";
 import { upsertRoster } from "./demo-roster.js";
 
 const pool = new pg.Pool({ connectionString: process.env.DATABASE_URL });
 
 async function main() {
+  assertDemoDatabase();
   const c = await pool.connect();
   try {
     await c.query("BEGIN");

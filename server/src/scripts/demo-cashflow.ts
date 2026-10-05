@@ -45,6 +45,7 @@ import { keyToLabel, lastMonthKeys, monthKey, round2 } from "../finance/cash-flo
 import { refreshMonth } from "../finance/cash-flow/service.js";
 import { expenseOutflowByMonth, payrollOutflowByMonth } from "../finance/cash-flow/sources.js";
 import { expensesService } from "../finance/expenses/services.js";
+import { assertDemoDatabase } from "./demo-guard.js";
 
 const DRY = process.argv.includes("--dry-run");
 const confirm = process.argv.find((a) => a.startsWith("--confirm-target="))?.split("=")[1];
@@ -152,16 +153,7 @@ async function backup(): Promise<string> {
 }
 
 async function main() {
-  const url = process.env.DATABASE_URL;
-  if (!url) throw new Error("DATABASE_URL is not set.");
-  const u = new URL(url);
-  const host = u.hostname;
-  console.log(`Target database: host=${host} db=${u.pathname.replace(/^\//, "")}`);
-
-  const local = ["localhost", "127.0.0.1", "::1"].includes(host);
-  const allowed = (process.env.DEMO_RESET_ALLOWED_HOSTS ?? "").split(",").map((s) => s.trim()).filter(Boolean);
-  if (process.env.ALLOW_DEMO_RESET !== "true") throw new Error("REFUSED: set ALLOW_DEMO_RESET=true to run this script.");
-  if (!local && !allowed.includes(host)) throw new Error(`REFUSED: host ${host} is neither local nor listed in DEMO_RESET_ALLOWED_HOSTS.`);
+  const { host } = assertDemoDatabase();
   if (!DRY && confirm !== host) {
     throw new Error(`REFUSED: confirm that ${host} is the STAGING database, then re-run with --confirm-target=${host}`);
   }

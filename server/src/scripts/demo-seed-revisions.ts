@@ -10,6 +10,7 @@
 // `npm run demo:seed` applied. Run with: npx tsx src/scripts/demo-seed-revisions.ts
 import "dotenv/config";
 import zlib from "node:zlib";
+import { assertDemoApi, assertDemoDatabase } from "./demo-guard.js";
 
 const BASE = process.env.SMOKE_BASE_URL ?? "http://localhost:8000/api";
 const PASSWORD = "Demo@12345";
@@ -169,6 +170,8 @@ async function addVersions(
 }
 
 async function main() {
+  assertDemoDatabase();
+  assertDemoApi(BASE);
   const architect = await login("architect@easyconstruct.demo");
   const consultant = await login("consultant@easyconstruct.demo");
 

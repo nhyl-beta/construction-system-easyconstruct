@@ -1,10 +1,12 @@
 import "dotenv/config";
 import pg from "pg";
+import { assertDemoDatabase } from "./demo-guard.js";
 
 const { Pool } = pg;
 const pool = new Pool({ connectionString: process.env.DATABASE_URL });
 
 async function main() {
+  assertDemoDatabase();
   await pool.query(`
     CREATE TABLE IF NOT EXISTS requirements (
       id serial PRIMARY KEY,
