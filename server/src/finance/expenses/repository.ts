@@ -1,4 +1,5 @@
 import { and, desc, eq, ilike, or } from "drizzle-orm";
+import type { ExpenseDecision } from "./decision.js";
 import type { ExpenseLike } from "./anomaly.js";
 
 import { db } from "../../db/connection.js";
@@ -64,11 +65,15 @@ export const expensesRepository = {
     await db.update(expenses).set({ anomalyScore: score, anomalyReason: reason }).where(eq(expenses.id, id));
   },
 
-  async updateStatus(id: string, status: "approved" | "rejected") {
-    const [row] = await db
+  /**
+   * Moves a PENDING expense to its decision in one conditional statement, so two
+   * concurrent decisions cannot both win. Undefined when it was not pending.
+   */
+  async decideIfPending(id: string, status: ExpenseDecision, exec: Pick<typeof db, "update"> = db) {
+    const [row] = await exec
       .update(expenses)
       .set({ status })
-      .where(eq(expenses.id, id))
+      .where(and(eq(expenses.id, id), eq(expenses.status, "pending")))
       .returning();
     return row;
   },

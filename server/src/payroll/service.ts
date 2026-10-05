@@ -1,3 +1,5 @@
+import { refreshMonth } from "../finance/cash-flow/service.js";
+import { monthKey } from "../finance/cash-flow/months.js";
 import { and, desc, eq, sql } from "drizzle-orm";
 import { db } from "../db/connection.js";
 import { budgets } from "../db/schema/finance.js";
@@ -557,7 +559,7 @@ export const decideBatch = async (id: string, input: DecideBatchInput, actor: Ac
         `Batch ${id} is ${current.status}; it can only be decided while pending`,
       );
 
-    await batchRepo.insertDecision(
+    const decision = await batchRepo.insertDecision(
       {
         batchId: id,
         round: updated.round,
@@ -589,6 +591,12 @@ export const decideBatch = async (id: string, input: DecideBatchInput, actor: Ac
           .where(eq(budgets.id, budget.id));
       }
       await tx.update(payroll).set({ status: "Completed" }).where(eq(payroll.batchId, id));
+    }
+
+    // An approval is cash out: recompute that month of the cash flow chart in
+    // the same transaction (a rejection moves no money).
+    if (input.decision === "approved" && decision) {
+      await refreshMonth(monthKey(decision.decidedAt), tx);
     }
 
     return updated;
