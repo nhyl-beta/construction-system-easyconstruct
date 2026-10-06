@@ -52,20 +52,27 @@ export interface ProcurementOrder {
   status: string;
 }
 
-// Still used by finance-dashboard.tsx's small approvals widget, which reads
-// from the still-not-built /finance/approvals route (see
-// use-finance-dashboard.ts) and Promise.allSettled's it to an empty array —
-// pre-existing, unrelated to G2's fix of the actual Approvals page (which
-// now reuses the workflows backend), left as-is to avoid widening this
-// change into the dashboard.
+// One row of the dashboard's "Pending approvals" card: something waiting on
+// Finance's sign-off, read live from expenses, payroll batches and budgets by
+// GET /finance/approvals. There is no SLA data in the system, so only how long
+// it has been waiting is shown.
 export interface Approval {
+  /** Unique across sources: exp-<id>, pay-<id>, bud-<id>. */
   id: string;
-  kind: string;
+  kind: "Expense" | "Payroll" | "Budget";
   reference: string;
   requestedBy: string;
   amount: number;
-  slaHours: number;
+  waitingHours: number;
   status: string;
+  /** Finance page where the item is acted on. */
+  href: string;
+}
+
+export interface ApprovalList {
+  items: Approval[];
+  /** Everything waiting, not just the rows returned. */
+  total: number;
 }
 
 export interface AIInsight {

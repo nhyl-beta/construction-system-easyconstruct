@@ -1,3 +1,4 @@
+import { Link } from "react-router";
 import { PageContainer } from "@/components/refine-ui/views/page-container";
 import { PageContent } from "@/components/refine-ui/views/page-content";
 import { PageHeader } from "@/components/refine-ui/views/page-header";
@@ -58,6 +59,16 @@ const allocationColors = [
   "#f59e0b",
   "#f43f5e",
 ];
+
+/** The Finance page most of the waiting items are acted on in (used by "View all"). */
+const mostCommonHref = (rows: Array<{ href: string }>) => {
+  const counts = new Map<string, number>();
+  for (const r of rows) counts.set(r.href, (counts.get(r.href) ?? 0) + 1);
+  return [...counts.entries()].sort((a, b) => b[1] - a[1])[0]?.[0] ?? "/expenses";
+};
+
+/** "Waiting 6h", or "Waiting 2d" from 48 hours up. */
+const formatWaiting = (hours: number) => (hours >= 48 ? `Waiting ${Math.floor(hours / 24)}d` : `Waiting ${hours}h`);
 
 export default function FinanceDashboardPage() {
   const c = useFinanceDashboardController();
@@ -384,33 +395,51 @@ export default function FinanceDashboardPage() {
             <SectionCard
               title="Pending approvals"
               subtitle="Awaiting your sign-off"
-              badge={`${c.approvals.length}`}
+              badge={c.approvalsError || c.approvalsLoading ? undefined : `${c.approvalsTotal}`}
             >
-              <ul className="space-y-2 text-sm">
-                {c.approvals.slice(0, 5).map((a) => (
-                  <li key={a.id} className="rounded-xl border p-3">
-                    <div className="flex items-center justify-between">
-                      <span className="font-medium">{a.kind}</span>
-                      <span className="font-mono text-xs text-muted-foreground">
-                        {a.id}
-                      </span>
-                    </div>
-                    <p className="mt-0.5 text-xs text-muted-foreground">
-                      {a.reference}
+              {c.approvalsError ? (
+                <div role="alert" className="space-y-2 text-sm">
+                  <p className="text-destructive">Could not load approvals: {c.approvalsError}</p>
+                  <Button size="sm" variant="outline" className="rounded-xl" onClick={c.retryApprovals}>
+                    Retry
+                  </Button>
+                </div>
+              ) : c.approvalsLoading ? (
+                <p className="text-sm text-muted-foreground">Loading approvals…</p>
+              ) : c.approvals.length === 0 ? (
+                <p className="text-sm text-muted-foreground">Nothing is waiting for your sign-off.</p>
+              ) : (
+                <>
+                  <ul className="space-y-2 text-sm">
+                    {c.approvals.slice(0, 5).map((a) => (
+                      <li key={a.id}>
+                        <Link to={a.href} className="block rounded-xl border p-3 hover:bg-muted/50">
+                          <div className="flex items-center justify-between">
+                            <span className="font-medium">{a.kind}</span>
+                            <span className="text-[11px] text-muted-foreground">{formatWaiting(a.waitingHours)}</span>
+                          </div>
+                          <p className="mt-0.5 text-xs text-muted-foreground">{a.reference}</p>
+                          <div className="mt-1 flex items-center justify-between text-[11px]">
+                            <span>{formatCurrency(a.amount)}</span>
+                            <span className="text-muted-foreground">{a.requestedBy}</span>
+                          </div>
+                        </Link>
+                      </li>
+                    ))}
+                  </ul>
+                  {c.approvalsTotal > 5 && (
+                    <p className="mt-2 text-xs text-muted-foreground">
+                      {c.approvalsTotal - 5} more waiting.{" "}
+                      <Link to={mostCommonHref(c.approvals)} className="text-primary hover:underline">
+                        View all
+                      </Link>
                     </p>
-                    <div className="mt-1 flex items-center justify-between text-[11px]">
-                      <span>{formatCurrency(a.amount)}</span>
-                      <span className="text-muted-foreground">
-                        SLA · {a.slaHours}h
-                      </span>
-                    </div>
-                  </li>
-                ))}
-              </ul>
+                  )}
+                </>
+              )}
             </SectionCard>
-
-            {/* K1: cross-project gate checks + workflow stages (separate from
-                the approvals-queue table above, which is finance's own). */}
+            {/* K1: cross-project gate checks + workflow stages (separate from the
+                expense / payroll / budget list above, which reads their own tables). */}
             <WaitingOnYouCard />
 
             <SectionCard title="Recent transactions">
