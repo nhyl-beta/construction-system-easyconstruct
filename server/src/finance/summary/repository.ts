@@ -1,11 +1,11 @@
-import { eq, sql } from "drizzle-orm";
+import { sql } from "drizzle-orm";
 import { db } from "../../db/connection.js";
 import {
-  approvalsQueue,
   budgets,
-  cashFlowEntries,
-  expenses,
+  payrollBatches,
 } from "../../db/schema/finance.js";
+import { cashFlowRepository } from "../cash-flow/repository.js";
+import { currentMonthExpenseOutflow } from "../cash-flow/sources.js";
 import { projectProfitabilityRepository } from "../project-profitability/repository.js";
 
 export const summaryRepository = {
@@ -22,35 +22,18 @@ export const summaryRepository = {
       })
       .from(budgets);
 
-    const [
-      monthlyExpenseTotals = {
-        total: "0",
-      },
-    ] = await db
-      .select({
-        total: sql<string>`coalesce(sum(${expenses.amount}), 0)`,
-      })
-      .from(expenses)
-      .where(
-        sql`date_trunc('month', ${expenses.submittedAt}) = date_trunc('month', now())`,
-      );
+    // Approved expenses of the current month — the same definition the cash
+    // flow chart uses for expense outflow (finance/cash-flow/sources.ts).
+    const monthlyExpenses = await currentMonthExpenseOutflow();
 
-    const [
-      pendingPayroll = {
-        count: "0",
-      },
-    ] = await db
-      .select({
-        count: sql<string>`count(*)`,
-      })
-      .from(approvalsQueue)
-      .where(eq(approvalsQueue.kind, "Payroll"));
+    // Payroll batches Finance has yet to decide.
+    const [pendingPayroll = { count: "0" }] = await db
+      .select({ count: sql<string>`count(*)` })
+      .from(payrollBatches)
+      .where(sql`${payrollBatches.status} = 'pending'`);
 
-    const recentCashFlow = await db
-      .select()
-      .from(cashFlowEntries)
-      .orderBy(sql`${cashFlowEntries.id} desc`)
-      .limit(1);
+    // Newest calendar month, so this card and the chart's last bar agree.
+    const [latestCashFlow] = (await cashFlowRepository.findRecent(1)).slice(-1);
 
     const profitability = await projectProfitabilityRepository.compute();
 
@@ -63,8 +46,6 @@ export const summaryRepository = {
     const totalPlanned = Number(budgetTotals.totalPlanned);
     const totalActual = Number(budgetTotals.totalActual);
 
-    const latestCashFlow = recentCashFlow[0];
-
     return {
       totalBudget: totalPlanned,
 
@@ -72,7 +53,7 @@ export const summaryRepository = {
 
       remainingBudget: totalPlanned - totalActual,
 
-      monthlyExpenses: Number(monthlyExpenseTotals.total),
+      monthlyExpenses,
 
       pendingPayrollReviews: Number(pendingPayroll.count),
 

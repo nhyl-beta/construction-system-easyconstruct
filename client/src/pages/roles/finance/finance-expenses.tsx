@@ -26,9 +26,14 @@ import {
   DialogTrigger,
 } from "@/components/ui/dialog";
 import { ProjectPicker } from "@/components/shared/project-picker";
-import { Receipt, Search, Plus, Truck, Wallet, ListChecks, Sparkles, Paperclip } from "lucide-react";
-import { formatCurrency } from "@/lib/format-currency";
+import { Receipt, Search, Plus, Truck, Wallet, ListChecks, Sparkles, Paperclip, Download } from "lucide-react";
+import { formatAxisCurrency, formatCurrency } from "@/lib/format-currency";
+import { downloadCsv } from "@/lib/export-csv";
 import { FEATURES } from "@/config/features";
+import { useAuth } from "@/auth/auth-context";
+import { ConfirmDialog } from "@/components/ui/confirm-dialog";
+import { DataTablePagination } from "@/components/refine-ui/data-table/data-table-pagination";
+import { usePagination } from "@/hooks/use-pagination";
 import { useExpensesController, type CreateExpenseInput } from "@/features/finance/hooks/use-expenses";
 import {
   Bar, BarChart, CartesianGrid, ResponsiveContainer, Tooltip, XAxis, YAxis,
@@ -124,12 +129,28 @@ function RecordExpenseDialog({
 export default function FinanceExpensesPage() {
   const c = useExpensesController();
   const [active, setActive] = useState("tracking");
+  const { user } = useAuth();
+  // The server enforces this too (403); the buttons are simply not offered to other roles.
+  const canDecide = user?.role === "finance-manager" || user?.role === "admin";
+  const pagination = usePagination(c.expenses, 10);
+  const [pendingDecision, setPendingDecision] = useState<{ id: string; vendor: string; amount: number; decision: "approve" | "reject" } | null>(null);
+  const [deciding, setDeciding] = useState(false);
+  const [notice, setNotice] = useState<{ tone: "warn" | "error"; text: string } | null>(null);
+
+  const runDecision = async () => {
+    if (!pendingDecision) return;
+    setDeciding(true);
+    const r = await c.decide(pendingDecision.id, pendingDecision.decision);
+    setDeciding(false);
+    setPendingDecision(null);
+    setNotice(r.ok ? (r.warning ? { tone: "warn", text: r.warning } : null) : { tone: "error", text: r.error ?? "Could not update the expense" });
+  };
 
   return (
     <PageContainer>
       <PageHeader
         title="Expense Management"
-        description="Track operational expenses, purchase requests, vendor payments, reimbursements and AI anomaly detection."
+        description="Track operational expenses, purchase requests, vendor payments and reimbursements."
         actions={
           <RecordExpenseDialog creating={c.creating} error={c.createError} onCreate={c.createExpense} />
         }
@@ -142,9 +163,18 @@ export default function FinanceExpensesPage() {
           </div>
         )}
 
+        {notice && (
+          <div
+            role={notice.tone === "error" ? "alert" : "status"}
+            className={`rounded-xl border p-3 text-sm ${notice.tone === "error" ? "border-destructive/30 bg-destructive/5 text-destructive" : "border-warning/40 bg-warning/10"}`}
+          >
+            {notice.text}
+          </div>
+        )}
+
         <KpiStrip
           items={[
-            { label: "MTD spend", value: formatCurrency(c.expenses.reduce((s, e) => s + e.amount, 0)), icon: Receipt },
+            { label: "MTD spend (approved)", value: c.monthlyApproved === null ? "—" : formatCurrency(c.monthlyApproved), icon: Receipt },
             { label: "Open requests", value: `${c.purchaseRequests.length}`, icon: ListChecks, tone: "warn" },
             // eslint-disable-next-line @typescript-eslint/no-explicit-any
             { label: "Reimbursements", value: formatCurrency(c.reimbursements.reduce((s: number, r: any) => s + r.amount, 0)), icon: Wallet },
@@ -167,6 +197,22 @@ export default function FinanceExpensesPage() {
               subtitle="All vendor expenses across active projects"
               actions={
                 <>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    className="h-8 rounded-lg text-xs"
+                    disabled={c.expenses.length === 0}
+                    title="Export the rows currently shown as CSV (opens in Excel)"
+                    onClick={() =>
+                      downloadCsv(
+                        "expenses",
+                        ["ID", "Vendor", "Project", "Category", "Amount", "Submitted", "Status", "Anomaly score", "Anomaly reason"],
+                        c.expenses.map((e) => [e.id, e.vendor, e.project, e.category, e.amount, e.submittedAt, e.status, e.anomalyScore ?? "", e.anomalyReason ?? ""]),
+                      )
+                    }
+                  >
+                    <Download className="h-3.5 w-3.5" /> Export
+                  </Button>
                   <div className="relative w-56">
                     <Search className="pointer-events-none absolute left-2.5 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-muted-foreground" />
                     <Input
@@ -213,12 +259,13 @@ export default function FinanceExpensesPage() {
                       <TableHead className="text-right">Amount</TableHead>
                       <TableHead>Submitted</TableHead>
                       <TableHead>Receipt</TableHead>
-                      {FEATURES.aiPlaceholders && <TableHead>AI</TableHead>}
+                      {FEATURES.ai && <TableHead>Anomaly</TableHead>}
                       <TableHead>Status</TableHead>
+                      {canDecide && <TableHead className="text-right">Action</TableHead>}
                     </TableRow>
                   </TableHeader>
                   <TableBody>
-                    {c.expenses.map((e) => (
+                    {pagination.pageItems.map((e) => (
                       <TableRow key={e.id}>
                         <TableCell className="font-mono text-xs">{e.id}</TableCell>
                         <TableCell className="text-sm font-medium">{e.vendor}</TableCell>
@@ -229,10 +276,11 @@ export default function FinanceExpensesPage() {
                         <TableCell>
                           <Paperclip className="h-3.5 w-3.5 text-muted-foreground" />
                         </TableCell>
-                        {FEATURES.aiPlaceholders && (
+                        {FEATURES.ai && (
                           <TableCell>
-                            {e.anomalyScore !== null && (
+                            {e.anomalyScore !== null && e.anomalyScore > 0 && (
                               <Badge
+                                title={e.anomalyReason ?? undefined}
                                 variant="outline"
                                 className={`rounded-full text-[10px] ${
                                   e.anomalyScore > 0.6
@@ -248,11 +296,26 @@ export default function FinanceExpensesPage() {
                           </TableCell>
                         )}
                         <TableCell><StatusBadge status={e.status} /></TableCell>
+                        {canDecide && (
+                          <TableCell className="text-right">
+                            {e.status === "pending" && (
+                              <div className="flex justify-end gap-1.5">
+                                <Button size="sm" variant="outline" className="h-7 rounded-lg px-2 text-xs" onClick={() => setPendingDecision({ id: e.id, vendor: e.vendor, amount: e.amount, decision: "approve" })}>
+                                  Approve
+                                </Button>
+                                <Button size="sm" variant="ghost" className="h-7 rounded-lg px-2 text-xs text-destructive" onClick={() => setPendingDecision({ id: e.id, vendor: e.vendor, amount: e.amount, decision: "reject" })}>
+                                  Reject
+                                </Button>
+                              </div>
+                            )}
+                          </TableCell>
+                        )}
                       </TableRow>
                     ))}
                   </TableBody>
                 </Table>
               )}
+              {c.expenses.length > 0 && <DataTablePagination {...pagination} />}
             </SectionCard>
           </TabsContent>
 
@@ -264,15 +327,15 @@ export default function FinanceExpensesPage() {
                     <BarChart data={c.breakdown}>
                       <CartesianGrid stroke="hsl(var(--border))" strokeOpacity={0.4} vertical={false} />
                       <XAxis dataKey="category" tick={{ fontSize: 10 }} stroke="hsl(var(--muted-foreground))" />
-                      <YAxis tick={{ fontSize: 10 }} stroke="hsl(var(--muted-foreground))" tickFormatter={(v) => `$${(v / 1000).toFixed(0)}k`} />
+                      <YAxis tick={{ fontSize: 10 }} stroke="hsl(var(--muted-foreground))" tickFormatter={(v) => formatAxisCurrency(Number(v))} />
                       <Tooltip formatter={(v: number) => formatCurrency(Number(v))} />
                       <Bar dataKey="amount" fill="#10b981" radius={[6, 6, 0, 0]} />
                     </BarChart>
                   </ResponsiveContainer>
                 </div>
               </SectionCard>
-              {FEATURES.aiPlaceholders && (
-                <SectionCard title="AI anomaly detection" subtitle="Outliers worth investigating">
+              {FEATURES.ai && (
+                <SectionCard title="Anomaly detection" subtitle="Rule-based: duplicate payments and amounts far above history. Advisory only.">
                   <ul className="space-y-2">
                     {c.expenses
                       .filter((e) => (e.anomalyScore ?? 0) >= 0.4)
@@ -288,6 +351,7 @@ export default function FinanceExpensesPage() {
                           <p className="mt-1 text-[11px] text-muted-foreground">
                             {formatCurrency(e.amount)} · {e.category} · {e.project}
                           </p>
+                          {e.anomalyReason && <p className="mt-1 text-xs">{e.anomalyReason}</p>}
                         </li>
                       ))}
                   </ul>
@@ -301,6 +365,21 @@ export default function FinanceExpensesPage() {
               arrays are backed by their own fetch calls (Phase 2 backend modules) */}
         </Tabs>
       </PageContent>
+
+      <ConfirmDialog
+        open={pendingDecision !== null}
+        onOpenChange={(open) => !open && !deciding && setPendingDecision(null)}
+        title={pendingDecision?.decision === "approve" ? `Approve ${pendingDecision.id}?` : `Reject ${pendingDecision?.id ?? ""}?`}
+        description={
+          pendingDecision?.decision === "approve"
+            ? `${formatCurrency(pendingDecision.amount)} to ${pendingDecision.vendor} will count as spend against the project budget and as cash out for its month. This cannot be undone.`
+            : `${pendingDecision ? formatCurrency(pendingDecision.amount) : ""} to ${pendingDecision?.vendor ?? ""} will be rejected and will not count as spend.`
+        }
+        confirmLabel={pendingDecision?.decision === "approve" ? "Approve expense" : "Reject expense"}
+        destructive={pendingDecision?.decision === "reject"}
+        loading={deciding}
+        onConfirm={() => void runDecision()}
+      />
     </PageContainer>
   );
 }

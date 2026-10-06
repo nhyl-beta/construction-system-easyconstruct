@@ -1,4 +1,6 @@
 import { and, desc, eq, ilike, or } from "drizzle-orm";
+import type { ExpenseDecision } from "./decision.js";
+import type { ExpenseLike } from "./anomaly.js";
 
 import { db } from "../../db/connection.js";
 import { expenses } from "../../db/schema/finance.js";
@@ -53,11 +55,25 @@ export const expensesRepository = {
     return row;
   },
 
-  async updateStatus(id: string, status: "approved" | "rejected") {
-    const [row] = await db
+  /** Every expense as the anomaly rules see it (amount, vendor, project, category, date, status). */
+  async findAllForAnomaly(): Promise<ExpenseLike[]> {
+    const rows = await db.select().from(expenses);
+    return rows.map((r) => ({ id: r.id, vendor: r.vendor, project: r.project, category: r.category, amount: Number(r.amount), submittedAt: r.submittedAt, status: r.status }));
+  },
+
+  async setAnomaly(id: string, score: number, reason: string | null) {
+    await db.update(expenses).set({ anomalyScore: score, anomalyReason: reason }).where(eq(expenses.id, id));
+  },
+
+  /**
+   * Moves a PENDING expense to its decision in one conditional statement, so two
+   * concurrent decisions cannot both win. Undefined when it was not pending.
+   */
+  async decideIfPending(id: string, status: ExpenseDecision, exec: Pick<typeof db, "update"> = db) {
+    const [row] = await exec
       .update(expenses)
       .set({ status })
-      .where(eq(expenses.id, id))
+      .where(and(eq(expenses.id, id), eq(expenses.status, "pending")))
       .returning();
     return row;
   },

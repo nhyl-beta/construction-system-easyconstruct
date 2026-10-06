@@ -4,6 +4,7 @@ import * as usersRepo from "../users/repository.js";
 import { ForbiddenError, NotFoundError, ValidationError } from "../utils/errors.js";
 import { assertProjectWritable } from "../lifecycle/service.js";
 import { sortProjects } from "./ordering.js";
+import { MEMBERSHIP_SCOPED_ROLES, filterRowsToCodes, isSkipped, type VisibilityOptions } from "./visibility.js";
 import type {
   CreateProjectInput,
   UpdateProjectInput,
@@ -51,24 +52,39 @@ export const isOwnProject = (
     : !!scope.name && project.pm === scope.name;
 
 /**
- * Narrows any project-scoped list (tasks, issues, requirements, milestones…)
- * to the caller's own projects when the caller is a Project Manager; every
- * other role passes through untouched. One helper so each module's list
- * endpoint applies the identical rule instead of re-deriving it.
+ * Narrows a project-scoped list (tasks, issues, requirements, reports,
+ * milestones, workflows…) to the projects the caller may see: a PM's own
+ * projects, a staffed role's assigned projects; admin, IT Designer, Owner, HR
+ * and Finance pass through. One helper so every module applies the identical
+ * rule instead of re-deriving it. `skipRoles` lets a module keep a stricter
+ * rule of its own for a role (site personnel's "own tasks").
  */
-export const scopeRowsToPm = async <T>(
+export const scopeRowsToVisible = async <T>(
   auth: { id: number; role: string; name: string } | undefined,
   rows: T[],
   codeOf: (row: T) => string | null | undefined,
+  opts: VisibilityOptions = {},
 ): Promise<T[]> => {
-  if (auth?.role !== "project-manager") return rows;
-  const mine = await projectCodesForPm({ role: auth.role, userId: auth.id, name: auth.name });
-  return rows.filter((row) => {
-    const code = codeOf(row);
-    return !!code && mine.has(code);
-  });
+  if (!auth || isSkipped(auth.role, opts)) return rows;
+  const codes = await visibleProjectCodes({ role: auth.role, userId: auth.id, name: auth.name });
+  return filterRowsToCodes(rows, codes, codeOf);
 };
 
+/** 403 unless the caller may see `projectCode`. For by-id reads and for writes against another project's rows. */
+export const assertProjectVisible = async (
+  auth: { id: number; role: string; name: string } | undefined,
+  projectCode: string | null | undefined,
+  what = "this project",
+): Promise<void> => {
+  if (!auth) return;
+  const codes = await visibleProjectCodes({ role: auth.role, userId: auth.id, name: auth.name });
+  if (codes !== null && !(projectCode && codes.has(projectCode))) {
+    throw new ForbiddenError(`You can only access ${what} for projects you are assigned to`);
+  }
+};
+
+/** @deprecated use scopeRowsToVisible — kept so older callers keep compiling. */
+export const scopeRowsToPm = scopeRowsToVisible;
 /** Project codes a Project Manager is assigned to (for other modules' scoping). */
 export const projectCodesForPm = async (scope: ProjectScope): Promise<Set<string>> => {
   const projects = await repo.findAll({});
@@ -92,13 +108,7 @@ export const projectCodesForPm = async (scope: ProjectScope): Promise<Set<string
  * Enforced here rather than in the UI on purpose: hiding a row on the client
  * still ships it over the wire to anyone who opens devtools.
  */
-const MEMBERSHIP_SCOPED_ROLES = new Set([
-  "engineer",
-  "architect",
-  "site-personnel",
-  "consultant",
-]);
-
+// MEMBERSHIP_SCOPED_ROLES is defined in ./visibility.ts (pure, unit-tested).
 /** Project codes the given user is actually staffed on, in any role. */
 const assignedProjectCodes = async (userId: number): Promise<Set<string>> => {
   const memberships = await projectMemberRepo.findAll({ userId });

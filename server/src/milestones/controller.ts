@@ -6,11 +6,11 @@ import { formatSuccess } from "../utils/response.js";
 import { logAudit } from "../utils/audit.js";
 import * as service from "./service.js";
 import type { AuthedRequest } from "../middleware/auth.js";
-import { scopeRowsToPm } from "../projects/service.js";
+import { assertProjectVisible, scopeRowsToVisible } from "../projects/service.js";
 
 export const getAll = async (req: AuthedRequest, res: Response, next: NextFunction) => {
   try {
-    const data = await scopeRowsToPm(
+    const data = await scopeRowsToVisible(
       req.authUser,
       await service.getAll(req.query.projectCode as string | undefined),
       (m) => m.projectCode,
@@ -24,6 +24,7 @@ export const getAll = async (req: AuthedRequest, res: Response, next: NextFuncti
 export const getById = async (req: AuthedRequest, res: Response, next: NextFunction) => {
   try {
     const data = await service.getById(Number(req.params.id));
+    await assertProjectVisible(req.authUser, data.projectCode, "milestones");
     res.json(formatSuccess(data, MSG.milestones.single));
   } catch (err) {
     next(err);

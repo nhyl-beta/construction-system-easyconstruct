@@ -1,4 +1,4 @@
-import { Project, RiskLevel, StatusTone } from "../types/project.types";
+import { normalizeDeliveryType, Project, RiskLevel, StatusTone } from "../types/project.types";
 import { apiClient } from "@/services/api.client";
 
 interface BackendProject {
@@ -22,6 +22,8 @@ interface BackendProject {
   projectType?: string | null;
   plannedStartDate?: string | null;
   scopeSummary?: string | null;
+  deliveryType?: string | null;
+  designDisciplines?: string[] | null;
   siteLatitude?: string | number | null;
   siteLongitude?: string | number | null;
   geofenceRadiusM?: number | null;
@@ -66,6 +68,9 @@ function normalizeProject(raw: BackendProject): Project {
     projectType: raw.projectType ?? null,
     plannedStartDate: raw.plannedStartDate ?? null,
     scopeSummary: raw.scopeSummary ?? null,
+    // Rows from before the delivery-type column are Construction projects.
+    deliveryType: normalizeDeliveryType(raw.deliveryType),
+    designDisciplines: raw.designDisciplines ?? [],
     // numeric() columns come back from drizzle as strings.
     siteLatitude: raw.siteLatitude == null ? null : Number(raw.siteLatitude),
     siteLongitude: raw.siteLongitude == null ? null : Number(raw.siteLongitude),
@@ -110,6 +115,7 @@ export interface ProjectPageQuery {
   status?: string;
   risk?: string;
   projectType?: string;
+  deliveryType?: string;
   excludeArchived?: boolean;
 }
 
@@ -131,6 +137,7 @@ export const ProjectRepository = {
     if (query.status && query.status !== "all") params.set("status", query.status);
     if (query.risk && query.risk !== "all") params.set("risk", query.risk);
     if (query.projectType && query.projectType !== "all") params.set("projectType", query.projectType);
+    if (query.deliveryType && query.deliveryType !== "all") params.set("deliveryType", query.deliveryType);
     if (query.excludeArchived) params.set("excludeArchived", "1");
     // apiClient returns the raw { success, message, data, meta } envelope.
     const json = (await apiClient.get(`/projects?${params.toString()}`)) as {

@@ -1,4 +1,5 @@
 import { z } from 'zod';
+import { DELIVERABLE_DISCIPLINES, DELIVERY_TYPES } from '../lifecycle/delivery.js';
 
 // Project types offered by the New Project wizard. Closed list so the
 // Projects table's type filter only ever sees values it can group on.
@@ -59,8 +60,16 @@ const baseProjectSchema = z.object({
 // project (say, editing its description) must not be refused because its
 // original due date has since passed.
 export const createProjectSchema = baseProjectSchema
-  .extend({ plannedStartDate: isoDate })
+  .extend({
+    plannedStartDate: isoDate,
+    // What the engagement delivers; fixed at creation (not editable later).
+    deliveryType: z.enum(DELIVERY_TYPES).optional(),
+    designDisciplines: z.array(z.enum(DELIVERABLE_DISCIPLINES)).max(DELIVERABLE_DISCIPLINES.length).optional(),
+  })
   .superRefine((data, ctx) => {
+    if (data.deliveryType === 'Design' && (data.designDisciplines?.length ?? 0) === 0) {
+      ctx.addIssue({ code: 'custom', path: ['designDisciplines'], message: 'Choose at least one discipline for a Design project' });
+    }
     const today = todayIso();
     if (data.plannedStartDate < today) {
       ctx.addIssue({ code: 'custom', path: ['plannedStartDate'], message: 'Planned start date cannot be in the past' });

@@ -80,6 +80,8 @@ export const expenses = pgTable("expenses", {
   submittedAt: timestamp("submitted_at").defaultNow().notNull(),
   status: varchar("status", { length: 32 }).notNull(), // pending | approved | rejected
   anomalyScore: real("anomaly_score"), // 0-1, nullable
+  // Plain-language reasons behind a non-zero score (finance/expenses/anomaly.ts).
+  anomalyReason: text("anomaly_reason"),
   receiptUrl: text("receipt_url"),
 });
 
@@ -167,7 +169,7 @@ export const financialRisks = pgTable("financial_risks", {
 // ── Cash flow entries (monthly rollups) ────────────────────────────────────
 export const cashFlowEntries = pgTable("cash_flow_entries", {
   id: serial("id").primaryKey(),
-  month: varchar("month", { length: 16 }).notNull(), // "Jan 2026"
+  month: varchar("month", { length: 16 }).notNull().unique(), // "Jan 2026"
   inflow: numeric("inflow", {
     precision: 14,
     scale: 2,

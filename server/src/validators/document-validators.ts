@@ -18,6 +18,8 @@ export const createDocumentSchema = z.object({
     "Certificate of Completion",
     "Turnover Document",
     "As-Built Drawing",
+    // Design-delivery projects: the client signs off the turnover (gate T2).
+    "Client Acceptance",
   ]),
   version: z.string().max(10).optional(),
   size: z.string().max(20).optional(),

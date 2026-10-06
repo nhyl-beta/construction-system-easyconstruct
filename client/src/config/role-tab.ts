@@ -22,6 +22,7 @@ import {
   LayoutDashboard,
   LifeBuoy,
   MapPin,
+  MessageSquareQuote,
   Ruler,
   Server,
   ShieldAlert,
@@ -248,6 +249,7 @@ export const ROLE_CONFIGS: Record<string, RoleConfig> = {
       { label: "Issues", icon: ShieldAlert, route: "/issues" },
       { label: "Tasks", icon: CheckSquare, route: "/tasks" },
       { label: "Documents", icon: FileText, route: "/documents" },
+      { label: "Requests", icon: MessageSquareQuote, route: "/requests" },
     ],
 
     sections: [
@@ -401,6 +403,7 @@ export const ROLE_CONFIGS: Record<string, RoleConfig> = {
       // no header tab's route nests "/blueprints", so navigating there
       // highlighted it in the sidebar and nothing at all in the header.
       { label: "Blueprints", icon: NotepadTextDashed, route: "/blueprints" },
+      { label: "Requests", icon: MessageSquareQuote, route: "/requests" },
     ],
 
     sections: [
@@ -445,6 +448,7 @@ export const ROLE_CONFIGS: Record<string, RoleConfig> = {
       { label: "Tasks", icon: CheckSquare, route: "/tasks" },
       { label: "Projects", icon: FolderKanban, route: "/projects" },
       { label: "Issues", icon: ActivitySquare, route: "/issues" },
+      { label: "Requests", icon: MessageSquareQuote, route: "/requests" },
     ],
 
     sections: [
@@ -543,6 +547,7 @@ export const ROLE_CONFIGS: Record<string, RoleConfig> = {
         { label: "Blueprint Reviews", icon: NotepadTextDashed, route: "/blueprint-reviews" },
         { label: "Advisory Docs", icon: ClipboardList, route: "/advisory-docs" },
         { label: "Projects", icon: FolderKanban, route: "/consultant/projects" },
+        { label: "Requests", icon: MessageSquareQuote, route: "/requests" },
       ],
 
         sections: [

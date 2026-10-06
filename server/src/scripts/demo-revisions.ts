@@ -14,6 +14,7 @@ import { designRevisions } from "../db/schema/design-revisions.js";
 import { designs } from "../db/schema/designs.js";
 import { projects } from "../db/schema/projects.js";
 import { ensureProjectRevisionDemo, removeDemoRevisions } from "../designs/design-revisions/demo.js";
+import { assertDemoDatabase } from "./demo-guard.js";
 
 const args = process.argv.slice(2);
 const flag = (name: string) => args.includes(name);
@@ -33,6 +34,7 @@ const counts = async () => {
 };
 
 async function main() {
+  assertDemoDatabase();
   const project = valueOf("--project");
   console.log("Before:", await counts());
 

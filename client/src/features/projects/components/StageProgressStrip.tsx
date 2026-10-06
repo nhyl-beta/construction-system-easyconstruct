@@ -20,10 +20,18 @@ const isSequencedPhase = (status: string): status is SequencedPhase =>
  * Cancelled, or anything not in PROJECT_PHASES at all — "no stage set") fall
  * back to the plain status badge instead of a strip that can't place them.
  */
+// A Design-delivery project skips Pre-Construction and Construction, and its
+// Closeout reads "Turnover" (mirrors server lifecycle/delivery.ts).
+const DESIGN_PATH: readonly SequencedPhase[] = ["Proposal", "Design", "Closeout", "Completed", "Archived"];
+
 export const StageProgressStrip: React.FC<{
   status: string;
   statusTone: StatusTone;
-}> = ({ status, statusTone }) => {
+  deliveryType?: string;
+}> = ({ status, statusTone, deliveryType }) => {
+  const isDesign = deliveryType === "Design";
+  const path: readonly SequencedPhase[] = isDesign ? DESIGN_PATH : SEQUENCED_PHASES;
+  const labelOf = (phase: string) => (isDesign && phase === "Closeout" ? "Turnover" : phase);
   if (!isSequencedPhase(status)) {
     return (
       <Badge
@@ -37,18 +45,18 @@ export const StageProgressStrip: React.FC<{
     );
   }
 
-  const currentIndex = SEQUENCED_PHASES.indexOf(status);
+  const currentIndex = path.indexOf(status);
 
   return (
     <div className="flex flex-wrap items-center gap-x-1.5 gap-y-1">
-      {SEQUENCED_PHASES.map((phase, index) => {
+      {path.map((phase, index) => {
         const isCompleted = index < currentIndex;
         const isCurrent = index === currentIndex;
 
         return (
           <span
             key={phase}
-            title={phase}
+            title={labelOf(phase)}
             className={[
               "inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[10px] leading-tight",
               isCompleted && "text-success",
@@ -59,7 +67,7 @@ export const StageProgressStrip: React.FC<{
               .join(" ")}
           >
             {isCompleted && <Check className="h-3 w-3" />}
-            {phase}
+            {labelOf(phase)}
           </span>
         );
       })}

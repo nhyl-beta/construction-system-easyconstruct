@@ -29,6 +29,9 @@ import { payrollBatches } from "../db/schema/finance.js";
 import { projectPhaseHistory } from "../db/schema/project-phase-history.js";
 import { workflowTemplates } from "../db/schema/workflows.js";
 import { validationResults } from "../db/schema/ai-validation.js";
+import { findOpenByProject as findOpenRequests } from "../design-requests/repository.js";
+import { projectDeliverables } from "../db/schema/project-deliverables.js";
+import { DESIGN_TURNOVER_TEMPLATE_NAME } from "./delivery.js";
 
 // Gate X4 needs to know which workflows were raised from the "Project
 // Closeout" template (H3) without gates.ts — a pure-function module — ever
@@ -108,6 +111,16 @@ export const loadSnapshot = async (projectCode: string) => {
   const staffedEmployees = staffedUserIds.length
     ? await db.select().from(employees).where(inArray(employees.userId, staffedUserIds))
     : [];
+
+  // Gate X5: RFI/RFA requests that are still open (drafts included).
+  const openRequests = await findOpenRequests(projectCode);
+
+  // Design delivery: the plan sets and the Design Turnover template (gate T3).
+  const deliverables = await db.select().from(projectDeliverables).where(eq(projectDeliverables.projectCode, projectCode));
+  const [turnoverTemplate] = await db
+    .select()
+    .from(workflowTemplates)
+    .where(eq(workflowTemplates.name, DESIGN_TURNOVER_TEMPLATE_NAME));
 
   const [closeoutTemplate] = await db
     .select()
@@ -191,9 +204,21 @@ export const loadSnapshot = async (projectCode: string) => {
     phaseHistory,
     staffedEmployees,
     closeoutTemplateId: closeoutTemplate?.id ?? null,
+    openRequests,
+    deliverables,
+    designTurnoverTemplateId: turnoverTemplate?.id ?? null,
     validationResults: projectValidationResults,
     issuePrecedents,
   };
+};
+
+/** Advance (Proposal -> Design) of a Design project: one plan set per chosen discipline. Idempotent. */
+export const ensureDeliverables = async (projectCode: string, disciplines: string[]) => {
+  if (disciplines.length === 0) return;
+  await db
+    .insert(projectDeliverables)
+    .values(disciplines.map((discipline) => ({ projectCode, discipline })))
+    .onConflictDoNothing();
 };
 
 export const insertPhaseHistory = async (row: {

@@ -30,11 +30,19 @@ export const expensesController = {
     }
   },
 
+  async rescore(_req: Request, res: Response, next: NextFunction) {
+    try {
+      return sendSuccess(res, await expensesService.rescoreAll(), 200, "Expenses re-scored");
+    } catch (err) {
+      return next(err);
+    }
+  },
+
   async approve(req: Request, res: Response, next: NextFunction) {
     try {
       const data = await expensesService.approve(req.params.id as string);
 
-      return sendSuccess(res, data, 200, "Expense approved successfully");
+      return sendSuccess(res, data, 200, data.warning ?? "Expense approved successfully");
     } catch (err) {
       return next(err);
     }

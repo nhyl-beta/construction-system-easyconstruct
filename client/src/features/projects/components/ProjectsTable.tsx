@@ -46,6 +46,11 @@ export const ProjectsTable: React.FC<{ projects: Project[] }> = ({ projects }) =
                     >
                       {p.name}
                     </Link>
+                    {p.deliveryType === "Design" && (
+                      <Badge variant="outline" className="ml-2 rounded-md border-violet-500/40 bg-violet-500/10 px-1.5 text-[10px] font-medium text-violet-700 dark:text-violet-300">
+                        Design
+                      </Badge>
+                    )}
                     <div className="text-xs text-muted-foreground">{p.code} · {p.client}</div>
                     {p.contractValue != null && (
                       <div className="text-xs text-muted-foreground">{formatContractValue(p.contractValue, p.currency)} contract</div>
@@ -55,7 +60,7 @@ export const ProjectsTable: React.FC<{ projects: Project[] }> = ({ projects }) =
                     <Badge variant="outline" className={`rounded-full px-2.5 py-0.5 text-[11px] font-medium ${STATUS_TONE_CLASS[p.statusTone]}`}>{p.status}</Badge>
                   </td>
                   <td className="px-3 py-3.5">
-                    <StageProgressStrip status={p.status} statusTone={p.statusTone} />
+                    <StageProgressStrip status={p.status} statusTone={p.statusTone} deliveryType={p.deliveryType} />
                   </td>
                   <td className="px-3 py-3.5">
                     <div className="flex items-center gap-2">

@@ -27,6 +27,7 @@ import { PROJECT_MEMBER_ROLES } from "../db/schema/project-members.js";
 import { evaluateSignals } from "../signals/index.js";
 import { FEATURES } from "../config/features.js";
 import { scopeRowsToAssigned } from "../projects/scope.js";
+import { visibleProjectCodes } from "../projects/service.js";
 
 export interface MyActionItem {
   projectCode: string;
@@ -120,8 +121,39 @@ export const getMyActions = async (actor: {
   return [...gateItems, ...signalItems, ...workflowItems];
 };
 
+/**
+ * Read-only "impact awareness": the decision-support signals (cost variance,
+ * cumulative change, burn vs progress, issue recurrence, stalled stage) of every
+ * active project the caller can see, for roles that watch impact without owning
+ * the decision (Architect, Owner, IT Designer…). Rule-based, flag-gated by
+ * FEATURE_AI, and it only reads: nothing here can change a project.
+ */
+export const getImpactAwareness = async (actor: { id: number; role: string; name: string }) => {
+  if (!FEATURES.ai) return { enabled: false as const, projects: [] };
+  const codes = await visibleProjectCodes({ role: actor.role, userId: actor.id, name: actor.name });
+  const projects = (await projectsRepo.findAll({})).filter((p) => !TERMINAL_PHASES.has(p.status) && (codes === null || codes.has(p.code)));
+  const out: { projectCode: string; projectName: string; phase: string; signals: ReturnType<typeof evaluateSignals> }[] = [];
+  for (const project of projects) {
+    const snapshot = await repo.loadSnapshot(project.code);
+    if (!snapshot) continue;
+    const signals = evaluateSignals(snapshot);
+    if (signals.length > 0) out.push({ projectCode: project.code, projectName: project.name, phase: project.status, signals });
+  }
+  return { enabled: true as const, projects: out };
+};
+
 const router = Router();
 router.use(authenticate);
+
+router.get("/impact", async (req: AuthedRequest, res, next) => {
+  try {
+    if (!req.authUser) throw new UnauthorizedError();
+    const { id, role, name } = req.authUser;
+    res.json(formatSuccess(await getImpactAwareness({ id, role, name }), "Impact awareness retrieved"));
+  } catch (err) {
+    next(err);
+  }
+});
 
 router.get("/my-actions", async (req: AuthedRequest, res, next) => {
   try {

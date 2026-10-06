@@ -10,6 +10,7 @@ import {
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { PmPortfolioCharts } from "@/features/dashboard/components/PmPortfolioCharts";
 import { WaitingOnYouCard } from "@/features/lifecycle/components/WaitingOnYouCard";
 import { AwaitingApprovalCard } from "@/features/workflows/components/AwaitingApprovalCard";
 import { KpiStrip } from "@/components/ui/kpi-strip";
@@ -79,6 +80,8 @@ export default function DashboardPage() {
           { label: "Over budget", value: `${c.overBudget}`, icon: Banknote, tone: c.overBudget > 0 ? "bad" : "neutral" },
         ]}
       />
+
+      <PmPortfolioCharts projects={c.projects} />
 
       {/* ── Main grid — projects table + not-yet-connected AI panel ── */}
       <section className="grid grid-cols-1 gap-6 xl:grid-cols-3">

@@ -59,6 +59,7 @@ function emptySnapshot(): LifecycleSnapshot {
     phaseHistory: [],
     staffedEmployees: [],
     closeoutTemplateId: null,
+    openRequests: [],
     // ai-signals D2: decision-support-only fields — gates.ts never reads
     // them, kept here only so the snapshot shape stays complete.
     validationResults: [],
@@ -219,7 +220,7 @@ describe("evaluateGate — Construction exit (K1-K4)", () => {
   });
 });
 
-describe("evaluateGate — Closeout (X1-X4)", () => {
+describe("evaluateGate — Closeout (X1-X5)", () => {
   test("empty snapshot fails every check", () => {
     const checks = evaluateGate("Closeout", emptySnapshot());
     assert.deepEqual(failing(checks), ["X1", "X2", "X3", "X4"]);
@@ -239,6 +240,24 @@ describe("evaluateGate — Closeout (X1-X4)", () => {
 
     const checks = evaluateGate("Closeout", snapshot);
     assert.deepEqual(failing(checks), []);
+    assert.deepEqual(keysOf(checks), ["X1", "X2", "X3", "X4", "X5"]);
+  });
+
+  test("X5: an open RFI/RFA hard-blocks closing; answered ones do not", () => {
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const open = withOverrides({ openRequests: [{ number: "RFI-TEST-AR-001-26", status: "open" }] } as any);
+    const x5 = evaluateGate("Closeout", open).find((c) => c.key === "X5")!;
+    assert.equal(x5.passed, false);
+    assert.match(x5.detail ?? "", /RFI-TEST-AR-001-26/);
+    assert.deepEqual(x5.ownerRoles, ["project-manager", "admin"]);
+    const none = evaluateGate("Closeout", withOverrides({ openRequests: [] })).find((c) => c.key === "X5")!;
+    assert.equal(none.passed, true);
+  });
+
+  test("X5 does not appear in the other phases", () => {
+    for (const phase of ["Proposal", "Design", "Pre-Construction", "Construction"] as const) {
+      assert.ok(!keysOf(evaluateGate(phase, emptySnapshot())).includes("X5"), phase);
+    }
   });
 
   test("a payroll batch approved BEFORE entering Closeout does not satisfy X3", () => {

@@ -52,6 +52,10 @@ interface NewWorkflowDialogProps {
    * changed — the dialog was opened for one specific thing, not a blank
    * "New workflow" form. */
   lockPreset?: boolean;
+  /** Pre-fill the title (e.g. a change order raised from an RFI). */
+  presetTitle?: string;
+  /** Pre-fill the amount. */
+  presetAmount?: number;
 }
 
 export function NewWorkflowDialog({
@@ -64,6 +68,8 @@ export function NewWorkflowDialog({
   presetTemplateName,
   presetProjectCode,
   lockPreset,
+  presetTitle,
+  presetAmount,
 }: NewWorkflowDialogProps) {
   const { user } = useAuth();
   const { projects } = useProjects();
@@ -90,11 +96,13 @@ export function NewWorkflowDialog({
   useEffect(() => {
     if (!open) return;
     if (presetProjectCode) setProjectCode(presetProjectCode);
+    if (presetTitle) setTitle(presetTitle);
+    if (presetAmount != null) setAmount(String(presetAmount));
     if (presetTemplateName) {
       const match = templates.find((t) => t.name === presetTemplateName);
       if (match) setTemplateId(String(match.id));
     }
-  }, [open, presetProjectCode, presetTemplateName, templates]);
+  }, [open, presetProjectCode, presetTemplateName, presetTitle, presetAmount, templates]);
 
   const role = user?.role;
   const selectedProject = useMemo(

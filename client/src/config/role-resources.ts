@@ -11,6 +11,9 @@ export const ROLE_RESOURCE_ACCESS: Record<string, string[]> = {
     "admin-workflow-configuration",
     "admin-approval-hierarchy",
     "admin-support",
+    "requests",
+    "archive-search",
+    "legacy-import",
   ],
   owner: [
     "dashboard",
@@ -47,6 +50,10 @@ export const ROLE_RESOURCE_ACCESS: Record<string, string[]> = {
     "issues",
     "tasks",
     "documents",
+    "requests",
+    "resources",
+    "archive-search",
+    "legacy-import",
     "reports",
   ],
   human_resources: [
@@ -82,6 +89,9 @@ export const ROLE_RESOURCE_ACCESS: Record<string, string[]> = {
     "revisions",
     "blueprints",
     "architect-documents",
+    "requests",
+    "archive-search",
+    "legacy-import",
   ],
   engineer: [
     "dashboard",
@@ -92,6 +102,7 @@ export const ROLE_RESOURCE_ACCESS: Record<string, string[]> = {
     "approvals",
     "issues",
     "projects",
+    "requests",
   ],
   site_personnel: ["dashboard", "ai-validation-reference", "attendance", "tasks", "requirements", "documents", "issues"],
   consultant: [
@@ -111,5 +122,6 @@ export const ROLE_RESOURCE_ACCESS: Record<string, string[]> = {
     "consultant-design-reviews",
     "advisory-docs",
     "consultant-projects",
+    "requests",
   ],
 };

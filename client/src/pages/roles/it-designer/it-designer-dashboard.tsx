@@ -16,6 +16,7 @@ import { KpiStrip } from "@/components/ui/kpi-strip";
 import { useRoleConfig } from "@/hooks/use-role-config";
 import { useITDesignerDashboardController } from "@/features/dashboard/controllers/it-designer-dashboard.controller";
 import { WaitingOnYouCard } from "@/features/lifecycle/components/WaitingOnYouCard";
+import { ImpactAwarenessCard } from "@/features/lifecycle/components/ImpactAwarenessCard";
 import { formatRelativeTime } from "@/lib/format-relative-time";
 import { useNavigate } from "react-router";
 
@@ -84,6 +85,8 @@ export default function ITDesignerDashboardPage() {
 
       {/* K1: cross-project gate checks waiting on IT Designer */}
       <WaitingOnYouCard />
+
+      <ImpactAwarenessCard />
 
       {/* ── Accounts by role + misconfiguration check ── */}
       <section className="grid grid-cols-1 gap-6 xl:grid-cols-3">

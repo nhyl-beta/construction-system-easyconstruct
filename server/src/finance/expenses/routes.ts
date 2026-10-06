@@ -6,6 +6,7 @@ export const expensesRouter = Router();
 
 expensesRouter.get("/", expensesController.list);
 expensesRouter.post("/", requireRole("finance-manager", "admin"), expensesController.create);
+expensesRouter.post("/rescore", requireRole("finance-manager", "admin"), expensesController.rescore);
 expensesRouter.patch(
   "/:id/approve",
   requireRole("finance-manager", "admin"),

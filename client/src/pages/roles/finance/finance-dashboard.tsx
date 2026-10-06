@@ -17,8 +17,10 @@ import {
 } from "@/components/ui/table";
 import { useFinanceDashboardController } from "@/features/finance/hooks/use-finance-dashboard";
 import {
+  formatAxisCurrency,
   formatCompactCurrency,
   formatCurrency,
+  formatMillions,
   formatPercent,
 } from "@/lib/format-currency";
 import {
@@ -237,7 +239,7 @@ export default function FinanceDashboardPage() {
                       <YAxis
                         tick={{ fontSize: 10 }}
                         stroke="hsl(var(--muted-foreground))"
-                        tickFormatter={(v) => `$${(v / 1000).toFixed(0)}k`}
+                        tickFormatter={(v) => formatAxisCurrency(Number(v))}
                       />
                       <Tooltip
                         formatter={(v: number) => formatCurrency(Number(v))}
@@ -255,9 +257,14 @@ export default function FinanceDashboardPage() {
 
             <SectionCard
               title="Cash flow trend"
-              subtitle="Inflow vs outflow ($M)"
+              subtitle="Inflow vs outflow (₱M)"
               badge="6 months"
             >
+              {c.cashFlow.length === 0 ? (
+                <div className="flex h-64 items-center justify-center rounded-xl border border-dashed p-6 text-center text-sm text-muted-foreground">
+                  No cash flow recorded yet. It builds up as expenses and payroll batches are approved.
+                </div>
+              ) : (
               <div className="h-64">
                 <ResponsiveContainer width="100%" height="100%">
                   <AreaChart data={c.cashFlow}>
@@ -300,9 +307,9 @@ export default function FinanceDashboardPage() {
                     <YAxis
                       tick={{ fontSize: 10 }}
                       stroke="hsl(var(--muted-foreground))"
-                      tickFormatter={(v) => `$${v}M`}
+                      tickFormatter={(v) => formatMillions(Number(v))}
                     />
-                    <Tooltip formatter={(v: number) => `$${v}M`} />
+                    <Tooltip formatter={(v) => formatMillions(Number(v))} />
                     <Area
                       type="monotone"
                       dataKey="inflow"
@@ -320,6 +327,7 @@ export default function FinanceDashboardPage() {
                   </AreaChart>
                 </ResponsiveContainer>
               </div>
+              )}
             </SectionCard>
 
             <SectionCard

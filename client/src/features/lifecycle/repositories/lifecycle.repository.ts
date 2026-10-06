@@ -1,5 +1,5 @@
 import { apiClient } from "@/services/api.client";
-import type { CloseoutSummary, LifecycleView } from "../types/lifecycle.types";
+import type { CloseoutSummary, ImpactAwareness, LifecycleView } from "../types/lifecycle.types";
 import type { MyActionItem } from "../types/my-actions.types";
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -40,6 +40,11 @@ export const LifecycleRepository = {
   // H6
   async getCloseoutSummary(projectId: string | number): Promise<CloseoutSummary> {
     return unwrap<CloseoutSummary>(apiClient.get(`/projects/${projectId}/lifecycle/closeout-summary`));
+  },
+
+  // Read-only decision-support signals across the projects the caller can see.
+  async getImpact(): Promise<ImpactAwareness> {
+    return unwrap<ImpactAwareness>(apiClient.get(`/lifecycle/impact`));
   },
 
   // K1

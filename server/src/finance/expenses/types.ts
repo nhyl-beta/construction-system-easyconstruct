@@ -9,6 +9,7 @@ export interface Expense {
   submittedAt: string;
   status: ExpenseStatus;
   anomalyScore: number | null;
+  anomalyReason: string | null;
   receiptUrl: string | null;
 }
 
