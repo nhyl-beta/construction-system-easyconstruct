@@ -34,6 +34,20 @@ export function formatCompactCurrency(amount: number): string {
   return `${sign}${CURRENCY_SYMBOL}${abs.toFixed(0)}`;
 }
 
+/** Chart axis / tooltip: whole millions with one decimal, e.g. 15_800_000 -> "₱15.8M". Pesos in, pesos kept in the data. */
+export function formatMillions(amount: number): string {
+  return `${amount < 0 ? "-" : ""}${CURRENCY_SYMBOL}${(Math.abs(amount) / 1_000_000).toFixed(1)}M`;
+}
+
+/** Chart axis tick that scales with the amount: ₱950, ₱12k, ₱1.5M. */
+export function formatAxisCurrency(amount: number): string {
+  const abs = Math.abs(amount);
+  const sign = amount < 0 ? "-" : "";
+  if (abs >= 1_000_000) return `${sign}${CURRENCY_SYMBOL}${(abs / 1_000_000).toFixed(1)}M`;
+  if (abs >= 1_000) return `${sign}${CURRENCY_SYMBOL}${Math.round(abs / 1_000)}k`;
+  return `${sign}${CURRENCY_SYMBOL}${Math.round(abs)}`;
+}
+
 /** e.g. formatPercent(0.862) -> "86.2%" */
 export function formatPercent(value: number): string {
   return `${(value * 100).toFixed(1)}%`;

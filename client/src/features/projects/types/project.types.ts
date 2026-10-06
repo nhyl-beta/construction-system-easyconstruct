@@ -44,6 +44,19 @@ export const PROJECT_TYPES = [
 
 export type ProjectType = (typeof PROJECT_TYPES)[number];
 
+/**
+ * What the engagement delivers (separate from the building type above).
+ * "Construction" runs the full path through site works; "Design" delivers plan
+ * sets only: Proposal -> Design -> Turnover. Fixed when the project is created.
+ */
+export const DELIVERY_TYPES = ["Construction", "Design"] as const;
+export type DeliveryType = (typeof DELIVERY_TYPES)[number];
+export const normalizeDeliveryType = (raw: unknown): DeliveryType => (raw === "Design" ? "Design" : "Construction");
+
+/** Plan sets a Design project can deliver; mirrors server lifecycle/delivery.ts. */
+export const DESIGN_DISCIPLINES = ["Architectural", "Structural", "MEP", "Civil", "Interior"] as const;
+export type DesignDiscipline = (typeof DESIGN_DISCIPLINES)[number];
+
 export type StatusTone = "success" | "warning" | "destructive" | "neutral";
 
 export interface Project {
@@ -69,6 +82,9 @@ export interface Project {
   /** ISO yyyy-MM-dd. */
   plannedStartDate?: string | null;
   scopeSummary?: string | null;
+  /** "Construction" unless the project only delivers plan sets. */
+  deliveryType: DeliveryType;
+  designDisciplines?: string[];
   // Registered site position. Attendance clock-ins are measured against it
   // (server/src/attendance/service.ts); null means no geofence is enforced.
   siteLatitude?: number | null;
@@ -81,6 +97,7 @@ export interface ProjectsQuery {
   status?: string;
   risk?: RiskLevel | "any";
   projectType?: string;
+  deliveryType?: DeliveryType | "any";
   page?: number;
   perPage?: number;
 }

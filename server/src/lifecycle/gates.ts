@@ -7,6 +7,7 @@
 // (docs/lifecycle-progress.md group C reference, section 4.3).
 import type { LifecycleSnapshot } from "./repository.js";
 import type { SequencedPhase } from "./phases.js";
+import { deliverableForDiscipline, normalizeDeliveryType } from "./delivery.js";
 
 export interface GateCheck {
   key: string;
@@ -470,9 +471,137 @@ const x4 = (s: LifecycleSnapshot): GateCheck => {
   };
 };
 
-const evaluateCloseout = (s: LifecycleSnapshot): GateCheck[] => [x1(s), x2(s), x3(s), x4(s)];
+// X5 — an unanswered RFI/RFA hard-blocks closing the project. (Named X5 because it
+// belongs to the Closeout exit; the K-series is the Construction exit.)
+export const noOpenRequestsCheck = (s: LifecycleSnapshot, key: string): GateCheck => {
+  const open = s.openRequests ?? [];
+  return {
+    key,
+    label: "No open RFI/RFA",
+    ownerRoles: ["project-manager", "admin"],
+    passed: open.length === 0,
+    detail:
+      open.length === 0
+        ? "No open RFI/RFA"
+        : `${open.length} open request(s): ${open.slice(0, 3).map((r) => r.number).join(", ")}${open.length > 3 ? "…" : ""}`,
+    link: "/requests",
+  };
+};
+
+const x5 = (s: LifecycleSnapshot): GateCheck => noOpenRequestsCheck(s, "X5");
+
+const evaluateCloseout = (s: LifecycleSnapshot): GateCheck[] => [x1(s), x2(s), x3(s), x4(s), x5(s)];
+
+// ── Design delivery (plan sets only) ──────────────────────────────────────
+//
+// A Design project goes Proposal -> Design -> Turnover (stored as "Closeout").
+// Proposal keeps P1-P5. The rest are its own checks; Construction projects
+// never reach this code (see evaluateGate).
+
+const dp1 = (s: LifecycleSnapshot): GateCheck => {
+  const sets = s.deliverables ?? [];
+  const missingLead = sets.filter((d) => d.leadUserId == null);
+  const passed = sets.length > 0 && missingLead.length === 0;
+  return {
+    key: "DP1",
+    label: "Every plan set has a lead",
+    ownerRoles: ["architect", "project-manager"],
+    passed,
+    detail: passed
+      ? `${sets.length} plan set(s), each with a lead`
+      : sets.length === 0
+        ? "No plan sets yet"
+        : `No lead on: ${missingLead.map((d) => d.discipline).join(", ")}`,
+    link: projectLink(s, ""),
+  };
+};
+
+const dp2 = (s: LifecycleSnapshot): GateCheck => {
+  const sets = s.deliverables ?? [];
+  const withFiles = (discipline: string) =>
+    s.designs.some(
+      (d) => deliverableForDiscipline(d.discipline) === discipline && Array.isArray(d.fileUrls) && d.fileUrls.length > 0,
+    );
+  const missing = sets.filter((d) => !withFiles(d.discipline));
+  const passed = sets.length > 0 && missing.length === 0;
+  return {
+    key: "DP2",
+    label: "Every plan set has a design with files",
+    ownerRoles: ["architect"],
+    passed,
+    detail: passed
+      ? "Every plan set has a design with files"
+      : sets.length === 0
+        ? "No plan sets yet"
+        : `No design with files for: ${missing.map((d) => d.discipline).join(", ")}`,
+    link: "/designs",
+  };
+};
+
+const evaluateDesignDeliveryDesign = (s: LifecycleSnapshot): GateCheck[] => [
+  dp1(s),
+  dp2(s),
+  d2(s),
+  d3(s),
+  noOpenRequestsCheck(s, "D4"),
+];
+
+const t1 = (s: LifecycleSnapshot): GateCheck => {
+  const has = s.documents.some((d) => d.type === "Turnover Document");
+  return {
+    key: "T1",
+    label: "Turnover document on file",
+    ownerRoles: ["architect", "project-manager"],
+    passed: has,
+    detail: has ? "Turnover Document is on file" : "Turnover Document is missing",
+    link: projectLink(s, ""),
+  };
+};
+
+const t2 = (s: LifecycleSnapshot): GateCheck => {
+  const has = s.documents.some((d) => d.type === "Client Acceptance");
+  return {
+    key: "T2",
+    label: "Client acceptance on file",
+    ownerRoles: ["project-manager", "admin"],
+    passed: has,
+    detail: has ? "Client Acceptance is on file" : "Client Acceptance document is missing",
+    link: projectLink(s, ""),
+  };
+};
+
+const t3 = (s: LifecycleSnapshot): GateCheck => {
+  const turnover = s.designTurnoverTemplateId == null ? [] : s.workflows.filter((w) => w.templateId === s.designTurnoverTemplateId);
+  const passed = turnover.some((w) => w.status === "completed");
+  const activeIds = new Set(turnover.filter((w) => w.status === "active").map((w) => w.id));
+  const current = s.workflowStages.find((st) => st.status === "current" && activeIds.has(st.workflowId));
+  return {
+    key: "T3",
+    label: "Design Turnover workflow completed",
+    ownerRoles: current ? [current.role] : ["architect"],
+    passed,
+    detail: passed ? "Design Turnover workflow is completed" : "Design Turnover workflow is not completed yet",
+    link: "/workflows",
+  };
+};
+
+const evaluateDesignDeliveryTurnover = (s: LifecycleSnapshot): GateCheck[] => [t1(s), t2(s), t3(s), noOpenRequestsCheck(s, "T4")];
+
+const evaluateDesignDelivery = (phase: SequencedPhase, s: LifecycleSnapshot): GateCheck[] => {
+  switch (phase) {
+    case "Proposal":
+      return evaluateProposal(s);
+    case "Design":
+      return evaluateDesignDeliveryDesign(s);
+    case "Closeout":
+      return evaluateDesignDeliveryTurnover(s);
+    default:
+      return [];
+  }
+};
 
 export const evaluateGate = (phase: SequencedPhase, snapshot: LifecycleSnapshot): GateCheck[] => {
+  if (normalizeDeliveryType(snapshot.project.deliveryType) === "Design") return evaluateDesignDelivery(phase, snapshot);
   switch (phase) {
     case "Proposal":
       return evaluateProposal(snapshot);

@@ -8,6 +8,7 @@ import { roles } from "../db/schema/roles.js";
 import { users } from "../db/schema/users.js";
 import { workflowTemplates } from "../db/schema/workflows.js";
 import { refreshProjectProgress } from "../lifecycle/service.js";
+import { assertDemoDatabase } from "./demo-guard.js";
 
 const PASSWORD = "Demo@12345";
 
@@ -319,6 +320,19 @@ const TEMPLATES = [
       { role: "admin", roleLabel: "Admin Final Approval", iconKey: "ShieldCheck" },
     ],
   },
+  // Design delivery projects: the turnover of the plan sets to the client.
+  // Name must be exactly "Design Turnover" — matched by string in lifecycle/delivery.ts.
+  {
+    name: "Design Turnover",
+    description: "Architect hands over the plan sets; Consultant reviews; PM and Admin sign off the turnover to the client.",
+    avgDurationHours: "60.0",
+    defaultStages: [
+      { role: "architect", roleLabel: "Architect Handover", iconKey: "FileSignature" },
+      { role: "consultant", roleLabel: "Consultant Review", iconKey: "UserCheck" },
+      { role: "project-manager", roleLabel: "PM Sign-off", iconKey: "ShieldCheck" },
+      { role: "admin", roleLabel: "Admin Final Approval", iconKey: "ShieldCheck" },
+    ],
+  },
 ] as const;
 
 function initials(name: string) {
@@ -333,6 +347,7 @@ function initials(name: string) {
 const ALL_ACCOUNTS = [...ACCOUNTS, ...GENERATED_ACCOUNTS];
 
 async function main() {
+  assertDemoDatabase();
   const password = await bcrypt.hash(PASSWORD, 10);
   let createdUsers = 0;
   let createdEmployees = 0;

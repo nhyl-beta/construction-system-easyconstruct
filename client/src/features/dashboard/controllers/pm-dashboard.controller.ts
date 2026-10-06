@@ -39,5 +39,6 @@ export const usePmDashboardController = () => {
     overBudget,
     topProjects: attentionSorted.slice(0, 5),
     totalProjectCount: projects.projects.length,
+    projects: projects.projects,
   };
 };

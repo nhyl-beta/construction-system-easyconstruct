@@ -19,6 +19,7 @@ import "dotenv/config";
 import fs from "node:fs";
 import path from "node:path";
 import pg from "pg";
+import { assertDemoDatabase } from "./demo-guard.js";
 import { buildRoster, upsertRoster } from "./demo-roster.js";
 
 const DRY = process.argv.includes("--dry-run");
@@ -42,13 +43,10 @@ const DELETE_ORDER = [
   "revisions", "engineering_reports", "documents", "expenses", "financial_risks", "cash_flow_entries",
   "ai_insights", "approvals_queue", "procurement_orders", "purchase_requests", "reimbursements",
   "scheduled_reports", "payroll", "payroll_batch_decisions", "payroll_batches", "attendance",
+  "transmittal_acknowledgements", "transmittal_items", "transmittals", "design_request_files", "design_requests",
+  "project_deliverables",
   "project_phase_history", "project_members", "projects",
 ];
-
-function target(url: string) {
-  const u = new URL(url);
-  return { host: u.hostname, db: u.pathname.replace(/^\//, "") };
-}
 
 async function checksums(c: pg.PoolClient) {
   const out: Record<string, string> = {};
@@ -83,19 +81,7 @@ async function backup(c: pg.PoolClient): Promise<string> {
 }
 
 async function main() {
-  const url = process.env.DATABASE_URL;
-  if (!url) throw new Error("DATABASE_URL is not set.");
-  const { host, db } = target(url);
-  console.log(`Target database: host=${host} db=${db}`);
-
-  const local = ["localhost", "127.0.0.1", "::1"].includes(host);
-  const allowed = (process.env.DEMO_RESET_ALLOWED_HOSTS ?? "").split(",").map((s) => s.trim()).filter(Boolean);
-  if (process.env.ALLOW_DEMO_RESET !== "true") {
-    throw new Error("REFUSED: set ALLOW_DEMO_RESET=true to run this script.");
-  }
-  if (!local && !allowed.includes(host)) {
-    throw new Error(`REFUSED: host ${host} is neither local nor listed in DEMO_RESET_ALLOWED_HOSTS.`);
-  }
+  assertDemoDatabase();
 
   const c = await pool.connect();
   try {

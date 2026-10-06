@@ -18,6 +18,8 @@ export interface Expense {
   submittedAt: string;
   status: ExpenseStatus;
   anomalyScore: number | null;
+  /** Plain-language reasons behind a non-zero score (rule-based). */
+  anomalyReason?: string | null;
   receiptUrl: string | null;
 }
 

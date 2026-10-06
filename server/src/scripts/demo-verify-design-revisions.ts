@@ -9,7 +9,8 @@
 // Run with: npx tsx src/scripts/demo-verify-design-revisions.ts
 import "dotenv/config";
 import pg from "pg";
-import { api, login, raw, EMAILS } from "./demo-seed-lib.js";
+import { assertDemoApi, assertDemoDatabase } from "./demo-guard.js";
+import { api, BASE, login, raw, EMAILS } from "./demo-seed-lib.js";
 
 const pool = new pg.Pool({ connectionString: process.env.DATABASE_URL });
 const q = async (sql: string, p: unknown[] = []) => (await pool.query(sql, p)).rows;
@@ -22,6 +23,8 @@ const row = (name: string, got: unknown, expected: unknown) => {
 const rows: Record<string, unknown>[] = [];
 
 async function main() {
+  assertDemoDatabase();
+  assertDemoApi(BASE);
   const [admin, archi, archi1, pm, pm1, eng, eng1, cons, site, hr] = await Promise.all([
     login(EMAILS.admin), login(EMAILS.architect), login(EMAILS.architect1), login(EMAILS.pm), login(EMAILS.pm1),
     login(EMAILS.engineer), login(EMAILS.engineer1), login(EMAILS.consultant), login(EMAILS.site), login(EMAILS.hr),

@@ -70,6 +70,12 @@ export interface Signal {
 }
 
 export interface LifecycleView {
+  /** "Design" projects skip Pre-Construction/Construction; their Closeout reads "Turnover". */
+  deliveryType?: "Construction" | "Design";
+  /** The phases this project passes through, in order, with their on-screen labels. */
+  phasePath?: { phase: SequencedPhase; label: string }[];
+  /** Design projects: plan-set summary (average status points 0-100). */
+  planSets?: { total: number; averagePoints: number };
   phase: ProjectPhase;
   progress: number;
   band: { start: number; end: number } | null;
@@ -81,6 +87,11 @@ export interface LifecycleView {
   history: PhaseHistoryEntry[];
   hasRejectedProposal?: boolean;
   signals?: Signal[];
+}
+
+export interface ImpactAwareness {
+  enabled: boolean;
+  projects: { projectCode: string; projectName: string; phase: string; signals: Signal[] }[];
 }
 
 // H6

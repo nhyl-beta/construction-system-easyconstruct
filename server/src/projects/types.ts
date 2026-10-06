@@ -19,6 +19,8 @@ export interface ProjectRecord {
   projectType: string | null;
   plannedStartDate: string | null;
   scopeSummary: string | null;
+  deliveryType: string;
+  designDisciplines: string[];
   siteLatitude: string | null;
   siteLongitude: string | null;
   geofenceRadiusM: number | null;
@@ -53,6 +55,10 @@ export interface CreateProjectInput {
   projectType?: string;
   plannedStartDate?: string;
   scopeSummary?: string;
+  /** "Construction" (default) or "Design" — fixed at creation. */
+  deliveryType?: "Construction" | "Design";
+  /** Plan-set disciplines chosen at creation for a Design project. */
+  designDisciplines?: string[];
   siteLatitude?: number | string | null;
   siteLongitude?: number | string | null;
   geofenceRadiusM?: number | null;
@@ -62,13 +68,14 @@ export interface CreateProjectInput {
 // are lifecycle-owned (see lifecycle/service.ts) and must not be reachable
 // through the general project PATCH at all, not even optionally.
 export type UpdateProjectInput = Partial<
-  Omit<CreateProjectInput, "status" | "statusTone" | "progress">
+  Omit<CreateProjectInput, "status" | "statusTone" | "progress" | "deliveryType" | "designDisciplines">
 >;
 
 export interface ProjectFilters {
   status?: string;
   risk?: string;
   projectType?: string;
+  deliveryType?: string;
   /** Hide the terminal Archived phase (the default view of the list). */
   excludeArchived?: boolean;
   search?: string;

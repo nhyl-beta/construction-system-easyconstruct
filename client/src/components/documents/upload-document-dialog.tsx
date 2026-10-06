@@ -24,7 +24,7 @@ import {
 
 import type { UploadDocumentInput } from "@/features/documents/repositories/documents.repository";
 
-const DOC_TYPES = [
+export const DOC_TYPES = [
   "Field Report",
   "Site Photo",
   "Progress Evidence",
@@ -39,6 +39,8 @@ const DOC_TYPES = [
   "Certificate of Completion",
   "Turnover Document",
   "As-Built Drawing",
+  // Design-delivery projects: the client signs off the turnover (gate T2).
+  "Client Acceptance",
 ] as const;
 
 interface UploadDocumentDialogProps {

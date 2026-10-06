@@ -1,6 +1,8 @@
 import { ConflictError, ForbiddenError, NotFoundError, ValidationError } from "../utils/errors.js";
 import { assertProjectWritable, refreshProjectProgress } from "../lifecycle/service.js";
 import { CLOSEOUT_TEMPLATE_NAME } from "../lifecycle/repository.js";
+import { filterRowsToCodes } from "../projects/visibility.js";
+import { DESIGN_TURNOVER_TEMPLATE_NAME, normalizeDeliveryType } from "../lifecycle/delivery.js";
 import { proposalRepository } from "../proposals/repository.js";
 import * as notificationsService from "../notifications/service.js";
 import { validateWorkflowLineItems } from "../ai-validation/service.js";
@@ -250,6 +252,13 @@ export const revalidateWorkflow = async (id: number): Promise<WorkflowWithStages
   return getWorkflowById(id);
 };
 
+/** Project code of a workflow, for visibility checks that must not load stages and attachments. */
+export const getWorkflowProjectCode = async (id: number): Promise<string> => {
+  const row = await repo.findWorkflowById(id);
+  if (!row) throw new NotFoundError("Workflow", String(id));
+  return row.projectCode;
+};
+
 export const getActiveWorkflows = async (): Promise<WorkflowWithStages[]> => {
   const rows = await repo.findWorkflows("active");
   return attachStages(rows);
@@ -306,6 +315,23 @@ export const createWorkflow = async (
   // Inspection stage opens it) may start one — mirrors the "auto-approve the
   // initiator's own stage" assumption below, which requires the initiator's
   // role to actually be the template's first stage's role.
+  // Delivery type decides which hand-over workflow applies: a Design project
+  // closes with Design Turnover (once it is at Turnover), a Construction
+  // project with Project Closeout — never the other way round.
+  {
+    const target = await projectsRepo.findByCode(input.projectCode);
+    const isDesignProject = normalizeDeliveryType(target?.deliveryType) === "Design";
+    if (template.name === DESIGN_TURNOVER_TEMPLATE_NAME) {
+      if (!isDesignProject) throw new ConflictError("Design Turnover applies to Design projects only");
+      if (target!.status !== "Closeout") {
+        throw new ConflictError(`Design Turnover can start once the project is at Turnover (currently "${target!.status}")`);
+      }
+    }
+    if (template.name === CLOSEOUT_TEMPLATE_NAME && isDesignProject) {
+      throw new ConflictError("A Design project is handed over with the Design Turnover workflow, not Project Closeout");
+    }
+  }
+
   if (template.name === CLOSEOUT_TEMPLATE_NAME) {
     // assertProjectWritable above already guarantees this project exists.
     const project = await projectsRepo.findByCode(input.projectCode);
@@ -727,13 +753,17 @@ export const getApprovalQueue = async (
   scope: ApprovalScope,
   requesterRole: string,
   requesterName: string,
+  /** Project codes the caller may see; null/undefined = no restriction (admin, HR, Finance…). */
+  visibleCodes?: ReadonlySet<string> | null,
 ): Promise<ApprovalQueueItem[]> => {
-  const rows =
+  const allRows =
     scope === "pending"
       ? await repo.findPendingStagesForRole(requesterRole, PRIVILEGED_READ_ROLES.includes(requesterRole))
       : scope === "mine"
         ? await repo.findDecidedStagesBy(requesterName)
         : await repo.findAllDecidedStages();
+  // A stage owner only sees the queue entries of projects they may see.
+  const rows = filterRowsToCodes(allRows, visibleCodes ?? null, (r) => r.workflow.projectCode);
 
   // A queue row that does not say whether anything was submitted gives the
   // approver no reason to open the detail view at all.
@@ -777,9 +807,13 @@ export const getApprovalQueue = async (
   }));
 };
 
-export const getApprovalStats = async (requesterRole: string, requesterName: string) => {
-  const pending = await getApprovalQueue("pending", requesterRole, requesterName);
-  const history = await getApprovalQueue("history", requesterRole, requesterName);
+export const getApprovalStats = async (
+  requesterRole: string,
+  requesterName: string,
+  visibleCodes?: ReadonlySet<string> | null,
+) => {
+  const pending = await getApprovalQueue("pending", requesterRole, requesterName, visibleCodes);
+  const history = await getApprovalQueue("history", requesterRole, requesterName, visibleCodes);
 
   const overdue = pending.filter((p) => {
     if (!p.createdAt) return false;

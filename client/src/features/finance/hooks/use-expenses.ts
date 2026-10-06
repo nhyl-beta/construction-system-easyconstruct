@@ -25,6 +25,17 @@ interface UseExpensesResult {
   creating: boolean;
   createError: string | null;
   createExpense: (input: CreateExpenseInput) => Promise<boolean>;
+  /** Approved expenses of the current month, from /finance/summary (the cash flow definition). */
+  monthlyApproved: number | null;
+  /** Approve or reject a pending expense; refreshes the list and the summary. */
+  decide: (id: string, decision: "approve" | "reject") => Promise<DecisionResult>;
+}
+
+export interface DecisionResult {
+  ok: boolean;
+  /** Non-fatal note from the server, e.g. no budget line matched. */
+  warning: string | null;
+  error: string | null;
 }
 
 export function useExpensesController(): UseExpensesResult {
@@ -36,6 +47,7 @@ export function useExpensesController(): UseExpensesResult {
   const [creating, setCreating] = useState(false);
   const [createError, setCreateError] = useState<string | null>(null);
   const [reloadToken, setReloadToken] = useState(0);
+  const [monthlyApproved, setMonthlyApproved] = useState<number | null>(null);
 
   useEffect(() => {
     const controller = new AbortController();
@@ -43,6 +55,9 @@ export function useExpensesController(): UseExpensesResult {
     setError(null);
 
     const params = new URLSearchParams();
+    // The ledger pages client-side, so ask for a whole page of rows rather than
+    // the server default of 20.
+    params.set("pageSize", "500");
     if (query) params.set("query", query);
     if (category !== "all") params.set("category", category);
 
@@ -59,6 +74,31 @@ export function useExpensesController(): UseExpensesResult {
 
     return () => controller.abort();
   }, [query, category, reloadToken]);
+
+  useEffect(() => {
+    let active = true;
+    apiClient
+      .get("/finance/summary")
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      .then((json: any) => active && setMonthlyApproved(Number(json?.data?.monthlyExpenses ?? 0)))
+      .catch(() => active && setMonthlyApproved(null));
+    return () => {
+      active = false;
+    };
+  }, [reloadToken]);
+
+  const decide = useCallback(async (id: string, decision: "approve" | "reject"): Promise<DecisionResult> => {
+    try {
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const json: any = await apiClient.patch(`/finance/expenses/${encodeURIComponent(id)}/${decision}`, {});
+      setReloadToken((t) => t + 1);
+      return { ok: true, warning: json?.data?.warning ?? null, error: null };
+    } catch (err) {
+      // A 409 (already decided) means the list is stale; refresh it too.
+      setReloadToken((t) => t + 1);
+      return { ok: false, warning: null, error: err instanceof Error ? err.message : "Could not update the expense" };
+    }
+  }, []);
 
   const createExpense = useCallback(async (input: CreateExpenseInput) => {
     setCreating(true);
@@ -98,5 +138,7 @@ export function useExpensesController(): UseExpensesResult {
     creating,
     createError,
     createExpense,
+    monthlyApproved,
+    decide,
   };
 }

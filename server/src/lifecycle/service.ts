@@ -13,15 +13,25 @@ import type { LifecycleSnapshot } from "./repository.js";
 import { evaluateGate, type GateCheck } from "./gates.js";
 import {
   HOLDABLE_PHASES,
-  NEXT_PHASE,
   PHASE_BANDS,
   PHASE_TONE,
+  SEQUENCED_PHASES,
   WRITE_LOCKED_PHASES,
   isSequencedPhase,
   type ProjectPhase,
   type SequencedPhase,
 } from "./phases.js";
 import { evaluateSignals, type Signal } from "../signals/index.js";
+import {
+  DESIGN_BANDS,
+  DESIGN_PHASES,
+  designProgress,
+  nextPhaseFor,
+  normalizeDeliveryType,
+  phaseLabel as phaseLabelFor,
+  planSetAverage,
+  type DeliveryType,
+} from "./delivery.js";
 import { FEATURES } from "../config/features.js";
 
 export interface LifecycleActor {
@@ -33,6 +43,11 @@ export interface LifecycleActor {
 // ── Progress ─────────────────────────────────────────────────────────────
 
 export const computeProgress = (phase: string, snapshot: LifecycleSnapshot): number => {
+  // Design delivery: Proposal 0-10, Design 10-90 (plan-set average), Turnover 90-99.
+  if (normalizeDeliveryType(snapshot.project.deliveryType) === "Design") {
+    const dp = designProgress(phase, snapshot.deliverables ?? [], isSequencedPhase(phase) ? evaluateGate(phase, snapshot) : []);
+    if (dp != null) return dp;
+  }
   if (phase === "Construction") {
     // Tasks and live milestones (active / at-risk / completed) are the units
     // of work, so completing a milestone moves the percentage. Drafts and
@@ -72,6 +87,12 @@ export const refreshProjectProgress = async (projectCode: string): Promise<void>
 // ── Read ─────────────────────────────────────────────────────────────────
 
 export interface LifecycleView {
+  /** "Construction" (full path) or "Design" (Proposal -> Design -> Turnover). */
+  deliveryType: DeliveryType;
+  /** The phases this project passes through, in order, and how each is labelled. */
+  phasePath: { phase: SequencedPhase; label: string }[];
+  /** Design projects: how far the plan sets are (average status points, 0-100). */
+  planSets?: { total: number; averagePoints: number };
   phase: ProjectPhase;
   progress: number;
   band: { start: number; end: number } | null;
@@ -96,7 +117,8 @@ export const getLifecycleView = async (projectCode: string): Promise<LifecycleVi
   const phase = snapshot.project.status as ProjectPhase;
   const sequenced = isSequencedPhase(phase);
   const checks = sequenced ? evaluateGate(phase, snapshot) : [];
-  const nextPhase = sequenced ? NEXT_PHASE[phase] : null;
+  const deliveryType = normalizeDeliveryType(snapshot.project.deliveryType);
+  const nextPhase = sequenced ? nextPhaseFor(deliveryType, phase) : null;
   // Completed's "next" is Archived, but that's reached via POST .../archive
   // (Admin only), not Advance — see D-1's table.
   const advanceEligible = sequenced && phase !== "Completed" && phase !== "Archived" && nextPhase != null;
@@ -105,10 +127,14 @@ export const getLifecycleView = async (projectCode: string): Promise<LifecycleVi
 
   const history = await repo.findPhaseHistory(projectCode);
 
+  const designBand = deliveryType === "Design" && sequenced ? (DESIGN_BANDS as Record<string, { start: number; end: number }>)[phase] : undefined;
+  const pathPhases: readonly SequencedPhase[] = deliveryType === "Design" ? DESIGN_PHASES : SEQUENCED_PHASES;
   const view: LifecycleView = {
+    deliveryType,
+    phasePath: pathPhases.map((p) => ({ phase: p, label: phaseLabelFor(deliveryType, p) })),
     phase,
     progress: snapshot.project.progress,
-    band: sequenced ? PHASE_BANDS[phase] : null,
+    band: sequenced ? (designBand ?? PHASE_BANDS[phase]) : null,
     checks,
     nextPhase: advanceEligible ? nextPhase : null,
     canAdvance,
@@ -119,6 +145,11 @@ export const getLifecycleView = async (projectCode: string): Promise<LifecycleVi
     view.blockedReason = !advanceEligible
       ? `${phase} has no Advance step`
       : `${checks.filter((c) => !c.passed).length} check(s) not yet passing`;
+  }
+
+  if (deliveryType === "Design") {
+    const sets = snapshot.deliverables ?? [];
+    view.planSets = { total: sets.length, averagePoints: Math.round(planSetAverage(sets)) };
   }
 
   if (phase === "Construction") {
@@ -342,7 +373,7 @@ export const advance = async (
   }
   assertCanAdvance(snapshot.project, actor);
 
-  const nextPhase = NEXT_PHASE[phase];
+  const nextPhase = nextPhaseFor(snapshot.project.deliveryType, phase);
   if (!nextPhase) throw new ConflictError(`${phase} has no next phase`);
 
   const checks = evaluateGate(phase, snapshot);
@@ -372,6 +403,10 @@ export const advance = async (
     statusTone: PHASE_TONE[nextPhase],
     ...(nextPhase === "Completed" ? { completedAt: new Date() } : {}),
   });
+  // A Design project gets one plan set per discipline chosen at creation as it enters Design.
+  if (normalizeDeliveryType(snapshot.project.deliveryType) === "Design" && nextPhase === "Design") {
+    await repo.ensureDeliverables(projectCode, (snapshot.project.designDisciplines as string[] | undefined) ?? []);
+  }
   await refreshProjectProgress(projectCode);
 
   const refreshed = await repo.loadSnapshot(projectCode);

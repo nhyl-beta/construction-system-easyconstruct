@@ -25,6 +25,8 @@ import {
 import { DataTablePagination } from "@/components/refine-ui/data-table/data-table-pagination";
 import { usePagination } from "@/hooks/use-pagination";
 import { formatCurrency } from "@/lib/format-currency";
+import { downloadCsv } from "@/lib/export-csv";
+import { Download } from "lucide-react";
 
 const ALL = "all";
 
@@ -153,6 +155,28 @@ export default function FinancePayrollReviewPage() {
           <p className="text-sm text-muted-foreground">Review payroll batches submitted by Human Resources.</p>
         </div>
 
+        <div className="flex items-center gap-2">
+        <button
+          type="button"
+          className="inline-flex h-9 items-center gap-1.5 rounded-xl border px-3 text-xs hover:bg-muted disabled:opacity-50"
+          disabled={filteredBatches.length === 0}
+          title={detail ? "Export the open batch's payroll lines as CSV" : "Export the batches shown as CSV"}
+          onClick={() =>
+            detail
+              ? downloadCsv(
+                  `payroll-${detail.batch.id}`,
+                  ["Employee ID", "Name", "Role", "Hours", "Overtime", "Adjustments", "Gross", "SSS", "PhilHealth", "Pag-IBIG", "Withholding tax", "Total deductions", "Net", "Employer cost"],
+                  detail.lines.map((l) => [l.empId, l.name, l.role, l.hours, l.overtime, l.adjustments, l.gross, l.sss, l.philhealth, l.pagibig, l.withholdingTax, l.deductions, l.net, l.employerCost]),
+                )
+              : downloadCsv(
+                  "payroll-batches",
+                  ["Batch", "Period", "Group", "Project", "Employees", "Overtime hours", "Gross", "Deductions", "Net", "Employer cost", "Status", "Reviewed by", "Reviewed at"],
+                  filteredBatches.map((b) => [b.id, b.period, b.group, b.projectCode ?? "", b.employees, b.overtimeHours, b.grossPayroll, b.deductions, b.netPayroll, b.employerCost ?? "", b.status, b.reviewedBy ?? "", b.reviewedAt ?? ""]),
+                )
+          }
+        >
+          <Download className="h-3.5 w-3.5" /> Export
+        </button>
         <Select value={periodFilter ?? ALL} onValueChange={(v) => setPeriodFilter(v === ALL ? null : v)}>
           <SelectTrigger className="h-9 w-44 rounded-xl text-xs">
             <SelectValue placeholder="All periods" />
@@ -166,6 +190,7 @@ export default function FinancePayrollReviewPage() {
             ))}
           </SelectContent>
         </Select>
+        </div>
       </div>
 
       {error && (

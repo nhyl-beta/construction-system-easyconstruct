@@ -5,6 +5,8 @@
 // in as them, we never write to the users table), and which account is staffed
 // on which of the seven projects.
 import "dotenv/config";
+import pg from "pg";
+import { assertDemoApi, assertDemoDatabase } from "./demo-guard.js";
 
 export const BASE = process.env.SMOKE_BASE_URL ?? "http://localhost:8000/api";
 export const PASSWORD = "Demo@12345";
@@ -29,13 +31,41 @@ export const EMAILS = {
 } as const;
 export type AccountKey = keyof typeof EMAILS;
 
-/** Employee row (employees.employee_id) each field account is linked to. */
-export const EMPLOYEE_OF: Partial<Record<AccountKey, string>> = {
-  site: "EMP-DEMO-07",
-  site1: "EMP-DEMO-47",
-  engineer: "EMP-DEMO-06",
-  engineer1: "EMP-DEMO-31",
-};
+/** Field accounts the seeders clock in and pay, so each must have a linked employee row. */
+const NEEDS_EMPLOYEE: AccountKey[] = ["site", "site1", "engineer", "engineer1"];
+
+/**
+ * The employee row linked to each email through users.id -> employees.user_id,
+ * read at run time. The EMP-DEMO-nn numbers depend on the order accounts were
+ * seeded, so they differ between databases and must never be hardcoded.
+ * Read-only.
+ */
+export async function linkedEmployeeIds(emails: readonly string[]): Promise<Map<string, string>> {
+  const c = new pg.Client({ connectionString: process.env.DATABASE_URL });
+  await c.connect();
+  try {
+    const r = await c.query(
+      `SELECT u.email, e.employee_id FROM users u JOIN employees e ON e.user_id = u.id WHERE u.email = ANY($1) ORDER BY e.id`,
+      [emails],
+    );
+    const out = new Map<string, string>();
+    for (const row of r.rows as { email: string; employee_id: string }[]) if (!out.has(row.email)) out.set(row.email, row.employee_id);
+    return out;
+  } finally {
+    await c.end();
+  }
+}
+
+/** Throws, naming every account in `emails` that has no linked employee. */
+export function requireLinkedEmployees(links: Map<string, string>, emails: readonly string[]): void {
+  const missing = emails.filter((e) => !links.has(e));
+  if (missing.length) {
+    throw new Error(
+      `No employee is linked (employees.user_id -> users.id) to: ${missing.join(", ")}. ` +
+        "Link them with npm run db:seed; the demo seeders never edit users or employees.",
+    );
+  }
+}
 
 export async function login(email: string): Promise<string> {
   const res = await fetch(`${BASE}/auth/login`, {
@@ -87,6 +117,8 @@ export interface Account {
 export type Session = Record<AccountKey, Account>;
 
 export async function openSession(): Promise<Session> {
+  assertDemoDatabase();
+  assertDemoApi(BASE);
   const entries = await Promise.all(
     (Object.keys(EMAILS) as AccountKey[]).map(async (key) => {
       try {
@@ -99,12 +131,14 @@ export async function openSession(): Promise<Session> {
   );
   const tokens = Object.fromEntries(entries) as Record<AccountKey, string>;
   const users = await api<{ id: number; name: string; email: string }[]>("/users", tokens.admin);
+  const links = await linkedEmployeeIds(Object.values(EMAILS));
+  requireLinkedEmployees(links, NEEDS_EMPLOYEE.map((k) => EMAILS[k]));
   const out = {} as Session;
   for (const key of Object.keys(EMAILS) as AccountKey[]) {
     if (!tokens[key]) continue;
     const u = users.find((x) => x.email === EMAILS[key]);
     if (!u) throw new Error(`Account ${EMAILS[key]} not found`);
-    out[key] = { key, id: u.id, name: u.name, email: u.email, token: tokens[key], employeeId: EMPLOYEE_OF[key] };
+    out[key] = { key, id: u.id, name: u.name, email: u.email, token: tokens[key], employeeId: links.get(u.email) };
   }
   return out;
 }
@@ -135,4 +169,5 @@ export function addDays(iso: string, n: number): string {
   d.setUTCDate(d.getUTCDate() + n);
   return d.toISOString().slice(0, 10);
 }
-export const TODAY = "2026-10-04";
+/** Today in the business timezone (the create validator rejects past dates). */
+export const TODAY = new Date().toLocaleDateString("en-CA", { timeZone: "Asia/Manila" });

@@ -5,7 +5,7 @@ import { formatSuccess } from "../utils/response.js";
 import type { AuthedRequest } from "../middleware/auth.js";
 import * as service from "./service.js";
 import type { EngineeringReportFilters } from "./types.js";
-import { scopeRowsToPm } from "../projects/service.js";
+import { assertProjectVisible, scopeRowsToVisible } from "../projects/service.js";
 
 export const getAll = async (req: Request, res: Response, next: NextFunction) => {
   try {
@@ -15,7 +15,7 @@ export const getAll = async (req: Request, res: Response, next: NextFunction) =>
       status: req.query.status as string,
       search: req.query.search as string,
     };
-    const data = await scopeRowsToPm(
+    const data = await scopeRowsToVisible(
       (req as AuthedRequest).authUser,
       await service.getAll(filters),
       (r) => r.project,
@@ -29,6 +29,7 @@ export const getAll = async (req: Request, res: Response, next: NextFunction) =>
 export const getById = async (req: Request, res: Response, next: NextFunction) => {
   try {
     const data = await service.getById(Number(req.params.id));
+    await assertProjectVisible((req as AuthedRequest).authUser, data.project, "engineering reports");
     res.json(formatSuccess(data, MSG.engineeringReports.single));
   } catch (err) {
     next(err);

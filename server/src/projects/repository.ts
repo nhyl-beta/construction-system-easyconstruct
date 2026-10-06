@@ -17,6 +17,9 @@ export const findAll = async (filters: ProjectFilters = {}) => {
   if (filters.projectType && filters.projectType !== 'all')
     conditions.push(eq(projects.projectType, filters.projectType));
 
+  if (filters.deliveryType && filters.deliveryType !== 'all')
+    conditions.push(eq(projects.deliveryType, filters.deliveryType));
+
   // Project Manager scope — see projects/service.ts isOwnProject.
   if (filters.pmUserId != null) {
     conditions.push(

@@ -1,7 +1,7 @@
 // server/src/db/schema/projects.ts — PATCHED (add geofence columns; rest unchanged)
 import {
   pgTable, serial, varchar,
-  integer, text, timestamp, numeric,
+  integer, text, timestamp, numeric, jsonb,
 } from 'drizzle-orm/pg-core';
 import { users } from './users.js';
 
@@ -32,6 +32,14 @@ export const projects = pgTable('projects', {
   projectType:      varchar('project_type', { length: 50 }),
   plannedStartDate: varchar('planned_start_date', { length: 20 }),
   scopeSummary:     text('scope_summary'),
+
+  // What the engagement delivers, separate from the building projectType:
+  // 'Construction' (the full path through site works) or 'Design' (plan sets
+  // only: Proposal -> Design -> Turnover). See lifecycle/delivery.ts.
+  deliveryType:     varchar('delivery_type', { length: 20 }).notNull().default('Construction'),
+  // Disciplines chosen at creation for a Design project; Advance (Proposal ->
+  // Design) turns each into a plan set (project_deliverables).
+  designDisciplines: jsonb('design_disciplines').$type<string[]>().notNull().default([]),
   
   // ── Added for Site Personnel geofenced attendance ──
   siteLatitude:     numeric('site_latitude', { precision: 10, scale: 7 }),

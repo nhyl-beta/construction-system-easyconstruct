@@ -22,7 +22,15 @@ import { useUsersByRole } from "@/features/users/hooks/use-users-by-role";
 import { Flag, Info, MapPin, Trash2, UserCheck } from "lucide-react";
 import { useState } from "react";
 import { useNavigate } from "react-router";
-import { PROJECT_CURRENCIES, PROJECT_TYPES, RISK_LEVELS } from "@/features/projects/types/project.types";
+import {
+  DESIGN_DISCIPLINES,
+  PROJECT_CURRENCIES,
+  PROJECT_TYPES,
+  RISK_LEVELS,
+  type DeliveryType,
+  type DesignDiscipline,
+} from "@/features/projects/types/project.types";
+import { Checkbox } from "@/components/ui/checkbox";
 import { cn } from "@/lib/utils";
 
 // Architect and Consultant are required (D1) — the lifecycle's Proposal
@@ -91,6 +99,9 @@ interface ProjectFormData {
   siteLatitude: number | null;
   siteLongitude: number | null;
   geofenceRadiusM: number | null;
+  // What the engagement delivers; a Design project has plan sets, no site works.
+  deliveryType: DeliveryType;
+  designDisciplines: DesignDiscipline[];
 }
 
 const initialForm: ProjectFormData = {
@@ -112,6 +123,8 @@ const initialForm: ProjectFormData = {
   siteLatitude: null,
   siteLongitude: null,
   geofenceRadiusM: null,
+  deliveryType: "Construction",
+  designDisciplines: [],
 };
 
 type FieldErrors = Record<string, string>;
@@ -141,6 +154,9 @@ function validateStep(step: number, data: ProjectFormData, isSelfAssigned: boole
     required("client", data.client, "Client / Owner");
     required("projectType", data.projectType, "Project type");
     required("location", data.location, "Location");
+    if (data.deliveryType === "Design" && data.designDisciplines.length === 0) {
+      errors.designDisciplines = "Choose at least one discipline to deliver";
+    }
 
     const today = todayIso();
     if (!data.startDate) errors.startDate = "Planned start date is required";
@@ -262,9 +278,12 @@ export default function ProjectCreatePage() {
           ? Number(data.contractValue)
           : undefined,
         workforce: 0,
-        siteLatitude: data.siteLatitude,
-        siteLongitude: data.siteLongitude,
-        geofenceRadiusM: data.geofenceRadiusM,
+        // A Design project has no site geofence: skip the pin entirely.
+        siteLatitude: data.deliveryType === "Design" ? null : data.siteLatitude,
+        siteLongitude: data.deliveryType === "Design" ? null : data.siteLongitude,
+        geofenceRadiusM: data.deliveryType === "Design" ? null : data.geofenceRadiusM,
+        deliveryType: data.deliveryType,
+        designDisciplines: data.deliveryType === "Design" ? data.designDisciplines : undefined,
       });
 
       const projectCode = created?.code ?? data.code.trim();
@@ -311,7 +330,7 @@ export default function ProjectCreatePage() {
   return (
     <MultiStepPage
       title="New project"
-      description="Create a new construction project and set up the foundation for success."
+      description={data.deliveryType === "Design" ? "Create a design project: plan sets delivered to the client, then handed over." : "Create a new construction project and set up the foundation for success."}
       steps={STEPS}
       currentStep={step}
       onNext={handleNext}
@@ -391,6 +410,56 @@ function StepProjectInfo({
           Provide the basic details of your new project.
         </p>
       </div>
+
+      {/* Delivery type comes first: it decides which lifecycle the project follows. */}
+      <fieldset className="space-y-2">
+        <legend className="text-sm font-medium">
+          What is this project delivering? <span className="text-destructive">*</span>
+        </legend>
+        <div className="grid grid-cols-1 gap-3 sm:grid-cols-2" role="radiogroup" aria-label="Delivery type">
+          {([
+            { value: "Construction", title: "Construction", body: "Design through site works, closeout and handover." },
+            { value: "Design", title: "Design only", body: "Plan sets for the client: Proposal, Design, then Turnover." },
+          ] as const).map((o) => (
+            <button
+              key={o.value}
+              type="button"
+              role="radio"
+              aria-checked={data.deliveryType === o.value}
+              onClick={() => set("deliveryType", o.value)}
+              className={cn(
+                "rounded-xl border p-3 text-left transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring",
+                data.deliveryType === o.value ? "border-primary bg-primary/5" : "hover:bg-muted/40",
+              )}
+            >
+              <span className="block text-sm font-medium">{o.title}</span>
+              <span className="block text-xs text-muted-foreground">{o.body}</span>
+            </button>
+          ))}
+        </div>
+        {data.deliveryType === "Design" && (
+          <div className="space-y-1.5 rounded-xl border p-3">
+            <Label>
+              Disciplines to deliver <span className="text-destructive">*</span>
+            </Label>
+            <div className="flex flex-wrap gap-x-5 gap-y-2">
+              {DESIGN_DISCIPLINES.map((d) => (
+                <label key={d} className="flex items-center gap-2 text-sm">
+                  <Checkbox
+                    checked={data.designDisciplines.includes(d)}
+                    onCheckedChange={(on) =>
+                      set("designDisciplines", on ? [...data.designDisciplines, d] : data.designDisciplines.filter((x) => x !== d))
+                    }
+                  />
+                  {d}
+                </label>
+              ))}
+            </div>
+            <p className="text-[11px] text-muted-foreground">Each one becomes a plan set with its own lead, sheet range and status once the project reaches Design.</p>
+            <FieldError message={errors.designDisciplines} />
+          </div>
+        )}
+      </fieldset>
 
       <div className="grid grid-cols-2 gap-5">
         <div className="space-y-1.5">
@@ -527,18 +596,20 @@ function StepProjectInfo({
         {/* Map pin sets siteLatitude/siteLongitude, and the geofence radius
             (geofenceRadiusM) is derived automatically the moment a point is
             pinned — see LocationMapPicker. */}
-        <div className="col-span-2">
-          <LocationMapPicker
-            latitude={data.siteLatitude}
-            longitude={data.siteLongitude}
-            radiusM={data.geofenceRadiusM}
-            onChange={({ latitude, longitude, radiusM }) => {
-              set("siteLatitude", latitude);
-              set("siteLongitude", longitude);
-              set("geofenceRadiusM", radiusM);
-            }}
-          />
-        </div>
+        {data.deliveryType !== "Design" && (
+          <div className="col-span-2">
+            <LocationMapPicker
+              latitude={data.siteLatitude}
+              longitude={data.siteLongitude}
+              radiusM={data.geofenceRadiusM}
+              onChange={({ latitude, longitude, radiusM }) => {
+                set("siteLatitude", latitude);
+                set("siteLongitude", longitude);
+                set("geofenceRadiusM", radiusM);
+              }}
+            />
+          </div>
+        )}
 
         <div className="space-y-1.5">
           <Label>
@@ -975,6 +1046,7 @@ function StepReview({ data }: { data: ProjectFormData }) {
           { label: "Client", value: data.client || "—" },
           { label: "Location", value: data.location || "—" },
           { label: "Project Manager", value: data.pm || "—" },
+          { label: "Delivery", value: data.deliveryType === "Design" ? `Design only — ${data.designDisciplines.join(", ") || "no disciplines"}` : "Construction" },
           { label: "Project type", value: data.projectType || "—" },
           { label: "Risk", value: data.risk },
           { label: "Planned start date", value: data.startDate || "—" },

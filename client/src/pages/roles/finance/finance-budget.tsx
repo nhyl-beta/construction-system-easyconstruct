@@ -33,7 +33,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useBudgetAllocationController } from "@/features/finance/budgets/controllers/budget-allocation.controller.js";
 import { useBudgetAdjustments } from "@/features/finance/budgets/hooks/useBudgetAdjustments";
 import { useBudgets } from "@/features/finance/budgets/hooks/useBudgets";
-import { formatCompactCurrency, formatCurrency } from "@/lib/format-currency";
+import { formatAxisCurrency, formatCompactCurrency, formatCurrency } from "@/lib/format-currency";
 import { useEffect, useMemo, useState } from "react";
 
 import {
@@ -89,7 +89,8 @@ import { ApprovalStepper } from "@/components/ui/approval-stepper";
 import { ApprovalTimeline } from "@/components/ui/approval-timeline";
 import { Textarea } from "@/components/ui/textarea";
 import { useBudgetApproval } from "@/features/finance/budgets/hooks/useBudgetApproval";
-import { Check, RotateCcw, X } from "lucide-react";
+import { Check, Download, RotateCcw, X } from "lucide-react";
+import { downloadCsv } from "@/lib/export-csv";
 import { SearchableSelect } from "@/components/ui/searchable-select";
 import type { CreateBudgetInput } from "@/features/finance/budgets/controllers/budget.controllers";
 import { OwnerDepartmentPicker } from "@/components/shared/owner-department-picker";
@@ -277,7 +278,27 @@ export default function FinanceBudget() {
       <PageHeader
         title="Budget Management"
         description="Manage project budgets, allocations, adjustments, and historical baselines across the portfolio."
-        actions={<NewBudgetDialog creating={c.creating} error={c.error} onCreate={c.createBudget} />}
+        actions={
+          <>
+            <Button
+              variant="outline"
+              size="sm"
+              className="rounded-xl"
+              disabled={c.budgets.length === 0}
+              title="Export the budget register as CSV (opens in Excel)"
+              onClick={() =>
+                downloadCsv(
+                  "budgets",
+                  ["ID", "Project", "Client", "Category", "Owner", "Fiscal year", "Planned", "Spent", "Status"],
+                  c.budgets.map((b) => [b.id, b.project, clientByCode.get(b.project) ?? "", b.category, b.owner, b.fiscalYear, b.planned, b.spent, b.status]),
+                )
+              }
+            >
+              <Download className="mr-1 h-3.5 w-3.5" /> Export
+            </Button>
+            <NewBudgetDialog creating={c.creating} error={c.error} onCreate={c.createBudget} />
+          </>
+        }
       />
 
       <KpiStrip
@@ -482,7 +503,7 @@ export default function FinanceBudget() {
                     <XAxis
                       type="number"
                       {...CHART_AXIS_STYLE}
-                      tickFormatter={(v) => `$${(v / 1_000_000).toFixed(0)}M`}
+                      tickFormatter={(v) => formatAxisCurrency(Number(v))}
                     />
                     <YAxis
                       dataKey="label"

@@ -15,7 +15,7 @@ const SEVERITY_STYLE: Record<Severity, { className: string; icon: typeof Info; l
   info: { className: "border-info/30 bg-info/10 text-info", icon: Info, label: "Info" },
 };
 
-function SignalRow({ signal }: { signal: Signal }) {
+export function SignalRow({ signal }: { signal: Signal }) {
   const style = SEVERITY_STYLE[signal.severity];
   const Icon = style.icon;
 

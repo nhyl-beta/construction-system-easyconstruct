@@ -442,7 +442,7 @@ async function attendance() {
 
   // Site Personnel's own clock-ins (live path: staffed check + geofence + photo).
   const site = s.site;
-  const sitePhoto = await png(site, "att-EMP-DEMO-07.png", ["DEMO-S4", site.name.toUpperCase(), "CLOCK-IN PHOTO", "EMP-DEMO-07"], 2);
+  const sitePhoto = await png(site, `att-${site.employeeId}.png`, ["DEMO-S4", site.name.toUpperCase(), "CLOCK-IN PHOTO", site.employeeId!], 2);
   let mine = 0;
   for (const d of weekdays.filter((x) => x >= "2026-09-14")) {
     if (await have("SELECT 1 FROM attendance WHERE employee_id = $1 AND log_date = $2", [site.employeeId, d])) continue;
