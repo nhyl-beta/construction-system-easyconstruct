@@ -42,7 +42,7 @@ export const expensesController = {
     try {
       const data = await expensesService.approve(req.params.id as string);
 
-      return sendSuccess(res, data, 200, "Expense approved successfully");
+      return sendSuccess(res, data, 200, data.warning ?? "Expense approved successfully");
     } catch (err) {
       return next(err);
     }

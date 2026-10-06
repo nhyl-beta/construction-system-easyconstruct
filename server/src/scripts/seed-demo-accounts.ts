@@ -8,6 +8,7 @@ import { roles } from "../db/schema/roles.js";
 import { users } from "../db/schema/users.js";
 import { workflowTemplates } from "../db/schema/workflows.js";
 import { refreshProjectProgress } from "../lifecycle/service.js";
+import { assertDemoDatabase } from "./demo-guard.js";
 
 const PASSWORD = "Demo@12345";
 
@@ -346,6 +347,7 @@ function initials(name: string) {
 const ALL_ACCOUNTS = [...ACCOUNTS, ...GENERATED_ACCOUNTS];
 
 async function main() {
+  assertDemoDatabase();
   const password = await bcrypt.hash(PASSWORD, 10);
   let createdUsers = 0;
   let createdEmployees = 0;

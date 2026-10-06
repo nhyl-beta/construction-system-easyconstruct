@@ -502,7 +502,7 @@ async function buildCloseout(c: Ctx, pendingTail: boolean) {
     await api(`/workflows/${wf.id}/stages/${stage.id}/decision`, roleToken[role]!, { method: "PATCH", body: { decision: "approve" } });
   }
 
-  const employeeId = c.team.site?.employeeId ?? "EMP-DEMO-07";
+  const employeeId = (c.team.site ?? c.s.site).employeeId!;
   const payroll = await api<{ batch: { id: string } }>("/payroll/generate", c.hr.token, {
     method: "POST",
     body: { period: `Closeout ${c.code}`, projectCode: c.code, entries: [{ employeeId, hoursWorked: 64 }], submit: true },

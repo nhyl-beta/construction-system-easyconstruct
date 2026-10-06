@@ -11,6 +11,7 @@ import "dotenv/config";
 import fs from "node:fs";
 import path from "node:path";
 import pg from "pg";
+import { assertDemoApi, assertDemoDatabase } from "./demo-guard.js";
 import { api, BASE, login, PASSWORD, raw, EMAILS } from "./demo-seed-lib.js";
 import { DEMO_PROJECTS } from "./demo-projects.js";
 
@@ -205,7 +206,7 @@ async function files() {
   const rows = [
     await pick("Architect design file", `SELECT file_urls->0->>'url' u FROM designs WHERE project_code='DEMO-S4' LIMIT 1`, EMAILS.architect),
     await pick("Consultant advisory upload", `SELECT file_url u FROM documents WHERE document_id LIKE 'A-S%' ORDER BY id LIMIT 1`, EMAILS.consultant),
-    await pick("Site attendance photo", `SELECT photo_url u FROM attendance WHERE employee_id='EMP-DEMO-07' ORDER BY id LIMIT 1`, EMAILS.hr),
+    await pick("Site attendance photo", `SELECT a.photo_url u FROM attendance a JOIN employees e ON e.employee_id = a.employee_id JOIN users x ON x.id = e.user_id WHERE x.email = '${EMAILS.site}' ORDER BY a.id LIMIT 1`, EMAILS.hr),
     await pick("Finance expense receipt", `SELECT receipt_url u FROM expenses WHERE receipt_url IS NOT NULL ORDER BY id LIMIT 1`, EMAILS.finance),
     await pick("Site field document", `SELECT file_url u FROM documents WHERE document_id LIKE 'F-S4-%' ORDER BY id LIMIT 1`, EMAILS.site),
     await pick("Engineer requirement attachment", `SELECT attachments->0->>'url' u FROM requirements WHERE project='DEMO-S4' ORDER BY id LIMIT 1`, EMAILS.engineer),
@@ -246,6 +247,8 @@ async function dead() {
 }
 
 async function main() {
+  assertDemoDatabase();
+  assertDemoApi(BASE);
   const admin = await login(EMAILS.admin);
   void PASSWORD;
   await checksums();

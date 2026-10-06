@@ -27,9 +27,13 @@ import {
 } from "@/components/ui/dialog";
 import { ProjectPicker } from "@/components/shared/project-picker";
 import { Receipt, Search, Plus, Truck, Wallet, ListChecks, Sparkles, Paperclip, Download } from "lucide-react";
-import { formatCurrency } from "@/lib/format-currency";
+import { formatAxisCurrency, formatCurrency } from "@/lib/format-currency";
 import { downloadCsv } from "@/lib/export-csv";
 import { FEATURES } from "@/config/features";
+import { useAuth } from "@/auth/auth-context";
+import { ConfirmDialog } from "@/components/ui/confirm-dialog";
+import { DataTablePagination } from "@/components/refine-ui/data-table/data-table-pagination";
+import { usePagination } from "@/hooks/use-pagination";
 import { useExpensesController, type CreateExpenseInput } from "@/features/finance/hooks/use-expenses";
 import {
   Bar, BarChart, CartesianGrid, ResponsiveContainer, Tooltip, XAxis, YAxis,
@@ -125,6 +129,22 @@ function RecordExpenseDialog({
 export default function FinanceExpensesPage() {
   const c = useExpensesController();
   const [active, setActive] = useState("tracking");
+  const { user } = useAuth();
+  // The server enforces this too (403); the buttons are simply not offered to other roles.
+  const canDecide = user?.role === "finance-manager" || user?.role === "admin";
+  const pagination = usePagination(c.expenses, 10);
+  const [pendingDecision, setPendingDecision] = useState<{ id: string; vendor: string; amount: number; decision: "approve" | "reject" } | null>(null);
+  const [deciding, setDeciding] = useState(false);
+  const [notice, setNotice] = useState<{ tone: "warn" | "error"; text: string } | null>(null);
+
+  const runDecision = async () => {
+    if (!pendingDecision) return;
+    setDeciding(true);
+    const r = await c.decide(pendingDecision.id, pendingDecision.decision);
+    setDeciding(false);
+    setPendingDecision(null);
+    setNotice(r.ok ? (r.warning ? { tone: "warn", text: r.warning } : null) : { tone: "error", text: r.error ?? "Could not update the expense" });
+  };
 
   return (
     <PageContainer>
@@ -143,9 +163,18 @@ export default function FinanceExpensesPage() {
           </div>
         )}
 
+        {notice && (
+          <div
+            role={notice.tone === "error" ? "alert" : "status"}
+            className={`rounded-xl border p-3 text-sm ${notice.tone === "error" ? "border-destructive/30 bg-destructive/5 text-destructive" : "border-warning/40 bg-warning/10"}`}
+          >
+            {notice.text}
+          </div>
+        )}
+
         <KpiStrip
           items={[
-            { label: "MTD spend", value: formatCurrency(c.expenses.reduce((s, e) => s + e.amount, 0)), icon: Receipt },
+            { label: "MTD spend (approved)", value: c.monthlyApproved === null ? "—" : formatCurrency(c.monthlyApproved), icon: Receipt },
             { label: "Open requests", value: `${c.purchaseRequests.length}`, icon: ListChecks, tone: "warn" },
             // eslint-disable-next-line @typescript-eslint/no-explicit-any
             { label: "Reimbursements", value: formatCurrency(c.reimbursements.reduce((s: number, r: any) => s + r.amount, 0)), icon: Wallet },
@@ -232,10 +261,11 @@ export default function FinanceExpensesPage() {
                       <TableHead>Receipt</TableHead>
                       {FEATURES.ai && <TableHead>Anomaly</TableHead>}
                       <TableHead>Status</TableHead>
+                      {canDecide && <TableHead className="text-right">Action</TableHead>}
                     </TableRow>
                   </TableHeader>
                   <TableBody>
-                    {c.expenses.map((e) => (
+                    {pagination.pageItems.map((e) => (
                       <TableRow key={e.id}>
                         <TableCell className="font-mono text-xs">{e.id}</TableCell>
                         <TableCell className="text-sm font-medium">{e.vendor}</TableCell>
@@ -266,11 +296,26 @@ export default function FinanceExpensesPage() {
                           </TableCell>
                         )}
                         <TableCell><StatusBadge status={e.status} /></TableCell>
+                        {canDecide && (
+                          <TableCell className="text-right">
+                            {e.status === "pending" && (
+                              <div className="flex justify-end gap-1.5">
+                                <Button size="sm" variant="outline" className="h-7 rounded-lg px-2 text-xs" onClick={() => setPendingDecision({ id: e.id, vendor: e.vendor, amount: e.amount, decision: "approve" })}>
+                                  Approve
+                                </Button>
+                                <Button size="sm" variant="ghost" className="h-7 rounded-lg px-2 text-xs text-destructive" onClick={() => setPendingDecision({ id: e.id, vendor: e.vendor, amount: e.amount, decision: "reject" })}>
+                                  Reject
+                                </Button>
+                              </div>
+                            )}
+                          </TableCell>
+                        )}
                       </TableRow>
                     ))}
                   </TableBody>
                 </Table>
               )}
+              {c.expenses.length > 0 && <DataTablePagination {...pagination} />}
             </SectionCard>
           </TabsContent>
 
@@ -282,7 +327,7 @@ export default function FinanceExpensesPage() {
                     <BarChart data={c.breakdown}>
                       <CartesianGrid stroke="hsl(var(--border))" strokeOpacity={0.4} vertical={false} />
                       <XAxis dataKey="category" tick={{ fontSize: 10 }} stroke="hsl(var(--muted-foreground))" />
-                      <YAxis tick={{ fontSize: 10 }} stroke="hsl(var(--muted-foreground))" tickFormatter={(v) => `$${(v / 1000).toFixed(0)}k`} />
+                      <YAxis tick={{ fontSize: 10 }} stroke="hsl(var(--muted-foreground))" tickFormatter={(v) => formatAxisCurrency(Number(v))} />
                       <Tooltip formatter={(v: number) => formatCurrency(Number(v))} />
                       <Bar dataKey="amount" fill="#10b981" radius={[6, 6, 0, 0]} />
                     </BarChart>
@@ -320,6 +365,21 @@ export default function FinanceExpensesPage() {
               arrays are backed by their own fetch calls (Phase 2 backend modules) */}
         </Tabs>
       </PageContent>
+
+      <ConfirmDialog
+        open={pendingDecision !== null}
+        onOpenChange={(open) => !open && !deciding && setPendingDecision(null)}
+        title={pendingDecision?.decision === "approve" ? `Approve ${pendingDecision.id}?` : `Reject ${pendingDecision?.id ?? ""}?`}
+        description={
+          pendingDecision?.decision === "approve"
+            ? `${formatCurrency(pendingDecision.amount)} to ${pendingDecision.vendor} will count as spend against the project budget and as cash out for its month. This cannot be undone.`
+            : `${pendingDecision ? formatCurrency(pendingDecision.amount) : ""} to ${pendingDecision?.vendor ?? ""} will be rejected and will not count as spend.`
+        }
+        confirmLabel={pendingDecision?.decision === "approve" ? "Approve expense" : "Reject expense"}
+        destructive={pendingDecision?.decision === "reject"}
+        loading={deciding}
+        onConfirm={() => void runDecision()}
+      />
     </PageContainer>
   );
 }
