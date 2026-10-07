@@ -1,6 +1,7 @@
 // client/src/features/finance/hooks/use-finance-dashboard.ts
 import type {
   Approval,
+  ApprovalList,
   Budget,
   CashFlowPoint,
   Expense,
@@ -14,6 +15,12 @@ interface UseFinanceDashboardResult {
   budgets: Budget[];
   expenses: Expense[];
   approvals: Approval[];
+  /** Everything waiting on Finance, for the card badge (the list itself is capped). */
+  approvalsTotal: number;
+  /** Set when GET /finance/approvals failed, so the card does not pass it off as empty. */
+  approvalsError: string | null;
+  approvalsLoading: boolean;
+  retryApprovals: () => void;
   cashFlow: CashFlowPoint[];
   projectProfit: ProjectProfitability[];
   kpis: FinanceKpis;
@@ -45,6 +52,10 @@ export function useFinanceDashboardController(): UseFinanceDashboardResult {
   const [budgets, setBudgets] = useState<Budget[]>([]);
   const [expenses, setExpenses] = useState<Expense[]>([]);
   const [approvals, setApprovals] = useState<Approval[]>([]);
+  const [approvalsTotal, setApprovalsTotal] = useState(0);
+  const [approvalsError, setApprovalsError] = useState<string | null>(null);
+  const [approvalsLoading, setApprovalsLoading] = useState(true);
+  const [approvalsToken, setApprovalsToken] = useState(0);
   const [cashFlow, setCashFlow] = useState<CashFlowPoint[]>([]);
   const [projectProfit, setProjectProfit] = useState<ProjectProfitability[]>(
     [],
@@ -58,7 +69,6 @@ export function useFinanceDashboardController(): UseFinanceDashboardResult {
     setIsLoading(true);
     setError(null);
 
-    // "approvals" is still commented out in server/src/routes/finance.ts.
     // "risks" and "ai-insights" are the AI Insights surface — dropped
     // entirely rather than fetched and hidden, so the dashboard never calls
     // a route that doesn't exist for a feature that's off (see
@@ -67,7 +77,6 @@ export function useFinanceDashboardController(): UseFinanceDashboardResult {
     Promise.allSettled([
       getJson<Budget[]>("/finance/budgets", controller.signal),
       getJson<Expense[]>("/finance/expenses", controller.signal),
-      getJson<Approval[]>("/finance/approvals", controller.signal),
       getJson<CashFlowPoint[]>("/finance/cash-flow", controller.signal),
       getJson<ProjectProfitability[]>(
         "/finance/project-profitability",
@@ -76,7 +85,7 @@ export function useFinanceDashboardController(): UseFinanceDashboardResult {
       getJson<FinanceKpis>("/finance/summary", controller.signal),
     ])
       .then((results) => {
-        const [b, e, a, cf, pp, k] = results;
+        const [b, e, cf, pp, k] = results;
         const value = <T,>(
           result: PromiseSettledResult<T>,
           fallback: T,
@@ -84,7 +93,6 @@ export function useFinanceDashboardController(): UseFinanceDashboardResult {
 
         setBudgets(value(b, []));
         setExpenses(value(e, []));
-        setApprovals(value(a, []));
         setCashFlow(value(cf, []));
         setProjectProfit(value(pp, []));
         setKpis(value(k, EMPTY_KPIS));
@@ -110,10 +118,40 @@ export function useFinanceDashboardController(): UseFinanceDashboardResult {
     return () => controller.abort();
   }, []);
 
+  // Pending approvals load on their own so a failure here is shown as a
+  // failure (with Retry) rather than as an empty list, and retrying does not
+  // reload the rest of the dashboard.
+  useEffect(() => {
+    const controller = new AbortController();
+    setApprovalsLoading(true);
+    setApprovalsError(null);
+    getJson<ApprovalList>("/finance/approvals?limit=20", controller.signal)
+      .then((list) => {
+        setApprovals(list.items);
+        setApprovalsTotal(list.total);
+      })
+      .catch((err: unknown) => {
+        if (err instanceof Error && err.name === "AbortError") return;
+        setApprovals([]);
+        setApprovalsTotal(0);
+        setApprovalsError(err instanceof Error ? err.message : "Could not load approvals");
+      })
+      .finally(() => {
+        if (!controller.signal.aborted) setApprovalsLoading(false);
+      });
+    return () => controller.abort();
+  }, [approvalsToken]);
+
+  const retryApprovals = () => setApprovalsToken((t) => t + 1);
+
   return {
     budgets,
     expenses,
     approvals,
+    approvalsTotal,
+    approvalsError,
+    approvalsLoading,
+    retryApprovals,
     cashFlow,
     projectProfit,
     kpis,
