@@ -150,7 +150,7 @@ export function CreateRevisionDialog({ open, onOpenChange, initial, onCreated }:
               disabled={!!initial || c.submitting}
               className="w-full"
             />
-            {tried && !project && <p className="text-xs text-destructive">Select a project.</p>}
+            {tried && !project && <p className="text-xs text-destructive-strong">Select a project.</p>}
           </div>
 
           <div className="grid grid-cols-2 gap-3">
@@ -192,7 +192,7 @@ export function CreateRevisionDialog({ open, onOpenChange, initial, onCreated }:
                 searchPlaceholder="Search items…"
                 emptyText={`No ${ITEM_TYPE_LABEL[itemType].toLowerCase()}s on this project`}
               />
-              {tried && !itemId && <p className="text-xs text-destructive">Select the item this version belongs to.</p>}
+              {tried && !itemId && <p className="text-xs text-destructive-strong">Select the item this version belongs to.</p>}
             </div>
           </div>
 
@@ -218,7 +218,7 @@ export function CreateRevisionDialog({ open, onOpenChange, initial, onCreated }:
 
           <div className="space-y-1.5">
             <Label htmlFor="rev-summary">
-              What changed and why <span className="text-destructive">*</span>
+              What changed and why <span className="text-destructive-strong">*</span>
             </Label>
             <Textarea
               id="rev-summary"
@@ -228,12 +228,12 @@ export function CreateRevisionDialog({ open, onOpenChange, initial, onCreated }:
               aria-invalid={tried && summary.trim().length < 5}
               placeholder="Moved the stair core 1.2 m east after the structural review."
             />
-            {tried && summary.trim().length < 5 && <p className="text-xs text-destructive">Describe the change (at least 5 characters).</p>}
+            {tried && summary.trim().length < 5 && <p className="text-xs text-destructive-strong">Describe the change (at least 5 characters).</p>}
           </div>
 
           <div className="space-y-1.5">
             <Label htmlFor="rev-file">
-              File <span className="text-destructive">*</span>
+              File <span className="text-destructive-strong">*</span>
             </Label>
             <div className="flex items-center gap-2 rounded-xl border border-dashed p-3">
               <input
@@ -248,16 +248,16 @@ export function CreateRevisionDialog({ open, onOpenChange, initial, onCreated }:
                   e.target.value = "";
                 }}
               />
-              <Button type="button" variant="outline" size="sm" className="rounded-lg" disabled={c.submitting} onClick={() => input.current?.click()}>
+              <Button type="button" variant="outline" size="sm" disabled={c.submitting} onClick={() => input.current?.click()}>
                 <Paperclip className="h-3.5 w-3.5" /> {file ? "Change file" : "Choose file"}
               </Button>
               <span className="min-w-0 truncate text-xs text-muted-foreground">
                 {file ? `${file.name} (${formatBytes(file.size)})` : `PDF, DWG/DXF, Office or image${maxLabel ? ` · up to ${maxLabel}` : ""}`}
               </span>
             </div>
-            {tried && !file && !fileError && <p className="text-xs text-destructive">Attach the file for this version.</p>}
+            {tried && !file && !fileError && <p className="text-xs text-destructive-strong">Attach the file for this version.</p>}
             {fileError && (
-              <p role="alert" className="text-xs text-destructive">
+              <p role="alert" className="text-xs text-destructive-strong">
                 {fileError}
               </p>
             )}
@@ -275,17 +275,17 @@ export function CreateRevisionDialog({ open, onOpenChange, initial, onCreated }:
           </div>
 
           {c.error && (
-            <p role="alert" className="rounded-lg border border-destructive/30 bg-destructive/5 px-3 py-2 text-xs text-destructive">
+            <p role="alert" className="rounded-lg border border-destructive/30 bg-destructive/5 px-3 py-2 text-xs text-destructive-strong">
               {c.error}
             </p>
           )}
         </div>
 
         <DialogFooter>
-          <Button variant="ghost" className="rounded-xl" disabled={c.submitting} onClick={() => onOpenChange(false)}>
+          <Button variant="ghost" disabled={c.submitting} onClick={() => onOpenChange(false)}>
             Cancel
           </Button>
-          <Button className="rounded-xl" disabled={c.submitting} onClick={() => void submit()}>
+          <Button disabled={c.submitting} onClick={() => void submit()}>
             <Plus className="h-4 w-4" /> {c.submitting ? "Saving…" : "Create revision"}
           </Button>
         </DialogFooter>

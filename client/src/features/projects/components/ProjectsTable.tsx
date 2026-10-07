@@ -14,12 +14,12 @@ export const ProjectsTable: React.FC<{ projects: Project[] }> = ({ projects }) =
   const navigate = useNavigate();
 
   return (
-    <Card className="rounded-2xl border-border/70 shadow-sm">
+    <Card>
       <CardContent className="p-0">
         <div className="overflow-x-auto">
           <table className="w-full text-sm">
             <thead>
-              <tr className="border-b border-border/70 bg-muted/40 text-left text-[11px] font-medium uppercase tracking-wider text-muted-foreground">
+              <tr className="border-b border-border bg-muted/40 text-left text-overline font-medium uppercase tracking-wider text-muted-foreground">
                 <th className="px-5 py-2.5">Project</th>
                 <th className="px-3 py-2.5">Status</th>
                 <th className="px-3 py-2.5">Stage</th>
@@ -35,7 +35,7 @@ export const ProjectsTable: React.FC<{ projects: Project[] }> = ({ projects }) =
               {projects.map((p) => (
                 <tr
                   key={p.code}
-                  className="cursor-pointer border-b border-border/60 last:border-0 hover:bg-muted/30"
+                  className="cursor-pointer border-b border-border last:border-0 hover:bg-muted/30"
                   onClick={() => navigate(`/projects/${p.id}`)}
                 >
                   <td className="px-5 py-3.5">
@@ -47,7 +47,7 @@ export const ProjectsTable: React.FC<{ projects: Project[] }> = ({ projects }) =
                       {p.name}
                     </Link>
                     {p.deliveryType === "Design" && (
-                      <Badge variant="outline" className="ml-2 rounded-md border-violet-500/40 bg-violet-500/10 px-1.5 text-[10px] font-medium text-violet-700 dark:text-violet-300">
+                      <Badge variant="outline" className="ml-2 rounded-md border-transparent bg-ai-soft px-1.5 text-overline font-medium text-ai">
                         Design
                       </Badge>
                     )}
@@ -57,7 +57,7 @@ export const ProjectsTable: React.FC<{ projects: Project[] }> = ({ projects }) =
                     )}
                   </td>
                   <td className="px-3 py-3.5">
-                    <Badge variant="outline" className={`rounded-full px-2.5 py-0.5 text-[11px] font-medium ${STATUS_TONE_CLASS[p.statusTone]}`}>{p.status}</Badge>
+                    <Badge variant="outline" className={`rounded-full px-2.5 py-0.5 text-overline font-medium ${STATUS_TONE_CLASS[p.statusTone]}`}>{p.status}</Badge>
                   </td>
                   <td className="px-3 py-3.5">
                     <StageProgressStrip status={p.status} statusTone={p.statusTone} deliveryType={p.deliveryType} />
@@ -69,7 +69,7 @@ export const ProjectsTable: React.FC<{ projects: Project[] }> = ({ projects }) =
                     </div>
                   </td>
                   <td className="px-3 py-3.5">
-                    <span className={p.budget > 100 ? "text-sm font-medium tabular-nums text-destructive" : "text-sm tabular-nums"}>{p.budget}%</span>
+                    <span className={p.budget > 100 ? "text-sm font-medium tabular-nums text-destructive-strong" : "text-sm tabular-nums"}>{p.budget}%</span>
                   </td>
                   <td className="px-3 py-3.5 text-sm tabular-nums">{p.workforce}</td>
                   <td className="px-3 py-3.5 text-sm tabular-nums text-muted-foreground">{formatDue(p.due)}</td>
@@ -77,7 +77,7 @@ export const ProjectsTable: React.FC<{ projects: Project[] }> = ({ projects }) =
                     <span className={`text-xs font-medium ${RISK_CLASS[p.risk]}`}>{p.risk}</span>
                   </td>
                   <td className="px-5 py-3.5 text-right" onClick={(e) => e.stopPropagation()}>
-                    <Button asChild variant="ghost" size="sm" className="rounded-lg">
+                    <Button asChild variant="ghost" size="sm">
                       <Link to={`/projects/${p.id}`}>Open <ChevronRight className="h-3.5 w-3.5" /></Link>
                     </Button>
                   </td>

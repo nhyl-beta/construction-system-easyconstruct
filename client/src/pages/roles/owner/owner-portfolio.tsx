@@ -33,7 +33,7 @@ export default function OwnerPortfolioPage() {
       />
 
       {ctrl.error ? (
-        <div className="rounded-xl border border-destructive/30 bg-destructive/10 px-4 py-3 text-sm text-destructive">
+        <div className="rounded-xl border border-destructive/30 bg-destructive/10 px-4 py-3 text-sm text-destructive-strong">
           Couldn't load projects. {ctrl.error.message}
         </div>
       ) : ctrl.loading ? (

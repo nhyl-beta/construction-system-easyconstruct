@@ -32,9 +32,9 @@ export function DataTableSorter<TData>({
       className={cn("data-[state=open]:bg-accent", "w-5 h-5", className)}
     >
       {column.getIsSorted() === "desc" ? (
-        <ArrowDown className={cn("text-primary", "!w-3", "!h-3")} />
+        <ArrowDown className={cn("text-primary-strong", "!w-3", "!h-3")} />
       ) : column.getIsSorted() === "asc" ? (
-        <ArrowUp className={cn("text-primary", "!w-3", "!h-3")} />
+        <ArrowUp className={cn("text-primary-strong", "!w-3", "!h-3")} />
       ) : (
         <ChevronsUpDown
           className={cn("text-muted-foreground", "!w-3", "!h-3")}

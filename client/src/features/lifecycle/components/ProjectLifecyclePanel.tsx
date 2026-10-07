@@ -38,10 +38,10 @@ const TONE_CLASS: Record<string, string> = {
   "Pre-Construction": "border-border text-foreground",
   Construction: "border-border text-foreground",
   Closeout: "border-border text-foreground",
-  Completed: "border-success/30 bg-success/10 text-success",
-  Archived: "border-success/30 bg-success/10 text-success",
-  "On Hold": "border-warning/30 bg-warning/10 text-warning",
-  Cancelled: "border-destructive/30 bg-destructive/10 text-destructive",
+  Completed: "border-success/30 bg-success/10 text-success-strong",
+  Archived: "border-success/30 bg-success/10 text-success-strong",
+  "On Hold": "border-warning/30 bg-warning/10 text-warning-strong",
+  Cancelled: "border-destructive/30 bg-destructive/10 text-destructive-strong",
 };
 
 type ReasonAction = "hold" | "cancel" | "override";
@@ -103,7 +103,7 @@ export function ProjectLifecyclePanel({
   }
   if (error || !view) {
     return (
-      <div className="rounded-2xl border border-destructive/30 bg-destructive/10 p-6 text-sm text-destructive">
+      <div className="rounded-2xl border border-destructive/30 bg-destructive/10 p-6 text-sm text-destructive-strong">
         {error ?? "Lifecycle status is unavailable."}
       </div>
     );
@@ -144,7 +144,7 @@ export function ProjectLifecyclePanel({
                   <span>
                     <Button
                       size="sm"
-                      className="rounded-xl"
+                     
                       disabled={acting || !view.canAdvance}
                       onClick={() => void advance()}
                     >
@@ -167,7 +167,7 @@ export function ProjectLifecyclePanel({
 
             <DropdownMenu>
               <DropdownMenuTrigger asChild>
-                <Button size="sm" variant="outline" className="rounded-xl">
+                <Button size="sm" variant="outline">
                   Actions
                 </Button>
               </DropdownMenuTrigger>
@@ -210,14 +210,14 @@ export function ProjectLifecyclePanel({
         )}
 
         {canManage && view.phase === "On Hold" && (
-          <Button size="sm" className="rounded-xl" disabled={acting} onClick={() => void resume()}>
+          <Button size="sm" disabled={acting} onClick={() => void resume()}>
             Resume
           </Button>
         )}
       </div>
 
       {actionError && (
-        <p className="rounded-lg border border-destructive/30 bg-destructive/5 px-3 py-2 text-sm text-destructive">
+        <p className="rounded-lg border border-destructive/30 bg-destructive/5 px-3 py-2 text-sm text-destructive-strong">
           {actionError.message}
         </p>
       )}
@@ -243,9 +243,9 @@ export function ProjectLifecyclePanel({
                 key={phase}
                 className={`rounded-full border px-2.5 py-1 ${
                   i < stepIndex
-                    ? "border-success/30 bg-success/10 text-success"
+                    ? "border-success/30 bg-success/10 text-success-strong"
                     : i === stepIndex
-                      ? "border-primary/40 bg-primary/10 text-primary"
+                      ? "border-primary/40 bg-primary/10 text-primary-strong"
                       : "border-border text-muted-foreground"
                 }`}
               >
@@ -263,19 +263,19 @@ export function ProjectLifecyclePanel({
                 {view.checks.map((check) => (
                   <li
                     key={check.key}
-                    className="flex items-start gap-2 rounded-xl border border-border/70 px-3 py-2 text-sm"
+                    className="flex items-start gap-2 rounded-xl border border-border px-3 py-2 text-sm"
                   >
                     {check.passed ? (
-                      <CheckCircle2 className="mt-0.5 h-4 w-4 shrink-0 text-success" />
+                      <CheckCircle2 className="mt-0.5 h-4 w-4 shrink-0 text-success-strong" />
                     ) : (
-                      <XCircle className="mt-0.5 h-4 w-4 shrink-0 text-destructive" />
+                      <XCircle className="mt-0.5 h-4 w-4 shrink-0 text-destructive-strong" />
                     )}
                     <div className="min-w-0 flex-1">
                       <div className="flex flex-wrap items-center gap-1.5">
                         <span className="font-medium">{check.label}</span>
-                        <span className="font-mono text-[10px] text-muted-foreground">{check.key}</span>
+                        <span className="font-mono text-overline text-muted-foreground">{check.key}</span>
                         {check.ownerRoles.map((role) => (
-                          <Badge key={role} variant="outline" className="rounded-full text-[10px] capitalize">
+                          <Badge key={role} variant="outline" className="rounded-full text-overline capitalize">
                             {role.replace(/-/g, " ")}
                           </Badge>
                         ))}
@@ -295,7 +295,7 @@ export function ProjectLifecyclePanel({
                         (isAdmin || (user?.role && check.ownerRoles.includes(user.role))) && (
                           <Link
                             to={check.link}
-                            className="mt-1 inline-block text-xs font-medium text-primary hover:underline"
+                            className="mt-1 inline-block text-xs font-medium text-primary-strong hover:underline"
                           >
                             Go to {check.link.replace(/^\//, "")}
                           </Link>
@@ -321,7 +321,7 @@ export function ProjectLifecyclePanel({
       )}
 
       {view.history.length > 0 && (
-        <div className="space-y-2 border-t border-border/60 pt-3">
+        <div className="space-y-2 border-t border-border pt-3">
           <p className="flex items-center gap-1.5 text-xs font-medium uppercase tracking-wide text-muted-foreground">
             <History className="h-3.5 w-3.5" /> History
           </p>
@@ -362,7 +362,7 @@ export function ProjectLifecyclePanel({
             className="min-h-24"
           />
           {actionError && (
-            <p className="text-sm text-destructive">{actionError.message}</p>
+            <p className="text-sm text-destructive-strong">{actionError.message}</p>
           )}
           <DialogFooter>
             <Button

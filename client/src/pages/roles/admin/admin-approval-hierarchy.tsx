@@ -25,7 +25,7 @@ export default function AdminApprovalHierarchyPage() {
       <PageContent className="space-y-4 p-6 md:p-8">
         {loading && <p className="text-sm text-muted-foreground">Loading…</p>}
         {!loading && error && (
-          <p className="text-sm text-destructive">Couldn't load templates. {error.message}</p>
+          <p className="text-sm text-destructive-strong">Couldn't load templates. {error.message}</p>
         )}
         {!loading && !error && templates.length === 0 && (
           <p className="text-sm text-muted-foreground">No workflow templates configured yet.</p>
@@ -33,7 +33,7 @@ export default function AdminApprovalHierarchyPage() {
 
         <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
           {templates.map((t) => (
-            <Card key={t.id} className="rounded-2xl border-border/70 shadow-sm">
+            <Card key={t.id}>
               <CardHeader className="pb-3">
                 <CardTitle className="text-base">{t.name}</CardTitle>
                 <p className="text-xs text-muted-foreground">{t.description}</p>
@@ -46,7 +46,7 @@ export default function AdminApprovalHierarchyPage() {
                     return (
                       <div key={stage.role} className="flex gap-3">
                         <div className="flex flex-col items-center">
-                          <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full border-2 border-primary/30 bg-primary/10 text-primary">
+                          <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full border-2 border-primary/30 bg-primary/10 text-primary-strong">
                             <Icon className="h-4 w-4" />
                           </div>
                           {!isLast && <div className="w-px flex-1 bg-border" />}
@@ -55,7 +55,7 @@ export default function AdminApprovalHierarchyPage() {
                           <div className="flex items-center gap-2 pt-1.5">
                             <span className="text-sm font-medium">{stage.roleLabel}</span>
                             {isLast && (
-                              <Badge variant="outline" className="gap-1 rounded-full border-success/30 text-[10px] text-success">
+                              <Badge variant="outline" className="gap-1 rounded-full border-success/30 text-overline text-success-strong">
                                 <CheckCircle2 className="h-3 w-3" /> Final sign-off
                               </Badge>
                             )}

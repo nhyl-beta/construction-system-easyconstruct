@@ -75,7 +75,7 @@ export default function ArchitectDashboard() {
         actions={
           <Button
             size="sm"
-            className="rounded-xl"
+           
             onClick={() => navigate("/designs/new")}
           >
             <Plus className="mr-1 h-3.5 w-3.5" />
@@ -135,7 +135,7 @@ export default function ArchitectDashboard() {
                 >
                   <div>
                     <div className="text-sm font-medium">{d.name}</div>
-                    <div className="text-[11px] text-muted-foreground">
+                    <div className="text-overline text-muted-foreground">
                       {d.code} · rev {d.revision}
                     </div>
                   </div>
@@ -167,7 +167,7 @@ export default function ArchitectDashboard() {
               </SelectContent>
             </Select>
             {submitError && (
-              <p className="text-sm text-destructive">{submitError}</p>
+              <p className="text-sm text-destructive-strong">{submitError}</p>
             )}
           </div>
           <DialogFooter>
@@ -234,7 +234,7 @@ function QuickAction({
       <Icon className="h-4 w-4 shrink-0" />
       <div>
         <div className="font-medium">{label}</div>
-        <div className="text-[11px] text-muted-foreground">{description}</div>
+        <div className="text-overline text-muted-foreground">{description}</div>
       </div>
     </button>
   );

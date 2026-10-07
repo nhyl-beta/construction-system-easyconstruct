@@ -149,7 +149,7 @@ export function DataTable<TData extends BaseRecord>({
                         "top-1/2",
                         "left-1/2",
                         "animate-spin",
-                        "text-primary",
+                        "text-primary-strong",
                         "h-8",
                         "w-8",
                         "-translate-x-1/2",

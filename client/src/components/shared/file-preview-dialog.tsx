@@ -77,7 +77,7 @@ export function FilePreviewDialog({
           )}
         </DialogHeader>
 
-        <div className="flex min-h-72 items-center justify-center overflow-hidden rounded-xl border border-border/70 bg-muted/30">
+        <div className="flex min-h-72 items-center justify-center overflow-hidden rounded-xl border border-border bg-muted/30">
           {!hasFile && (
             <PreviewNotice
               title="No file was attached"
@@ -111,7 +111,7 @@ export function FilePreviewDialog({
             <iframe
               src={resolved}
               title={title}
-              className="h-[70vh] w-full border-0 bg-white"
+              className="h-[70vh] w-full border-0 bg-card"
             />
           )}
 
@@ -150,7 +150,7 @@ export function FilePreviewDialog({
                 </Button>
               </div>
               {downloadError && (
-                <p className="text-xs text-destructive">{downloadError}</p>
+                <p className="text-xs text-destructive-strong">{downloadError}</p>
               )}
             </div>
           )}

@@ -91,7 +91,7 @@ export function MultiStepPage({
                         >
                           {step.title}
                         </div>
-                        <div className="mt-0.5 text-[11px] leading-snug text-muted-foreground">
+                        <div className="mt-0.5 text-overline leading-snug text-muted-foreground">
                           {step.subtitle}
                         </div>
                       </div>
@@ -117,7 +117,7 @@ export function MultiStepPage({
                     Need help?
                   </span>
                 </div>
-                <p className="text-[11px] leading-relaxed text-muted-foreground">
+                <p className="text-overline leading-relaxed text-muted-foreground">
                   {aiHint}
                 </p>
                 <Button
@@ -135,7 +135,7 @@ export function MultiStepPage({
           <div className="flex flex-1 flex-col">
             <div className="flex-1 overflow-y-auto p-8">
               {error && (
-                <div className="mb-6 rounded-xl border border-destructive/30 bg-destructive/10 px-4 py-3 text-sm text-destructive">
+                <div className="mb-6 rounded-xl border border-destructive/30 bg-destructive/10 px-4 py-3 text-sm text-destructive-strong">
                   {error}
                 </div>
               )}

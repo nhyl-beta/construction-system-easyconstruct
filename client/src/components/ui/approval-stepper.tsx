@@ -47,18 +47,18 @@ export function ApprovalStepper({ current, steps }: ApprovalStepperProps) {
           >
             <div className="flex items-center gap-2">
               {isDone ? (
-                <Check className="h-3.5 w-3.5 text-success" />
+                <Check className="h-3.5 w-3.5 text-success-strong" />
               ) : isFailed ? (
-                <X className="h-3.5 w-3.5 text-destructive" />
+                <X className="h-3.5 w-3.5 text-destructive-strong" />
               ) : (
                 <Circle
                   className={cn(
                     "h-3.5 w-3.5",
-                    isCurrent ? "text-primary" : "text-muted-foreground",
+                    isCurrent ? "text-primary-strong" : "text-muted-foreground",
                   )}
                 />
               )}
-              <div className="text-[10px] uppercase text-muted-foreground">
+              <div className="text-overline uppercase text-muted-foreground">
                 Step {i + 1}
               </div>
             </div>

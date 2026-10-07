@@ -33,7 +33,7 @@ export default function PMProjects() {
         subtitle={`Portfolio of ${ctrl.kpis.total} active engagements`}
         actions={
           canCreate ? (
-            <Button onClick={() => navigate("/projects/new")} className="rounded-xl">
+            <Button onClick={() => navigate("/projects/new")}>
               <Plus className="h-4 w-4 mr-2" />
               New Project
             </Button>
@@ -54,7 +54,7 @@ export default function PMProjects() {
       />
 
       {ctrl.error ? (
-        <div className="rounded-xl border border-destructive/30 bg-destructive/10 px-4 py-3 text-sm text-destructive">
+        <div className="rounded-xl border border-destructive/30 bg-destructive/10 px-4 py-3 text-sm text-destructive-strong">
           Couldn’t load projects. {ctrl.error.message}
         </div>
       ) : ctrl.loading ? (

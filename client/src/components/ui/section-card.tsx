@@ -20,21 +20,19 @@ export function SectionCard({
   className,
 }: SectionCardProps) {
   return (
-    <Card
-      className={`rounded-2xl border-border/70 shadow-sm ${className ?? ""}`}
-    >
+<Card className={className}>
       <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-3">
         <div>
-          <CardTitle className="text-lg">{title}</CardTitle>
+          <CardTitle className="text-section-title">{title}</CardTitle>
           {subtitle && (
-            <p className="text-xs text-muted-foreground">{subtitle}</p>
+            <p className="text-caption text-muted-foreground">{subtitle}</p>
           )}
         </div>
         <div className="flex items-center gap-2">
           {badge && (
             <Badge
               variant="outline"
-              className="rounded-full px-2.5 py-0.5 text-[11px] font-medium"
+              className="text-caption"
             >
               {badge}
             </Badge>

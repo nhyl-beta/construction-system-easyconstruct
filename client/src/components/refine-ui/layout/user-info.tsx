@@ -13,7 +13,7 @@ export function UserInfo() {
       <UserAvatar className="h-8 w-8" />
       <div className="flex min-w-0 flex-col leading-tight">
         <span className="truncate text-sm font-medium">{user.name}</span>
-        <span className="truncate text-[11px] text-muted-foreground">
+        <span className="truncate text-overline text-muted-foreground">
           {user.email}
         </span>
       </div>

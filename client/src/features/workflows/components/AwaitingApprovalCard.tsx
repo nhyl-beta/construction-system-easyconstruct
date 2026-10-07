@@ -15,14 +15,14 @@ export function AwaitingApprovalCard() {
   const navigate = useNavigate();
 
   return (
-    <Card className="rounded-2xl">
+    <Card>
       <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-3">
         <CardTitle className="flex items-center gap-2 text-base">
-          <ClipboardCheck className="h-4 w-4 text-primary" />
+          <ClipboardCheck className="h-4 w-4 text-primary-strong" />
           Awaiting your approval
         </CardTitle>
         {stats && stats.pending > 0 && (
-          <Badge variant="outline" className="rounded-full text-[10px]">
+          <Badge variant="outline" className="rounded-full text-overline">
             {stats.pending}
           </Badge>
         )}
@@ -59,7 +59,7 @@ export function AwaitingApprovalCard() {
           <button
             type="button"
             onClick={() => navigate("/approvals")}
-            className="w-full px-2 pt-1 text-left text-xs text-primary hover:underline"
+            className="w-full px-2 pt-1 text-left text-xs text-primary-strong hover:underline"
           >
             +{items.length - 5} more — view all approvals
           </button>

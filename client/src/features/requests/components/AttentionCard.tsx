@@ -23,14 +23,14 @@ export function AttentionCard() {
       {loading && !attention ? (
         <p className="text-sm text-muted-foreground">Checking…</p>
       ) : error ? (
-        <p role="alert" className="text-sm text-destructive">{error}</p>
+        <p role="alert" className="text-sm text-destructive-strong">{error}</p>
       ) : !attention || total === 0 ? (
         <p className="text-sm text-muted-foreground">Nothing is overdue or stuck right now.</p>
       ) : (
         <div className="space-y-4">
           {attention.overdueRequests.length > 0 && (
             <section aria-label="Overdue requests">
-              <h4 className="mb-1 flex items-center gap-1.5 text-xs font-medium text-red-600 dark:text-red-400">
+              <h4 className="mb-1 flex items-center gap-1.5 text-xs font-medium text-destructive-strong">
                 <Clock className="h-3.5 w-3.5" /> Overdue requests
               </h4>
               <ul className="space-y-1">
@@ -39,7 +39,7 @@ export function AttentionCard() {
                     <Link to={`/requests?open=${r.id}`} className="hover:underline">
                       <span className="font-mono text-xs">{r.number}</span> {r.subject}
                     </Link>
-                    <span className="block text-[11px] text-muted-foreground">
+                    <span className="block text-overline text-muted-foreground">
                       {r.projectCode} · {r.assignedToName ?? "unassigned"} · {r.daysOverdue} day{r.daysOverdue === 1 ? "" : "s"} overdue
                     </span>
                   </li>
@@ -49,7 +49,7 @@ export function AttentionCard() {
           )}
           {attention.unsentDrafts.length > 0 && (
             <section aria-label="Drafts never sent">
-              <h4 className="mb-1 flex items-center gap-1.5 text-xs font-medium text-amber-600 dark:text-amber-400">
+              <h4 className="mb-1 flex items-center gap-1.5 text-xs font-medium text-warning-strong">
                 <FileClock className="h-3.5 w-3.5" /> Drafts never sent
               </h4>
               <ul className="space-y-1">
@@ -58,7 +58,7 @@ export function AttentionCard() {
                     <Link to={`/requests?open=${r.id}`} className="hover:underline">
                       <span className="font-mono text-xs">{r.number}</span> {r.subject}
                     </Link>
-                    <span className="block text-[11px] text-muted-foreground">
+                    <span className="block text-overline text-muted-foreground">
                       {r.projectCode} · drafted by {r.requestedByName} · waiting {r.daysWaiting} day{r.daysWaiting === 1 ? "" : "s"}
                     </span>
                   </li>
@@ -68,7 +68,7 @@ export function AttentionCard() {
           )}
           {attention.stalledStages.length > 0 && (
             <section aria-label="Stalled workflow stages">
-              <h4 className="mb-1 flex items-center gap-1.5 text-xs font-medium text-amber-600 dark:text-amber-400">
+              <h4 className="mb-1 flex items-center gap-1.5 text-xs font-medium text-warning-strong">
                 <Hourglass className="h-3.5 w-3.5" /> Workflow stages with no movement
               </h4>
               <ul className="space-y-1">
@@ -77,7 +77,7 @@ export function AttentionCard() {
                     <Link to="/workflows" className="hover:underline">
                       {s.title}
                     </Link>
-                    <span className="block text-[11px] text-muted-foreground">
+                    <span className="block text-overline text-muted-foreground">
                       {s.workflowCode} · {s.projectCode} · waiting on {s.roleLabel} for {s.daysStalled} day{s.daysStalled === 1 ? "" : "s"}
                     </span>
                   </li>

@@ -33,7 +33,7 @@ function FallbackDashboard() {
   return (
     <div className="flex flex-1 flex-col items-center justify-center gap-3 p-8 text-center">
       <p className="text-sm font-medium text-foreground">
-        Dashboard for <span className="text-primary">{role}</span> is coming
+        Dashboard for <span className="text-primary-strong">{role}</span> is coming
         soon.
       </p>
       <p className="text-xs text-muted-foreground">

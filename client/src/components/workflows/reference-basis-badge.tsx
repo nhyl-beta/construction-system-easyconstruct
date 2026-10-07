@@ -10,9 +10,9 @@ import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover
 import type { LineItemValidationSummary } from "@/features/workflows/types/workflow.types";
 
 const VERDICT_STYLE: Record<LineItemValidationSummary["verdict"], { label: string; className: string }> = {
-  "within-range": { label: "Within range", className: "border-success/30 bg-success/10 text-success" },
-  "above-typical": { label: "Above typical", className: "border-destructive/30 bg-destructive/10 text-destructive" },
-  "below-typical": { label: "Below typical", className: "border-info/30 bg-info/10 text-info" },
+  "within-range": { label: "Within range", className: "border-success/30 bg-success/10 text-success-strong" },
+  "above-typical": { label: "Above typical", className: "border-destructive/30 bg-destructive/10 text-destructive-strong" },
+  "below-typical": { label: "Below typical", className: "border-info/30 bg-info/10 text-info-strong" },
   "no-match": { label: "No comparable reference", className: "border-border text-muted-foreground" },
 };
 
@@ -24,7 +24,7 @@ export function ReferenceBasisBadge({ validation }: { validation: LineItemValida
     <Popover>
       <PopoverTrigger asChild>
         <button type="button" className="inline-flex">
-          <Badge variant="outline" className={`gap-1 rounded-full text-[10px] ${style.className}`}>
+          <Badge variant="outline" className={`gap-1 rounded-full text-overline ${style.className}`}>
             <Info className="h-2.5 w-2.5" />
             {style.label}
             {variancePct != null && ` (${variancePct > 0 ? "+" : ""}${variancePct.toFixed(1)}%)`}

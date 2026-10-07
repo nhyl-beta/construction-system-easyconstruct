@@ -52,11 +52,11 @@ import {
 import { WaitingOnYouCard } from "@/features/lifecycle/components/WaitingOnYouCard";
 
 const allocationColors = [
-  "#10b981",
-  "#0ea5e9",
-  "#8b5cf6",
-  "#f59e0b",
-  "#f43f5e",
+  "var(--chart-1)",
+  "var(--chart-3)",
+  "var(--chart-4)",
+  "var(--chart-2)",
+  "var(--chart-5)",
 ];
 
 export default function FinanceDashboardPage() {
@@ -82,7 +82,7 @@ export default function FinanceDashboardPage() {
         actions={
           <Button
             size="sm"
-            className="rounded-xl"
+           
             disabled
             title="Not yet available — no transaction record type exists yet, distinct from Budgets and Expenses. Use Record Expense or Create Budget for now."
           >
@@ -93,7 +93,7 @@ export default function FinanceDashboardPage() {
 
       <PageContent className="space-y-6 p-4 md:p-8">
         {c.error && (
-          <div className="rounded-xl border border-destructive/30 bg-destructive/5 p-3 text-sm text-destructive">
+          <div className="rounded-xl border border-destructive/30 bg-destructive/5 p-3 text-sm text-destructive-strong">
             Failed to load finance data: {c.error}
           </div>
         )}
@@ -202,7 +202,7 @@ export default function FinanceDashboardPage() {
                     </PieChart>
                   </ResponsiveContainer>
                 </div>
-                <div className="mt-2 grid grid-cols-2 gap-1 text-[11px]">
+                <div className="mt-2 grid grid-cols-2 gap-1 text-overline">
                   {allocation.map((a, i) => (
                     <div key={a.name} className="flex items-center gap-1.5">
                       <span
@@ -227,18 +227,18 @@ export default function FinanceDashboardPage() {
                   <ResponsiveContainer width="100%" height="100%">
                     <BarChart data={expensesByCategory}>
                       <CartesianGrid
-                        stroke="hsl(var(--border))"
+                        stroke="var(--border)"
                         strokeOpacity={0.4}
                         vertical={false}
                       />
                       <XAxis
                         dataKey="name"
                         tick={{ fontSize: 10 }}
-                        stroke="hsl(var(--muted-foreground))"
+                        stroke="var(--muted-foreground)"
                       />
                       <YAxis
                         tick={{ fontSize: 10 }}
-                        stroke="hsl(var(--muted-foreground))"
+                        stroke="var(--muted-foreground)"
                         tickFormatter={(v) => formatAxisCurrency(Number(v))}
                       />
                       <Tooltip
@@ -246,7 +246,7 @@ export default function FinanceDashboardPage() {
                       />
                       <Bar
                         dataKey="value"
-                        fill="#10b981"
+                        fill="var(--chart-1)"
                         radius={[6, 6, 0, 0]}
                       />
                     </BarChart>
@@ -272,55 +272,55 @@ export default function FinanceDashboardPage() {
                       <linearGradient id="in" x1="0" y1="0" x2="0" y2="1">
                         <stop
                           offset="5%"
-                          stopColor="#10b981"
+                          stopColor="var(--chart-1)"
                           stopOpacity={0.4}
                         />
                         <stop
                           offset="95%"
-                          stopColor="#10b981"
+                          stopColor="var(--chart-1)"
                           stopOpacity={0}
                         />
                       </linearGradient>
                       <linearGradient id="out" x1="0" y1="0" x2="0" y2="1">
                         <stop
                           offset="5%"
-                          stopColor="#f43f5e"
+                          stopColor="var(--destructive)"
                           stopOpacity={0.35}
                         />
                         <stop
                           offset="95%"
-                          stopColor="#f43f5e"
+                          stopColor="var(--destructive)"
                           stopOpacity={0}
                         />
                       </linearGradient>
                     </defs>
                     <CartesianGrid
-                      stroke="hsl(var(--border))"
+                      stroke="var(--border)"
                       strokeOpacity={0.4}
                       vertical={false}
                     />
                     <XAxis
                       dataKey="month"
                       tick={{ fontSize: 10 }}
-                      stroke="hsl(var(--muted-foreground))"
+                      stroke="var(--muted-foreground)"
                     />
                     <YAxis
                       tick={{ fontSize: 10 }}
-                      stroke="hsl(var(--muted-foreground))"
+                      stroke="var(--muted-foreground)"
                       tickFormatter={(v) => formatMillions(Number(v))}
                     />
                     <Tooltip formatter={(v) => formatMillions(Number(v))} />
                     <Area
                       type="monotone"
                       dataKey="inflow"
-                      stroke="#10b981"
+                      stroke="var(--chart-1)"
                       fill="url(#in)"
                       strokeWidth={2}
                     />
                     <Area
                       type="monotone"
                       dataKey="outflow"
-                      stroke="#f43f5e"
+                      stroke="var(--destructive)"
                       fill="url(#out)"
                       strokeWidth={2}
                     />
@@ -359,10 +359,10 @@ export default function FinanceDashboardPage() {
                       <TableCell
                         className={`text-right text-sm font-medium ${
                           p.margin >= 0.15
-                            ? "text-success"
+                            ? "text-success-strong"
                             : p.margin >= 0.1
-                            ? "text-warning"
-                            : "text-destructive"
+                            ? "text-warning-strong"
+                            : "text-destructive-strong"
                         }`}
                       >
                         {formatPercent(p.margin)}
@@ -398,7 +398,7 @@ export default function FinanceDashboardPage() {
                     <p className="mt-0.5 text-xs text-muted-foreground">
                       {a.reference}
                     </p>
-                    <div className="mt-1 flex items-center justify-between text-[11px]">
+                    <div className="mt-1 flex items-center justify-between text-overline">
                       <span>{formatCurrency(a.amount)}</span>
                       <span className="text-muted-foreground">
                         SLA · {a.slaHours}h
@@ -422,7 +422,7 @@ export default function FinanceDashboardPage() {
                   >
                     <div className="min-w-0">
                       <div className="truncate font-medium">{e.vendor}</div>
-                      <div className="text-[10px] text-muted-foreground">
+                      <div className="text-overline text-muted-foreground">
                         {e.project} · {e.category}
                       </div>
                     </div>
@@ -439,9 +439,9 @@ export default function FinanceDashboardPage() {
           </div>
         </div>
 
-        <Card className="rounded-2xl border-warning/30 bg-warning/5">
+        <Card className="border-warning/30 bg-warning/5">
           <CardContent className="flex items-start gap-3 p-4">
-            <AlertTriangle className="mt-0.5 h-4 w-4 text-warning" />
+            <AlertTriangle className="mt-0.5 h-4 w-4 text-warning-strong" />
             <div className="text-xs text-muted-foreground">
               <span className="font-medium text-foreground">
                 AI advisor disclosure.

@@ -73,7 +73,7 @@ export default function DocumentsPage() {
             {documents.length} document{documents.length === 1 ? "" : "s"} on file
           </p>
         </div>
-        <Button className="rounded-xl" onClick={() => setUploadOpen(true)}>
+        <Button onClick={() => setUploadOpen(true)}>
           <Upload className="h-4 w-4" /> Upload
         </Button>
       </div>
@@ -83,12 +83,12 @@ export default function DocumentsPage() {
           <Card
             key={c.type}
             onClick={() => setActiveType(activeType === c.type ? null : c.type)}
-            className={`cursor-pointer rounded-2xl border-border/70 shadow-sm transition hover:border-primary/40 ${
+            className={`cursor-pointer rounded-2xl border-border shadow-sm transition hover:border-primary/40 ${
               activeType === c.type ? "border-primary" : ""
             }`}
           >
             <CardContent className="space-y-1 p-4">
-              <FolderTree className="h-5 w-5 text-primary" />
+              <FolderTree className="h-5 w-5 text-primary-strong" />
               <div className="text-sm font-medium">{c.type}</div>
               <div className="text-xs tabular-nums text-muted-foreground">{c.count} files</div>
             </CardContent>
@@ -99,7 +99,7 @@ export default function DocumentsPage() {
         )}
       </div>
 
-      <Card className="rounded-2xl border-border/70 shadow-sm">
+      <Card>
         <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-3">
           <CardTitle className="text-base">{activeType ?? "All documents"}</CardTitle>
           <div className="relative w-56">
@@ -108,7 +108,7 @@ export default function DocumentsPage() {
               placeholder="Search documents…"
               value={search}
               onChange={(e) => setSearch(e.target.value)}
-              className="h-9 rounded-xl border-border bg-muted/40 pl-9"
+              className="h-9 border-border bg-muted/40 pl-9"
             />
           </div>
         </CardHeader>
@@ -121,7 +121,7 @@ export default function DocumentsPage() {
             <div className="overflow-x-auto">
               <table className="w-full text-sm">
                 <thead>
-                  <tr className="border-y border-border/70 bg-muted/40 text-left text-[11px] uppercase tracking-wider text-muted-foreground">
+                  <tr className="border-y border-border bg-muted/40 text-left text-overline uppercase tracking-wider text-muted-foreground">
                     <th className="px-5 py-2.5">Document</th>
                     <th className="px-3 py-2.5">Project</th>
                     <th className="px-3 py-2.5">Type</th>
@@ -135,7 +135,7 @@ export default function DocumentsPage() {
                   {pagination.pageItems.map((d) => {
                     const Icon = TYPE_ICONS[d.type] ?? FileText;
                     return (
-                      <tr key={d.id} className="border-b border-border/60 last:border-0 hover:bg-muted/30">
+                      <tr key={d.id} className="border-b border-border last:border-0 hover:bg-muted/30">
                         <td className="px-5 py-3.5">
                           <div className="flex items-center gap-3">
                             <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-secondary/60 text-secondary-foreground">
@@ -149,7 +149,7 @@ export default function DocumentsPage() {
                         </td>
                         <td className="px-3 py-3.5 font-mono text-xs text-muted-foreground">{d.project}</td>
                         <td className="px-3 py-3.5">
-                          <Badge variant="outline" className="rounded-full text-[10px]">{d.type}</Badge>
+                          <Badge variant="outline" className="rounded-full text-overline">{d.type}</Badge>
                         </td>
                         <td className="px-3 py-3.5"><span className="font-mono text-xs">{d.version}</span></td>
                         <td className="px-3 py-3.5 text-xs tabular-nums text-muted-foreground">{d.size ?? "—"}</td>
@@ -161,7 +161,7 @@ export default function DocumentsPage() {
                             <Button
                               variant="ghost"
                               size="icon"
-                              className="h-8 w-8 rounded-lg"
+                              className="h-8 w-8"
                               title="View document"
                               onClick={() => setPreviewing(d)}
                             >
@@ -174,7 +174,7 @@ export default function DocumentsPage() {
                   })}
                 </tbody>
               </table>
-              <div className="border-t border-border/70 px-4 py-3">
+              <div className="border-t border-border px-4 py-3">
                 <DataTablePagination {...pagination} />
               </div>
             </div>

@@ -16,7 +16,7 @@ function DocRow({ label, present }: { label: string; present: boolean }) {
   return (
     <div className="flex items-center gap-1.5 text-xs">
       {present ? (
-        <CheckCircle2 className="h-3.5 w-3.5 text-success" />
+        <CheckCircle2 className="h-3.5 w-3.5 text-success-strong" />
       ) : (
         <XCircle className="h-3.5 w-3.5 text-muted-foreground" />
       )}
@@ -72,7 +72,7 @@ export function CloseoutSummaryCard({
     (user?.role === "engineer" || user?.role === "admin");
 
   return (
-    <div className="space-y-3 rounded-xl border border-border/60 bg-muted/20 p-3">
+    <div className="space-y-3 rounded-xl border border-border bg-muted/20 p-3">
       <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">Closeout summary</p>
 
       <div className="grid gap-3 sm:grid-cols-2">
@@ -98,7 +98,7 @@ export function CloseoutSummaryCard({
           {canStartCloseout && (
             <Button
               size="sm"
-              className="mt-1 h-7 rounded-lg text-xs"
+              className="mt-1 h-7 text-xs"
               onClick={() => {
                 clearError();
                 setStartDialogOpen(true);
@@ -129,7 +129,7 @@ export function CloseoutSummaryCard({
                   <td className="px-2 py-1.5 text-right tabular-nums">{formatCompactCurrency(b.spent)}</td>
                   <td
                     className={`px-2 py-1.5 text-right tabular-nums ${
-                      b.spent > b.planned ? "text-destructive" : "text-muted-foreground"
+                      b.spent > b.planned ? "text-destructive-strong" : "text-muted-foreground"
                     }`}
                   >
                     {formatCompactCurrency(b.planned - b.spent)}

@@ -12,13 +12,13 @@ export function WorkforceSnapshotCard() {
   const navigate = useNavigate();
 
   return (
-    <Card className="rounded-2xl">
+    <Card>
       <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-3">
         <CardTitle className="flex items-center gap-2 text-base">
-          <Users className="h-4 w-4 text-primary" />
+          <Users className="h-4 w-4 text-primary-strong" />
           Workforce snapshot
         </CardTitle>
-        <Button size="sm" variant="outline" className="h-7 rounded-lg text-xs" onClick={() => navigate("/workforce-reports")}>
+        <Button size="sm" variant="outline" className="h-7 text-xs" onClick={() => navigate("/workforce-reports")}>
           Workforce Reports
         </Button>
       </CardHeader>
@@ -33,7 +33,7 @@ export function WorkforceSnapshotCard() {
             <Stat label={`OT crews (${w.windowDays}d)`} value={w.overtimeCrews} />
           </div>
         )}
-        <p className="mt-3 text-[11px] text-muted-foreground">
+        <p className="mt-3 text-overline text-muted-foreground">
           From {w.totalEmployees} real employee records and their real attendance rows —
           "assigned" and "OT crews" are counted over the last {w.windowDays} days, not "today"
           (this sandbox's seeded demo attendance is dated in the future, in-project), so a real,
@@ -48,7 +48,7 @@ function Stat({ label, value }: { label: string; value: number }) {
   return (
     <div className="rounded-xl border p-3">
       <div className="text-2xl font-semibold tabular-nums">{value}</div>
-      <div className="text-[11px] text-muted-foreground">{label}</div>
+      <div className="text-overline text-muted-foreground">{label}</div>
     </div>
   );
 }

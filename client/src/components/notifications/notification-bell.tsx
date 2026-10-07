@@ -65,7 +65,7 @@ export function NotificationBell() {
         <Button
           variant="ghost"
           size="icon"
-          className="relative rounded-xl"
+          className="relative"
           aria-label={
             unread.length > 0
               ? `Notifications, ${unread.length} unread`
@@ -74,17 +74,17 @@ export function NotificationBell() {
         >
           <Bell className="h-4 w-4" />
           {unread.length > 0 && (
-            <span className="absolute -right-0.5 -top-0.5 flex h-4 min-w-4 items-center justify-center rounded-full bg-primary px-1 text-[10px] font-medium tabular-nums text-primary-foreground">
+            <span className="absolute -right-0.5 -top-0.5 flex h-4 min-w-4 items-center justify-center rounded-full bg-primary-strong px-1 text-overline font-semibold tabular-nums text-primary-foreground">
               {unread.length > 9 ? "9+" : unread.length}
             </span>
           )}
         </Button>
       </PopoverTrigger>
-      <PopoverContent align="end" className="w-80 rounded-2xl p-0">
-        <div className="flex items-center justify-between border-b border-border/70 px-4 py-3">
-          <p className="text-sm font-medium">Notifications</p>
+      <PopoverContent align="end" className="w-96 rounded-2xl p-0 shadow-xl">
+        <div className="flex items-center justify-between border-b border-border px-4 py-3">
+          <p className="text-section-title font-semibold">Notifications</p>
           {unread.length > 0 && (
-            <span className="text-xs text-muted-foreground">
+            <span className="text-caption text-muted-foreground">
               {unread.length} unread
             </span>
           )}
@@ -103,7 +103,7 @@ export function NotificationBell() {
             <p className="px-4 py-6 text-sm text-muted-foreground">Loading…</p>
           )}
           {!loading && error && (
-            <p className="px-4 py-6 text-sm text-destructive">
+            <p className="px-4 py-6 text-sm text-destructive-strong">
               Couldn't load notifications. {error.message}
             </p>
           )}
@@ -120,23 +120,30 @@ export function NotificationBell() {
                 type="button"
                 disabled={marking === n.id}
                 onClick={() => handleSelect(n)}
-                className="flex w-full items-start gap-3 border-b border-border/60 px-4 py-3 text-left last:border-0 hover:bg-muted/40 disabled:cursor-default disabled:hover:bg-transparent"
+                className="flex w-full items-start gap-3 border-b border-border px-4 py-3 text-left outline-none transition-colors duration-150 last:border-0 hover:bg-muted focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-ring disabled:cursor-default disabled:hover:bg-transparent"
               >
+                {/* State dot: info for unread; read items carry none. */}
                 <span
-                  className={`mt-1.5 h-2 w-2 shrink-0 rounded-full ${
-                    n.isRead ? "bg-muted-foreground/30" : "bg-primary"
+                  className={`mt-1.5 size-2 shrink-0 rounded-full ${
+                    n.isRead ? "bg-transparent" : "bg-info"
                   }`}
+                  aria-hidden="true"
                 />
-                <span className="min-w-0">
-                  <span className="block text-sm font-medium leading-tight">
+                <span className="min-w-0 flex-1">
+                  {!n.isRead && <span className="sr-only">Unread. </span>}
+                  <span
+                    className={`block text-body leading-tight ${
+                      n.isRead ? "font-medium" : "font-semibold"
+                    }`}
+                  >
                     {n.title}
                   </span>
                   {n.message && (
-                    <span className="mt-0.5 block text-xs text-muted-foreground">
+                    <span className="mt-0.5 block text-caption text-muted-foreground">
                       {n.message}
                     </span>
                   )}
-                  <span className="mt-1 block text-[11px] text-muted-foreground">
+                  <span className="mt-1 block text-right text-caption text-muted-foreground">
                     {formatRelativeTime(n.createdAt)}
                     {marking === n.id ? " · marking read…" : ""}
                   </span>
@@ -146,26 +153,26 @@ export function NotificationBell() {
         </ScrollArea>
 
         {!loading && !error && pageCount > 1 && (
-          <div className="flex items-center justify-between border-t border-border/70 px-3 py-2">
+          <div className="flex items-center justify-between border-t border-border px-3 py-2">
             <Button
               type="button"
               variant="ghost"
               size="icon"
-              className="h-7 w-7 rounded-lg"
+              className="h-7 w-7"
               disabled={currentPage === 0}
               onClick={() => setPage((p) => Math.max(0, p - 1))}
               aria-label="Previous page"
             >
               <ChevronLeft className="h-3.5 w-3.5" />
             </Button>
-            <span className="text-[11px] text-muted-foreground">
+            <span className="text-overline text-muted-foreground">
               Page {currentPage + 1} of {pageCount}
             </span>
             <Button
               type="button"
               variant="ghost"
               size="icon"
-              className="h-7 w-7 rounded-lg"
+              className="h-7 w-7"
               disabled={currentPage >= pageCount - 1}
               onClick={() => setPage((p) => Math.min(pageCount - 1, p + 1))}
               aria-label="Next page"

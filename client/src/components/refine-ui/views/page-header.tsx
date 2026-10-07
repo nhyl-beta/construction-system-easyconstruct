@@ -1,21 +1,59 @@
 import type { ReactNode } from "react";
 
+import { Breadcrumb } from "@/components/refine-ui/layout/breadcrumb";
+import { cn } from "@/lib/utils";
+
 interface PageHeaderProps {
-  title: string;
-  description?: string;
+  /** `page-title`; once per page. */
+  title: ReactNode;
+  /** One calm line under the title: scope, count or date. */
+  description?: ReactNode;
+  /** Status chips (StatusBadge) on the title row. */
+  status?: ReactNode;
+  /** Primary action once per row group, then quiet ones. */
   actions?: ReactNode;
+  /** The route breadcrumb is on by default; turn it off for non-resource pages. */
+  breadcrumb?: boolean;
+  className?: string;
 }
 
-export function PageHeader({ title, description, actions }: PageHeaderProps) {
+/**
+ * The one page header: breadcrumb, then the title with status chips and
+ * actions on the same row. The KPI row, charts and side panels, then tables
+ * follow it. Inside a <PageContainer> it adds the page's side padding itself.
+ */
+export function PageHeader({
+  title,
+  description,
+  status,
+  actions,
+  breadcrumb = true,
+  className,
+}: PageHeaderProps) {
   return (
-    <div className="flex flex-col gap-3 border-b border-border/70 px-6 pb-6 pt-10 md:flex-row md:items-center md:justify-between md:px-8 md:pb-8 md:pt-12">
-      <div>
-        <h2 className="text-2xl font-semibold tracking-tight">{title}</h2>
-        {description && (
-          <p className="mt-1 text-sm text-muted-foreground">{description}</p>
+    <header
+      className={cn(
+        "flex flex-col gap-3 group-data-[page-container]/page:px-4 md:group-data-[page-container]/page:px-8",
+        className,
+      )}
+    >
+      {breadcrumb && <Breadcrumb />}
+      <div className="flex flex-wrap items-center justify-between gap-x-4 gap-y-3">
+        <div className="flex min-w-0 flex-wrap items-center gap-3">
+          <h1 className="text-page-title font-semibold tracking-[-0.02em]">
+            {title}
+          </h1>
+          {status}
+        </div>
+        {actions && (
+          <div className="flex flex-wrap items-center gap-3">{actions}</div>
         )}
       </div>
-      {actions && <div className="flex flex-wrap items-center gap-2">{actions}</div>}
-    </div>
+      {description && (
+        <p className="max-w-2xl text-body text-muted-foreground">
+          {description}
+        </p>
+      )}
+    </header>
   );
 }

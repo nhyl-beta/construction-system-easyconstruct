@@ -5,7 +5,7 @@ import { ITEM_TYPE_LABEL, type Revision, type RevisionItemType } from "../types/
 export const RevisionStatusBadge = ({ status }: { status: Revision["status"] }) => <StatusBadge status={status} />;
 
 export const ItemTypeBadge = ({ type }: { type: RevisionItemType }) => (
-  <Badge variant="outline" className="rounded-full px-2 py-0 text-[10px] font-medium uppercase tracking-wide">
+  <Badge variant="outline" className="rounded-full px-2 py-0 text-overline font-medium uppercase tracking-wide">
     {ITEM_TYPE_LABEL[type]}
   </Badge>
 );

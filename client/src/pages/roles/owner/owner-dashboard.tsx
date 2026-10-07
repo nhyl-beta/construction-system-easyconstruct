@@ -1,5 +1,4 @@
 import {
-  Activity,
   Banknote,
   ChevronRight,
   ClipboardCheck,
@@ -12,6 +11,8 @@ import {
   Users,
 } from "lucide-react";
 
+import { PageHeader } from "@/components/refine-ui/views/page-header";
+import { StatusBadge } from "@/components/ui/status-badge";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -25,10 +26,10 @@ import { useNavigate } from "react-router";
 import { ImpactAwarenessCard } from "@/features/lifecycle/components/ImpactAwarenessCard";
 
 const riskToneClasses: Record<string, string> = {
-  high: "text-destructive font-medium",
-  // text-warning, not text-warning-foreground — see the note in
+  high: "text-destructive-strong font-medium",
+  // text-warning-strong, not text-warning-foreground — see the note in
   // project-status.ts's RISK_CLASS.
-  medium: "text-warning font-medium",
+  medium: "text-warning-strong font-medium",
   low: "text-muted-foreground",
 };
 
@@ -39,41 +40,30 @@ export default function OwnerDashboardPage() {
   const firstName = identity.name.split(" ")[0];
 
   return (
-    <div className="flex-1 space-y-8 p-4 md:p-8">
+    <div className="flex-1 space-y-10 p-4 md:p-8">
       {/* ── Hero header ── */}
-      <section className="flex flex-col gap-4 md:flex-row md:items-end md:justify-between">
-        <div className="space-y-2">
-          <Badge
-            variant="outline"
-            className="rounded-full border-primary/30 bg-primary-soft/60 px-3 py-1 text-[11px] font-medium uppercase tracking-wider text-primary"
-          >
-            <Activity className="mr-1.5 h-3 w-3" />
-            Live data
-          </Badge>
-          <h2 className="text-3xl font-semibold tracking-tight md:text-4xl">
-            Executive overview, {firstName}.
-          </h2>
-          <p className="max-w-xl text-sm text-muted-foreground">
-            {c.loading
+      <PageHeader
+        title={<>Executive overview, {firstName}.</>}
+        status={<StatusBadge status="Live data" tone="brand" />}
+        description={c.loading
               ? "Loading organizational data…"
               : `${c.totalProjectCount} project${c.totalProjectCount === 1 ? "" : "s"} · ${c.activeWorkflowCount} active workflow${c.activeWorkflowCount === 1 ? "" : "s"} · ${c.auditEventCount} recorded action${c.auditEventCount === 1 ? "" : "s"} across the organization.`}
-          </p>
-        </div>
-        <div className="flex gap-2">
+        actions={
+          <>
           <Button
-            variant="outline"
-            className="rounded-xl"
+            variant="quiet"
             onClick={() => navigate("/owner/audit-trail")}
           >
             <ShieldCheck className="h-4 w-4" />
             Audit trail
           </Button>
-          <Button className="rounded-xl" onClick={() => navigate("/owner/portfolio")}>
+          <Button onClick={() => navigate("/owner/portfolio")}>
             <FolderKanban className="h-4 w-4" />
             Portfolio
           </Button>
-        </div>
-      </section>
+          </>
+        }
+      />
 
       {/* ── KPI grid ── */}
       <KpiStrip
@@ -115,7 +105,7 @@ export default function OwnerDashboardPage() {
 
       {/* ── Main grid — portfolio table + audit trail ── */}
       <section className="grid grid-cols-1 gap-6 xl:grid-cols-3">
-        <Card className="rounded-2xl border-border/70 shadow-sm xl:col-span-2">
+        <Card className="xl:col-span-2">
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-4">
             <div>
               <CardTitle className="text-lg">Projects needing attention</CardTitle>
@@ -128,7 +118,7 @@ export default function OwnerDashboardPage() {
             <Button
               variant="ghost"
               size="sm"
-              className="rounded-lg text-muted-foreground"
+              className="text-muted-foreground"
               onClick={() => navigate("/owner/portfolio")}
             >
               View all <ChevronRight className="h-4 w-4" />
@@ -138,7 +128,7 @@ export default function OwnerDashboardPage() {
             {c.projectsLoading ? (
               <div className="p-5 text-sm text-muted-foreground">Loading projects…</div>
             ) : c.projectsError ? (
-              <div className="p-5 text-sm text-destructive">
+              <div className="p-5 text-sm text-destructive-strong">
                 Couldn't load projects. {c.projectsError.message}
               </div>
             ) : c.topProjects.length === 0 ? (
@@ -149,7 +139,7 @@ export default function OwnerDashboardPage() {
               <div className="overflow-x-auto">
                 <table className="w-full text-sm">
                   <thead>
-                    <tr className="border-y border-border/70 bg-muted/40 text-left text-[11px] font-medium uppercase tracking-wider text-muted-foreground">
+                    <tr className="border-y border-border bg-muted/40 text-left text-overline font-medium uppercase tracking-wider text-muted-foreground">
                       <th className="px-5 py-2.5 font-medium">Project</th>
                       <th className="px-3 py-2.5 font-medium">Status</th>
                       <th className="px-3 py-2.5 font-medium">Progress</th>
@@ -162,7 +152,7 @@ export default function OwnerDashboardPage() {
                     {c.topProjects.map((p) => (
                       <tr
                         key={p.code}
-                        className="cursor-pointer border-b border-border/60 last:border-0 hover:bg-muted/30"
+                        className="cursor-pointer border-b border-border last:border-0 hover:bg-muted/30"
                         onClick={() => navigate("/owner/portfolio")}
                       >
                         <td className="px-5 py-3.5">
@@ -170,7 +160,7 @@ export default function OwnerDashboardPage() {
                           <div className="text-xs text-muted-foreground">{p.code}</div>
                         </td>
                         <td className="px-3 py-3.5">
-                          <Badge variant="outline" className="rounded-full px-2.5 py-0.5 text-[11px] font-medium">
+                          <Badge variant="outline" className="rounded-full px-2.5 py-0.5 text-overline font-medium">
                             {p.status}
                           </Badge>
                         </td>
@@ -186,7 +176,7 @@ export default function OwnerDashboardPage() {
                           <span
                             className={
                               p.budget > 100
-                                ? "text-sm font-medium tabular-nums text-destructive"
+                                ? "text-sm font-medium tabular-nums text-destructive-strong"
                                 : "text-sm tabular-nums"
                             }
                           >
@@ -211,13 +201,13 @@ export default function OwnerDashboardPage() {
         </Card>
 
         {/* Recent activity — real, from /api/audit-logs */}
-        <Card className="rounded-2xl border-border/70 shadow-sm">
+        <Card>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-4">
             <CardTitle className="text-lg">Recent activity</CardTitle>
             <Button
               variant="ghost"
               size="sm"
-              className="rounded-lg text-muted-foreground"
+              className="text-muted-foreground"
               onClick={() => navigate("/owner/audit-trail")}
             >
               View all <ChevronRight className="h-4 w-4" />
@@ -227,14 +217,14 @@ export default function OwnerDashboardPage() {
             {c.auditLogsLoading ? (
               <p className="text-sm text-muted-foreground">Loading…</p>
             ) : c.auditLogsError ? (
-              <p className="text-sm text-destructive">
+              <p className="text-sm text-destructive-strong">
                 Couldn't load the audit trail. {c.auditLogsError.message}
               </p>
             ) : c.recentActivity.length === 0 ? (
               <p className="text-sm text-muted-foreground">No recorded activity yet.</p>
             ) : (
               c.recentActivity.map((log) => (
-                <div key={log.id} className="border-b border-border/60 pb-3 last:border-0 last:pb-0">
+                <div key={log.id} className="border-b border-border pb-3 last:border-0 last:pb-0">
                   <p className="text-sm font-medium leading-tight">
                     {log.actor} <span className="font-normal text-muted-foreground">{log.action}</span>{" "}
                     {log.entityType} {log.entityId}
@@ -251,7 +241,7 @@ export default function OwnerDashboardPage() {
 
       {/* ── Bottom row — who is driving the activity ── */}
       <section className="grid grid-cols-1 gap-6 lg:grid-cols-3">
-        <Card className="rounded-2xl border-border/70 shadow-sm lg:col-span-2">
+        <Card className="lg:col-span-2">
           <CardHeader className="pb-4">
             <CardTitle className="text-lg">Most active people</CardTitle>
             <p className="text-xs text-muted-foreground">
@@ -269,7 +259,7 @@ export default function OwnerDashboardPage() {
               c.topActors.map((entry) => (
                 <div
                   key={entry.actor}
-                  className="flex items-center justify-between gap-3 border-b border-border/60 pb-3 last:border-0 last:pb-0"
+                  className="flex items-center justify-between gap-3 border-b border-border pb-3 last:border-0 last:pb-0"
                 >
                   <span className="text-sm font-medium">{entry.actor}</span>
                   <span className="text-sm tabular-nums text-muted-foreground">
@@ -281,7 +271,7 @@ export default function OwnerDashboardPage() {
           </CardContent>
         </Card>
 
-        <Card className="rounded-2xl border-border/70 shadow-sm">
+        <Card>
           <CardHeader className="pb-4">
             <CardTitle className="text-lg">Approvals</CardTitle>
           </CardHeader>
@@ -292,7 +282,7 @@ export default function OwnerDashboardPage() {
             </div>
             <div>
               <p
-                className={`text-2xl font-semibold tabular-nums ${c.overdueApprovals > 0 ? "text-destructive" : ""}`}
+                className={`text-2xl font-semibold tabular-nums ${c.overdueApprovals > 0 ? "text-destructive-strong" : ""}`}
               >
                 {c.overdueApprovals}
               </p>

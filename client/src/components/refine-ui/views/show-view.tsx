@@ -78,7 +78,7 @@ export const ShowViewHeader = ({
           <Button variant="ghost" size="icon" onClick={back}>
             <ArrowLeftIcon className="h-4 w-4" />
           </Button>
-          <h2 className="text-2xl font-bold">{title}</h2>
+          <h1 className="text-page-title font-semibold tracking-[-0.02em]">{title}</h1>
         </div>
 
         <div className="flex items-center gap-2">

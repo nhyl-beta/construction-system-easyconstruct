@@ -76,7 +76,7 @@ export default function ProgressPage() {
 
         <EngineerMilestonesCard />
 
-        <Card className="rounded-2xl border-border/70 shadow-sm">
+        <Card>
           <CardHeader className="pb-3">
             <CardTitle className="text-base">Project task progress</CardTitle>
             <p className="text-xs text-muted-foreground">
@@ -118,7 +118,7 @@ export default function ProgressPage() {
           </CardContent>
         </Card>
 
-        <Card className="rounded-2xl border-border/70 shadow-sm">
+        <Card>
           <CardHeader className="pb-3">
             <CardTitle className="text-base">Recent site reports</CardTitle>
           </CardHeader>

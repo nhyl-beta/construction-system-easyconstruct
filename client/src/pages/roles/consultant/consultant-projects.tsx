@@ -17,11 +17,11 @@ import { useProjects } from "@/features/projects/hooks/useProjects";
 import { formatDue } from "@/features/projects/lib/project-format";
 
 const riskToneClasses: Record<string, string> = {
-  high: "text-destructive font-medium",
-  // text-warning, not text-warning-foreground — that token is dark ink meant
+  high: "text-destructive-strong font-medium",
+  // text-warning-strong, not text-warning-foreground — that token is dark ink meant
   // for text ON a filled warning chip; standalone on the page background its
   // dark-mode value is nearly black on the app's own dark background.
-  medium: "text-warning font-medium",
+  medium: "text-warning-strong font-medium",
   low: "text-muted-foreground",
 };
 
@@ -53,7 +53,7 @@ export default function ConsultantProjects() {
         description="The projects you advise on — read-only."
       />
 
-      <div className="flex items-start gap-2 rounded-xl border border-border/70 bg-muted/40 p-4 text-sm text-muted-foreground">
+      <div className="flex items-start gap-2 rounded-xl border border-border bg-muted/40 p-4 text-sm text-muted-foreground">
         <Info className="mt-0.5 h-4 w-4 shrink-0" />
         <p>
           Advisory access shows schedule and progress only. Commercial terms
@@ -68,14 +68,14 @@ export default function ConsultantProjects() {
           value={search}
           onChange={(e) => setSearch(e.target.value)}
           placeholder="Search projects…"
-          className="h-8 rounded-lg pl-8 text-xs"
+          className="h-8 pl-8 text-xs"
         />
       </div>
 
       {loading ? (
         <div className="text-sm text-muted-foreground">Loading projects…</div>
       ) : error ? (
-        <div className="rounded-xl border border-destructive/30 bg-destructive/10 px-4 py-3 text-sm text-destructive">
+        <div className="rounded-xl border border-destructive/30 bg-destructive/10 px-4 py-3 text-sm text-destructive-strong">
           Couldn't load projects. {error.message}
         </div>
       ) : filtered.length === 0 ? (
@@ -102,7 +102,7 @@ export default function ConsultantProjects() {
               <TableRow key={p.code}>
                 <TableCell>
                   <div className="text-sm font-medium">{p.name}</div>
-                  <div className="font-mono text-[11px] text-muted-foreground">
+                  <div className="font-mono text-overline text-muted-foreground">
                     {p.code}
                   </div>
                 </TableCell>

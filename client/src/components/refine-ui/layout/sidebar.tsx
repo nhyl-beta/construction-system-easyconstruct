@@ -72,7 +72,7 @@ function ApprovalsBadge() {
   const pending = useApprovalsPendingCount();
   if (pending === 0) return null;
   return (
-    <span className="ml-auto flex h-4 min-w-4 items-center justify-center rounded-full bg-destructive px-1 text-[10px] font-medium tabular-nums text-destructive-foreground group-data-[collapsible=icon]:hidden">
+    <span className="ml-auto flex h-4 min-w-4 items-center justify-center rounded-full bg-destructive px-1 text-overline font-medium tabular-nums text-destructive-foreground group-data-[collapsible=icon]:hidden">
       {pending > 9 ? "9+" : pending}
     </span>
   );
@@ -183,7 +183,7 @@ export function Sidebar() {
                 useAuth() as a fallback so the real signed-in email appears
                 when available, but this is two identity sources side by
                 side, not yet unified — see note below. */}
-            <span className="truncate text-[11px] text-muted-foreground">
+            <span className="truncate text-overline text-muted-foreground">
               {user?.email ?? `${config.label} workspace`}
             </span>
           </div>

@@ -375,7 +375,7 @@ const invalidClass = (error?: string) => (error ? "border-destructive focus-visi
 
 function FieldError({ message }: { message?: string }) {
   return message ? (
-    <p role="alert" className="text-xs text-destructive">
+    <p role="alert" className="text-xs text-destructive-strong">
       {message}
     </p>
   ) : null;
@@ -414,7 +414,7 @@ function StepProjectInfo({
       {/* Delivery type comes first: it decides which lifecycle the project follows. */}
       <fieldset className="space-y-2">
         <legend className="text-sm font-medium">
-          What is this project delivering? <span className="text-destructive">*</span>
+          What is this project delivering? <span className="text-destructive-strong">*</span>
         </legend>
         <div className="grid grid-cols-1 gap-3 sm:grid-cols-2" role="radiogroup" aria-label="Delivery type">
           {([
@@ -440,7 +440,7 @@ function StepProjectInfo({
         {data.deliveryType === "Design" && (
           <div className="space-y-1.5 rounded-xl border p-3">
             <Label>
-              Disciplines to deliver <span className="text-destructive">*</span>
+              Disciplines to deliver <span className="text-destructive-strong">*</span>
             </Label>
             <div className="flex flex-wrap gap-x-5 gap-y-2">
               {DESIGN_DISCIPLINES.map((d) => (
@@ -455,7 +455,7 @@ function StepProjectInfo({
                 </label>
               ))}
             </div>
-            <p className="text-[11px] text-muted-foreground">Each one becomes a plan set with its own lead, sheet range and status once the project reaches Design.</p>
+            <p className="text-overline text-muted-foreground">Each one becomes a plan set with its own lead, sheet range and status once the project reaches Design.</p>
             <FieldError message={errors.designDisciplines} />
           </div>
         )}
@@ -464,7 +464,7 @@ function StepProjectInfo({
       <div className="grid grid-cols-2 gap-5">
         <div className="space-y-1.5">
           <Label>
-            Project name <span className="text-destructive">*</span>
+            Project name <span className="text-destructive-strong">*</span>
           </Label>
           <Input
             placeholder="e.g. Westgate Commercial Tower"
@@ -478,7 +478,7 @@ function StepProjectInfo({
 
         <div className="space-y-1.5">
           <Label>
-            Project code <span className="text-destructive">*</span>
+            Project code <span className="text-destructive-strong">*</span>
           </Label>
           <Input
             placeholder="e.g. WGT-2025-001"
@@ -495,7 +495,7 @@ function StepProjectInfo({
             admin type a brand-new one. */}
         <div className="space-y-1.5">
           <Label>
-            Client / Owner <span className="text-destructive">*</span>
+            Client / Owner <span className="text-destructive-strong">*</span>
           </Label>
           <Input
             list="client-options"
@@ -517,7 +517,7 @@ function StepProjectInfo({
 
         <div className="space-y-1.5">
           <Label>
-            Project type <span className="text-destructive">*</span>
+            Project type <span className="text-destructive-strong">*</span>
           </Label>
           <Select value={data.projectType || undefined} onValueChange={(v) => set("projectType", v)}>
             <SelectTrigger className={cn("rounded-xl", invalidClass(errors.projectType))} aria-invalid={!!errors.projectType}>
@@ -534,7 +534,7 @@ function StepProjectInfo({
 
         <div className="col-span-2 space-y-1.5">
           <Label>
-            Location <span className="text-destructive">*</span>
+            Location <span className="text-destructive-strong">*</span>
           </Label>
           <div className="relative">
             <MapPin className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
@@ -563,7 +563,7 @@ function StepProjectInfo({
                   <div className="px-3 py-2 text-xs text-muted-foreground">Searching…</div>
                 )}
                 {!geocode.loading && geocode.error && (
-                  <div className="px-3 py-2 text-xs text-destructive">{geocode.error}</div>
+                  <div className="px-3 py-2 text-xs text-destructive-strong">{geocode.error}</div>
                 )}
                 {!geocode.loading &&
                   geocode.suggestions.map((s: GeocodeSuggestion, i: number) => (
@@ -588,7 +588,7 @@ function StepProjectInfo({
             )}
           </div>
           <FieldError message={errors.location} />
-          <p className="text-[11px] text-muted-foreground">
+          <p className="text-overline text-muted-foreground">
             Start typing an address to search — selecting a result moves the map pin below.
           </p>
         </div>
@@ -613,13 +613,13 @@ function StepProjectInfo({
 
         <div className="space-y-1.5">
           <Label>
-            Risk level <span className="text-destructive">*</span>
+            Risk level <span className="text-destructive-strong">*</span>
           </Label>
           <Select
             value={data.risk}
             onValueChange={(v) => set("risk", v as ProjectFormData["risk"])}
           >
-            <SelectTrigger className="rounded-xl">
+            <SelectTrigger>
               <SelectValue />
             </SelectTrigger>
             <SelectContent>
@@ -633,7 +633,7 @@ function StepProjectInfo({
         <div className="space-y-1.5">
           <Label>Contract type</Label>
           <Select onValueChange={(v) => set("contractType", v)}>
-            <SelectTrigger className="rounded-xl">
+            <SelectTrigger>
               <SelectValue placeholder="Select contract type" />
             </SelectTrigger>
             <SelectContent>
@@ -656,7 +656,7 @@ function StepProjectInfo({
             value={data.currency}
             onValueChange={(v) => set("currency", v)}
           >
-            <SelectTrigger className="rounded-xl">
+            <SelectTrigger>
               <SelectValue placeholder="Select currency" />
             </SelectTrigger>
             <SelectContent>
@@ -676,10 +676,10 @@ function StepProjectInfo({
           placeholder="Brief description of the project, objectives, and key deliverables..."
           value={data.description}
           onChange={(e) => set("description", e.target.value)}
-          className="h-28 resize-none rounded-xl"
+          className="h-28 resize-none"
           maxLength={500}
         />
-        <div className="text-right text-[11px] text-muted-foreground">
+        <div className="text-right text-overline text-muted-foreground">
           {data.description.length}/500
         </div>
       </div>
@@ -687,7 +687,7 @@ function StepProjectInfo({
       <div className="grid grid-cols-2 gap-5">
         <div className="space-y-1.5">
           <Label>
-            Planned start date <span className="text-destructive">*</span>
+            Planned start date <span className="text-destructive-strong">*</span>
           </Label>
           <DatePicker
             value={data.startDate}
@@ -701,7 +701,7 @@ function StepProjectInfo({
         </div>
         <div className="space-y-1.5">
           <Label>
-            Due date <span className="text-destructive">*</span>
+            Due date <span className="text-destructive-strong">*</span>
           </Label>
           <DatePicker
             value={data.due}
@@ -717,10 +717,10 @@ function StepProjectInfo({
       </div>
 
       <div className="flex items-start gap-3 rounded-xl border border-info/20 bg-info/5 px-4 py-3">
-        <Info className="mt-0.5 h-4 w-4 shrink-0 text-info" />
+        <Info className="mt-0.5 h-4 w-4 shrink-0 text-info-strong" />
         <p className="text-xs text-muted-foreground">
           You can always edit these details later. All fields marked with{" "}
-          <span className="font-medium text-destructive">*</span> are required.
+          <span className="font-medium text-destructive-strong">*</span> are required.
         </p>
       </div>
     </div>
@@ -772,7 +772,7 @@ function StepScopeSchedule({
           <Label>Project scope summary</Label>
           <Textarea
             placeholder="Describe the full scope of work..."
-            className="h-32 resize-none rounded-xl"
+            className="h-32 resize-none"
             value={data.scopeSummary}
             onChange={(e) => set("scopeSummary", e.target.value)}
             maxLength={5000}
@@ -804,7 +804,7 @@ function StepScopeSchedule({
                 <button
                   type="button"
                   onClick={() => removeMilestone(i)}
-                  className="shrink-0 text-muted-foreground hover:text-destructive"
+                  className="shrink-0 text-muted-foreground hover:text-destructive-strong"
                   title="Remove"
                 >
                   <Trash2 className="h-3.5 w-3.5" />
@@ -821,7 +821,7 @@ function StepScopeSchedule({
               placeholder="Foundation pour complete"
               value={title}
               onChange={(e) => setTitle(e.target.value)}
-              className="rounded-xl"
+             
             />
           </div>
           <div className="w-44 space-y-1.5">
@@ -832,7 +832,7 @@ function StepScopeSchedule({
               placeholder="Select date"
             />
           </div>
-          <Button type="button" variant="outline" className="rounded-xl" onClick={addMilestone} disabled={!title.trim()}>
+          <Button type="button" variant="outline" onClick={addMilestone} disabled={!title.trim()}>
             Add
           </Button>
         </div>
@@ -872,7 +872,7 @@ function StepBudget({
             value={data.contractValue}
             onChange={(e) => set("contractValue", e.target.value)}
             placeholder="0.00"
-            className="rounded-xl"
+           
           />
         </div>
         <div className="space-y-1.5">
@@ -884,7 +884,7 @@ function StepBudget({
             value={data.contingencyPct}
             onChange={(e) => set("contingencyPct", e.target.value)}
             placeholder="10"
-            className="rounded-xl"
+           
           />
         </div>
       </div>
@@ -934,7 +934,7 @@ function StepTeam({
         <div className="space-y-1.5">
           <Label>
             Project Manager
-            {!isSelfAssigned && <span className="text-destructive"> *</span>}
+            {!isSelfAssigned && <span className="text-destructive-strong"> *</span>}
           </Label>
           {isSelfAssigned ? (
             <div className="flex items-center gap-2 rounded-xl border border-border bg-muted/40 px-3 py-2 text-sm">
@@ -1008,7 +1008,7 @@ function TeamRolePicker({
     <div className="space-y-1.5">
       <Label>
         {label}
-        {required && <span className="text-destructive"> *</span>}
+        {required && <span className="text-destructive-strong"> *</span>}
       </Label>
       <SearchableSelect
         value={selected ? String(selected.id) : undefined}

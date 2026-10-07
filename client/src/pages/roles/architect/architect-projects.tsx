@@ -27,7 +27,7 @@ export default function ArchitectProjects() {
           value={c.query}
           onChange={(e) => c.setQuery(e.target.value)}
           placeholder="Search projects…"
-          className="h-8 rounded-lg pl-8 text-xs"
+          className="h-8 pl-8 text-xs"
         />
       </div>
 
@@ -59,7 +59,7 @@ export default function ArchitectProjects() {
                 <TableRow key={p.id} className="cursor-pointer" onClick={() => navigate(`/designs?projectCode=${p.code}`)}>
                   <TableCell>
                     <div className="text-sm font-medium break-words">{p.name}</div>
-                    <div className="font-mono text-[11px] text-muted-foreground">{p.code}</div>
+                    <div className="font-mono text-overline text-muted-foreground">{p.code}</div>
                   </TableCell>
                   <TableCell><StatusBadge status={p.status} /></TableCell>
                   <TableCell><StatusBadge status={p.risk} /></TableCell>

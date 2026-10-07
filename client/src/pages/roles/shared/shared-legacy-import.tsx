@@ -132,17 +132,17 @@ export default function SharedLegacyImportPage() {
             </label>
           </div>
           <div className="mt-4 flex flex-wrap gap-2">
-            <Button className="rounded-xl" onClick={() => void check()} disabled={checking || running}>
+            <Button onClick={() => void check()} disabled={checking || running}>
               <FileUp className="mr-1 h-4 w-4" /> {checking ? "Checking…" : "Check manifest"}
             </Button>
-            <Button variant="outline" className="rounded-xl" onClick={downloadTemplate}>
+            <Button variant="outline" onClick={downloadTemplate}>
               <Download className="mr-1 h-4 w-4" /> Download template
             </Button>
           </div>
           <p className="mt-3 text-xs text-muted-foreground">
             Allowed types: {DOC_TYPES.join(", ")}. Documents can only be added to projects that are still open to changes; a closed or archived project will report a failure for its rows.
           </p>
-          {problem && <p role="alert" className="mt-3 text-sm text-destructive">{problem}</p>}
+          {problem && <p role="alert" className="mt-3 text-sm text-destructive-strong">{problem}</p>}
         </SectionCard>
 
         {rows.length > 0 && (
@@ -150,7 +150,7 @@ export default function SharedLegacyImportPage() {
             title="2. Review and import"
             subtitle={summary}
             actions={
-              <Button size="sm" className="rounded-xl" disabled={readyCount === 0 || running} onClick={() => void runImport()}>
+              <Button size="sm" disabled={readyCount === 0 || running} onClick={() => void runImport()}>
                 {running ? "Importing…" : `Import ${readyCount} file${readyCount === 1 ? "" : "s"}`}
               </Button>
             }
@@ -158,7 +158,7 @@ export default function SharedLegacyImportPage() {
             <div className="overflow-x-auto">
               <table className="w-full text-sm">
                 <thead>
-                  <tr className="border-b text-left text-[11px] uppercase tracking-wider text-muted-foreground">
+                  <tr className="border-b text-left text-overline uppercase tracking-wider text-muted-foreground">
                     <th className="py-2 pr-3 font-medium">Line</th>
                     <th className="py-2 pr-3 font-medium">Project</th>
                     <th className="py-2 pr-3 font-medium">Title</th>
@@ -178,7 +178,7 @@ export default function SharedLegacyImportPage() {
                       <td className="py-2">
                         <span
                           className={`inline-flex items-center gap-1 text-xs ${
-                            r.state === "done" ? "text-success" : r.state === "invalid" || r.state === "failed" ? "text-destructive" : "text-muted-foreground"
+                            r.state === "done" ? "text-success-strong" : r.state === "invalid" || r.state === "failed" ? "text-destructive-strong" : "text-muted-foreground"
                           }`}
                         >
                           {r.state === "done" && <CheckCircle2 className="h-3.5 w-3.5" aria-hidden />}

@@ -55,7 +55,7 @@ export function RequirementApprovalsPanel() {
           <ClipboardList className="h-4 w-4 text-muted-foreground" />
           Requirements awaiting approval
           {items.length > 0 && (
-            <Badge variant="outline" className="rounded-full text-[10px]">{items.length}</Badge>
+            <Badge variant="outline" className="rounded-full text-overline">{items.length}</Badge>
           )}
         </h2>
         <p className="mt-1 text-sm text-muted-foreground">
@@ -63,7 +63,7 @@ export function RequirementApprovalsPanel() {
         </p>
       </div>
 
-      {error && <p className="text-sm text-destructive">{error}</p>}
+      {error && <p className="text-sm text-destructive-strong">{error}</p>}
 
       {loading ? (
         <p className="text-sm text-muted-foreground">Loading…</p>
@@ -84,7 +84,7 @@ export function RequirementApprovalsPanel() {
                     <li key={a.url}>
                       <button
                         type="button"
-                        className="flex items-center gap-1 rounded-lg border border-border px-2 py-1 text-xs text-primary hover:bg-muted/40"
+                        className="flex items-center gap-1 rounded-lg border border-border px-2 py-1 text-xs text-primary-strong hover:bg-muted/40"
                         onClick={() => void openFileUrl(a.url).catch((err: Error) => setError(err.message))}
                       >
                         <Paperclip className="h-3 w-3" /> {a.filename}
@@ -98,10 +98,10 @@ export function RequirementApprovalsPanel() {
                   {r.createdBy} · {r.updatedAgo}
                 </span>
                 <div className="flex gap-2">
-                  <Button size="sm" className="h-7 rounded-lg text-xs" disabled={busyId === r.dbId} onClick={() => void decide(r.dbId, "Approved")}>
+                  <Button size="sm" className="h-7 text-xs" disabled={busyId === r.dbId} onClick={() => void decide(r.dbId, "Approved")}>
                     <Check className="h-3 w-3" /> Approve
                   </Button>
-                  <Button size="sm" variant="outline" className="h-7 rounded-lg text-xs text-destructive" disabled={busyId === r.dbId} onClick={() => void decide(r.dbId, "Rejected")}>
+                  <Button size="sm" variant="outline" className="h-7 text-xs text-destructive-strong" disabled={busyId === r.dbId} onClick={() => void decide(r.dbId, "Rejected")}>
                     <X className="h-3 w-3" /> Reject
                   </Button>
                 </div>

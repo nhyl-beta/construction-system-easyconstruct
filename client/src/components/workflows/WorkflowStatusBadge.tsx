@@ -13,13 +13,13 @@ const STATUS_LABELS: Record<WorkflowStatus, string> = {
 
 const STATUS_CLASSES: Record<WorkflowStatus, string> = {
   active:
-    "border-blue-200 bg-blue-50 text-blue-700",
+    "border-transparent bg-info-soft text-info-strong",
   completed:
-    "border-green-200 bg-green-50 text-green-700",
+    "border-transparent bg-success-soft text-success-strong",
   rejected:
-    "border-red-200 bg-red-50 text-red-700",
+    "border-transparent bg-destructive-soft text-destructive-strong",
   cancelled:
-    "border-gray-200 bg-gray-50 text-gray-700",
+    "border-transparent bg-muted text-muted-foreground",
 };
 
 export function WorkflowStatusBadge({

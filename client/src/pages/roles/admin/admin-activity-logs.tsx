@@ -20,11 +20,11 @@ import { useDebouncedValue } from "@/hooks/use-debounced-value";
 import { formatRelativeTime } from "@/lib/format-relative-time";
 
 const ACTION_TONE: Record<string, string> = {
-  created: "bg-primary/10 text-primary border-primary/20",
-  approved: "bg-success/10 text-success border-success/20",
-  rejected: "bg-destructive/10 text-destructive border-destructive/20",
-  deleted: "bg-destructive/10 text-destructive border-destructive/20",
-  updated: "bg-warning/15 text-warning border-warning/30",
+  created: "bg-primary/10 text-primary-strong border-primary/20",
+  approved: "bg-success/10 text-success-strong border-success/20",
+  rejected: "bg-destructive/10 text-destructive-strong border-destructive/20",
+  deleted: "bg-destructive/10 text-destructive-strong border-destructive/20",
+  updated: "bg-warning/15 text-warning-strong border-warning/30",
 };
 
 const PAGE_SIZE = 10;
@@ -94,7 +94,7 @@ export default function AdminActivityLogsPage() {
           <div className="flex flex-wrap gap-2">
             <Badge
               variant="outline"
-              className={`cursor-pointer rounded-full text-[11px] ${entityType === null ? "border-primary text-primary" : ""}`}
+              className={`cursor-pointer rounded-full text-overline ${entityType === null ? "border-primary text-primary-strong" : ""}`}
               onClick={() => setEntityType(null)}
             >
               All modules
@@ -103,7 +103,7 @@ export default function AdminActivityLogsPage() {
               <Badge
                 key={type}
                 variant="outline"
-                className={`cursor-pointer rounded-full text-[11px] capitalize ${entityType === type ? "border-primary text-primary" : ""}`}
+                className={`cursor-pointer rounded-full text-overline capitalize ${entityType === type ? "border-primary text-primary-strong" : ""}`}
                 onClick={() => setEntityType(entityType === type ? null : type)}
               >
                 {type}
@@ -112,7 +112,7 @@ export default function AdminActivityLogsPage() {
           </div>
           <div className="flex flex-wrap items-center gap-2">
             <Select value={actor ?? ALL} onValueChange={(v) => setActor(v === ALL ? null : v)}>
-              <SelectTrigger className="h-9 w-40 rounded-xl text-xs">
+              <SelectTrigger className="h-9 w-40 text-xs">
                 <SelectValue placeholder="All users" />
               </SelectTrigger>
               <SelectContent>
@@ -129,14 +129,14 @@ export default function AdminActivityLogsPage() {
               aria-label="From date"
               value={dateFrom}
               onChange={(e) => setDateFrom(e.target.value)}
-              className="h-9 w-36 rounded-xl text-xs"
+              className="h-9 w-36 text-xs"
             />
             <Input
               type="date"
               aria-label="To date"
               value={dateTo}
               onChange={(e) => setDateTo(e.target.value)}
-              className="h-9 w-36 rounded-xl text-xs"
+              className="h-9 w-36 text-xs"
             />
             <div className="relative w-full md:w-64">
               <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
@@ -144,7 +144,7 @@ export default function AdminActivityLogsPage() {
                 placeholder="Search activity…"
                 value={searchInput}
                 onChange={(e) => setSearchInput(e.target.value)}
-                className="h-9 rounded-xl border-border bg-muted/40 pl-9"
+                className="h-9 border-border bg-muted/40 pl-9"
               />
             </div>
           </div>
@@ -156,7 +156,7 @@ export default function AdminActivityLogsPage() {
               <Badge
                 key={f.key}
                 variant="outline"
-                className="flex items-center gap-1 rounded-full border-primary/30 text-[11px] text-primary"
+                className="flex items-center gap-1 rounded-full border-primary/30 text-overline text-primary-strong"
               >
                 {f.label}
                 <button type="button" onClick={f.clear} aria-label={`Clear ${f.label}`}>
@@ -164,7 +164,7 @@ export default function AdminActivityLogsPage() {
                 </button>
               </Badge>
             ))}
-            <button type="button" onClick={clearAll} className="text-[11px] text-muted-foreground underline underline-offset-2">
+            <button type="button" onClick={clearAll} className="text-overline text-muted-foreground underline underline-offset-2">
               Clear all
             </button>
           </div>
@@ -172,7 +172,7 @@ export default function AdminActivityLogsPage() {
 
         {loading && <p className="p-5 text-sm text-muted-foreground">Loading activity…</p>}
         {!loading && error && (
-          <div className="flex flex-col items-start gap-2 rounded-xl border border-destructive/30 bg-destructive/10 p-4 text-sm text-destructive">
+          <div className="flex flex-col items-start gap-2 rounded-xl border border-destructive/30 bg-destructive/10 p-4 text-sm text-destructive-strong">
             Couldn't load activity logs. {error.message}
             <button className="underline underline-offset-2" onClick={() => reload()}>
               Retry
@@ -188,10 +188,10 @@ export default function AdminActivityLogsPage() {
           </div>
         )}
         {!loading && !error && logs.length > 0 && (
-          <div className="overflow-x-auto rounded-xl border border-border/70">
+          <div className="overflow-x-auto rounded-xl border border-border">
             <table className="w-full text-sm">
               <thead>
-                <tr className="border-b border-border/70 bg-muted/40 text-left text-[11px] uppercase tracking-wider text-muted-foreground">
+                <tr className="border-b border-border bg-muted/40 text-left text-overline uppercase tracking-wider text-muted-foreground">
                   <th className="px-5 py-2.5">Actor</th>
                   <th className="px-3 py-2.5">Action</th>
                   <th className="px-3 py-2.5">Entity</th>
@@ -202,10 +202,10 @@ export default function AdminActivityLogsPage() {
               </thead>
               <tbody>
                 {logs.map((log) => (
-                  <tr key={log.id} className="border-b border-border/60 last:border-0 hover:bg-muted/30">
+                  <tr key={log.id} className="border-b border-border last:border-0 hover:bg-muted/30">
                     <td className="px-5 py-3.5 font-medium">{log.actor}</td>
                     <td className="px-3 py-3.5">
-                      <Badge variant="outline" className={`rounded-full text-[10px] capitalize ${ACTION_TONE[log.action] ?? ""}`}>
+                      <Badge variant="outline" className={`rounded-full text-overline capitalize ${ACTION_TONE[log.action] ?? ""}`}>
                         {log.action}
                       </Badge>
                     </td>
@@ -223,7 +223,7 @@ export default function AdminActivityLogsPage() {
                 ))}
               </tbody>
             </table>
-            <div className="border-t border-border/70 px-2 py-3">
+            <div className="border-t border-border px-2 py-3">
               <DataTablePagination
                 currentPage={page}
                 pageCount={pageCount}

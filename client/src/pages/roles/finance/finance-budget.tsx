@@ -79,10 +79,10 @@ const kindIcon: Record<AdjustmentKind, typeof ArrowUpRight> = {
 };
 
 const kindTone: Record<AdjustmentKind, string> = {
-  increase: "text-destructive bg-destructive/10",
-  decrease: "text-success bg-success/10",
-  transfer: "text-primary bg-primary/10",
-  emergency: "text-warning bg-warning/15",
+  increase: "text-destructive-strong bg-destructive/10",
+  decrease: "text-success-strong bg-success/10",
+  transfer: "text-primary-strong bg-primary/10",
+  emergency: "text-warning-strong bg-warning/15",
 };
 
 import { ApprovalStepper } from "@/components/ui/approval-stepper";
@@ -147,7 +147,7 @@ function NewBudgetDialog({
   return (
     <Dialog open={open} onOpenChange={setOpen}>
       <DialogTrigger asChild>
-        <Button size="sm" className="rounded-xl">
+        <Button size="sm">
           <Plus className="mr-1 h-3.5 w-3.5" />
           Create budget
         </Button>
@@ -208,9 +208,9 @@ function NewBudgetDialog({
             />
           </div>
         </div>
-        {error && <p className="text-sm text-destructive">{error}</p>}
+        {error && <p className="text-sm text-destructive-strong">{error}</p>}
         <DialogFooter>
-          <Button disabled={!canSubmit || creating} onClick={handleSubmit} className="rounded-xl">
+          <Button disabled={!canSubmit || creating} onClick={handleSubmit}>
             {creating ? "Creating…" : "Create budget"}
           </Button>
         </DialogFooter>
@@ -283,7 +283,7 @@ export default function FinanceBudget() {
             <Button
               variant="outline"
               size="sm"
-              className="rounded-xl"
+             
               disabled={c.budgets.length === 0}
               title="Export the budget register as CSV (opens in Excel)"
               onClick={() =>
@@ -329,17 +329,17 @@ export default function FinanceBudget() {
       />
 
       <Tabs value={tab} onValueChange={setTab}>
-        <TabsList className="rounded-xl">
-          <TabsTrigger value="overview" className="rounded-lg">
+        <TabsList>
+          <TabsTrigger value="overview">
             Overview
           </TabsTrigger>
-          <TabsTrigger value="allocation" className="rounded-lg">
+          <TabsTrigger value="allocation">
             Allocation
           </TabsTrigger>
-          <TabsTrigger value="adjustments" className="rounded-lg">
+          <TabsTrigger value="adjustments">
             Adjustments
           </TabsTrigger>
-          <TabsTrigger value="approval" className="rounded-lg">
+          <TabsTrigger value="approval">
             Approvals
           </TabsTrigger>
         </TabsList>
@@ -353,11 +353,11 @@ export default function FinanceBudget() {
                 value={c.query}
                 onChange={(e) => c.setQuery(e.target.value)}
                 placeholder="Search project, owner…"
-                className="h-8 rounded-lg pl-8 text-xs"
+                className="h-8 pl-8 text-xs"
               />
             </div>
             <Select value={c.fy} onValueChange={c.setFy}>
-              <SelectTrigger className="h-8 w-28 rounded-lg text-xs">
+              <SelectTrigger className="h-8 w-28 text-xs">
                 <SelectValue />
               </SelectTrigger>
               <SelectContent>
@@ -423,7 +423,7 @@ export default function FinanceBudget() {
                       <TableCell>
                         <div className="space-y-1">
                           <Progress value={pct} className="h-1.5" />
-                          <div className="text-[10px] text-muted-foreground">
+                          <div className="text-overline text-muted-foreground">
                             {pct}% used
                           </div>
                         </div>
@@ -442,7 +442,7 @@ export default function FinanceBudget() {
         {/* ── Allocation ────────────────────────────────────────────── */}
         <TabsContent value="allocation" className="mt-4">
           <div className="grid gap-4 lg:grid-cols-2">
-            <div className="rounded-2xl border border-border/70 p-5">
+            <div className="rounded-2xl border border-border p-5">
               <h3 className="mb-3 text-sm font-medium">
                 Allocation by category
               </h3>
@@ -488,7 +488,7 @@ export default function FinanceBudget() {
               </div>
             </div>
 
-            <div className="rounded-2xl border border-border/70 p-5">
+            <div className="rounded-2xl border border-border p-5">
               <h3 className="mb-3 text-sm font-medium">
                 Allocation by department
               </h3>
@@ -565,7 +565,7 @@ export default function FinanceBudget() {
                 value={adjustments.query}
                 onChange={(e) => adjustments.setQuery(e.target.value)}
                 placeholder="Search reason, requester…"
-                className="h-8 rounded-lg pl-8 text-xs"
+                className="h-8 pl-8 text-xs"
               />
             </div>
             <Select
@@ -574,7 +574,7 @@ export default function FinanceBudget() {
                 adjustments.setKind(v as AdjustmentKind | "all")
               }
             >
-              <SelectTrigger className="h-8 w-32 rounded-lg text-xs">
+              <SelectTrigger className="h-8 w-32 text-xs">
                 <SelectValue />
               </SelectTrigger>
               <SelectContent>
@@ -589,7 +589,7 @@ export default function FinanceBudget() {
               value={adjustments.status}
               onValueChange={adjustments.setStatus}
             >
-              <SelectTrigger className="h-8 w-36 rounded-lg text-xs">
+              <SelectTrigger className="h-8 w-36 text-xs">
                 <SelectValue />
               </SelectTrigger>
               <SelectContent>
@@ -636,7 +636,7 @@ export default function FinanceBudget() {
                       </TableCell>
                       <TableCell>
                         <span
-                          className={`inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[10px] font-medium capitalize ${
+                          className={`inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-overline font-medium capitalize ${
                             kindTone[a.kind]
                           }`}
                         >
@@ -650,8 +650,8 @@ export default function FinanceBudget() {
                       <TableCell
                         className={`text-right text-sm font-medium ${
                           a.adjustmentAmount > 0
-                            ? "text-destructive"
-                            : "text-success"
+                            ? "text-destructive-strong"
+                            : "text-success-strong"
                         }`}
                       >
                         {a.adjustmentAmount > 0 ? "+" : ""}
@@ -663,7 +663,7 @@ export default function FinanceBudget() {
                       <TableCell className="max-w-[240px] text-xs text-muted-foreground">
                         {a.reason}
                       </TableCell>
-                      <TableCell className="text-[11px] text-muted-foreground">
+                      <TableCell className="text-overline text-muted-foreground">
                         {a.requestedAt}
                         <div>{a.requestedBy}</div>
                       </TableCell>
@@ -680,7 +680,7 @@ export default function FinanceBudget() {
 
         {/* ── Approvals ─────────────────────────────────────────────── */}
         <TabsContent value="approval" className="mt-4 space-y-4">
-          <div className="rounded-2xl border border-border/70 p-5">
+          <div className="rounded-2xl border border-border p-5">
             <div className="mb-4 flex flex-wrap items-center gap-2">
               <div className="relative min-w-56 flex-1 sm:max-w-sm">
                 <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
@@ -689,11 +689,11 @@ export default function FinanceBudget() {
                   onChange={(e) => setApprovalQuery(e.target.value)}
                   placeholder="Search by budget, project code or requester…"
                   aria-label="Search budgets awaiting approval"
-                  className="h-9 rounded-xl pl-9"
+                  className="h-9 pl-9"
                 />
               </div>
               <Select value={approvalStatus} onValueChange={setApprovalStatus}>
-                <SelectTrigger aria-label="Filter by status" className="h-9 w-44 rounded-xl text-xs">
+                <SelectTrigger aria-label="Filter by status" className="h-9 w-44 text-xs">
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
@@ -711,7 +711,7 @@ export default function FinanceBudget() {
                 <Button
                   size="sm"
                   variant="ghost"
-                  className="h-9 rounded-xl text-xs"
+                  className="h-9 text-xs"
                   onClick={() => {
                     setApprovalQuery("");
                     setApprovalStatus("all");
@@ -762,16 +762,16 @@ export default function FinanceBudget() {
           </div>
 
           <div className="grid gap-4 md:grid-cols-3">
-            <div className="rounded-2xl border border-border/70 p-5 md:col-span-2">
+            <div className="rounded-2xl border border-border p-5 md:col-span-2">
               <h3 className="mb-3 text-sm font-medium">Approval timeline</h3>
               <ApprovalTimeline steps={approval.steps} />
             </div>
 
-            <div className="rounded-2xl border border-border/70 p-5">
+            <div className="rounded-2xl border border-border p-5">
               <h3 className="mb-3 text-sm font-medium">Decision panel</h3>
               <div className="space-y-3">
                 <div>
-                  <label className="mb-1 block text-[11px] font-medium text-muted-foreground">
+                  <label className="mb-1 block text-overline font-medium text-muted-foreground">
                     Comments
                   </label>
                   <Textarea
@@ -784,7 +784,7 @@ export default function FinanceBudget() {
                 <div className="grid grid-cols-3 gap-2">
                   <Button
                     size="sm"
-                    className="rounded-xl bg-success text-success-foreground hover:bg-success/90"
+                    className="bg-success text-success-foreground hover:bg-success/90"
                     disabled={
                       approval.submitting || approval.current === "approved"
                     }
@@ -796,7 +796,7 @@ export default function FinanceBudget() {
                   <Button
                     size="sm"
                     variant="outline"
-                    className="rounded-xl"
+                   
                     disabled={approval.submitting}
                     onClick={() => approval.decide("returned")}
                   >
@@ -806,7 +806,7 @@ export default function FinanceBudget() {
                   <Button
                     size="sm"
                     variant="outline"
-                    className="rounded-xl text-destructive"
+                    className="text-destructive-strong"
                     disabled={approval.submitting}
                     onClick={() => approval.decide("rejected")}
                   >
@@ -814,7 +814,7 @@ export default function FinanceBudget() {
                     Reject
                   </Button>
                 </div>
-                <div className="rounded-xl border bg-muted/40 p-3 text-[11px] text-muted-foreground">
+                <div className="rounded-xl border bg-muted/40 p-3 text-overline text-muted-foreground">
                   Every decision is signed, timestamped, and written to the
                   immutable audit log.
                 </div>

@@ -265,7 +265,7 @@ export function NewWorkflowDialog({
           {closeoutBlockReason && (
             <p
               role="alert"
-              className="rounded-lg border border-warning/30 bg-warning/10 px-3 py-2 text-sm text-warning"
+              className="rounded-lg border border-warning/30 bg-warning/10 px-3 py-2 text-sm text-warning-strong"
             >
               {closeoutBlockReason}
             </p>
@@ -274,7 +274,7 @@ export function NewWorkflowDialog({
           {error && (
             <p
               role="alert"
-              className="rounded-lg border border-destructive/30 bg-destructive/5 px-3 py-2 text-sm text-destructive"
+              className="rounded-lg border border-destructive/30 bg-destructive/5 px-3 py-2 text-sm text-destructive-strong"
             >
               {error.message}
             </p>

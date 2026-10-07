@@ -186,7 +186,7 @@ export function LocationMapPicker({
             <Input
               readOnly
               value={`${(latitude as number).toFixed(6)}, ${(longitude as number).toFixed(6)}`}
-              className="rounded-xl font-mono text-xs"
+              className="font-mono text-xs"
             />
           </div>
           <div className="space-y-1.5">

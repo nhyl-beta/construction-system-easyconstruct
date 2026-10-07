@@ -74,12 +74,12 @@ export default function TasksPage() {
 
         {canCreate && <NewTaskCard onCreate={createTask} creating={creating} />}
 
-        <Card className="rounded-2xl border-border/70 shadow-sm">
+        <Card>
           <CardContent className="p-0">
             {loading ? (
               <div className="p-5 text-sm text-muted-foreground">Loading tasks…</div>
             ) : error ? (
-              <div className="p-5 text-sm text-destructive">Couldn't load tasks. {error}</div>
+              <div className="p-5 text-sm text-destructive-strong">Couldn't load tasks. {error}</div>
             ) : tasks.length === 0 ? (
               <div className="p-5 text-sm text-muted-foreground">
                 {canCreate
@@ -133,7 +133,7 @@ export default function TasksPage() {
                                 {" · "}
                                 <button
                                   type="button"
-                                  className="text-primary underline-offset-2 hover:underline"
+                                  className="text-primary-strong underline-offset-2 hover:underline"
                                   onClick={() => void openFileUrl(t.completionFileUrl).catch(() => undefined)}
                                 >
                                   attachment
@@ -153,7 +153,7 @@ export default function TasksPage() {
                         {canAdvance && nextLabel && (
                           <Button
                             size="sm"
-                            className="h-8 rounded-lg"
+                            className="h-8"
                             disabled={updatingId === t.id}
                             onClick={() =>
                               t.status === "In Progress"
@@ -274,7 +274,7 @@ function NewTaskCard({
   };
 
   return (
-    <Card className="rounded-2xl border-border/70 shadow-sm">
+    <Card>
       <CardContent className="space-y-4 p-5">
         <div>
           <h2 className="text-sm font-semibold">New task</h2>
@@ -309,7 +309,7 @@ function NewTaskCard({
               value={title}
               onChange={(e) => setTitle(e.target.value)}
               placeholder="e.g. Pour foundation slab section B"
-              className="rounded-xl"
+             
             />
           </div>
           <div className="space-y-1.5">
@@ -334,7 +334,7 @@ function NewTaskCard({
           <div className="space-y-1.5">
             <Label>Priority</Label>
             <Select value={priority} onValueChange={setPriority}>
-              <SelectTrigger className="rounded-xl">
+              <SelectTrigger>
                 <SelectValue />
               </SelectTrigger>
               <SelectContent>
@@ -354,7 +354,7 @@ function NewTaskCard({
               max={milestoneDue}
             />
             {milestoneDue && (
-              <p className="text-[11px] text-muted-foreground">
+              <p className="text-overline text-muted-foreground">
                 Follows the milestone: no later than {milestoneDue}.
               </p>
             )}
@@ -371,7 +371,7 @@ function NewTaskCard({
               }}
               disabled={!projectCode}
             >
-              <SelectTrigger className="rounded-xl">
+              <SelectTrigger>
                 <SelectValue
                   placeholder={
                     !projectCode
@@ -405,11 +405,11 @@ function NewTaskCard({
             value={description}
             onChange={(e) => setDescription(e.target.value)}
             placeholder="What needs doing on site?"
-            className="h-20 resize-none rounded-xl"
+            className="h-20 resize-none"
           />
         </div>
 
-        {localError && <p className="text-sm text-destructive">{localError}</p>}
+        {localError && <p className="text-sm text-destructive-strong">{localError}</p>}
         {created && (
           <p className="text-sm text-muted-foreground">
             Created <span className="font-mono">{created}</span>.
@@ -417,7 +417,7 @@ function NewTaskCard({
         )}
 
         <Button
-          className="rounded-xl"
+         
           onClick={() => void submit()}
           disabled={creating}
         >

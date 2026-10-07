@@ -76,15 +76,15 @@ export default function FinanceReportsPage() {
       <PageContent className="space-y-6 p-4 md:p-8">
         <div className="grid gap-4 lg:grid-cols-2 xl:grid-cols-3">
           {REPORT_TYPES.map((r) => (
-            <Card key={r.id} className="rounded-2xl">
+            <Card key={r.id}>
               <CardContent className="space-y-3 p-4">
                 <div className="flex items-center gap-2">
-                  <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-success/10 text-success ring-1 ring-success/20">
+                  <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-success/10 text-success-strong ring-1 ring-success/20">
                     <r.icon className="h-4 w-4" />
                   </div>
                   <div className="min-w-0">
                     <div className="text-sm font-semibold">{r.title}</div>
-                    <div className="font-mono text-[10px] text-muted-foreground">
+                    <div className="font-mono text-overline text-muted-foreground">
                       {r.id}
                     </div>
                   </div>
@@ -94,7 +94,7 @@ export default function FinanceReportsPage() {
                   <Button
                     size="sm"
                     variant="outline"
-                    className="h-7 rounded-lg text-xs"
+                    className="h-7 text-xs"
                     onClick={() => c.exportReport(r.id, "pdf")}
                   >
                     <Download className="h-3 w-3" /> PDF
@@ -102,7 +102,7 @@ export default function FinanceReportsPage() {
                   <Button
                     size="sm"
                     variant="outline"
-                    className="h-7 rounded-lg text-xs"
+                    className="h-7 text-xs"
                     onClick={() => c.exportReport(r.id, "excel")}
                   >
                     <Download className="h-3 w-3" /> Excel
@@ -110,21 +110,21 @@ export default function FinanceReportsPage() {
                   <Button
                     size="sm"
                     variant="ghost"
-                    className="h-7 rounded-lg text-xs"
+                    className="h-7 text-xs"
                   >
                     <Printer className="h-3 w-3" />
                   </Button>
                   <Button
                     size="sm"
                     variant="ghost"
-                    className="h-7 rounded-lg text-xs"
+                    className="h-7 text-xs"
                   >
                     <Share2 className="h-3 w-3" />
                   </Button>
                   <Button
                     size="sm"
                     variant="ghost"
-                    className="h-7 rounded-lg text-xs"
+                    className="h-7 text-xs"
                   >
                     <Calendar className="h-3 w-3" /> Schedule
                   </Button>

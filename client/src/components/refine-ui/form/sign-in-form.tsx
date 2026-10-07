@@ -79,8 +79,8 @@ export const SignInForm = () => {
         <CardHeader className={cn("px-0")}>
           <CardTitle
             className={cn(
-              "text-blue-600",
-              "dark:text-blue-400",
+              "text-primary-strong",
+              "dark:text-primary-strong",
               "text-3xl",
               "font-semibold"
             )}
@@ -145,9 +145,9 @@ export const SignInForm = () => {
                   "flex",
                   "items-center",
                   "gap-2",
-                  "text-primary hover:underline",
-                  "text-blue-600",
-                  "dark:text-blue-400"
+                  "text-primary-strong hover:underline",
+                  "text-primary-strong",
+                  "dark:text-primary-strong"
                 )}
               >
                 <span>Forgot password</span>
@@ -226,8 +226,8 @@ export const SignInForm = () => {
             <Link
               to="/register"
               className={cn(
-                "text-green-600",
-                "dark:text-green-400",
+                "text-success-strong",
+                "dark:text-success-strong",
                 "font-semibold",
                 "underline"
               )}

@@ -548,7 +548,7 @@ export const workflowAISuggestions: WorkflowAISuggestion[] = [
 
 export const approvalStats: ApprovalStat[] = [
   { label: "Pending", value: "12", tone: "text-foreground" },
-  { label: "Overdue", value: "3", tone: "text-destructive" },
+  { label: "Overdue", value: "3", tone: "text-destructive-strong" },
   { label: "Avg cycle", value: "1.6d", tone: "text-foreground" },
   { label: "This week", value: "47", tone: "text-foreground" },
 ];

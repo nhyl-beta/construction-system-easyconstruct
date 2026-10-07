@@ -82,7 +82,7 @@ function IssueRow({
   }, [issue.id, isOpen]);
 
   return (
-    <div className="space-y-3 border-b border-border/60 p-4 last:border-0">
+    <div className="space-y-3 border-b border-border p-4 last:border-0">
       <div className="flex flex-wrap items-start justify-between gap-3">
         <div className="min-w-0">
           <div className="font-mono text-xs text-muted-foreground">
@@ -106,7 +106,7 @@ function IssueRow({
             onEdit();
           }}
         >
-          <SelectTrigger className="h-8 w-44 rounded-lg text-xs">
+          <SelectTrigger className="h-8 w-44 text-xs">
             <SelectValue />
           </SelectTrigger>
           <SelectContent>
@@ -134,7 +134,7 @@ function IssueRow({
 
         <Button
           size="sm"
-          className="h-8 rounded-lg"
+          className="h-8"
           disabled={!dirty || updating}
           onClick={() => {
             // Resolving needs notes; say so here instead of sending a request
@@ -152,7 +152,7 @@ function IssueRow({
       </div>
 
       {(localError || updateError) && (
-        <p role="alert" className="rounded-lg border border-destructive/30 bg-destructive/5 px-3 py-2 text-xs text-destructive">
+        <p role="alert" className="rounded-lg border border-destructive/30 bg-destructive/5 px-3 py-2 text-xs text-destructive-strong">
           {localError ?? updateError}
         </p>
       )}
@@ -172,7 +172,7 @@ function IssueRow({
           <ul className="mt-1 space-y-2 text-muted-foreground">
             {precedents.map((p) => (
               <li key={p.issueCode}>
-                <div className="font-mono text-[11px]">
+                <div className="font-mono text-overline">
                   {p.issueCode} · {p.projectCode}
                   {p.resolvedAt ? ` · ${p.resolvedAt.slice(0, 10)}` : ""} · {Math.round(p.score * 100)}% match
                 </div>
@@ -182,7 +182,7 @@ function IssueRow({
                 {dirty && nextStatus === "Resolved" && (
                   <button
                     type="button"
-                    className="mt-0.5 text-primary hover:underline"
+                    className="mt-0.5 text-primary-strong hover:underline"
                     onClick={() => {
                       setNotes(p.resolutionNotes);
                       setLocalError(null);
@@ -246,12 +246,12 @@ export default function IssuesPage() {
           ]}
         />
 
-        <Card className="rounded-2xl border-border/70 shadow-sm">
+        <Card>
           <CardContent className="p-0">
             {loading ? (
               <div className="p-5 text-sm text-muted-foreground">Loading issues…</div>
             ) : error && issues.length === 0 ? (
-              <div className="p-5 text-sm text-destructive">Couldn't load issues. {error}</div>
+              <div className="p-5 text-sm text-destructive-strong">Couldn't load issues. {error}</div>
             ) : issues.length === 0 ? (
               <div className="p-5 text-sm text-muted-foreground">
                 No issues reported yet — Site Personnel's reports will appear here.
