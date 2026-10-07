@@ -120,7 +120,7 @@ export function NotificationBell() {
                 type="button"
                 disabled={marking === n.id}
                 onClick={() => handleSelect(n)}
-                className="flex w-full items-start gap-3 border-b border-border px-4 py-3 text-left outline-none transition-colors duration-150 last:border-0 hover:bg-muted focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-ring disabled:cursor-default disabled:hover:bg-transparent"
+                className="flex w-full items-start gap-3 border-b border-border px-4 py-3 text-left transition-colors duration-150 last:border-0 hover:bg-muted focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-ring disabled:cursor-default disabled:hover:bg-transparent"
               >
                 {/* State dot: info for unread; read items carry none. */}
                 <span
