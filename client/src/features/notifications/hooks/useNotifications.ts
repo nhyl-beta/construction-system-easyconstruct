@@ -65,8 +65,27 @@ export function useNotifications(query: NotificationsQuery = {}) {
     [],
   );
 
+  // There is no bulk endpoint, so each unread one is marked in turn; the list is
+  // refreshed afterwards so it shows what the server actually has.
+  const markAllRead = useCallback(async () => {
+    const unread = notifications.filter((n) => !n.isRead);
+    if (unread.length === 0) return;
+    setMarking(-1);
+    setError(null);
+    try {
+      await Promise.all(unread.map((n) => NotificationRepository.markRead(n.id)));
+      setNotifications((prev) => prev.map((n) => ({ ...n, isRead: true })));
+    } catch (err) {
+      setError(err instanceof Error ? err : new Error("Failed to mark notifications as read."));
+      await reload();
+    } finally {
+      setMarking(null);
+    }
+  }, [notifications, reload]);
+
   return {
     notifications,
+    markAllRead,
     loading,
     marking,
     error,
