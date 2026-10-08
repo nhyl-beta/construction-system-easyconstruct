@@ -70,7 +70,7 @@ export default function ArchitectRevisions() {
           canCreate ? (
             <Button
               size="sm"
-              className="rounded-xl"
+             
               onClick={() => {
                 setCreateFor(null);
                 setCreating(true);
@@ -105,11 +105,11 @@ export default function ArchitectRevisions() {
             onChange={(e) => r.setQuery(e.target.value)}
             placeholder="Search title, label or summary…"
             aria-label="Search revisions"
-            className="h-8 rounded-lg pl-8 text-xs"
+            className="h-8 pl-8 text-xs"
           />
         </div>
         <Select value={r.filters.project} onValueChange={(v) => r.setFilter("project", v)}>
-          <SelectTrigger aria-label="Filter by project" className="h-8 w-40 rounded-lg text-xs">
+          <SelectTrigger aria-label="Filter by project" className="h-8 w-40 text-xs">
             <SelectValue />
           </SelectTrigger>
           <SelectContent>
@@ -122,7 +122,7 @@ export default function ArchitectRevisions() {
           </SelectContent>
         </Select>
         <Select value={r.filters.itemType} onValueChange={(v) => r.setFilter("itemType", v)}>
-          <SelectTrigger aria-label="Filter by type" className="h-8 w-32 rounded-lg text-xs">
+          <SelectTrigger aria-label="Filter by type" className="h-8 w-32 text-xs">
             <SelectValue />
           </SelectTrigger>
           <SelectContent>
@@ -135,7 +135,7 @@ export default function ArchitectRevisions() {
           </SelectContent>
         </Select>
         <Select value={r.filters.status} onValueChange={(v) => r.setFilter("status", v)}>
-          <SelectTrigger aria-label="Filter by status" className="h-8 w-36 rounded-lg text-xs">
+          <SelectTrigger aria-label="Filter by status" className="h-8 w-36 text-xs">
             <SelectValue />
           </SelectTrigger>
           <SelectContent>
@@ -154,14 +154,14 @@ export default function ArchitectRevisions() {
           <DatePicker value={r.filters.dateTo} onChange={(v) => r.setFilter("dateTo", v)} placeholder="To date" min={r.filters.dateFrom || undefined} />
         </div>
         {r.hasActiveFilters && (
-          <Button size="sm" variant="ghost" className="h-8 gap-1 rounded-lg px-2 text-xs" onClick={r.clearFilters}>
+          <Button size="sm" variant="ghost" className="h-8 gap-1 px-2 text-xs" onClick={r.clearFilters}>
             <X className="h-3 w-3" /> Clear
           </Button>
         )}
       </div>
 
       {r.error ? (
-        <div role="alert" className="flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-destructive/30 bg-destructive/5 p-4 text-sm text-destructive">
+        <div role="alert" className="flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-destructive/30 bg-destructive/5 p-4 text-sm text-destructive-strong">
           <span>Couldn't load revisions. {r.error}</span>
           <Button size="sm" variant="outline" onClick={() => void r.reload()}>
             Retry
@@ -177,7 +177,7 @@ export default function ArchitectRevisions() {
             <div className="space-y-3">
               <p>No revisions recorded yet.</p>
               {canCreate && (
-                <Button size="sm" className="rounded-xl" onClick={() => setCreating(true)}>
+                <Button size="sm" onClick={() => setCreating(true)}>
                   <Plus className="mr-1 h-3.5 w-3.5" /> Create revision
                 </Button>
               )}
@@ -195,7 +195,7 @@ export default function ArchitectRevisions() {
                 Showing {firstShown}–{lastShown} of {r.total}
               </span>
               <Select value={String(r.pageSize)} onValueChange={(v) => r.setPageSize(Number(v))}>
-                <SelectTrigger aria-label="Rows per page" className="h-7 w-24 rounded-lg text-xs">
+                <SelectTrigger aria-label="Rows per page" className="h-7 w-24 text-xs">
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
@@ -208,13 +208,13 @@ export default function ArchitectRevisions() {
               </Select>
             </div>
             <div className="flex items-center gap-2">
-              <Button size="sm" variant="outline" className="h-7 rounded-lg px-2" disabled={r.page <= 1} onClick={() => r.setPage(r.page - 1)} aria-label="Previous page">
+              <Button size="sm" variant="outline" className="h-7 px-2" disabled={r.page <= 1} onClick={() => r.setPage(r.page - 1)} aria-label="Previous page">
                 <ChevronLeft className="h-4 w-4" />
               </Button>
               <span className="tabular-nums">
                 Page {r.page} of {r.pages}
               </span>
-              <Button size="sm" variant="outline" className="h-7 rounded-lg px-2" disabled={r.page >= r.pages} onClick={() => r.setPage(r.page + 1)} aria-label="Next page">
+              <Button size="sm" variant="outline" className="h-7 px-2" disabled={r.page >= r.pages} onClick={() => r.setPage(r.page + 1)} aria-label="Next page">
                 <ChevronRight className="h-4 w-4" />
               </Button>
             </div>

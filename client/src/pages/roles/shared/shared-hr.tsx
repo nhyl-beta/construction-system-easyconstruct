@@ -6,13 +6,13 @@ import { CheckCircle2, type LucideIcon } from "lucide-react";
 export function toneBg(tone: ToneBg) {
   switch (tone) {
     case "success":
-      return "bg-success/10 text-success";
+      return "bg-success/10 text-success-strong";
     case "warning":
-      return "bg-warning/15 text-warning";
+      return "bg-warning/15 text-warning-strong";
     case "destructive":
-      return "bg-destructive/10 text-destructive";
+      return "bg-destructive/10 text-destructive-strong";
     case "info":
-      return "bg-info/10 text-info";
+      return "bg-info/10 text-info-strong";
     default:
       return "bg-muted text-muted-foreground";
   }
@@ -20,27 +20,27 @@ export function toneBg(tone: ToneBg) {
 
 export function StatusBadge({ status }: { status: string }) {
   const map: Record<string, string> = {
-    Active: "bg-success/10 text-success border-success/20",
-    "On Leave": "bg-warning/15 text-warning border-warning/30",
-    Suspended: "bg-destructive/10 text-destructive border-destructive/20",
+    Active: "bg-success/10 text-success-strong border-success/20",
+    "On Leave": "bg-warning/15 text-warning-strong border-warning/30",
+    Suspended: "bg-destructive/10 text-destructive-strong border-destructive/20",
     Archived: "bg-muted text-muted-foreground border-border",
-    Verified: "bg-success/10 text-success border-success/20",
-    Pending: "bg-warning/15 text-warning border-warning/30",
-    Flagged: "bg-destructive/10 text-destructive border-destructive/20",
-    Approved: "bg-success/10 text-success border-success/20",
-    Review: "bg-destructive/10 text-destructive border-destructive/20",
-    Present: "bg-success/10 text-success border-success/20",
-    Absent: "bg-destructive/10 text-destructive border-destructive/20",
-    Late: "bg-warning/15 text-warning border-warning/30",
-    "Half Day": "bg-info/10 text-info border-info/20",
-    Completed: "bg-success/10 text-success border-success/20",
-    Processing: "bg-warning/15 text-warning border-warning/30",
+    Verified: "bg-success/10 text-success-strong border-success/20",
+    Pending: "bg-warning/15 text-warning-strong border-warning/30",
+    Flagged: "bg-destructive/10 text-destructive-strong border-destructive/20",
+    Approved: "bg-success/10 text-success-strong border-success/20",
+    Review: "bg-destructive/10 text-destructive-strong border-destructive/20",
+    Present: "bg-success/10 text-success-strong border-success/20",
+    Absent: "bg-destructive/10 text-destructive-strong border-destructive/20",
+    Late: "bg-warning/15 text-warning-strong border-warning/30",
+    "Half Day": "bg-info/10 text-info-strong border-info/20",
+    Completed: "bg-success/10 text-success-strong border-success/20",
+    Processing: "bg-warning/15 text-warning-strong border-warning/30",
     Draft: "bg-muted text-muted-foreground border-border",
   };
   return (
     <Badge
       variant="outline"
-      className={`rounded-full text-[10px] ${map[status] ?? ""}`}
+      className={`rounded-full text-overline ${map[status] ?? ""}`}
     >
       {status}
     </Badge>
@@ -67,14 +67,14 @@ export function MiniStat({
 }) {
   const color =
     tone === "success"
-      ? "text-success"
+      ? "text-success-strong"
       : tone === "warning"
-      ? "text-warning"
-      : "text-destructive";
+      ? "text-warning-strong"
+      : "text-destructive-strong";
   return (
     <div className="rounded-lg border bg-muted/20 p-2">
       <div className={`text-lg font-semibold ${color}`}>{value}</div>
-      <div className="text-[10px] text-muted-foreground">{label}</div>
+      <div className="text-overline text-muted-foreground">{label}</div>
     </div>
   );
 }
@@ -92,14 +92,14 @@ export function KpiMini({
 }) {
   const bg =
     tone === "success"
-      ? "bg-success/10 text-success"
+      ? "bg-success/10 text-success-strong"
       : tone === "warning"
-      ? "bg-warning/15 text-warning"
+      ? "bg-warning/15 text-warning-strong"
       : tone === "destructive"
-      ? "bg-destructive/10 text-destructive"
-      : "bg-info/10 text-info";
+      ? "bg-destructive/10 text-destructive-strong"
+      : "bg-info/10 text-info-strong";
   return (
-    <Card className="rounded-2xl">
+    <Card>
       <CardContent className="p-4">
         <div
           className={`flex h-8 w-8 items-center justify-center rounded-lg ${bg}`}
@@ -107,7 +107,7 @@ export function KpiMini({
           <Icon className="h-4 w-4" />
         </div>
         <div className="mt-3 text-xl font-semibold tracking-tight">{value}</div>
-        <div className="text-[11px] text-muted-foreground">{label}</div>
+        <div className="text-overline text-muted-foreground">{label}</div>
       </CardContent>
     </Card>
   );
@@ -119,7 +119,7 @@ export function Checkpoint({ label, done }: { label: string; done?: boolean }) {
       <div
         className={`flex h-4 w-4 items-center justify-center rounded-full border ${
           done
-            ? "border-success bg-success/15 text-success"
+            ? "border-success bg-success/15 text-success-strong"
             : "border-border text-muted-foreground"
         }`}
       >

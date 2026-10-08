@@ -64,7 +64,7 @@ export function AuthBrandPanel() {
               key={p.label}
               className="rounded-lg border border-border/60 bg-background/40 p-4 backdrop-blur-sm"
             >
-              <p.icon className="mb-2 size-4 text-primary" aria-hidden="true" />
+              <p.icon className="mb-2 size-4 text-primary-strong" aria-hidden="true" />
               <p className="text-sm font-medium">{p.label}</p>
               <p className="mt-0.5 text-xs text-muted-foreground">{p.detail}</p>
             </li>

@@ -179,24 +179,24 @@ function StepPersonalInfo({
       <div className="grid grid-cols-2 gap-5">
         <div className="space-y-1.5">
           <Label>
-            First name <span className="text-destructive">*</span>
+            First name <span className="text-destructive-strong">*</span>
           </Label>
           <Input
             placeholder="e.g. Adaeze"
             value={data.firstName}
             onChange={(e) => set("firstName", e.target.value)}
-            className="rounded-xl"
+           
           />
         </div>
         <div className="space-y-1.5">
           <Label>
-            Last name <span className="text-destructive">*</span>
+            Last name <span className="text-destructive-strong">*</span>
           </Label>
           <Input
             placeholder="e.g. Nwosu"
             value={data.lastName}
             onChange={(e) => set("lastName", e.target.value)}
-            className="rounded-xl"
+           
           />
         </div>
         <div className="space-y-1.5">
@@ -206,7 +206,7 @@ function StepPersonalInfo({
             placeholder="e.g. a.nwosu@orra.com"
             value={data.email}
             onChange={(e) => set("email", e.target.value)}
-            className="rounded-xl"
+           
           />
         </div>
         <div className="space-y-1.5">
@@ -216,23 +216,23 @@ function StepPersonalInfo({
             placeholder="+63 9XX XXX XXXX"
             value={data.phone}
             onChange={(e) => set("phone", e.target.value)}
-            className="rounded-xl"
+           
           />
         </div>
         <div className="space-y-1.5">
           <Label>
-            Employee ID <span className="text-destructive">*</span>
+            Employee ID <span className="text-destructive-strong">*</span>
           </Label>
           <Input
             placeholder="e.g. EMP-011"
             value={data.employeeId}
             onChange={(e) => set("employeeId", e.target.value)}
-            className="rounded-xl"
+           
           />
         </div>
         <div className="space-y-1.5">
           <Label>
-            Hire date <span className="text-destructive">*</span>
+            Hire date <span className="text-destructive-strong">*</span>
           </Label>
           <DatePicker
             value={data.hiredOn}
@@ -243,7 +243,7 @@ function StepPersonalInfo({
         </div>
       </div>
       <div className="flex items-start gap-3 rounded-xl border border-info/20 bg-info/5 px-4 py-3">
-        <Info className="mt-0.5 h-4 w-4 shrink-0 text-info" />
+        <Info className="mt-0.5 h-4 w-4 shrink-0 text-info-strong" />
         <p className="text-xs text-muted-foreground">
           Employee details are saved to the HR database and are available to
           attendance and payroll workflows.
@@ -276,21 +276,21 @@ function StepEmployment({
       <div className="grid grid-cols-2 gap-5">
         <div className="space-y-1.5">
           <Label>
-            Job title / Role <span className="text-destructive">*</span>
+            Job title / Role <span className="text-destructive-strong">*</span>
           </Label>
           <Input
             placeholder="e.g. Site Engineer"
             value={data.role}
             onChange={(e) => set("role", e.target.value)}
-            className="rounded-xl"
+           
           />
         </div>
         <div className="space-y-1.5">
           <Label>
-            Department <span className="text-destructive">*</span>
+            Department <span className="text-destructive-strong">*</span>
           </Label>
           <Select value={data.department} onValueChange={(v) => set("department", v)}>
-            <SelectTrigger className="rounded-xl">
+            <SelectTrigger>
               <SelectValue placeholder="Select department" />
             </SelectTrigger>
             <SelectContent>
@@ -307,10 +307,10 @@ function StepEmployment({
         </div>
         <div className="space-y-1.5">
           <Label>
-            Site assignment <span className="text-destructive">*</span>
+            Site assignment <span className="text-destructive-strong">*</span>
           </Label>
           <Select value={data.site} onValueChange={(v) => set("site", v)}>
-            <SelectTrigger className="rounded-xl">
+            <SelectTrigger>
               <SelectValue placeholder="Select site" />
             </SelectTrigger>
             <SelectContent>
@@ -328,7 +328,7 @@ function StepEmployment({
             value={data.status}
             onValueChange={(v) => set("status", v as EmployeeStatus)}
           >
-            <SelectTrigger className="rounded-xl">
+            <SelectTrigger>
               <SelectValue />
             </SelectTrigger>
             <SelectContent>
@@ -345,7 +345,7 @@ function StepEmployment({
             placeholder="0.00"
             value={data.rate}
             onChange={(e) => set("rate", e.target.value)}
-            className="rounded-xl"
+           
           />
         </div>
         <div className="space-y-1.5">
@@ -354,7 +354,7 @@ function StepEmployment({
             value={data.rateType}
             onValueChange={(v) => set("rateType", v)}
           >
-            <SelectTrigger className="rounded-xl">
+            <SelectTrigger>
               <SelectValue />
             </SelectTrigger>
             <SelectContent>

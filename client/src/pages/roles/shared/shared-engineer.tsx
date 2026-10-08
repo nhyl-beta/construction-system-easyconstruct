@@ -35,25 +35,25 @@ const TODAY = () => new Date().toISOString().slice(0, 10);
 
 export const PRIORITY_TONE: Record<ReportPriority, string> = {
   Low: "bg-muted text-muted-foreground border-border",
-  Medium: "bg-primary-soft/60 text-primary border-primary/20",
-  High: "bg-warning/15 text-warning border-warning/30",
-  Critical: "bg-destructive/10 text-destructive border-destructive/20",
+  Medium: "bg-primary-soft/60 text-primary-strong border-primary/20",
+  High: "bg-warning/15 text-warning-strong border-warning/30",
+  Critical: "bg-destructive/10 text-destructive-strong border-destructive/20",
 };
 
 export const STATUS_TONE: Record<ReportStatus, string> = {
   Draft: "bg-muted text-muted-foreground border-border",
-  Submitted: "bg-primary-soft/60 text-primary border-primary/20",
-  "Under Review": "bg-warning/15 text-warning border-warning/30",
-  Approved: "bg-success/10 text-success border-success/20",
-  Rejected: "bg-destructive/10 text-destructive border-destructive/20",
-  "Revision Required": "bg-warning/15 text-warning border-warning/30",
+  Submitted: "bg-primary-soft/60 text-primary-strong border-primary/20",
+  "Under Review": "bg-warning/15 text-warning-strong border-warning/30",
+  Approved: "bg-success/10 text-success-strong border-success/20",
+  Rejected: "bg-destructive/10 text-destructive-strong border-destructive/20",
+  "Revision Required": "bg-warning/15 text-warning-strong border-warning/30",
 };
 
 export function PriorityBadge({ priority }: { priority: ReportPriority }) {
   return (
     <Badge
       variant="outline"
-      className={`rounded-full px-2.5 py-0.5 text-[11px] font-medium ${PRIORITY_TONE[priority]}`}
+      className={`rounded-full px-2.5 py-0.5 text-overline font-medium ${PRIORITY_TONE[priority]}`}
     >
       {priority}
     </Badge>
@@ -64,7 +64,7 @@ export function ReportStatusBadge({ status }: { status: ReportStatus }) {
   return (
     <Badge
       variant="outline"
-      className={`rounded-full px-2.5 py-0.5 text-[11px] font-medium ${STATUS_TONE[status]}`}
+      className={`rounded-full px-2.5 py-0.5 text-overline font-medium ${STATUS_TONE[status]}`}
     >
       {status}
     </Badge>
@@ -233,7 +233,7 @@ export function NewReportDialog({
   return (
     <Dialog open={open} onOpenChange={setOpen}>
       <DialogTrigger asChild>
-        <Button className="rounded-xl">{triggerLabel}</Button>
+        <Button>{triggerLabel}</Button>
       </DialogTrigger>
       <DialogContent className="sm:max-w-lg">
         <DialogHeader>
@@ -365,7 +365,7 @@ export function NewReportDialog({
           </div>
 
           <DialogFooter>
-            <Button type="submit" disabled={submitting} className="rounded-xl">
+            <Button type="submit" disabled={submitting}>
               {submitting ? "Submitting…" : "Submit report"}
             </Button>
           </DialogFooter>

@@ -45,7 +45,7 @@ export function RequestFilePicker({
             if (picked.length) onChange([...files, ...picked].slice(0, 10));
           }}
         />
-        <Button type="button" variant="outline" size="sm" className="rounded-lg" disabled={disabled} onClick={() => input.current?.click()}>
+        <Button type="button" variant="outline" size="sm" disabled={disabled} onClick={() => input.current?.click()}>
           <Paperclip className="h-3.5 w-3.5" /> Add files
         </Button>
         <span className="text-xs text-muted-foreground">{label}</span>

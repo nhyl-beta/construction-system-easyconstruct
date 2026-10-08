@@ -1,4 +1,6 @@
 import { FEATURES } from "@/config/features";
+import { UtilizationTile } from "@/components/ui/utilization-tile";
+import { RingGauge } from "@/components/ui/ring-gauge";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -85,13 +87,13 @@ import { WaitingOnYouCard } from "@/features/lifecycle/components/WaitingOnYouCa
 function toneBg(tone: ToneBg) {
   switch (tone) {
     case "success":
-      return "bg-success/10 text-success";
+      return "bg-success/10 text-success-strong";
     case "warning":
-      return "bg-warning/15 text-warning";
+      return "bg-warning/15 text-warning-strong";
     case "destructive":
-      return "bg-destructive/10 text-destructive";
+      return "bg-destructive/10 text-destructive-strong";
     case "info":
-      return "bg-info/10 text-info";
+      return "bg-info/10 text-info-strong";
     default:
       return "bg-muted text-muted-foreground";
   }
@@ -99,20 +101,20 @@ function toneBg(tone: ToneBg) {
 
 function StatusBadge({ status }: { status: string }) {
   const map: Record<string, string> = {
-    Active: "bg-success/10 text-success border-success/20",
-    "On Leave": "bg-warning/15 text-warning border-warning/30",
-    Suspended: "bg-destructive/10 text-destructive border-destructive/20",
+    Active: "bg-success/10 text-success-strong border-success/20",
+    "On Leave": "bg-warning/15 text-warning-strong border-warning/30",
+    Suspended: "bg-destructive/10 text-destructive-strong border-destructive/20",
     Archived: "bg-muted text-muted-foreground border-border",
-    Verified: "bg-success/10 text-success border-success/20",
-    Pending: "bg-warning/15 text-warning border-warning/30",
-    Flagged: "bg-destructive/10 text-destructive border-destructive/20",
-    Approved: "bg-success/10 text-success border-success/20",
-    Review: "bg-destructive/10 text-destructive border-destructive/20",
+    Verified: "bg-success/10 text-success-strong border-success/20",
+    Pending: "bg-warning/15 text-warning-strong border-warning/30",
+    Flagged: "bg-destructive/10 text-destructive-strong border-destructive/20",
+    Approved: "bg-success/10 text-success-strong border-success/20",
+    Review: "bg-destructive/10 text-destructive-strong border-destructive/20",
   };
   return (
     <Badge
       variant="outline"
-      className={`rounded-full text-[10px] ${map[status] ?? ""}`}
+      className={`rounded-full text-overline ${map[status] ?? ""}`}
     >
       {status}
     </Badge>
@@ -139,14 +141,14 @@ function MiniStat({
 }) {
   const color =
     tone === "success"
-      ? "text-success"
+      ? "text-success-strong"
       : tone === "warning"
-      ? "text-warning"
-      : "text-destructive";
+      ? "text-warning-strong"
+      : "text-destructive-strong";
   return (
     <div className="rounded-lg border bg-muted/20 p-2">
       <div className={`text-lg font-semibold ${color}`}>{value}</div>
-      <div className="text-[10px] text-muted-foreground">{label}</div>
+      <div className="text-overline text-muted-foreground">{label}</div>
     </div>
   );
 }
@@ -164,14 +166,14 @@ function KpiMini({
 }) {
   const bg =
     tone === "success"
-      ? "bg-success/10 text-success"
+      ? "bg-success/10 text-success-strong"
       : tone === "warning"
-      ? "bg-warning/15 text-warning"
+      ? "bg-warning/15 text-warning-strong"
       : tone === "destructive"
-      ? "bg-destructive/10 text-destructive"
-      : "bg-info/10 text-info";
+      ? "bg-destructive/10 text-destructive-strong"
+      : "bg-info/10 text-info-strong";
   return (
-    <Card className="rounded-2xl">
+    <Card>
       <CardContent className="p-4">
         <div
           className={`flex h-8 w-8 items-center justify-center rounded-lg ${bg}`}
@@ -179,7 +181,7 @@ function KpiMini({
           <Icon className="h-4 w-4" />
         </div>
         <div className="mt-3 text-xl font-semibold tracking-tight">{value}</div>
-        <div className="text-[11px] text-muted-foreground">{label}</div>
+        <div className="text-overline text-muted-foreground">{label}</div>
       </CardContent>
     </Card>
   );
@@ -191,7 +193,7 @@ function Checkpoint({ label, done }: { label: string; done?: boolean }) {
       <div
         className={`flex h-4 w-4 items-center justify-center rounded-full border ${
           done
-            ? "border-success bg-success/15 text-success"
+            ? "border-success bg-success/15 text-success-strong"
             : "border-border text-muted-foreground"
         }`}
       >
@@ -241,7 +243,7 @@ function Capacity({
 
 function AIInsightsCard() {
   return (
-    <Card className="rounded-2xl border-ai/20 bg-gradient-to-b from-ai-soft/60 to-transparent">
+    <Card className="border-ai/20 bg-gradient-to-b from-ai-soft/60 to-transparent">
       <CardHeader className="flex flex-row items-center justify-between space-y-0">
         <div className="flex items-center gap-2">
           <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-ai text-ai-foreground">
@@ -266,20 +268,20 @@ function AIInsightsCard() {
           >
             <div className="flex items-start justify-between gap-3">
               <div className="text-sm font-medium leading-snug">{i.title}</div>
-              <Badge variant="outline" className="rounded-full text-[10px]">
+              <Badge variant="outline" className="rounded-full text-overline">
                 {Math.round(i.confidence * 100)}% conf.
               </Badge>
             </div>
             <p className="mt-1 text-xs text-muted-foreground">{i.detail}</p>
             <div className="mt-2 flex items-center justify-between gap-2">
-              <div className="text-[11px] text-muted-foreground">
+              <div className="text-overline text-muted-foreground">
                 <span className="font-medium text-foreground">Impact:</span>{" "}
                 {i.impact}
               </div>
               <Button
                 size="sm"
                 variant="ghost"
-                className="h-7 rounded-lg px-2 text-xs text-ai hover:bg-ai-soft"
+                className="h-7 px-2 text-xs text-ai hover:bg-ai-soft"
               >
                 {i.action} <ChevronRight className="h-3.5 w-3.5" />
               </Button>
@@ -349,23 +351,23 @@ function OverviewSection() {
       {/* KPI strip */}
       <div className="grid grid-cols-2 gap-3 md:grid-cols-3 xl:grid-cols-6">
         {kpis.map((k) => (
-          <Card key={k.label} className="rounded-2xl">
+          <Card key={k.label}>
             <CardContent className="p-4">
               <div className="flex items-center justify-between">
-                <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-primary-soft text-primary">
+                <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-primary-soft text-primary-strong">
                   <k.icon className="h-4 w-4" />
                 </div>
                 {k.up ? (
-                  <TrendingUp className="h-3.5 w-3.5 text-success" />
+                  <TrendingUp className="h-3.5 w-3.5 text-success-strong" />
                 ) : (
-                  <TrendingDown className="h-3.5 w-3.5 text-warning" />
+                  <TrendingDown className="h-3.5 w-3.5 text-warning-strong" />
                 )}
               </div>
               <div className="mt-3 text-2xl font-semibold tracking-tight">
                 {k.value}
               </div>
-              <div className="text-[11px] text-muted-foreground">{k.label}</div>
-              <div className="mt-1 text-[11px] text-muted-foreground/80">
+              <div className="text-overline text-muted-foreground">{k.label}</div>
+              <div className="mt-1 text-overline text-muted-foreground/80">
                 {k.delta}
               </div>
             </CardContent>
@@ -375,7 +377,7 @@ function OverviewSection() {
 
       {/* Chart + AI */}
       <div className="grid grid-cols-1 gap-4 xl:grid-cols-3">
-        <Card className="rounded-2xl xl:col-span-2">
+        <Card className="xl:col-span-2">
           <CardHeader className="flex flex-row items-center justify-between space-y-0">
             <div>
               <CardTitle className="text-base">Weekly attendance</CardTitle>
@@ -413,17 +415,17 @@ function OverviewSection() {
                         title={`Absent ${d.absent}`}
                       />
                     </div>
-                    <div className="text-[11px] font-medium text-muted-foreground">
+                    <div className="text-overline font-medium text-muted-foreground">
                       {d.day}
                     </div>
-                    <div className="text-[10px] text-muted-foreground/70">
+                    <div className="text-overline text-muted-foreground/70">
                       {d.present + d.late + d.absent}
                     </div>
                   </div>
                 );
               })}
             </div>
-            <div className="mt-4 flex flex-wrap items-center gap-4 text-[11px] text-muted-foreground">
+            <div className="mt-4 flex flex-wrap items-center gap-4 text-overline text-muted-foreground">
               <Legend dot="bg-primary" label="Present" />
               <Legend dot="bg-warning/80" label="Late" />
               <Legend dot="bg-destructive/70" label="Absent" />
@@ -436,7 +438,7 @@ function OverviewSection() {
       {/* Department + Payroll + Activity */}
       <div className="grid grid-cols-1 gap-4 lg:grid-cols-3">
         {/* Department allocation */}
-        <Card className="rounded-2xl">
+        <Card>
           <CardHeader>
             <CardTitle className="text-base">Department allocation</CardTitle>
             <p className="text-xs text-muted-foreground">
@@ -468,7 +470,7 @@ function OverviewSection() {
         </Card>
 
         {/* Payroll status */}
-        <Card className="rounded-2xl">
+        <Card>
           <CardHeader className="flex flex-row items-center justify-between space-y-0">
             <CardTitle className="text-base">Payroll status</CardTitle>
             <Badge variant="secondary" className="rounded-full">
@@ -487,16 +489,18 @@ function OverviewSection() {
                   </div>
                 </div>
                 <div className="text-right">
-                  <div className="text-sm font-medium text-success">+4.1%</div>
-                  <div className="text-[11px] text-muted-foreground">
+                  <div className="text-sm font-medium text-success-strong">+4.1%</div>
+                  <div className="text-overline text-muted-foreground">
                     vs last period
                   </div>
                 </div>
               </div>
-              <Progress value={73} className="mt-3 h-2" />
-              <div className="mt-1 flex items-center justify-between text-[11px] text-muted-foreground">
-                <span>73% reviewed</span>
-                <span>Cut-off in 2d 6h</span>
+              <div className="mt-4 flex items-center gap-4">
+                <RingGauge percent={73} label="Payroll reviewed" size={88} />
+                <div className="text-caption text-muted-foreground">
+                  <div>73% reviewed</div>
+                  <div>Cut-off in 2d 6h</div>
+                </div>
               </div>
             </div>
             <Separator />
@@ -509,7 +513,7 @@ function OverviewSection() {
         </Card>
 
         {/* Recent HR activity */}
-        <Card className="rounded-2xl">
+        <Card>
           <CardHeader>
             <CardTitle className="text-base">Recent HR activity</CardTitle>
             <p className="text-xs text-muted-foreground">
@@ -528,7 +532,7 @@ function OverviewSection() {
                 </div>
                 <div className="min-w-0 flex-1">
                   <p className="truncate text-sm">{a.text}</p>
-                  <p className="text-[11px] text-muted-foreground">
+                  <p className="text-overline text-muted-foreground">
                     {a.time} ago
                   </p>
                 </div>
@@ -564,7 +568,7 @@ function EmployeesSection() {
 
   return (
     <>
-      <Card className="rounded-2xl">
+      <Card>
         <CardContent className="flex flex-col gap-3 p-4 md:flex-row md:items-center">
           <div className="relative flex-1">
             <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
@@ -572,12 +576,12 @@ function EmployeesSection() {
               value={query}
               onChange={(e) => setQuery(e.target.value)}
               placeholder="Search by name, ID, or role…"
-              className="h-9 rounded-xl border-border bg-muted/40 pl-9"
+              className="h-9 border-border bg-muted/40 pl-9"
             />
           </div>
           <div className="flex flex-wrap items-center gap-2">
             <Select value={dept} onValueChange={setDept}>
-              <SelectTrigger className="h-9 w-[170px] rounded-xl">
+              <SelectTrigger className="h-9 w-[170px]">
                 <Filter className="mr-1 h-3.5 w-3.5 text-muted-foreground" />
                 <SelectValue placeholder="Department" />
               </SelectTrigger>
@@ -591,7 +595,7 @@ function EmployeesSection() {
               </SelectContent>
             </Select>
             <Select value={status} onValueChange={setStatus}>
-              <SelectTrigger className="h-9 w-[140px] rounded-xl">
+              <SelectTrigger className="h-9 w-[140px]">
                 <SelectValue placeholder="Status" />
               </SelectTrigger>
               <SelectContent>
@@ -602,14 +606,14 @@ function EmployeesSection() {
                 <SelectItem value="Archived">Archived</SelectItem>
               </SelectContent>
             </Select>
-            <Button variant="outline" size="sm" className="rounded-xl">
+            <Button variant="outline" size="sm">
               <Download className="h-4 w-4" /> CSV
             </Button>
           </div>
         </CardContent>
       </Card>
 
-      <Card className="rounded-2xl">
+      <Card>
         <CardHeader className="flex flex-row items-center justify-between space-y-0">
           <div>
             <CardTitle className="text-base">Employee directory</CardTitle>
@@ -619,10 +623,10 @@ function EmployeesSection() {
             </p>
           </div>
           <div className="flex items-center gap-2">
-            <Button variant="outline" size="sm" className="rounded-xl">
+            <Button variant="outline" size="sm">
               Archive
             </Button>
-            <Button variant="outline" size="sm" className="rounded-xl">
+            <Button variant="outline" size="sm">
               Reassign
             </Button>
           </div>
@@ -660,13 +664,13 @@ function EmployeeRow({ e }: { e: Employee }) {
       <TableCell>
         <div className="flex items-center gap-3">
           <Avatar className="h-9 w-9">
-            <AvatarFallback className="bg-primary-soft text-xs font-semibold text-primary">
+            <AvatarFallback className="bg-primary-soft text-xs font-semibold text-primary-strong">
               {e.initials}
             </AvatarFallback>
           </Avatar>
           <div className="min-w-0">
             <div className="truncate text-sm font-medium">{e.name}</div>
-            <div className="truncate text-[11px] text-muted-foreground">
+            <div className="truncate text-overline text-muted-foreground">
               Hired {e.hiredOn}
             </div>
           </div>
@@ -687,10 +691,10 @@ function EmployeeRow({ e }: { e: Employee }) {
         <span
           className={
             e.attendanceRate >= 95
-              ? "text-success"
+              ? "text-success-strong"
               : e.attendanceRate >= 85
-              ? "text-warning"
-              : "text-destructive"
+              ? "text-warning-strong"
+              : "text-destructive-strong"
           }
         >
           {e.attendanceRate}%
@@ -702,7 +706,7 @@ function EmployeeRow({ e }: { e: Employee }) {
       <TableCell>
         <DropdownMenu>
           <DropdownMenuTrigger asChild>
-            <Button variant="ghost" size="icon" className="h-7 w-7 rounded-lg">
+            <Button variant="ghost" size="icon" className="h-7 w-7">
               <MoreHorizontal className="h-4 w-4" />
             </Button>
           </DropdownMenuTrigger>
@@ -712,7 +716,7 @@ function EmployeeRow({ e }: { e: Employee }) {
             <DropdownMenuItem>Employment history</DropdownMenuItem>
             <DropdownMenuItem>Documents</DropdownMenuItem>
             <DropdownMenuSeparator />
-            <DropdownMenuItem className="text-destructive">
+            <DropdownMenuItem className="text-destructive-strong">
               Archive
             </DropdownMenuItem>
           </DropdownMenuContent>
@@ -753,7 +757,7 @@ function AttendanceSection() {
       </div>
 
       <div className="grid grid-cols-1 gap-4 xl:grid-cols-3">
-        <Card className="rounded-2xl xl:col-span-2">
+        <Card className="xl:col-span-2">
           <CardHeader className="flex flex-row items-center justify-between space-y-0">
             <div>
               <CardTitle className="text-base">
@@ -764,10 +768,10 @@ function AttendanceSection() {
               </p>
             </div>
             <div className="flex items-center gap-2">
-              <Button size="sm" variant="outline" className="rounded-xl">
+              <Button size="sm" variant="outline">
                 Bulk verify
               </Button>
-              <Button size="sm" className="rounded-xl">
+              <Button size="sm">
                 <ShieldCheck className="h-4 w-4" /> Resolve flags
               </Button>
             </div>
@@ -792,13 +796,13 @@ function AttendanceSection() {
                     <TableCell>
                       <div className="flex items-center gap-2">
                         <Avatar className="h-7 w-7">
-                          <AvatarFallback className="bg-primary-soft text-[10px] font-semibold text-primary">
+                          <AvatarFallback className="bg-primary-soft text-overline font-semibold text-primary-strong">
                             {l.initials}
                           </AvatarFallback>
                         </Avatar>
                         <div className="min-w-0">
                           <div className="text-sm font-medium">{l.name}</div>
-                          <div className="font-mono text-[10px] text-muted-foreground">
+                          <div className="font-mono text-overline text-muted-foreground">
                             {l.empId}
                           </div>
                         </div>
@@ -819,12 +823,12 @@ function AttendanceSection() {
                     <TableCell>
                       <Badge
                         variant="outline"
-                        className={`rounded-full text-[10px] ${
+                        className={`rounded-full text-overline ${
                           l.geofence === "Inside"
-                            ? "border-success/30 text-success"
+                            ? "border-success/30 text-success-strong"
                             : l.geofence === "Edge"
-                            ? "border-warning/30 text-warning"
-                            : "border-destructive/30 text-destructive"
+                            ? "border-warning/30 text-warning-strong"
+                            : "border-destructive/30 text-destructive-strong"
                         }`}
                       >
                         <MapPin className="mr-1 h-3 w-3" /> {l.geofence}
@@ -833,12 +837,12 @@ function AttendanceSection() {
                     <TableCell>
                       <Badge
                         variant="outline"
-                        className={`rounded-full text-[10px] ${
+                        className={`rounded-full text-overline ${
                           l.photo === "Verified"
-                            ? "border-success/30 text-success"
+                            ? "border-success/30 text-success-strong"
                             : l.photo === "Pending"
-                            ? "border-warning/30 text-warning"
-                            : "border-destructive/30 text-destructive"
+                            ? "border-warning/30 text-warning-strong"
+                            : "border-destructive/30 text-destructive-strong"
                         }`}
                       >
                         <Camera className="mr-1 h-3 w-3" /> {l.photo}
@@ -854,7 +858,7 @@ function AttendanceSection() {
           </CardContent>
         </Card>
 
-        <Card className="rounded-2xl">
+        <Card>
           <CardHeader>
             <CardTitle className="text-base">Site heatmap</CardTitle>
             <p className="text-xs text-muted-foreground">
@@ -896,7 +900,7 @@ function AttendanceSection() {
             <div className="space-y-2 text-xs">
               <div className="flex items-center justify-between">
                 <span className="text-muted-foreground">On-time rate</span>
-                <span className="font-medium text-success">91.4%</span>
+                <span className="font-medium text-success-strong">91.4%</span>
               </div>
               <div className="flex items-center justify-between">
                 <span className="text-muted-foreground">
@@ -981,7 +985,7 @@ function PayrollSection() {
       </div>
 
       <div className="grid grid-cols-1 gap-4 xl:grid-cols-3">
-        <Card className="rounded-2xl xl:col-span-2">
+        <Card className="xl:col-span-2">
           <CardHeader className="flex flex-row items-center justify-between space-y-0">
             <div>
               <CardTitle className="text-base">Payroll lines (all real batches)</CardTitle>
@@ -1016,13 +1020,13 @@ function PayrollSection() {
                       <TableCell>
                         <div className="flex items-center gap-2">
                           <Avatar className="h-7 w-7">
-                            <AvatarFallback className="bg-primary-soft text-[10px] font-semibold text-primary">
+                            <AvatarFallback className="bg-primary-soft text-overline font-semibold text-primary-strong">
                               {p.initials}
                             </AvatarFallback>
                           </Avatar>
                           <div>
                             <div className="text-sm font-medium">{p.name}</div>
-                            <div className="font-mono text-[10px] text-muted-foreground">
+                            <div className="font-mono text-overline text-muted-foreground">
                               {p.empId}
                             </div>
                           </div>
@@ -1057,7 +1061,7 @@ function PayrollSection() {
           </CardContent>
         </Card>
 
-        <Card className="rounded-2xl">
+        <Card>
           <CardHeader>
             <CardTitle className="text-base">Payroll summary</CardTitle>
             <p className="text-xs text-muted-foreground">
@@ -1127,14 +1131,14 @@ function WorkforceSection() {
           icon={Clock}
         />
       </div>
-      <p className="text-[11px] text-muted-foreground">
+      <p className="text-overline text-muted-foreground">
         "Assigned"/"OT crews" count distinct employees with a real attendance row in the last
         {" "}{w.windowDays} days (not literally "today" — this demo environment's seeded
         attendance is dated inside each project's own construction-phase timeline, not around
         today's date, so a small real number here is expected, not a bug).
       </p>
 
-      <Card className="rounded-2xl">
+      <Card>
         <CardHeader>
           <CardTitle className="text-base">
             Workforce allocation board
@@ -1150,38 +1154,26 @@ function WorkforceSection() {
           {w.sites.map((s) => {
             const util = s.capacity > 0 ? Math.round((s.assigned / s.capacity) * 100) : 0;
             return (
-              <div key={s.site} className="rounded-xl border p-4">
-                <div className="flex flex-col gap-2 md:flex-row md:items-center md:justify-between">
-                  <div>
-                    <div className="text-sm font-semibold">{s.site}</div>
-                    <div className="text-xs text-muted-foreground">
-                      {s.assigned} assigned ({w.windowDays}d) · {s.available} available · {s.capacity} capacity
-                    </div>
+              <div key={s.site} className="grid items-center gap-4 rounded-lg border p-4 md:grid-cols-[220px_1fr]">
+                <UtilizationTile label={s.site} percent={util} />
+                <div className="space-y-3">
+                  <div className="text-caption text-muted-foreground">
+                    {s.assigned} assigned ({w.windowDays}d) · {s.available} available · {s.capacity} capacity
                   </div>
-                  <Badge
-                    variant="outline"
-                    className={`rounded-full ${
-                      util > 90
-                        ? "border-warning/40 text-warning"
-                        : "border-success/30 text-success"
-                    }`}
-                  >
-                    {util}% utilization
-                  </Badge>
-                </div>
-                <div className="mt-3 grid grid-cols-1 gap-2 md:grid-cols-2">
-                  <Capacity
-                    label="Assigned"
-                    value={s.assigned}
-                    max={Math.max(s.capacity, 1)}
-                    tone="primary"
-                  />
-                  <Capacity
-                    label="Available"
-                    value={s.available}
-                    max={Math.max(s.capacity, 1)}
-                    tone="info"
-                  />
+                  <div className="grid grid-cols-1 gap-2 md:grid-cols-2">
+                    <Capacity
+                      label="Assigned"
+                      value={s.assigned}
+                      max={Math.max(s.capacity, 1)}
+                      tone="primary"
+                    />
+                    <Capacity
+                      label="Available"
+                      value={s.available}
+                      max={Math.max(s.capacity, 1)}
+                      tone="info"
+                    />
+                  </div>
                 </div>
               </div>
             );
@@ -1197,23 +1189,23 @@ function ReportsSection() {
     <>
       <div className="grid grid-cols-1 gap-4 lg:grid-cols-2 xl:grid-cols-3">
         {hrReports.map((r) => (
-          <Card key={r.title} className="rounded-2xl">
+          <Card key={r.title}>
             <CardContent className="p-5">
               <div className="flex items-start justify-between">
-                <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-primary-soft text-primary">
+                <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-primary-soft text-primary-strong">
                   <FileBarChart2 className="h-5 w-5" />
                 </div>
-                <Badge variant="outline" className="rounded-full text-[10px]">
+                <Badge variant="outline" className="rounded-full text-overline">
                   {r.tag}
                 </Badge>
               </div>
               <h3 className="mt-3 text-sm font-semibold">{r.title}</h3>
               <p className="mt-1 text-xs text-muted-foreground">{r.desc}</p>
               <div className="mt-4 flex items-center gap-2">
-                <Button size="sm" variant="outline" className="rounded-xl">
+                <Button size="sm" variant="outline">
                   <Download className="h-4 w-4" /> Export
                 </Button>
-                <Button size="sm" variant="ghost" className="rounded-xl">
+                <Button size="sm" variant="ghost">
                   Open <ChevronRight className="h-3.5 w-3.5" />
                 </Button>
               </div>
@@ -1222,7 +1214,7 @@ function ReportsSection() {
         ))}
       </div>
 
-      <Card className="rounded-2xl">
+      <Card>
         <CardHeader>
           <CardTitle className="text-base">Notifications center</CardTitle>
           <p className="text-xs text-muted-foreground">
@@ -1245,12 +1237,12 @@ function ReportsSection() {
                 </div>
                 <div>
                   <div className="text-sm font-medium">{n.title}</div>
-                  <div className="text-[11px] text-muted-foreground">
+                  <div className="text-overline text-muted-foreground">
                     {n.time}
                   </div>
                 </div>
               </div>
-              <Button size="sm" variant="ghost" className="rounded-lg">
+              <Button size="sm" variant="ghost">
                 Review
               </Button>
             </div>
@@ -1279,13 +1271,13 @@ export default function HRDashboardPage() {
             <span className="font-medium text-foreground">{tab}</span>
           </div>
           <div className="flex items-center gap-2">
-            <Button variant="outline" size="sm" className="rounded-xl">
+            <Button variant="outline" size="sm">
               <Download className="h-4 w-4" /> Export
             </Button>
 
             <Button
               size="sm"
-              className="rounded-xl"
+             
               onClick={() => setShowEmployeeModal(true)}
               asChild
             >
@@ -1296,23 +1288,23 @@ export default function HRDashboardPage() {
           </div>
         </div>
 
-        <TabsList className="h-10 rounded-xl">
-          <TabsTrigger value="overview" className="rounded-lg">
+        <TabsList className="h-10">
+          <TabsTrigger value="overview">
             Overview
           </TabsTrigger>
-          <TabsTrigger value="employees" className="rounded-lg">
+          <TabsTrigger value="employees">
             Employees
           </TabsTrigger>
-          <TabsTrigger value="attendance" className="rounded-lg">
+          <TabsTrigger value="attendance">
             Attendance
           </TabsTrigger>
-          <TabsTrigger value="payroll" className="rounded-lg">
+          <TabsTrigger value="payroll">
             Payroll
           </TabsTrigger>
-          <TabsTrigger value="workforce" className="rounded-lg">
+          <TabsTrigger value="workforce">
             Workforce
           </TabsTrigger>
-          <TabsTrigger value="reports" className="rounded-lg">
+          <TabsTrigger value="reports">
             Reports
           </TabsTrigger>
         </TabsList>

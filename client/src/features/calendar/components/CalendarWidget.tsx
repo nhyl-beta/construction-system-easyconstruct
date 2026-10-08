@@ -58,14 +58,14 @@ export function CalendarWidget() {
       subtitle="Milestones, workflow submissions, and progress updates for the projects you're on."
       actions={
         <div className="flex items-center gap-2">
-          <Button variant="outline" size="icon" className="h-8 w-8 rounded-lg" onClick={() => setMonth((m) => subMonths(m, 1))}>
+          <Button variant="outline" size="icon" className="h-8 w-8" onClick={() => setMonth((m) => subMonths(m, 1))}>
             <ChevronLeft className="h-4 w-4" />
           </Button>
           <span className="min-w-28 text-center text-sm font-medium">{format(month, "MMMM yyyy")}</span>
-          <Button variant="outline" size="icon" className="h-8 w-8 rounded-lg" onClick={() => setMonth((m) => addMonths(m, 1))}>
+          <Button variant="outline" size="icon" className="h-8 w-8" onClick={() => setMonth((m) => addMonths(m, 1))}>
             <ChevronRight className="h-4 w-4" />
           </Button>
-          <Button variant="ghost" size="sm" className="h-8 rounded-lg text-xs" onClick={() => setMonth(startOfMonth(new Date()))}>
+          <Button variant="ghost" size="sm" className="h-8 text-xs" onClick={() => setMonth(startOfMonth(new Date()))}>
             Today
           </Button>
         </div>
@@ -73,7 +73,7 @@ export function CalendarWidget() {
     >
       <div className="space-y-4">
         {error && (
-          <p role="alert" className="rounded-lg border border-destructive/30 bg-destructive/5 px-3 py-2 text-sm text-destructive">
+          <p role="alert" className="rounded-lg border border-destructive/30 bg-destructive/5 px-3 py-2 text-sm text-destructive-strong">
             {error.message}
           </p>
         )}
@@ -90,8 +90,8 @@ export function CalendarWidget() {
         {loading ? (
           <div className="text-sm text-muted-foreground">Loading calendar…</div>
         ) : (
-          <div className="overflow-hidden rounded-2xl border border-border/70">
-            <div className="grid grid-cols-7 border-b border-border/70 bg-muted/40 text-[11px] font-medium uppercase tracking-wider text-muted-foreground">
+          <div className="overflow-hidden rounded-2xl border border-border">
+            <div className="grid grid-cols-7 border-b border-border bg-muted/40 text-overline font-medium uppercase tracking-wider text-muted-foreground">
               {["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"].map((d) => (
                 <div key={d} className="px-2 py-2 text-center">{d}</div>
               ))}
@@ -111,7 +111,7 @@ export function CalendarWidget() {
                     }`}
                   >
                     <div
-                      className={`mb-1 inline-flex h-5 w-5 items-center justify-center rounded-full text-[11px] ${
+                      className={`mb-1 inline-flex h-5 w-5 items-center justify-center rounded-full text-overline ${
                         today ? "bg-primary font-semibold text-primary-foreground" : inMonth ? "text-foreground" : "text-muted-foreground/50"
                       }`}
                     >
@@ -122,14 +122,14 @@ export function CalendarWidget() {
                         <div
                           key={event.id}
                           title={`${event.title} · ${event.projectName}${event.detail ? ` · ${event.detail}` : ""}`}
-                          className="flex items-center gap-1 truncate rounded px-1 py-0.5 text-[10px] leading-tight hover:bg-muted/60"
+                          className="flex items-center gap-1 truncate rounded px-1 py-0.5 text-overline leading-tight hover:bg-muted/60"
                         >
                           <span className={`h-1.5 w-1.5 shrink-0 rounded-full ${EVENT_STYLE[event.type].dot}`} />
                           <span className="truncate">{event.title}</span>
                         </div>
                       ))}
                       {dayEvents.length > 3 && (
-                        <div className="px-1 text-[10px] text-muted-foreground">+{dayEvents.length - 3} more</div>
+                        <div className="px-1 text-overline text-muted-foreground">+{dayEvents.length - 3} more</div>
                       )}
                     </div>
                   </div>

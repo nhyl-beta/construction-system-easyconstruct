@@ -69,7 +69,7 @@ function NewBlueprintDialog({
   return (
     <Dialog open={open} onOpenChange={setOpen}>
       <DialogTrigger asChild>
-        <Button className="rounded-xl">
+        <Button>
           <Plus className="h-4 w-4" /> New blueprint
         </Button>
       </DialogTrigger>
@@ -102,7 +102,7 @@ function NewBlueprintDialog({
             <Label>Author</Label>
             <Input value={author} onChange={(e) => setAuthor(e.target.value)} placeholder="Your name" />
           </div>
-          {createError && <p className="text-sm text-destructive">{createError}</p>}
+          {createError && <p className="text-sm text-destructive-strong">{createError}</p>}
         </div>
         <DialogFooter>
           <Button
@@ -132,10 +132,10 @@ export default function ArchitectBlueprints() {
       <div className="flex flex-wrap items-center gap-2">
         <div className="relative w-64">
           <Search className="pointer-events-none absolute left-2.5 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-muted-foreground" />
-          <Input value={c.query} onChange={(e) => c.setQuery(e.target.value)} placeholder="Search blueprints…" className="h-8 rounded-lg pl-8 text-xs" />
+          <Input value={c.query} onChange={(e) => c.setQuery(e.target.value)} placeholder="Search blueprints…" className="h-8 pl-8 text-xs" />
         </div>
         <Select value={c.folder} onValueChange={c.setFolder}>
-          <SelectTrigger className="h-8 w-40 rounded-lg text-xs">
+          <SelectTrigger className="h-8 w-40 text-xs">
             <SelectValue />
           </SelectTrigger>
           <SelectContent>
@@ -164,7 +164,7 @@ export default function ArchitectBlueprints() {
               <div className="mt-3 flex items-start justify-between gap-2">
                 <div className="min-w-0">
                   <div className="truncate text-sm font-medium">{b.drawingNumber} · {b.title}</div>
-                  <div className="text-[11px] text-muted-foreground">
+                  <div className="text-overline text-muted-foreground">
                     {b.folder}{b.projectCode ? ` · ${b.projectCode}` : ""}
                   </div>
                 </div>
@@ -173,7 +173,7 @@ export default function ArchitectBlueprints() {
               <div className="mt-2 flex flex-wrap gap-1">
                 <StatusBadge status={b.status} />
               </div>
-              <div className="mt-2 flex items-center justify-between text-[11px] text-muted-foreground">
+              <div className="mt-2 flex items-center justify-between text-overline text-muted-foreground">
                 <span>{b.author}</span>
                 <span>Rev {b.revision}</span>
               </div>

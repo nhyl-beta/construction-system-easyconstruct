@@ -28,7 +28,7 @@ export default function AdminProjectsPage() {
         subtitle={`Organization-wide oversight of ${ctrl.kpis.total} project${ctrl.kpis.total === 1 ? "" : "s"}`}
         actions={
           canCreate ? (
-            <Button onClick={() => navigate("/projects/new")} className="rounded-xl">
+            <Button onClick={() => navigate("/projects/new")}>
               <Plus className="h-4 w-4 mr-2" />
               New Project
             </Button>
@@ -55,7 +55,7 @@ export default function AdminProjectsPage() {
       />
 
       {ctrl.error ? (
-        <div className="rounded-xl border border-destructive/30 bg-destructive/10 px-4 py-3 text-sm text-destructive">
+        <div className="rounded-xl border border-destructive/30 bg-destructive/10 px-4 py-3 text-sm text-destructive-strong">
           Couldn't load projects. {ctrl.error.message}
         </div>
       ) : ctrl.loading && ctrl.projects.length === 0 ? (

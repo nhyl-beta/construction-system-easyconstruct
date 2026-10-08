@@ -67,7 +67,7 @@ export default function WorkflowsPage() {
           </p>
         </div>
         <Button
-          className="rounded-xl"
+         
           onClick={() => {
             clearError();
             setDialogOpen(true);
@@ -79,10 +79,10 @@ export default function WorkflowsPage() {
       </div>
 
       <Tabs defaultValue="active" className="space-y-5">
-        <TabsList className="h-10 rounded-xl">
-          <TabsTrigger value="active" className="rounded-lg">Active pipeline</TabsTrigger>
-          <TabsTrigger value="templates" className="rounded-lg">Templates</TabsTrigger>
-          {FEATURES.aiPlaceholders && <TabsTrigger value="ai" className="rounded-lg">AI suggestions</TabsTrigger>}
+        <TabsList className="h-10">
+          <TabsTrigger value="active">Active pipeline</TabsTrigger>
+          <TabsTrigger value="templates">Templates</TabsTrigger>
+          {FEATURES.aiPlaceholders && <TabsTrigger value="ai">AI suggestions</TabsTrigger>}
         </TabsList>
 
         <TabsContent value="active" className="space-y-4">
@@ -97,7 +97,7 @@ export default function WorkflowsPage() {
           {workflows.map((workflow) => {
             const canManage = isAdmin || workflow.createdBy === user?.name;
             return (
-              <Card key={workflow.id} className="rounded-2xl border-border/70 shadow-sm">
+              <Card key={workflow.id}>
                 <CardHeader className="flex flex-row items-start justify-between gap-2">
                   <div>
                     <CardTitle className="text-base">
@@ -109,14 +109,14 @@ export default function WorkflowsPage() {
                     {(workflow.attachments.length > 0 || workflow.lineItems.length > 0) && (
                       <div className="mt-1.5 flex flex-wrap items-center gap-2">
                         {workflow.attachments.length > 0 && (
-                          <Badge variant="outline" className="rounded-full text-[10px]">
+                          <Badge variant="outline" className="rounded-full text-overline">
                             <Paperclip className="mr-1 h-3 w-3" />
                             {workflow.attachments.length} submitted{" "}
                             {workflow.attachments.length === 1 ? "item" : "items"}
                           </Badge>
                         )}
                         {workflow.lineItems.length > 0 && (
-                          <Badge variant="outline" className="rounded-full text-[10px]">
+                          <Badge variant="outline" className="rounded-full text-overline">
                             <ListTree className="mr-1 h-3 w-3" />
                             {workflow.lineItems.length} cost{" "}
                             {workflow.lineItems.length === 1 ? "change" : "changes"}
@@ -129,7 +129,7 @@ export default function WorkflowsPage() {
                     <Button
                       variant="ghost"
                       size="sm"
-                      className="h-8 rounded-lg text-xs"
+                      className="h-8 text-xs"
                       onClick={() => setDetailWorkflowId(workflow.id)}
                     >
                       <Eye className="h-3.5 w-3.5" /> Documents & data
@@ -139,7 +139,7 @@ export default function WorkflowsPage() {
                       <Button
                         variant="ghost"
                         size="icon"
-                        className="h-8 w-8 rounded-lg"
+                        className="h-8 w-8"
                         title="Edit"
                         onClick={() => setEditingWorkflow(workflow)}
                       >
@@ -148,7 +148,7 @@ export default function WorkflowsPage() {
                       <Button
                         variant="ghost"
                         size="icon"
-                        className="h-8 w-8 rounded-lg text-destructive hover:text-destructive"
+                        className="h-8 w-8 text-destructive-strong hover:text-destructive-strong"
                         title="Delete"
                         onClick={() => setDeletingWorkflow(workflow)}
                       >
@@ -175,7 +175,7 @@ export default function WorkflowsPage() {
                           <Button
                             size="sm"
                             variant="outline"
-                            className="h-7 rounded-lg text-xs"
+                            className="h-7 text-xs"
                             disabled={resubmittingStageId === stage.id}
                             onClick={() => void resubmitStage(workflow.id, stage.id)}
                           >
@@ -198,7 +198,7 @@ export default function WorkflowsPage() {
             <p className="text-sm text-muted-foreground">No workflow templates configured yet.</p>
           )}
           {templates.map((t) => (
-            <Card key={t.id} className="rounded-2xl border-border/70 shadow-sm">
+            <Card key={t.id}>
               <CardContent className="space-y-3 p-5">
                 <div className="flex items-start justify-between gap-2">
                   <div className="flex items-center gap-2">
@@ -207,12 +207,12 @@ export default function WorkflowsPage() {
                     </div>
                     <h3 className="font-medium leading-tight">{t.name}</h3>
                   </div>
-                  <Badge variant="outline" className="rounded-full text-[10px]">
+                  <Badge variant="outline" className="rounded-full text-overline">
                     {t.activeCount} active
                   </Badge>
                 </div>
                 <p className="text-sm text-muted-foreground">{t.description}</p>
-                <div className="flex items-center justify-between border-t border-border/60 pt-3 text-xs">
+                <div className="flex items-center justify-between border-t border-border pt-3 text-xs">
                   <span className="text-muted-foreground">
                     {t.defaultStages.length} stages · avg {WorkflowFormatService.avgDuration(t.avgDurationHours)}
                   </span>
@@ -224,11 +224,11 @@ export default function WorkflowsPage() {
 
         {FEATURES.aiPlaceholders && (
           <TabsContent value="ai">
-            <Card className="rounded-2xl border-ai/20 bg-linear-to-br from-ai-soft/60 to-card shadow-sm">
+            <Card className="border-ai/20 bg-linear-to-br from-ai-soft/60 to-card">
               <CardHeader>
                 <Badge
                   variant="outline"
-                  className="w-fit rounded-full border-ai/30 bg-ai/10 px-2.5 py-0.5 text-[11px] text-ai"
+                  className="w-fit rounded-full border-ai/30 bg-ai/10 px-2.5 py-0.5 text-overline text-ai"
                 >
                   <Sparkles className="mr-1 h-3 w-3" />
                   AI recommendation — human review required

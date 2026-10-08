@@ -39,7 +39,7 @@ export function LoginForm() {
   const busy = status === "loading" || status === "success";
 
   return (
-    <Card className="border-border/70 shadow-lg">
+    <Card className="shadow-lg">
       {/* Heading only. The card previously also carried a subtitle, a
           security reassurance panel and a "no account yet?" footer — three
           blocks of prose around two fields nobody reads on the way to
@@ -66,7 +66,7 @@ export function LoginForm() {
           </Alert>
         )}
         {status === "success" && (
-          <Alert role="status" className="border-success/40 text-success">
+          <Alert role="status" className="border-success/40 text-success-strong">
             <CheckCircle2 className="size-4" aria-hidden="true" />
             <AlertDescription>{AUTH_MESSAGES.success}</AlertDescription>
           </Alert>
@@ -103,7 +103,7 @@ export function LoginForm() {
               />
             </div>
             {errors.email && (
-              <p id="email-error" role="alert" className="flex items-center gap-1.5 text-xs text-destructive">
+              <p id="email-error" role="alert" className="flex items-center gap-1.5 text-xs text-destructive-strong">
                 <AlertCircle className="size-3.5" aria-hidden="true" />
                 {errors.email}
               </p>
@@ -124,7 +124,7 @@ export function LoginForm() {
               aria-describedby={errors.password ? "password-error" : undefined}
             />
             {errors.password && (
-              <p id="password-error" role="alert" className="flex items-center gap-1.5 text-xs text-destructive">
+              <p id="password-error" role="alert" className="flex items-center gap-1.5 text-xs text-destructive-strong">
                 <AlertCircle className="size-3.5" aria-hidden="true" />
                 {errors.password}
               </p>
@@ -135,7 +135,7 @@ export function LoginForm() {
             <div className="flex justify-end">
               <Link
                 to="/forgot-password"
-                className="text-xs font-medium text-primary underline-offset-4 hover:underline focus-visible:underline"
+                className="text-xs font-medium text-primary-strong underline-offset-4 hover:underline focus-visible:underline"
               >
                 Forgot password?
               </Link>

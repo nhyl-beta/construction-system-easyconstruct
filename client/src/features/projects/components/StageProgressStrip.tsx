@@ -36,7 +36,7 @@ export const StageProgressStrip: React.FC<{
     return (
       <Badge
         variant="outline"
-        className={`rounded-full px-2.5 py-0.5 text-[11px] font-medium ${STATUS_TONE_CLASS[statusTone]}`}
+        className={`rounded-full px-2.5 py-0.5 text-overline font-medium ${STATUS_TONE_CLASS[statusTone]}`}
       >
         {PROJECT_PHASES.includes(status as (typeof PROJECT_PHASES)[number])
           ? status
@@ -58,8 +58,8 @@ export const StageProgressStrip: React.FC<{
             key={phase}
             title={labelOf(phase)}
             className={[
-              "inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[10px] leading-tight",
-              isCompleted && "text-success",
+              "inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-overline leading-tight",
+              isCompleted && "text-success-strong",
               isCurrent && "font-semibold text-foreground",
               !isCompleted && !isCurrent && "text-muted-foreground/60",
             ]

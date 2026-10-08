@@ -1,9 +1,19 @@
-export type StatusTone = "success" | "warning" | "danger" | "info" | "neutral";
+export type StatusTone =
+  | "success"
+  | "warning"
+  | "danger"
+  | "info"
+  | "ai"
+  | "brand"
+  | "neutral";
 
+/** Soft ground, strong text (>= 5.7:1 in both themes). The word carries the meaning. */
 export const STATUS_TONES: Record<StatusTone, string> = {
-  success: "bg-success/10 text-success border-success/20",
-  warning: "bg-warning/15 text-warning border-warning/30",
-  danger: "bg-destructive/10 text-destructive border-destructive/20",
-  info: "bg-primary/10 text-primary border-primary/20",
-  neutral: "bg-muted text-muted-foreground border-border",
+  success: "bg-success-soft text-success-strong border-transparent",
+  warning: "bg-warning-soft text-warning-strong border-transparent",
+  danger: "bg-destructive-soft text-destructive-strong border-transparent",
+  info: "bg-info-soft text-info-strong border-transparent",
+  ai: "bg-ai-soft text-ai border-transparent",
+  brand: "bg-primary-soft text-primary-strong border-transparent",
+  neutral: "bg-muted text-muted-foreground border-transparent",
 };

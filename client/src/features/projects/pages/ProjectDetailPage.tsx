@@ -200,7 +200,7 @@ export default function ProjectDetailPage() {
   if (!project) {
     return (
       <div className="space-y-4 p-8">
-        <p className="text-sm text-destructive">{error ?? "Project not found."}</p>
+        <p className="text-sm text-destructive-strong">{error ?? "Project not found."}</p>
         <Button asChild variant="outline"><Link to={listRoute}>Back to projects</Link></Button>
       </div>
     );
@@ -212,7 +212,7 @@ export default function ProjectDetailPage() {
 
   return (
     <div className="flex-1 space-y-6 p-4 md:p-8">
-      <Button asChild variant="ghost" className="rounded-xl">
+      <Button asChild variant="ghost">
         <Link to={listRoute}><ArrowLeft className="mr-2 h-4 w-4" />Back to projects</Link>
       </Button>
       <div className="flex items-start justify-between gap-4">
@@ -240,12 +240,12 @@ export default function ProjectDetailPage() {
         loading={deleting}
         onConfirm={remove}
       />
-      {error && <div className="rounded-xl border border-destructive/30 bg-destructive/10 px-4 py-3 text-sm text-destructive">{error}</div>}
+      {error && <div className="rounded-xl border border-destructive/30 bg-destructive/10 px-4 py-3 text-sm text-destructive-strong">{error}</div>}
       {/* Was border-green-500/bg-green-500/text-green-700 — same dark-mode
           contrast bug as RISK_CLASS (see project-status.ts): a raw Tailwind
           palette color with no dark-mode variant, unlike the semantic
           `success` token used here now, which App.css redefines per theme. */}
-      {message && <div className="rounded-xl border border-success/30 bg-success/10 px-4 py-3 text-sm text-success">{message}</div>}
+      {message && <div className="rounded-xl border border-success/30 bg-success/10 px-4 py-3 text-sm text-success-strong">{message}</div>}
 
       <div className="max-w-4xl">
         <ProjectLifecyclePanel projectId={project.id} projectCode={project.code} />
@@ -588,13 +588,13 @@ function TeamMemberPanel({
               emptyText="No more people to add"
             />
           </div>
-          <Button size="sm" className="rounded-xl" disabled={!selected || saving} onClick={handleAdd}>
+          <Button size="sm" disabled={!selected || saving} onClick={handleAdd}>
             <UserPlus className="h-3.5 w-3.5" /> Add
           </Button>
         </div>
       )}
 
-      {error && <p className="text-sm text-destructive">{error}</p>}
+      {error && <p className="text-sm text-destructive-strong">{error}</p>}
 
       {loading ? (
         <p className="text-sm text-muted-foreground">Loading…</p>
@@ -610,7 +610,7 @@ function TeamMemberPanel({
                   type="button"
                   onClick={() => removeMember(m.id)}
                   disabled={saving}
-                  className="text-muted-foreground hover:text-destructive"
+                  className="text-muted-foreground hover:text-destructive-strong"
                   title="Remove"
                 >
                   <X className="h-3.5 w-3.5" />
@@ -722,8 +722,8 @@ function DesignStageSection({
 
       <div>
         <p className="text-xs font-medium text-muted-foreground">Submitted designs</p>
-        {designsError && <p className="mt-2 text-sm text-destructive">{designsError}</p>}
-        {designFileError && <p role="alert" className="mt-2 text-sm text-destructive">{designFileError}</p>}
+        {designsError && <p className="mt-2 text-sm text-destructive-strong">{designsError}</p>}
+        {designFileError && <p role="alert" className="mt-2 text-sm text-destructive-strong">{designFileError}</p>}
         {designsLoading ? (
           <p className="mt-2 text-sm text-muted-foreground">Loading…</p>
         ) : designs.length === 0 ? (
@@ -735,7 +735,7 @@ function DesignStageSection({
                 <div className="flex items-center justify-between gap-3">
                   <Link to={`/designs/${d.id}`} className="min-w-0 hover:underline">
                     <div className="truncate text-sm font-medium">{d.name}</div>
-                    <div className="font-mono text-[11px] text-muted-foreground">
+                    <div className="font-mono text-overline text-muted-foreground">
                       {d.code} · {d.discipline} · submitted by {d.leadArchitect}
                     </div>
                   </Link>
@@ -751,7 +751,7 @@ function DesignStageSection({
                         </span>
                         <button
                           type="button"
-                          className="shrink-0 text-xs text-primary hover:underline"
+                          className="shrink-0 text-xs text-primary-strong hover:underline"
                           onClick={() =>
                             void downloadFileUrl(f.url, f.name).catch((err: unknown) =>
                               setDesignFileError(
@@ -788,7 +788,7 @@ function DesignStageSection({
               <Button
                 size="sm"
                 variant="outline"
-                className="h-7 rounded-lg text-xs"
+                className="h-7 text-xs"
                 disabled={uploading}
                 onClick={() => fileInputRef.current?.click()}
               >
@@ -798,7 +798,7 @@ function DesignStageSection({
           )}
         </div>
 
-        {docsError && <p className="mt-2 text-sm text-destructive">{docsError}</p>}
+        {docsError && <p className="mt-2 text-sm text-destructive-strong">{docsError}</p>}
 
         <ConfirmDialog
           open={pendingRemoval !== null}
@@ -829,7 +829,7 @@ function DesignStageSection({
                     // them with the caller's token instead (lib/file-url).
                     <button
                       type="button"
-                      className="text-xs text-primary hover:underline"
+                      className="text-xs text-primary-strong hover:underline"
                       onClick={() =>
                         void downloadFileUrl(d.fileUrl, d.title.includes(".") ? d.title : undefined).catch((err: unknown) =>
                           setDocsError(err instanceof Error ? err.message : "Could not open the file"),
@@ -842,7 +842,7 @@ function DesignStageSection({
                   {canRemove && (
                     <button
                       type="button"
-                      className="text-muted-foreground hover:text-destructive"
+                      className="text-muted-foreground hover:text-destructive-strong"
                       title="Delete file"
                       aria-label={`Delete ${d.title}`}
                       onClick={() => setPendingRemoval(d)}

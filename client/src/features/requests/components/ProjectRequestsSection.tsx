@@ -30,11 +30,11 @@ export function ProjectRequestsSection({ projectCode }: { projectCode: string })
         badge={requests.length > 0 ? `${openCount} open${overdue ? ` · ${overdue} overdue` : ""}` : undefined}
         actions={
           <div className="flex gap-1.5">
-            <Button size="sm" variant="ghost" className="h-8 rounded-lg text-xs" asChild>
+            <Button size="sm" variant="ghost" className="h-8 text-xs" asChild>
               <Link to="/requests">All requests</Link>
             </Button>
             {canRaise && (
-              <Button size="sm" variant="outline" className="h-8 rounded-lg text-xs" onClick={() => setCreating(true)}>
+              <Button size="sm" variant="outline" className="h-8 text-xs" onClick={() => setCreating(true)}>
                 <Plus className="mr-1 h-3.5 w-3.5" /> Raise
               </Button>
             )}
@@ -44,7 +44,7 @@ export function ProjectRequestsSection({ projectCode }: { projectCode: string })
         {loading && requests.length === 0 ? (
           <p className="text-sm text-muted-foreground">Loading requests…</p>
         ) : error ? (
-          <div role="alert" className="flex items-center justify-between gap-3 text-sm text-destructive">
+          <div role="alert" className="flex items-center justify-between gap-3 text-sm text-destructive-strong">
             <span>{error}</span>
             <Button size="sm" variant="outline" onClick={reload}>Retry</Button>
           </div>
@@ -61,7 +61,7 @@ export function ProjectRequestsSection({ projectCode }: { projectCode: string })
                     <KindBadge kind={r.kind} />
                     <span className="min-w-0">
                       <span className="block truncate text-sm">{r.subject}</span>
-                      <span className="block font-mono text-[11px] text-muted-foreground">
+                      <span className="block font-mono text-overline text-muted-foreground">
                         {r.number} · {r.assignedToName ?? "unassigned"}
                         {r.dueDate ? ` · due ${formatDate(r.dueDate)}` : ""}
                       </span>

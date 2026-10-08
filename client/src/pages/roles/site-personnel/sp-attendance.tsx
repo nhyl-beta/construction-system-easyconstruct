@@ -220,8 +220,8 @@ export default function SPAttendancePage() {
     <PageContainer>
       <PageHeader title="Attendance" description="Geofenced, photo-verified attendance for your assigned site" />
       <PageContent className="p-6 md:p-8 space-y-6">
-        <div className="flex flex-wrap items-center gap-3 rounded-lg border border-border/70 bg-muted/30 px-4 py-2.5 text-sm">
-          <span className={`flex items-center gap-1.5 font-medium ${isOnline ? "text-success" : "text-warning"}`}>
+        <div className="flex flex-wrap items-center gap-3 rounded-lg border border-border bg-muted/30 px-4 py-2.5 text-sm">
+          <span className={`flex items-center gap-1.5 font-medium ${isOnline ? "text-success-strong" : "text-warning-strong"}`}>
             {isOnline ? <CheckCircle2 className="h-4 w-4" /> : <WifiOff className="h-4 w-4" />}
             {isOnline ? "Online" : "Offline"}
           </span>
@@ -233,7 +233,7 @@ export default function SPAttendancePage() {
               <Button
                 variant="outline"
                 size="sm"
-                className="h-7 rounded-lg text-xs"
+                className="h-7 text-xs"
                 disabled={!isOnline || syncing}
                 onClick={() => void retrySync()}
               >
@@ -242,23 +242,23 @@ export default function SPAttendancePage() {
               </Button>
             </>
           )}
-          {lastSyncError && <span className="text-xs text-destructive">{lastSyncError}</span>}
+          {lastSyncError && <span className="text-xs text-destructive-strong">{lastSyncError}</span>}
         </div>
 
         {queuedMessage && (
-          <div className="rounded-lg border border-warning/40 bg-warning/10 p-4 text-sm text-warning">
+          <div className="rounded-lg border border-warning/40 bg-warning/10 p-4 text-sm text-warning-strong">
             {queuedMessage}
           </div>
         )}
 
         {!employeeLoading && (!employeeId || employeeError) && (
-          <div className="rounded-lg border border-warning/40 bg-warning/10 p-4 text-sm text-warning">
+          <div className="rounded-lg border border-warning/40 bg-warning/10 p-4 text-sm text-warning-strong">
             {employeeError ?? "No employee profile is linked to your account yet."}
           </div>
         )}
 
         {error && (
-          <div className="rounded-lg border border-destructive/40 bg-destructive/10 p-4 text-sm text-destructive">
+          <div className="rounded-lg border border-destructive/40 bg-destructive/10 p-4 text-sm text-destructive-strong">
             {error}
           </div>
         )}
@@ -282,7 +282,7 @@ export default function SPAttendancePage() {
               <StatusBadge status={today.photo === "Verified" ? "Verified" : "Pending"} />
             </div>
             {!today.clockOut && (
-              <Button className="mt-4 rounded-xl" onClick={() => clockOut()} disabled={submitting}>
+              <Button className="mt-4" onClick={() => clockOut()} disabled={submitting}>
                 Clock out
               </Button>
             )}
@@ -292,7 +292,7 @@ export default function SPAttendancePage() {
             <div className="space-y-4">
               <div className="space-y-1.5">
                 <Select value={projectCode || undefined} onValueChange={setProjectCode}>
-                  <SelectTrigger className="rounded-xl">
+                  <SelectTrigger>
                     <SelectValue placeholder="Select a project" />
                   </SelectTrigger>
                   <SelectContent>
@@ -313,16 +313,16 @@ export default function SPAttendancePage() {
               <div className="flex items-center gap-3">
                 <Button
                   variant={geoState === "granted" ? "outline" : "default"}
-                  className="rounded-xl"
+                 
                   onClick={requestLocation}
                   disabled={geoState === "requesting"}
                 >
                   <MapPin className="mr-2 h-4 w-4" />
                   {geoState === "granted" ? "Location verified" : "Verify location"}
                 </Button>
-                {geoState === "granted" && <CheckCircle2 className="h-5 w-5 text-success" />}
+                {geoState === "granted" && <CheckCircle2 className="h-5 w-5 text-success-strong" />}
                 {geoState === "denied" && (
-                  <span className="flex items-center gap-1 text-xs text-destructive">
+                  <span className="flex items-center gap-1 text-xs text-destructive-strong">
                     <AlertTriangle className="h-4 w-4" /> Location permission denied — attendance cannot be verified without it.
                   </span>
                 )}
@@ -339,13 +339,13 @@ export default function SPAttendancePage() {
                 />
                 <Button
                   variant={photoDataUrl ? "outline" : "default"}
-                  className="rounded-xl"
+                 
                   onClick={() => fileInputRef.current?.click()}
                 >
                   <Camera className="mr-2 h-4 w-4" />
                   {photoDataUrl ? "Retake photo" : "Take verification photo"}
                 </Button>
-                {photoDataUrl && <CheckCircle2 className="h-5 w-5 text-success" />}
+                {photoDataUrl && <CheckCircle2 className="h-5 w-5 text-success-strong" />}
               </div>
 
               {photoDataUrl && (
@@ -356,7 +356,7 @@ export default function SPAttendancePage() {
                 />
               )}
 
-              <Button className="rounded-xl" disabled={!canSubmit || uploadingPhoto} onClick={handleSubmit}>
+              <Button disabled={!canSubmit || uploadingPhoto} onClick={handleSubmit}>
                 {uploadingPhoto ? "Uploading photo…" : submitting ? "Submitting…" : "Confirm attendance"}
               </Button>
               <p className="text-xs text-muted-foreground">

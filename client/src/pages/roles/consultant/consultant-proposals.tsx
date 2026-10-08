@@ -603,13 +603,13 @@ export default function ConsultantProposalsPage() {
                     }
                     return (
                       <div className="space-y-3 text-sm">
-                        <div className={`font-medium ${parsed.passed ? "text-success" : "text-destructive"}`}>
+                        <div className={`font-medium ${parsed.passed ? "text-success-strong" : "text-destructive-strong"}`}>
                           {parsed.passed ? "No blocking issues found" : "Blocking issues found"}
                         </div>
                         {parsed.issues.length > 0 && (
                           <div>
                             <p className="mb-1 text-xs font-medium uppercase tracking-wider text-muted-foreground">Issues</p>
-                            <ul className="list-inside list-disc space-y-0.5 text-destructive">
+                            <ul className="list-inside list-disc space-y-0.5 text-destructive-strong">
                               {parsed.issues.map((i) => <li key={i}>{i}</li>)}
                             </ul>
                           </div>
@@ -662,7 +662,7 @@ export default function ConsultantProposalsPage() {
                     htmlFor="consultant-review-comment"
                     className="mb-2 block text-sm font-medium"
                   >
-                    Review Comment <span className="text-destructive">*</span>
+                    Review Comment <span className="text-destructive-strong">*</span>
                   </label>
 
                   <Textarea
@@ -697,7 +697,7 @@ export default function ConsultantProposalsPage() {
                 {actionError && (
                   <p
                     role="alert"
-                    className="rounded-lg border border-destructive/30 bg-destructive/5 px-3 py-2 text-sm text-destructive"
+                    className="rounded-lg border border-destructive/30 bg-destructive/5 px-3 py-2 text-sm text-destructive-strong"
                   >
                     {actionError}
                   </p>
@@ -769,11 +769,11 @@ export default function ConsultantProposalsPage() {
             per role-tab.ts/role-resources.ts no longer routing Consultant to
             a standalone /approvals nav item. */}
         <Tabs value={activeTab} onValueChange={(v) => setActiveTab(v as "proposals" | "approvals")} className="mb-6">
-          <TabsList className="h-10 rounded-xl">
-            <TabsTrigger value="proposals" className="rounded-lg">
+          <TabsList className="h-10">
+            <TabsTrigger value="proposals">
               Design proposals
             </TabsTrigger>
-            <TabsTrigger value="approvals" className="rounded-lg">
+            <TabsTrigger value="approvals">
               Workflow approvals
             </TabsTrigger>
           </TabsList>
@@ -812,7 +812,7 @@ export default function ConsultantProposalsPage() {
         </div>
 
         {actionNotice && (
-          <p className="mb-4 rounded-lg border border-success/30 bg-success/5 px-3 py-2 text-sm text-success">
+          <p className="mb-4 rounded-lg border border-success/30 bg-success/5 px-3 py-2 text-sm text-success-strong">
             Review submitted — {actionNotice}
           </p>
         )}
@@ -820,7 +820,7 @@ export default function ConsultantProposalsPage() {
         {loadError && (
           <p
             role="alert"
-            className="mb-4 rounded-lg border border-destructive/30 bg-destructive/5 px-3 py-2 text-sm text-destructive"
+            className="mb-4 rounded-lg border border-destructive/30 bg-destructive/5 px-3 py-2 text-sm text-destructive-strong"
           >
             {loadError}
           </p>
@@ -932,7 +932,7 @@ export default function ConsultantProposalsPage() {
                           <button
                             type="button"
                             onClick={() => openProposal(proposal)}
-                            className="cursor-pointer text-left font-semibold text-primary underline-offset-4 hover:underline"
+                            className="cursor-pointer text-left font-semibold text-primary-strong underline-offset-4 hover:underline"
                           >
                             {
                               proposal.title

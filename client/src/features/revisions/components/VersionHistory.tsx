@@ -52,7 +52,7 @@ export function VersionHistory({ versions, canReview, saving, actionError, onRev
             <div className="flex flex-wrap items-center justify-between gap-2">
               <div className="flex flex-wrap items-center gap-2">
                 <span className="text-sm font-semibold">{versionText(v)}</span>
-                {v.isCurrent && <Badge className="rounded-full px-2 py-0 text-[10px]">Current</Badge>}
+                {v.isCurrent && <Badge className="rounded-full px-2 py-0 text-overline">Current</Badge>}
                 <RevisionStatusBadge status={v.status} />
               </div>
               {onToggleSelect && (
@@ -84,13 +84,13 @@ export function VersionHistory({ versions, canReview, saving, actionError, onRev
             )}
 
             <div className="flex flex-wrap items-center gap-2">
-              <Button size="sm" variant="outline" className="h-7 rounded-lg text-xs" onClick={() => onPreview(v)}>
+              <Button size="sm" variant="outline" className="h-7 text-xs" onClick={() => onPreview(v)}>
                 <Eye className="h-3 w-3" /> Preview
               </Button>
               <Button
                 size="sm"
                 variant="outline"
-                className="h-7 rounded-lg text-xs"
+                className="h-7 text-xs"
                 onClick={() => downloadRevision(v).catch((e: Error) => toast.error(e.message))}
               >
                 <Download className="h-3 w-3" /> Download
@@ -98,14 +98,14 @@ export function VersionHistory({ versions, canReview, saving, actionError, onRev
               {canReview && onReview && v.isCurrent && (v.status === "Submitted" || v.status === "Under Review") && (
                 <>
                   {v.status === "Submitted" && (
-                    <Button size="sm" variant="outline" className="h-7 rounded-lg text-xs" disabled={saving} onClick={() => void onReview(v.id, "Under Review")}>
+                    <Button size="sm" variant="outline" className="h-7 text-xs" disabled={saving} onClick={() => void onReview(v.id, "Under Review")}>
                       Start review
                     </Button>
                   )}
-                  <Button size="sm" className="h-7 rounded-lg text-xs" disabled={saving} onClick={() => setReviewing({ id: v.id, status: "Approved" })}>
+                  <Button size="sm" className="h-7 text-xs" disabled={saving} onClick={() => setReviewing({ id: v.id, status: "Approved" })}>
                     <CheckCircle2 className="h-3 w-3" /> Approve
                   </Button>
-                  <Button size="sm" variant="destructive" className="h-7 rounded-lg text-xs" disabled={saving} onClick={() => setReviewing({ id: v.id, status: "Rejected" })}>
+                  <Button size="sm" variant="destructive" className="h-7 text-xs" disabled={saving} onClick={() => setReviewing({ id: v.id, status: "Rejected" })}>
                     <XCircle className="h-3 w-3" /> Reject
                   </Button>
                 </>
@@ -121,20 +121,20 @@ export function VersionHistory({ versions, canReview, saving, actionError, onRev
                 <div className="flex gap-2">
                   <Button
                     size="sm"
-                    className="h-7 rounded-lg text-xs"
+                    className="h-7 text-xs"
                     disabled={saving || (reviewing.status === "Rejected" && !comment.trim())}
                     onClick={() => void submitReview()}
                   >
                     Confirm {reviewing.status === "Rejected" ? "rejection" : "approval"}
                   </Button>
-                  <Button size="sm" variant="ghost" className="h-7 rounded-lg text-xs" onClick={() => setReviewing(null)}>
+                  <Button size="sm" variant="ghost" className="h-7 text-xs" onClick={() => setReviewing(null)}>
                     Cancel
                   </Button>
                 </div>
               </div>
             )}
             {actionError && reviewing?.id === v.id && (
-              <p role="alert" className="text-xs text-destructive">
+              <p role="alert" className="text-xs text-destructive-strong">
                 {actionError}
               </p>
             )}

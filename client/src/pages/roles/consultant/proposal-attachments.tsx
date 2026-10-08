@@ -103,7 +103,7 @@ export function ProposalAttachments({ proposal }: { proposal: Proposal }) {
         )}
 
         {!loading && error && (
-          <p role="alert" className="text-sm text-destructive">
+          <p role="alert" className="text-sm text-destructive-strong">
             {error}
           </p>
         )}
@@ -119,7 +119,7 @@ export function ProposalAttachments({ proposal }: { proposal: Proposal }) {
             {documents.map((document) => (
               <li
                 key={document.id}
-                className="flex items-start gap-3 rounded-lg border border-border/70 p-3"
+                className="flex items-start gap-3 rounded-lg border border-border p-3"
               >
                 <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-secondary/60 text-secondary-foreground">
                   <FileText className="h-4 w-4" />
@@ -137,7 +137,7 @@ export function ProposalAttachments({ proposal }: { proposal: Proposal }) {
                 <Button
                   size="sm"
                   variant="outline"
-                  className="h-7 shrink-0 rounded-lg text-xs"
+                  className="h-7 shrink-0 text-xs"
                   disabled={!document.fileUrl}
                   title={
                     document.fileUrl

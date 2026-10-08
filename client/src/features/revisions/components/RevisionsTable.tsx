@@ -26,18 +26,18 @@ function RevisionCard({ r, onOpen }: { r: Revision; onOpen: (r: Revision) => voi
           <RevisionStatusBadge status={r.status} />
         </div>
         <p className="text-xs text-muted-foreground">{r.changeSummary}</p>
-        <p className="text-[11px] text-muted-foreground">
+        <p className="text-overline text-muted-foreground">
           {r.projectCode} · {versionText(r)}
           {r.isCurrent ? " (current)" : ""} · {r.createdBy} · {formatDateTime(r.createdAt)}
         </p>
-        <p className="text-[11px] text-muted-foreground">
+        <p className="text-overline text-muted-foreground">
           {r.fileName} · {formatBytes(r.fileSize)}
         </p>
       </button>
       <Button
         size="sm"
         variant="outline"
-        className="h-7 rounded-lg text-xs"
+        className="h-7 text-xs"
         onClick={() => downloadRevision(r).catch((e: Error) => toast.error(e.message))}
       >
         <Download className="h-3 w-3" /> Download
@@ -106,7 +106,7 @@ function RevisionsGrid({ rows, onOpen }: { rows: Revision[]; onOpen: (r: Revisio
             <TableCell className="whitespace-normal break-words font-mono text-xs">
                 <Link
                   to={`/projects/${encodeURIComponent(r.projectCode)}`}
-                  className="text-primary hover:underline"
+                  className="text-primary-strong hover:underline"
                   onClick={(e) => e.stopPropagation()}
                   aria-label={`Open project ${r.projectCode}`}
                 >

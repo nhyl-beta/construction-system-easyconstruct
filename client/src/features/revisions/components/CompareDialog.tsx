@@ -13,7 +13,7 @@ const Row = ({ label, left, right, changed }: { label: string; left: React.React
   <div className={`grid grid-cols-[7rem_1fr_1fr] gap-3 rounded-lg px-2 py-1.5 text-sm ${changed ? "bg-warning/10" : ""}`}>
     <div className="text-xs text-muted-foreground">
       {label}
-      {changed && <span className="ml-1 text-warning">changed</span>}
+      {changed && <span className="ml-1 text-warning-strong">changed</span>}
     </div>
     <div className="min-w-0 break-words">{left}</div>
     <div className="min-w-0 break-words">{right}</div>
@@ -60,7 +60,7 @@ export function CompareDialog({
           </div>
         )}
         {error && (
-          <p role="alert" className="rounded-lg border border-destructive/30 bg-destructive/5 p-3 text-sm text-destructive">
+          <p role="alert" className="rounded-lg border border-destructive/30 bg-destructive/5 p-3 text-sm text-destructive-strong">
             {error}
           </p>
         )}
@@ -110,7 +110,7 @@ export function CompareDialog({
         )}
 
         <div className="flex justify-end">
-          <Button variant="outline" className="rounded-xl" onClick={() => onOpenChange(false)}>
+          <Button variant="outline" onClick={() => onOpenChange(false)}>
             Close
           </Button>
         </div>

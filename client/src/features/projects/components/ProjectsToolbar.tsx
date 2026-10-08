@@ -51,14 +51,14 @@ export const ProjectsToolbar: React.FC<{
             placeholder="Search by name or code…"
             value={query}
             onChange={(e) => setQuery((e.target as HTMLInputElement).value)}
-            className="h-9 rounded-xl border-border bg-muted/40 pl-9"
+            className="h-9 border-border bg-muted/40 pl-9"
           />
         </div>
 
         {filters}
 
         {showCreate && (
-          <Button asChild className="rounded-xl">
+          <Button asChild>
             <Link to="/projects/new">
               <Plus className="h-4 w-4" /> New project
             </Link>
@@ -69,7 +69,7 @@ export const ProjectsToolbar: React.FC<{
           <Button
             size="sm"
             variant={showArchived ? "secondary" : "outline"}
-            className="h-9 rounded-xl text-xs"
+            className="h-9 text-xs"
             onClick={() => onToggleArchived(!showArchived)}
           >
             {showArchived ? "Hide archived" : "Show archived"}
@@ -80,7 +80,7 @@ export const ProjectsToolbar: React.FC<{
           <Button
             size="sm"
             variant={completedOnly ? "secondary" : "outline"}
-            className="h-9 rounded-xl text-xs"
+            className="h-9 text-xs"
             onClick={() => onToggleCompletedOnly(!completedOnly)}
           >
             {completedOnly ? "All projects" : "Completed only"}
@@ -91,11 +91,11 @@ export const ProjectsToolbar: React.FC<{
           value={view}
           onValueChange={(v) => setView(v as "table" | "grid")}
         >
-          <TabsList className="h-9 rounded-xl">
-            <TabsTrigger value="table" className="gap-1.5 rounded-lg text-xs">
+          <TabsList className="h-9">
+            <TabsTrigger value="table" className="gap-1.5 text-xs">
               Table
             </TabsTrigger>
-            <TabsTrigger value="grid" className="gap-1.5 rounded-lg text-xs">
+            <TabsTrigger value="grid" className="gap-1.5 text-xs">
               Grid
             </TabsTrigger>
           </TabsList>

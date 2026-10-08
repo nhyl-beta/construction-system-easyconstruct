@@ -6,9 +6,9 @@ import { useProjectRequirements } from "../hooks/useProjectRequirements";
 
 const STATUS_TONE: Record<string, string> = {
   Draft: "bg-muted text-muted-foreground border-border",
-  "Under Review": "bg-warning/15 text-warning border-warning/30",
-  Approved: "bg-success/10 text-success border-success/20",
-  Rejected: "bg-destructive/10 text-destructive border-destructive/20",
+  "Under Review": "bg-warning/15 text-warning-strong border-warning/30",
+  Approved: "bg-success/10 text-success-strong border-success/20",
+  Rejected: "bg-destructive/10 text-destructive-strong border-destructive/20",
 };
 
 /**
@@ -41,7 +41,7 @@ export function RequirementsPanel({
         </p>
       </div>
 
-      {error && <p className="text-sm text-destructive">{error}</p>}
+      {error && <p className="text-sm text-destructive-strong">{error}</p>}
 
       {loading ? (
         <p className="text-sm text-muted-foreground">Loading…</p>
@@ -58,7 +58,7 @@ export function RequirementsPanel({
                   </div>
                   <div className="text-sm font-medium">{r.title}</div>
                 </div>
-                <Badge variant="outline" className={`shrink-0 rounded-full px-2.5 py-0.5 text-[11px] ${STATUS_TONE[r.status] ?? ""}`}>
+                <Badge variant="outline" className={`shrink-0 rounded-full px-2.5 py-0.5 text-overline ${STATUS_TONE[r.status] ?? ""}`}>
                   {r.status}
                 </Badge>
               </div>
@@ -69,7 +69,7 @@ export function RequirementsPanel({
                     <li key={a.url}>
                       <button
                         type="button"
-                        className="flex items-center gap-1 rounded-lg border border-border px-2 py-1 text-xs text-primary hover:bg-muted/40"
+                        className="flex items-center gap-1 rounded-lg border border-border px-2 py-1 text-xs text-primary-strong hover:bg-muted/40"
                         onClick={() => void openFileUrl(a.url).catch(() => undefined)}
                       >
                         <Paperclip className="h-3 w-3" /> {a.filename}
@@ -84,7 +84,7 @@ export function RequirementsPanel({
                 <div className="flex gap-2 pt-1">
                   <Button
                     size="sm"
-                    className="h-7 rounded-lg text-xs"
+                    className="h-7 text-xs"
                     disabled={decidingId === r.dbId}
                     onClick={() => void decide(r.dbId, "Approved")}
                   >
@@ -93,7 +93,7 @@ export function RequirementsPanel({
                   <Button
                     size="sm"
                     variant="outline"
-                    className="h-7 rounded-lg text-xs text-destructive"
+                    className="h-7 text-xs text-destructive-strong"
                     disabled={decidingId === r.dbId}
                     onClick={() => void decide(r.dbId, "Rejected")}
                   >

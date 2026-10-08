@@ -55,13 +55,13 @@ function EmployeeRow({
       <TableCell>
         <div className="flex items-center gap-3">
           <Avatar className="h-9 w-9">
-            <AvatarFallback className="bg-primary-soft text-xs font-semibold text-primary">
+            <AvatarFallback className="bg-primary-soft text-xs font-semibold text-primary-strong">
               {e.initials}
             </AvatarFallback>
           </Avatar>
           <div className="min-w-0">
             <div className="truncate text-sm font-medium">{e.name}</div>
-            <div className="truncate text-[11px] text-muted-foreground">
+            <div className="truncate text-overline text-muted-foreground">
               Hired {e.hiredOn}
             </div>
           </div>
@@ -82,10 +82,10 @@ function EmployeeRow({
         <span
           className={
             e.attendanceRate >= 95
-              ? "text-success"
+              ? "text-success-strong"
               : e.attendanceRate >= 85
-              ? "text-warning"
-              : "text-destructive"
+              ? "text-warning-strong"
+              : "text-destructive-strong"
           }
         >
           {e.attendanceRate}%
@@ -97,7 +97,7 @@ function EmployeeRow({
       <TableCell>
         <DropdownMenu>
           <DropdownMenuTrigger asChild>
-            <Button variant="ghost" size="icon" className="h-7 w-7 rounded-lg">
+            <Button variant="ghost" size="icon" className="h-7 w-7">
               <MoreHorizontal className="h-4 w-4" />
             </Button>
           </DropdownMenuTrigger>
@@ -114,7 +114,7 @@ function EmployeeRow({
               </DropdownMenuItem>
             )}
             <DropdownMenuItem
-              className="text-destructive"
+              className="text-destructive-strong"
               onSelect={() => onDelete(e)}
             >
               Delete
@@ -197,10 +197,10 @@ export default function HREmployeesPage() {
         subtitle="Directory, roles, and workforce records"
         actions={
           <>
-            <Button variant="outline" size="sm" className="rounded-xl" onClick={handleExportCsv} disabled={filtered.length === 0}>
+            <Button variant="outline" size="sm" onClick={handleExportCsv} disabled={filtered.length === 0}>
               <Download className="h-4 w-4" /> Export
             </Button>
-            <Button size="sm" className="rounded-xl" asChild>
+            <Button size="sm" asChild>
               <Link to="/employees/create">
                 <Plus className="h-4 w-4" /> Add employee
               </Link>
@@ -209,7 +209,7 @@ export default function HREmployeesPage() {
         }
       />
 
-      <Card className="rounded-2xl">
+      <Card>
         <CardContent className="flex flex-col gap-3 p-4 md:flex-row md:items-center">
           <div className="relative flex-1">
             <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
@@ -217,12 +217,12 @@ export default function HREmployeesPage() {
               value={query}
               onChange={(e) => setQuery(e.target.value)}
               placeholder="Search by name, ID, or role…"
-              className="h-9 rounded-xl border-border bg-muted/40 pl-9"
+              className="h-9 border-border bg-muted/40 pl-9"
             />
           </div>
           <div className="flex flex-wrap items-center gap-2">
             <Select value={dept} onValueChange={setDept}>
-              <SelectTrigger className="h-9 w-42.5 rounded-xl">
+              <SelectTrigger className="h-9 w-42.5">
                 <Filter className="mr-1 h-3.5 w-3.5 text-muted-foreground" />
                 <SelectValue placeholder="Department" />
               </SelectTrigger>
@@ -236,7 +236,7 @@ export default function HREmployeesPage() {
               </SelectContent>
             </Select>
             <Select value={status} onValueChange={setStatus}>
-              <SelectTrigger className="h-9 w-35 rounded-xl">
+              <SelectTrigger className="h-9 w-35">
                 <SelectValue placeholder="Status" />
               </SelectTrigger>
               <SelectContent>
@@ -247,14 +247,14 @@ export default function HREmployeesPage() {
                 <SelectItem value="Archived">Archived</SelectItem>
               </SelectContent>
             </Select>
-            <Button variant="outline" size="sm" className="rounded-xl" onClick={handleExportCsv} disabled={filtered.length === 0}>
+            <Button variant="outline" size="sm" onClick={handleExportCsv} disabled={filtered.length === 0}>
               <Download className="h-4 w-4" /> CSV
             </Button>
           </div>
         </CardContent>
       </Card>
 
-      <Card className="rounded-2xl">
+      <Card>
         <CardHeader className="flex flex-row items-center justify-between space-y-0">
           <div>
             <CardTitle className="text-base">Employee directory</CardTitle>
@@ -264,10 +264,10 @@ export default function HREmployeesPage() {
             </p>
           </div>
           <div className="flex items-center gap-2">
-            <Button variant="outline" size="sm" className="rounded-xl">
+            <Button variant="outline" size="sm">
               Archive
             </Button>
-            <Button variant="outline" size="sm" className="rounded-xl">
+            <Button variant="outline" size="sm">
               Reassign
             </Button>
           </div>
@@ -290,7 +290,7 @@ export default function HREmployeesPage() {
             <TableBody>
               {error && (
                 <TableRow>
-                  <TableCell colSpan={9} className="py-8 text-center text-sm text-destructive">
+                  <TableCell colSpan={9} className="py-8 text-center text-sm text-destructive-strong">
                     {error}
                   </TableCell>
                 </TableRow>
@@ -314,7 +314,7 @@ export default function HREmployeesPage() {
             </TableBody>
           </Table>
           {!error && filtered.length > 0 && (
-            <div className="border-t border-border/70 px-4 py-3">
+            <div className="border-t border-border px-4 py-3">
               <DataTablePagination {...pagination} />
             </div>
           )}

@@ -178,7 +178,7 @@ export default function FinancePayrollReviewPage() {
           <Download className="h-3.5 w-3.5" /> Export
         </button>
         <Select value={periodFilter ?? ALL} onValueChange={(v) => setPeriodFilter(v === ALL ? null : v)}>
-          <SelectTrigger className="h-9 w-44 rounded-xl text-xs">
+          <SelectTrigger className="h-9 w-44 text-xs">
             <SelectValue placeholder="All periods" />
           </SelectTrigger>
           <SelectContent>
@@ -194,7 +194,7 @@ export default function FinancePayrollReviewPage() {
       </div>
 
       {error && (
-        <div className="rounded-md border border-red-300 bg-red-50 p-3 text-sm text-red-700">{error}</div>
+        <div className="rounded-md border border-destructive/30 bg-destructive-soft p-3 text-sm text-destructive-strong">{error}</div>
       )}
 
       {batches.length === 0 ? (
@@ -334,7 +334,7 @@ export default function FinancePayrollReviewPage() {
                               <td className="px-2 py-1.5 text-right">
                                 <button
                                   type="button"
-                                  className="text-primary underline"
+                                  className="text-primary-strong underline"
                                   onClick={() => setPayslipLine(line)}
                                 >
                                   Payslip

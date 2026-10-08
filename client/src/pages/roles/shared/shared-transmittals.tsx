@@ -35,7 +35,7 @@ function ReceiptDialog({ t, onOpenChange, onDone }: { t: Transmittal | null; onO
         </div>
         <DialogFooter>
           <Button
-            className="rounded-xl"
+           
             disabled={busy || name.trim().length < 2 || !t}
             onClick={async () => {
               if (!t) return;
@@ -77,7 +77,7 @@ export default function SharedTransmittals() {
         description="Cover sheets for documents sent out with RFIs and RFAs."
         actions={
           canWrite ? (
-            <Button size="sm" className="rounded-xl" onClick={() => setBuilding(true)}>
+            <Button size="sm" onClick={() => setBuilding(true)}>
               <Plus className="mr-1 h-3.5 w-3.5" /> New transmittal
             </Button>
           ) : undefined
@@ -85,7 +85,7 @@ export default function SharedTransmittals() {
       />
 
       {error ? (
-        <div role="alert" className="flex items-center justify-between gap-3 rounded-2xl border border-destructive/30 bg-destructive/5 p-4 text-sm text-destructive">
+        <div role="alert" className="flex items-center justify-between gap-3 rounded-2xl border border-destructive/30 bg-destructive/5 p-4 text-sm text-destructive-strong">
           <span>Couldn't load transmittals. {error}</span>
           <Button size="sm" variant="outline" onClick={reload}>Retry</Button>
         </div>
@@ -112,12 +112,12 @@ export default function SharedTransmittals() {
                   <TableCell className="font-mono text-xs">{t.controlNo}</TableCell>
                   <TableCell className="whitespace-normal text-sm">
                     {t.subject}
-                    <span className="block font-mono text-[11px] text-muted-foreground">{t.projectCode}</span>
+                    <span className="block font-mono text-overline text-muted-foreground">{t.projectCode}</span>
                   </TableCell>
                   <TableCell className="hidden text-sm md:table-cell">{t.toName}</TableCell>
                   <TableCell className="hidden text-sm sm:table-cell">{formatDate(t.dateIssued)}</TableCell>
                   <TableCell>
-                    <Badge variant="outline" className="rounded-full text-[10px] capitalize">{t.status}</Badge>
+                    <Badge variant="outline" className="rounded-full text-overline capitalize">{t.status}</Badge>
                   </TableCell>
                   <TableCell>
                     <div className="flex justify-end gap-1">
@@ -125,7 +125,7 @@ export default function SharedTransmittals() {
                         <Button
                           size="sm"
                           variant="outline"
-                          className="h-7 rounded-lg px-2 text-xs"
+                          className="h-7 px-2 text-xs"
                           onClick={async () => {
                             try {
                               await TransmittalRepository.issue(t.id);
@@ -140,7 +140,7 @@ export default function SharedTransmittals() {
                         </Button>
                       )}
                       {canWrite && t.status !== "draft" && (
-                        <Button size="sm" variant="outline" className="h-7 rounded-lg px-2 text-xs" onClick={() => setReceiving(t)}>
+                        <Button size="sm" variant="outline" className="h-7 px-2 text-xs" onClick={() => setReceiving(t)}>
                           Log receipt
                         </Button>
                       )}

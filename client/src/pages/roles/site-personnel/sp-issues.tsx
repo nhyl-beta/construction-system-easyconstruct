@@ -93,8 +93,8 @@ export default function SPIssuesPage() {
               <Textarea rows={4} value={form.description} onChange={(e) => setForm((f) => ({ ...f, description: e.target.value }))} placeholder="What did you observe? What's the risk?" />
             </div>
           </div>
-          {error && <p className="mt-3 text-sm text-destructive">{error}</p>}
-          <Button className="mt-4 rounded-xl" disabled={!canSubmit || submitting} onClick={handleSubmit}>
+          {error && <p className="mt-3 text-sm text-destructive-strong">{error}</p>}
+          <Button className="mt-4" disabled={!canSubmit || submitting} onClick={handleSubmit}>
             {submitting ? "Submitting…" : "Submit issue"}
           </Button>
         </SectionCard>

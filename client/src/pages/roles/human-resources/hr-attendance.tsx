@@ -129,7 +129,7 @@ export default function HRAttendancePage() {
       </div>
 
       <div className="grid grid-cols-1 gap-4 xl:grid-cols-3">
-        <Card className="min-w-0 rounded-2xl xl:col-span-2">
+        <Card className="min-w-0 xl:col-span-2">
           <CardHeader className="flex flex-row items-center justify-between space-y-0">
             <div>
               <CardTitle className="text-base">Attendance log</CardTitle>
@@ -141,7 +141,7 @@ export default function HRAttendancePage() {
               <Button
                 size="sm"
                 variant="outline"
-                className="rounded-xl"
+               
                 disabled={a.loading || bulkCount === 0}
                 title={
                   bulkCount === 0
@@ -152,7 +152,7 @@ export default function HRAttendancePage() {
               >
                 Bulk verify{bulkCount > 0 ? ` (${bulkCount})` : ""}
               </Button>
-              <Button size="sm" className="rounded-xl">
+              <Button size="sm">
                 <ShieldCheck className="h-4 w-4" /> Resolve flags
               </Button>
             </div>
@@ -166,11 +166,11 @@ export default function HRAttendancePage() {
                 onChange={(e) => a.setQuery(e.target.value)}
                 placeholder="Search name, ID or site…"
                 aria-label="Search attendance"
-                className="h-8 rounded-lg pl-8 text-xs"
+                className="h-8 pl-8 text-xs"
               />
             </div>
             <Select value={a.filters.verification} onValueChange={(v) => a.setFilter("verification", v)}>
-              <SelectTrigger aria-label="Filter by verification" className="h-8 w-36 rounded-lg text-xs">
+              <SelectTrigger aria-label="Filter by verification" className="h-8 w-36 text-xs">
                 <SelectValue />
               </SelectTrigger>
               <SelectContent>
@@ -183,7 +183,7 @@ export default function HRAttendancePage() {
               </SelectContent>
             </Select>
             <Select value={a.filters.status} onValueChange={(v) => a.setFilter("status", v)}>
-              <SelectTrigger aria-label="Filter by attendance status" className="h-8 w-36 rounded-lg text-xs">
+              <SelectTrigger aria-label="Filter by attendance status" className="h-8 w-36 text-xs">
                 <SelectValue />
               </SelectTrigger>
               <SelectContent>
@@ -196,7 +196,7 @@ export default function HRAttendancePage() {
               </SelectContent>
             </Select>
             {a.hasActiveFilters && (
-              <Button size="sm" variant="ghost" className="h-8 gap-1 rounded-lg px-2 text-xs" onClick={a.clearFilters}>
+              <Button size="sm" variant="ghost" className="h-8 gap-1 px-2 text-xs" onClick={a.clearFilters}>
                 <X className="h-3 w-3" /> Clear
               </Button>
             )}
@@ -229,7 +229,7 @@ export default function HRAttendancePage() {
                 )}
                 {a.error && (
                   <TableRow>
-                    <TableCell colSpan={9} className="py-8 text-center text-sm text-destructive">
+                    <TableCell colSpan={9} className="py-8 text-center text-sm text-destructive-strong">
                       Couldn't load attendance. {a.error}
                     </TableCell>
                   </TableRow>
@@ -246,13 +246,13 @@ export default function HRAttendancePage() {
                     <TableCell>
                       <div className="flex items-center gap-2">
                         <Avatar className="h-7 w-7">
-                          <AvatarFallback className="bg-primary-soft text-[10px] font-semibold text-primary">
+                          <AvatarFallback className="bg-primary-soft text-overline font-semibold text-primary-strong">
                             {l.initials}
                           </AvatarFallback>
                         </Avatar>
                         <div className="min-w-0">
                           <div className="text-sm font-medium">{l.name}</div>
-                          <div className="font-mono text-[10px] text-muted-foreground">
+                          <div className="font-mono text-overline text-muted-foreground">
                             {l.employeeId}
                           </div>
                         </div>
@@ -263,7 +263,7 @@ export default function HRAttendancePage() {
                       {l.source === "Sheet" && (
                         <Badge
                           variant="outline"
-                          className="mt-1 flex w-fit items-center gap-1 rounded-full text-[10px]"
+                          className="mt-1 flex w-fit items-center gap-1 rounded-full text-overline"
                           title="Imported from a site attendance spreadsheet — needs verification"
                         >
                           <FileSpreadsheet className="h-3 w-3" /> Sheet
@@ -276,20 +276,20 @@ export default function HRAttendancePage() {
                     <TableCell>
                       <Badge
                         variant="outline"
-                        className={`rounded-full text-[10px] ${
+                        className={`rounded-full text-overline ${
                           l.geofence === "Inside"
-                            ? "border-success/30 text-success"
+                            ? "border-success/30 text-success-strong"
                             : l.geofence === "Edge"
-                            ? "border-warning/30 text-warning"
+                            ? "border-warning/30 text-warning-strong"
                             : l.geofence === "Outside"
-                            ? "border-destructive/30 text-destructive"
+                            ? "border-destructive/30 text-destructive-strong"
                             : "border-border text-muted-foreground"
                         }`}
                       >
                         <MapPin className="mr-1 h-3 w-3" /> {l.geofence}
                       </Badge>
                       {l.distanceFromSiteM != null && (
-                        <div className="mt-0.5 text-[10px] tabular-nums text-muted-foreground">
+                        <div className="mt-0.5 text-overline tabular-nums text-muted-foreground">
                           {l.distanceFromSiteM} m from site
                         </div>
                       )}
@@ -303,14 +303,14 @@ export default function HRAttendancePage() {
                       >
                         <Badge
                           variant="outline"
-                          className={`rounded-full text-[10px] ${
+                          className={`rounded-full text-overline ${
                             l.photo === "Verified"
-                              ? "border-success/30 text-success"
+                              ? "border-success/30 text-success-strong"
                               : l.photo === "Pending"
-                              ? "border-warning/30 text-warning"
+                              ? "border-warning/30 text-warning-strong"
                               : l.photo === "Not captured"
                               ? "border-border text-muted-foreground"
-                              : "border-destructive/30 text-destructive"
+                              : "border-destructive/30 text-destructive-strong"
                           }`}
                         >
                           <Camera className="mr-1 h-3 w-3" /> {l.photo}
@@ -321,7 +321,7 @@ export default function HRAttendancePage() {
                       <StatusBadge status={l.attendanceStatus} />
                     </TableCell>
                     <TableCell className="text-right">
-                      <Button size="sm" variant="outline" className="rounded-lg" onClick={() => setReviewing(l)}>
+                      <Button size="sm" variant="outline" onClick={() => setReviewing(l)}>
                         Verify
                       </Button>
                     </TableCell>
@@ -337,7 +337,7 @@ export default function HRAttendancePage() {
                     Showing {firstShown}–{lastShown} of {a.total}
                   </span>
                   <Select value={String(a.pageSize)} onValueChange={(v) => a.setPageSize(Number(v))}>
-                    <SelectTrigger aria-label="Rows per page" className="h-7 w-24 rounded-lg text-xs">
+                    <SelectTrigger aria-label="Rows per page" className="h-7 w-24 text-xs">
                       <SelectValue />
                     </SelectTrigger>
                     <SelectContent>
@@ -353,7 +353,7 @@ export default function HRAttendancePage() {
                   <Button
                     size="sm"
                     variant="outline"
-                    className="h-7 rounded-lg px-2"
+                    className="h-7 px-2"
                     disabled={a.page <= 1}
                     onClick={() => a.setPage(a.page - 1)}
                     aria-label="Previous page"
@@ -366,7 +366,7 @@ export default function HRAttendancePage() {
                   <Button
                     size="sm"
                     variant="outline"
-                    className="h-7 rounded-lg px-2"
+                    className="h-7 px-2"
                     disabled={a.page >= a.pages}
                     onClick={() => a.setPage(a.page + 1)}
                     aria-label="Next page"
@@ -379,7 +379,7 @@ export default function HRAttendancePage() {
           </CardContent>
         </Card>
 
-        <Card className="min-w-0 rounded-2xl">
+        <Card className="min-w-0">
           <CardHeader>
             <CardTitle className="text-base">Site heatmap</CardTitle>
             <p className="text-xs text-muted-foreground">
@@ -427,7 +427,7 @@ export default function HRAttendancePage() {
             <div className="space-y-2 text-xs">
               <div className="flex items-center justify-between">
                 <span className="text-muted-foreground">On-time rate</span>
-                <span className="font-medium text-success">
+                <span className="font-medium text-success-strong">
                   {heatmap?.onTimeRate == null ? "—" : `${heatmap.onTimeRate.toFixed(1)}%`}
                 </span>
               </div>

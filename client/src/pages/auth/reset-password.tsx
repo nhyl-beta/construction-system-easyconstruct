@@ -35,7 +35,7 @@ export default function ResetPasswordPage() {
 
   return (
     <AuthShell>
-      <Card className="border-border/70 shadow-lg">
+      <Card className="shadow-lg">
         <CardHeader className="space-y-1.5">
           <CardTitle className="font-display text-2xl tracking-tight">
             Set a new password
@@ -46,7 +46,7 @@ export default function ResetPasswordPage() {
         </CardHeader>
         <CardContent className="space-y-5">
           {status === "success" ? (
-            <Alert role="status" className="border-success/40 text-success">
+            <Alert role="status" className="border-success/40 text-success-strong">
               <CheckCircle2 className="size-4" aria-hidden="true" />
               <AlertDescription>
                 Your password has been updated. You can now sign in.
@@ -81,7 +81,7 @@ export default function ResetPasswordPage() {
                   aria-describedby="password-requirements"
                 />
                 {errors.password && (
-                  <p role="alert" className="flex items-center gap-1.5 text-xs text-destructive">
+                  <p role="alert" className="flex items-center gap-1.5 text-xs text-destructive-strong">
                     <AlertCircle className="size-3.5" aria-hidden="true" />
                     {errors.password}
                   </p>
@@ -100,7 +100,7 @@ export default function ResetPasswordPage() {
                   onChange={(e) => setConfirmPassword(e.target.value)}
                 />
                 {errors.confirmPassword && (
-                  <p role="alert" className="flex items-center gap-1.5 text-xs text-destructive">
+                  <p role="alert" className="flex items-center gap-1.5 text-xs text-destructive-strong">
                     <AlertCircle className="size-3.5" aria-hidden="true" />
                     {errors.confirmPassword}
                   </p>
@@ -109,7 +109,7 @@ export default function ResetPasswordPage() {
 
               <ul
                 id="password-requirements"
-                className="space-y-1 rounded-lg border border-border/60 bg-muted/40 p-3 text-xs text-muted-foreground"
+                className="space-y-1 rounded-lg border border-border bg-muted/40 p-3 text-xs text-muted-foreground"
               >
                 {requirements.map((r) => (
                   <li key={r}>• {r}</li>

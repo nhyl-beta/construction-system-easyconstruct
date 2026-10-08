@@ -8,7 +8,9 @@ interface PageContainerProps extends PropsWithChildren {
 export function PageContainer({ children, className }: PageContainerProps) {
   return (
     <div
+      data-page-container
       className={cn(
+        "group/page",
         "flex",
         "flex-col",
         "gap-4",

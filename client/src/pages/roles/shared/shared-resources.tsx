@@ -112,7 +112,7 @@ function ChecklistCard({ list }: { list: Checklist }) {
         ))}
       </ul>
       {done > 0 && (
-        <Button variant="ghost" size="sm" className="mt-2 h-7 rounded-lg px-2 text-xs" onClick={() => setTicks(Array<boolean>(list.items.length).fill(false))}>
+        <Button variant="ghost" size="sm" className="mt-2 h-7 px-2 text-xs" onClick={() => setTicks(Array<boolean>(list.items.length).fill(false))}>
           Reset
         </Button>
       )}
@@ -258,7 +258,7 @@ export default function SharedResourcesPage() {
           <div className="grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-3">
             {TEMPLATES.map((t) => (
               <SectionCard key={t.id} title={t.title} subtitle={t.description}>
-                <Button size="sm" variant="outline" className="rounded-xl" onClick={() => download(t)}>
+                <Button size="sm" variant="outline" onClick={() => download(t)}>
                   <Download className="mr-1 h-3.5 w-3.5" /> Download {t.filename.split(".").pop()?.toUpperCase()}
                 </Button>
               </SectionCard>
@@ -274,7 +274,7 @@ export default function SharedResourcesPage() {
             <ul className="space-y-1.5 text-sm">
               {INTERNAL_LINKS.map((l) => (
                 <li key={l.to}>
-                  <Link to={l.to} className="text-primary hover:underline">
+                  <Link to={l.to} className="text-primary-strong hover:underline">
                     {l.label}
                   </Link>
                 </li>
@@ -285,7 +285,7 @@ export default function SharedResourcesPage() {
             <ul className="space-y-1.5 text-sm">
               {EXTERNAL_LINKS.map((l) => (
                 <li key={l.href}>
-                  <a href={l.href} target="_blank" rel="noreferrer noopener" className="inline-flex items-center gap-1 text-primary hover:underline">
+                  <a href={l.href} target="_blank" rel="noreferrer noopener" className="inline-flex items-center gap-1 text-primary-strong hover:underline">
                     {l.label} <ExternalLink className="h-3 w-3" aria-hidden />
                   </a>
                 </li>

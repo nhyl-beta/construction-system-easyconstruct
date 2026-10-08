@@ -56,15 +56,15 @@ export default function SharedBlueprintReviewsPage() {
       />
       <PageContent className="space-y-4 p-6 md:p-8">
         {decideError && (
-          <p role="alert" className="rounded-lg border border-destructive/30 bg-destructive/5 px-3 py-2 text-sm text-destructive">
+          <p role="alert" className="rounded-lg border border-destructive/30 bg-destructive/5 px-3 py-2 text-sm text-destructive-strong">
             {decideError}
           </p>
         )}
         <Tabs value={tab} onValueChange={(v) => setTab(v as Tab)}>
-          <TabsList className="rounded-xl">
-            <TabsTrigger value="pending" className="rounded-lg">Pending</TabsTrigger>
-            <TabsTrigger value="approved" className="rounded-lg">Approved</TabsTrigger>
-            <TabsTrigger value="other" className="rounded-lg">Rejected / Revisions</TabsTrigger>
+          <TabsList>
+            <TabsTrigger value="pending">Pending</TabsTrigger>
+            <TabsTrigger value="approved">Approved</TabsTrigger>
+            <TabsTrigger value="other">Rejected / Revisions</TabsTrigger>
           </TabsList>
           <TabsContent value={tab} className="mt-4">
             {loading ? (
@@ -95,7 +95,7 @@ export default function SharedBlueprintReviewsPage() {
                         <span className="mr-1 text-xs font-medium text-muted-foreground">Decide:</span>
                         <Button
                           size="sm"
-                          className="rounded-lg"
+                         
                           disabled={deciding}
                           onClick={() => decide(b.id, "Approved")}
                         >
@@ -104,7 +104,7 @@ export default function SharedBlueprintReviewsPage() {
                         <Button
                           size="sm"
                           variant="outline"
-                          className="rounded-lg"
+                         
                           disabled={deciding}
                           onClick={() => decide(b.id, "Revision Required")}
                         >
@@ -113,7 +113,7 @@ export default function SharedBlueprintReviewsPage() {
                         <Button
                           size="sm"
                           variant="destructive"
-                          className="rounded-lg"
+                         
                           disabled={deciding}
                           onClick={() => decide(b.id, "Rejected")}
                         >

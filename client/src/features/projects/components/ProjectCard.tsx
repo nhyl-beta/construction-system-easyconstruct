@@ -11,21 +11,21 @@ import { formatDue } from "../lib/project-format";
 export const ProjectCard: React.FC<{ p: Project }> = ({ p }) => {
   return (
     <Link to={`/projects/${p.id}`} className="group">
-      <Card className="h-full rounded-2xl border-border/70 shadow-sm transition hover:border-primary/40 hover:shadow-md">
+      <Card className="h-full transition hover:border-primary/40 hover:shadow-md">
         <CardContent className="space-y-3 px-5">
           <div className="flex items-start justify-between gap-2">
             <div>
               <div className="text-xs font-mono text-muted-foreground">{p.code}</div>
-              <div className="mt-0.5 font-medium leading-tight group-hover:text-primary">
+              <div className="mt-0.5 font-medium leading-tight group-hover:text-primary-strong">
             {p.name}
             {p.deliveryType === "Design" && (
-              <Badge variant="outline" className="ml-2 rounded-md border-violet-500/40 bg-violet-500/10 px-1.5 text-[10px] font-medium text-violet-700 dark:text-violet-300">
+              <Badge variant="outline" className="ml-2 rounded-md border-transparent bg-ai-soft px-1.5 text-overline font-medium text-ai">
                 Design
               </Badge>
             )}
           </div>
             </div>
-            <Badge variant="outline" className={`rounded-full px-2 py-0.5 text-[10px] ${STATUS_TONE_CLASS[p.statusTone]}`}>
+            <Badge variant="outline" className={`rounded-full px-2 py-0.5 text-overline ${STATUS_TONE_CLASS[p.statusTone]}`}>
               {p.status}
             </Badge>
           </div>
@@ -34,13 +34,13 @@ export const ProjectCard: React.FC<{ p: Project }> = ({ p }) => {
             <span className="inline-flex items-center gap-1"><Users className="h-3 w-3" /> {p.workforce}</span>
           </div>
           <div>
-            <div className="mb-1 flex items-center justify-between text-[11px] text-muted-foreground">
+            <div className="mb-1 flex items-center justify-between text-overline text-muted-foreground">
               <span>Progress</span>
               <span className="tabular-nums">{p.progress}%</span>
             </div>
             <Progress value={p.progress} className="h-1.5" />
           </div>
-          <div className="flex items-center justify-between border-t border-border/60 pt-3 text-xs">
+          <div className="flex items-center justify-between border-t border-border pt-3 text-xs">
             <span className="text-muted-foreground">Due {formatDue(p.due)}</span>
             <span className={`font-medium ${RISK_CLASS[p.risk]}`}>{p.risk} risk</span>
           </div>

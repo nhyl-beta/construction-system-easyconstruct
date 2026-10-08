@@ -31,10 +31,10 @@ export default function ConsultantDesignReviews() {
       <PageHeader title="Design reviews" description="Design reviews awaiting your decision." />
 
       <Tabs value={c.tab} onValueChange={(v) => c.setTab(v as typeof c.tab)}>
-        <TabsList className="rounded-xl">
-          <TabsTrigger value="pending" className="rounded-lg">Pending</TabsTrigger>
-          <TabsTrigger value="approved" className="rounded-lg">Approved</TabsTrigger>
-          <TabsTrigger value="rejected" className="rounded-lg">Rejected</TabsTrigger>
+        <TabsList>
+          <TabsTrigger value="pending">Pending</TabsTrigger>
+          <TabsTrigger value="approved">Approved</TabsTrigger>
+          <TabsTrigger value="rejected">Rejected</TabsTrigger>
         </TabsList>
 
         <TabsContent value={c.tab} className="mt-4">
@@ -89,7 +89,7 @@ export default function ConsultantDesignReviews() {
                       }))}
                     />
                   </div>
-                  <div className="mt-1 flex flex-wrap items-center gap-3 text-[11px] text-muted-foreground">
+                  <div className="mt-1 flex flex-wrap items-center gap-3 text-overline text-muted-foreground">
                     <span>{r.discipline ?? "—"}</span>
                     <span>·</span>
                     <span>{r.reviewers ?? "Unassigned"}</span>
@@ -104,16 +104,16 @@ export default function ConsultantDesignReviews() {
                     // hierarchical buttons with a "Decide:" label instead.
                     <div className="mt-3 flex flex-wrap items-center gap-2 border-t pt-3">
                       <span className="mr-1 text-xs font-medium text-muted-foreground">Decide:</span>
-                      <Button size="sm" className="rounded-lg" onClick={() => c.decide(r.id, "Approved")}>
+                      <Button size="sm" onClick={() => c.decide(r.id, "Approved")}>
                         <Check className="h-4 w-4" /> Approve
                       </Button>
-                      <Button size="sm" variant="outline" className="rounded-lg" onClick={() => c.decide(r.id, "Changes Requested")}>
+                      <Button size="sm" variant="outline" onClick={() => c.decide(r.id, "Changes Requested")}>
                         <Send className="h-4 w-4" /> Request changes
                       </Button>
                       <Button
                         size="sm"
                         variant="destructive"
-                        className="rounded-lg"
+                       
                         onClick={() => c.decide(r.id, "Rejected")}
                       >
                         <X className="h-4 w-4" /> Reject

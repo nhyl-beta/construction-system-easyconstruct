@@ -163,7 +163,7 @@ export function CreateRequestDialog({ open, onOpenChange, initial, onCreated }: 
                 disabled={!!initial?.projectCode || submitting}
                 className="w-full"
               />
-              {tried && !project && <p className="text-xs text-destructive">Select a project.</p>}
+              {tried && !project && <p className="text-xs text-destructive-strong">Select a project.</p>}
             </div>
           </div>
 
@@ -195,18 +195,18 @@ export function CreateRequestDialog({ open, onOpenChange, initial, onCreated }: 
 
           <div className="space-y-1.5">
             <Label htmlFor="rq-subject">
-              Overview (subject) <span className="text-destructive">*</span>
+              Overview (subject) <span className="text-destructive-strong">*</span>
             </Label>
             <Input id="rq-subject" value={subject} onChange={(e) => setSubject(e.target.value)} maxLength={255} disabled={submitting} aria-invalid={tried && subject.trim().length < 3} />
-            {tried && subject.trim().length < 3 && <p className="text-xs text-destructive">Give the request a short overview.</p>}
+            {tried && subject.trim().length < 3 && <p className="text-xs text-destructive-strong">Give the request a short overview.</p>}
           </div>
 
           <div className="space-y-1.5">
             <Label htmlFor="rq-text">
-              {kind === "RFI" ? "Clarification required" : "Approval requested"} <span className="text-destructive">*</span>
+              {kind === "RFI" ? "Clarification required" : "Approval requested"} <span className="text-destructive-strong">*</span>
             </Label>
             <Textarea id="rq-text" rows={4} value={text} onChange={(e) => setText(e.target.value)} disabled={submitting} aria-invalid={tried && text.trim().length < 10} />
-            {tried && text.trim().length < 10 && <p className="text-xs text-destructive">Describe the request (at least 10 characters).</p>}
+            {tried && text.trim().length < 10 && <p className="text-xs text-destructive-strong">Describe the request (at least 10 characters).</p>}
           </div>
 
           <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
@@ -251,7 +251,7 @@ export function CreateRequestDialog({ open, onOpenChange, initial, onCreated }: 
           <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
             <div className="space-y-1.5 sm:col-span-2">
               <Label>
-                Send to <span className="text-destructive">*</span>
+                Send to <span className="text-destructive-strong">*</span>
               </Label>
               <Select value={assignee} onValueChange={setAssignee} disabled={!project || submitting}>
                 <SelectTrigger className="w-full" aria-label="Assignee">
@@ -265,7 +265,7 @@ export function CreateRequestDialog({ open, onOpenChange, initial, onCreated }: 
                   ))}
                 </SelectContent>
               </Select>
-              {tried && !assignee && <p className="text-xs text-destructive">Choose who should respond.</p>}
+              {tried && !assignee && <p className="text-xs text-destructive-strong">Choose who should respond.</p>}
             </div>
             <div className="space-y-1.5">
               <Label htmlFor="rq-due">Response window (days)</Label>
@@ -280,17 +280,17 @@ export function CreateRequestDialog({ open, onOpenChange, initial, onCreated }: 
             </div>
           )}
           {error && (
-            <p role="alert" className="rounded-lg border border-destructive/30 bg-destructive/5 px-3 py-2 text-xs text-destructive">
+            <p role="alert" className="rounded-lg border border-destructive/30 bg-destructive/5 px-3 py-2 text-xs text-destructive-strong">
               {error}
             </p>
           )}
         </div>
 
         <DialogFooter>
-          <Button variant="ghost" className="rounded-xl" disabled={submitting} onClick={() => onOpenChange(false)}>
+          <Button variant="ghost" disabled={submitting} onClick={() => onOpenChange(false)}>
             Cancel
           </Button>
-          <Button className="rounded-xl" disabled={submitting} onClick={() => void submit()}>
+          <Button disabled={submitting} onClick={() => void submit()}>
             <Send className="h-4 w-4" /> {submitting ? "Saving…" : isEngineer ? "Save draft" : `Send ${kind}`}
           </Button>
         </DialogFooter>

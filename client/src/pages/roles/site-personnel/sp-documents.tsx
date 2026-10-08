@@ -146,13 +146,13 @@ export default function SPDocumentsPage() {
           </div>
 
           {error && (
-            <p className="mt-3 text-sm text-destructive">
+            <p className="mt-3 text-sm text-destructive-strong">
               {error}
             </p>
           )}
 
           <Button
-            className="mt-4 rounded-xl"
+            className="mt-4"
             disabled={
               uploading ||
               !title.trim() ||

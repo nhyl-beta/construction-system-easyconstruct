@@ -100,14 +100,14 @@ export function CompleteTaskDialog({
 
         <div className="space-y-4 py-2">
           {error && (
-            <p role="alert" className="text-sm text-destructive">
+            <p role="alert" className="text-sm text-destructive-strong">
               {error}
             </p>
           )}
 
           <div className="grid gap-1.5">
             <Label htmlFor="task-completion-note">
-              What was completed <span className="text-destructive">*</span>
+              What was completed <span className="text-destructive-strong">*</span>
             </Label>
             <Textarea
               id="task-completion-note"
@@ -116,7 +116,7 @@ export function CompleteTaskDialog({
               rows={4}
               placeholder="Describe the work carried out, materials used, and anything the next shift should know."
               onChange={(e) => setNote(e.target.value)}
-              className="rounded-xl"
+             
             />
           </div>
 

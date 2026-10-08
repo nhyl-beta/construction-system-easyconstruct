@@ -51,7 +51,7 @@ function Section({
           {title}
         </h3>
         {count !== undefined && count > 0 && (
-          <Badge variant="outline" className="rounded-full text-[10px]">
+          <Badge variant="outline" className="rounded-full text-overline">
             {count}
           </Badge>
         )}
@@ -98,7 +98,7 @@ export function WorkflowDetailDialog({
         {loading && <p className="text-sm text-muted-foreground">Loading…</p>}
 
         {error && (
-          <p role="alert" className="text-sm text-destructive">
+          <p role="alert" className="text-sm text-destructive-strong">
             Couldn't load this workflow. {error.message}
           </p>
         )}

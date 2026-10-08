@@ -17,11 +17,11 @@ function actionIcon(a: MyActionItem) {
   if (a.kind === "signal") {
     return (
       <Sparkles
-        className={`mt-0.5 h-3.5 w-3.5 shrink-0 ${a.severity === "critical" ? "text-destructive" : "text-ai"}`}
+        className={`mt-0.5 h-3.5 w-3.5 shrink-0 ${a.severity === "critical" ? "text-destructive-strong" : "text-ai"}`}
       />
     );
   }
-  return <AlertCircle className="mt-0.5 h-3.5 w-3.5 shrink-0 text-warning" />;
+  return <AlertCircle className="mt-0.5 h-3.5 w-3.5 shrink-0 text-warning-strong" />;
 }
 
 export function WaitingOnYouCard() {
@@ -29,14 +29,14 @@ export function WaitingOnYouCard() {
   const navigate = useNavigate();
 
   return (
-    <Card className="rounded-2xl">
+    <Card>
       <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-3">
         <CardTitle className="flex items-center gap-2 text-base">
-          <ClipboardCheck className="h-4 w-4 text-primary" />
+          <ClipboardCheck className="h-4 w-4 text-primary-strong" />
           Waiting on you
         </CardTitle>
         {actions.length > 0 && (
-          <Badge variant="outline" className="rounded-full text-[10px]">
+          <Badge variant="outline" className="rounded-full text-overline">
             {actions.length}
           </Badge>
         )}
