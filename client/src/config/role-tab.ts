@@ -73,7 +73,7 @@ export const ROLE_CONFIGS: Record<string, RoleConfig> = {
     icon: UserCheck,
     avatarColor: "bg-primary-soft",
     accentBg: "bg-primary",
-    searchPlaceholder: "Search projects, workflows, activity...",
+    searchPlaceholder: "Search or jump to… (Ctrl K)",
     primaryAi: "Operations Intelligence",
     primaryAction: { label: "New Workflow", icon: GitBranch, route: "/admin/workflows" },
 
@@ -125,7 +125,7 @@ export const ROLE_CONFIGS: Record<string, RoleConfig> = {
     icon: Crown,
     avatarColor: "bg-primary-soft",
     accentBg: "bg-primary",
-    searchPlaceholder: "Search projects, activity...",
+    searchPlaceholder: "Search or jump to… (Ctrl K)",
     primaryAi: "Executive Intelligence",
     primaryAction: { label: "Audit Trail", icon: ShieldCheck, route: "/owner/audit-trail" },
 
@@ -172,7 +172,7 @@ export const ROLE_CONFIGS: Record<string, RoleConfig> = {
     icon: Server,
     avatarColor: "bg-primary-soft",
     accentBg: "bg-primary",
-    searchPlaceholder: "Search users, activity...",
+    searchPlaceholder: "Search or jump to… (Ctrl K)",
     primaryAi: "System Intelligence",
     // The header's "New User" primary action is a plain <Link>, so it can
     // only navigate — it can't call ITDesignerUsersPage's openCreate(). The
@@ -238,7 +238,7 @@ export const ROLE_CONFIGS: Record<string, RoleConfig> = {
     icon: FolderKanban,
     avatarColor: "bg-primary-soft",
     accentBg: "bg-primary",
-    searchPlaceholder: "Search projects, workflows...",
+    searchPlaceholder: "Search or jump to… (Ctrl K)",
     primaryAi: "Proposal Validation",
     primaryAction: { label: "New Project", icon: Plus, route: "/projects/new" },
 
@@ -281,7 +281,7 @@ export const ROLE_CONFIGS: Record<string, RoleConfig> = {
     icon: Users,
     avatarColor: "bg-primary-soft",
     accentBg: "bg-primary",
-    searchPlaceholder: "Search employees, attendance...",
+    searchPlaceholder: "Search or jump to… (Ctrl K)",
     primaryAi: "Workforce Insights",
     primaryAction: {
       label: "Add Employee",
@@ -329,7 +329,7 @@ export const ROLE_CONFIGS: Record<string, RoleConfig> = {
     icon: DollarSign,
     avatarColor: "bg-primary-soft",
     accentBg: "bg-primary",
-    searchPlaceholder: "Search budgets, payroll sheets...",
+    searchPlaceholder: "Search or jump to… (Ctrl K)",
     primaryAi: "Impact Awareness",
     primaryAction: {
       label: "New Budget",
@@ -387,7 +387,7 @@ export const ROLE_CONFIGS: Record<string, RoleConfig> = {
     icon: Ruler,
     avatarColor: "bg-primary-soft",
     accentBg: "bg-primary",
-    searchPlaceholder: "Search designs, proposals...",
+    searchPlaceholder: "Search or jump to… (Ctrl K)",
     primaryAi: "AI Validation",
     primaryAction: {
       label: "Upload Design",
@@ -434,7 +434,7 @@ export const ROLE_CONFIGS: Record<string, RoleConfig> = {
     icon: Wrench,
     avatarColor: "bg-primary-soft",
     accentBg: "bg-primary",
-    searchPlaceholder: "Search requirements, issues...",
+    searchPlaceholder: "Search or jump to… (Ctrl K)",
     primaryAi: "Issue Resolution",
     primaryAction: {
       label: "Report Issue",
@@ -485,7 +485,7 @@ export const ROLE_CONFIGS: Record<string, RoleConfig> = {
     icon: MapPin,
     avatarColor: "bg-primary-soft",
     accentBg: "bg-primary",
-    searchPlaceholder: "Search tasks, field reports...",
+    searchPlaceholder: "Search or jump to… (Ctrl K)",
     primaryAi: "Task Assistance",
     primaryAction: {
       label: "Log Attendance",
@@ -530,11 +530,12 @@ export const ROLE_CONFIGS: Record<string, RoleConfig> = {
     icon: UserCheck,
     avatarColor: "bg-primary-soft",
     accentBg: "bg-primary",
-    searchPlaceholder: "Search proposals, advisory docs...",
+    searchPlaceholder: "Search or jump to… (Ctrl K)",
     primaryAi: "Proposal Analysis",
     primaryAction: {
       label: "Upload Advisory",
       icon: Plus,
+      route: "/advisory-docs?new=1",
     },
       // "Approvals" used to be its own tab here, pointing at the shared
       // /approvals screen — a second place to decide on the exact same
@@ -585,7 +586,7 @@ export const DEFAULT_ROLE_CONFIG: RoleConfig = {
   icon: LayoutDashboard,
   avatarColor: "bg-primary-soft",
   accentBg: "bg-primary",
-  searchPlaceholder: "Search...",
+  searchPlaceholder: "Search or jump to… (Ctrl K)",
   primaryAi: "Assistant",
   primaryAction: {
     label: "Dashboard",

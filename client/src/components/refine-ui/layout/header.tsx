@@ -9,7 +9,6 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
-import { Input } from "@/components/ui/input";
 import { Separator } from "@/components/ui/separator";
 import { SidebarTrigger, useSidebar } from "@/components/ui/sidebar";
 import { useRoleConfig } from "@/hooks/use-role-config";
@@ -22,10 +21,11 @@ import {
   useRefineOptions,
 } from "@refinedev/core";
 import { useState } from "react";
-import { LogOutIcon, Search } from "lucide-react";
+import { LogOutIcon } from "lucide-react";
 import { NotificationBell } from "@/components/notifications/notification-bell";
 import { Link, useNavigate } from "react-router";
 import { isNavRouteActive } from "@/lib/nav-active";
+import { HeaderSearchBar, HeaderSearchButton } from "@/features/quick-search/HeaderSearchTrigger";
 
 export const Header = () => {
   const { isMobile } = useSidebar();
@@ -91,13 +91,7 @@ function DesktopHeader() {
             </Badge>
           </div>
 
-          <div className="relative ml-auto hidden max-w-sm flex-1 md:block">
-            <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
-            <Input
-              placeholder={config.searchPlaceholder}
-              className="h-9 border-border bg-muted/50 pl-9"
-            />
-          </div>
+          <HeaderSearchBar />
         </div>
 
         <ThemeToggle />
@@ -210,7 +204,10 @@ function MobileHeader() {
           {title.text}
         </h2>
       </div>
-      <ThemeToggle className={cn("h-8", "w-8")} />
+      <div className="flex items-center">
+        <HeaderSearchButton className="h-8 w-8 text-muted-foreground" />
+        <ThemeToggle className={cn("h-8", "w-8")} />
+      </div>
     </header>
   );
 }
