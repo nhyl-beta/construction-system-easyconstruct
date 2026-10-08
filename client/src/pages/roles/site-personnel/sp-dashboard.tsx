@@ -1,4 +1,5 @@
 // client/src/pages/roles/site-personnel/sp-dashboard.tsx — NEW
+import { PageHeader } from "@/components/refine-ui/views/page-header";
 import { useNavigate } from "react-router";
 import { KpiStrip } from "@/components/ui/kpi-strip";
 import { SectionCard } from "@/components/ui/section-card";
@@ -37,15 +38,15 @@ export default function SPDashboardPage() {
   const firstName = identity.name.split(" ")[0];
 
   return (
-    <div className="flex-1 space-y-8 p-4 md:p-8">
-      <section className="space-y-2">
-        <h2 className="text-3xl font-semibold tracking-tight md:text-4xl">Good shift, {firstName}.</h2>
-        <p className="max-w-xl text-sm text-muted-foreground">
-          {attendance.today
+    <div className="flex-1 space-y-10 p-4 md:p-8">
+      <PageHeader
+        title={<>Good shift, {firstName}.</>}
+        description={
+          attendance.today
             ? `You clocked in at ${attendance.today.clockIn}${attendance.today.clockOut ? ` and out at ${attendance.today.clockOut}` : ""} today.`
-            : "You haven't logged attendance yet today."}
-        </p>
-      </section>
+            : "You haven't logged attendance yet today."
+        }
+      />
 
       <KpiStrip
         items={[
@@ -68,19 +69,19 @@ export default function SPDashboardPage() {
       <div className="grid gap-6 lg:grid-cols-2">
         <SectionCard title="Quick actions">
           <div className="grid grid-cols-2 gap-3">
-            <Button variant="outline" className="h-auto flex-col items-start gap-1 rounded-xl p-4" onClick={() => navigate("/attendance")}>
+            <Button variant="outline" className="h-auto flex-col items-start gap-1 p-4" onClick={() => navigate("/attendance")}>
               <MapPin className="h-4 w-4" />
               <span className="text-sm font-medium">Log attendance</span>
             </Button>
-            <Button variant="outline" className="h-auto flex-col items-start gap-1 rounded-xl p-4" onClick={() => navigate("/tasks")}>
+            <Button variant="outline" className="h-auto flex-col items-start gap-1 p-4" onClick={() => navigate("/tasks")}>
               <CheckSquare className="h-4 w-4" />
               <span className="text-sm font-medium">View tasks</span>
             </Button>
-            <Button variant="outline" className="h-auto flex-col items-start gap-1 rounded-xl p-4" onClick={() => navigate("/documents")}>
+            <Button variant="outline" className="h-auto flex-col items-start gap-1 p-4" onClick={() => navigate("/documents")}>
               <Camera className="h-4 w-4" />
               <span className="text-sm font-medium">Upload document</span>
             </Button>
-            <Button variant="outline" className="h-auto flex-col items-start gap-1 rounded-xl p-4" onClick={() => navigate("/issues")}>
+            <Button variant="outline" className="h-auto flex-col items-start gap-1 p-4" onClick={() => navigate("/issues")}>
               <ClipboardList className="h-4 w-4" />
               <span className="text-sm font-medium">Report issue</span>
             </Button>

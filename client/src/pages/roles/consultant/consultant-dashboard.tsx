@@ -1,5 +1,4 @@
 import {
-  Activity,
   ChevronRight,
   ClipboardList,
   FileCheck2,
@@ -9,7 +8,7 @@ import {
   Upload,
 } from "lucide-react";
 
-import { Badge } from "@/components/ui/badge";
+import { PageHeader } from "@/components/refine-ui/views/page-header";
 import { Button } from "@/components/ui/button";
 import {
   Card,
@@ -32,24 +31,12 @@ export default function ConsultantDashboardPage() {
   const firstName = identity.name.split(" ")[0];
 
   return (
-    <div className="flex-1 space-y-8 p-4 md:p-8">
+    <div className="flex-1 space-y-10 p-4 md:p-8">
       {/* ── Hero header ── */}
-      <section className="flex flex-col gap-4 md:flex-row md:items-end md:justify-between">
-        <div className="space-y-2">
-          <Badge
-            variant="outline"
-            className="rounded-full border-primary/30 bg-primary-soft/60 px-3 py-1 text-[11px] font-medium uppercase tracking-wider text-primary"
-          >
-            <Activity className="mr-1.5 h-3 w-3" />
-            Advisory access
-          </Badge>
-
-          <h2 className="text-3xl font-semibold tracking-tight md:text-4xl">
-            Welcome back, {firstName}.
-          </h2>
-
-          <p className="max-w-xl text-sm text-muted-foreground">
-            {c.loading
+      <PageHeader
+        title={<>Welcome back, {firstName}.</>}
+        status={<StatusBadge status="Advisory access" tone="brand" />}
+        description={c.loading
               ? "Loading your advisory queue…"
               : `${c.kpis.pendingReviews} proposal${
                   c.kpis.pendingReviews === 1 ? "" : "s"
@@ -58,28 +45,24 @@ export default function ConsultantDashboardPage() {
                 } active project${
                   c.kpis.activeProjects === 1 ? "" : "s"
                 }.`}
-          </p>
-        </div>
-
-        <div className="flex gap-2">
+        actions={
+          <>
           <Button
-            variant="outline"
-            className="rounded-xl"
+            variant="quiet"
             onClick={() => navigate("/advisory-docs")}
           >
             <Upload className="h-4 w-4" />
             Upload advisory
           </Button>
 
-          <Button
-            className="rounded-xl"
-            onClick={() => navigate("/consultant/proposals")}
+          <Button onClick={() => navigate("/consultant/proposals")}
           >
             <FileSearch className="h-4 w-4" />
             Review proposals
           </Button>
-        </div>
-      </section>
+          </>
+        }
+      />
 
       {/* ── KPI grid ── */}
       <KpiStrip
@@ -113,7 +96,7 @@ export default function ConsultantDashboardPage() {
 
       {/* ── Main grid — proposal review queue + AI panel ── */}
       <section className="grid grid-cols-1 gap-6 xl:grid-cols-3">
-        <Card className="rounded-2xl border-border/70 shadow-sm xl:col-span-2">
+        <Card className="xl:col-span-2">
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-4">
             <div>
               <CardTitle className="text-lg">
@@ -134,7 +117,7 @@ export default function ConsultantDashboardPage() {
             <Button
               variant="ghost"
               size="sm"
-              className="rounded-lg text-muted-foreground"
+              className="text-muted-foreground"
               onClick={() => navigate("/consultant/proposals")}
             >
               View all
@@ -155,7 +138,7 @@ export default function ConsultantDashboardPage() {
               <div className="overflow-x-auto">
                 <table className="w-full text-sm">
                   <thead>
-                    <tr className="border-y border-border/70 bg-muted/40 text-left text-[11px] font-medium uppercase tracking-wider text-muted-foreground">
+                    <tr className="border-y border-border bg-muted/40 text-left text-overline font-medium uppercase tracking-wider text-muted-foreground">
                       <th className="px-5 py-2.5 font-medium">
                         Proposal
                       </th>
@@ -183,7 +166,7 @@ export default function ConsultantDashboardPage() {
                         ) => (
                           <tr
                             key={p.id}
-                            className="cursor-pointer border-b border-border/60 last:border-0 hover:bg-muted/30"
+                            className="cursor-pointer border-b border-border last:border-0 hover:bg-muted/30"
                             onClick={() =>
                               navigate("/consultant/proposals")
                             }
@@ -230,7 +213,7 @@ export default function ConsultantDashboardPage() {
       {/* ── Bottom row — approvals + recently reviewed ── */}
       <section className="grid grid-cols-1 gap-6 lg:grid-cols-3">
         <div className="lg:col-span-2">
-          <Card className="rounded-2xl border-border/70 shadow-sm">
+          <Card>
             <CardHeader className="pb-4">
               <CardTitle className="text-lg">
                 Recently reviewed

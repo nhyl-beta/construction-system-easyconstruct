@@ -12,12 +12,12 @@ import { useProjectTaskProgress } from "@/features/tasks/hooks/use-project-task-
 import type { Project } from "@/features/projects/types/project.types";
 
 const PALETTE = [
-  "var(--color-chart-1, #2563eb)",
-  "var(--color-chart-2, #16a34a)",
-  "var(--color-chart-3, #f59e0b)",
-  "var(--color-chart-4, #9333ea)",
-  "var(--color-chart-5, #dc2626)",
-  "#64748b",
+  "var(--chart-1)",
+  "var(--chart-2)",
+  "var(--chart-3)",
+  "var(--chart-4)",
+  "var(--chart-5)",
+  "var(--muted-foreground)",
 ];
 
 export function PmPortfolioCharts({ projects }: { projects: Project[] }) {

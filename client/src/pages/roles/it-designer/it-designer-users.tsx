@@ -113,7 +113,7 @@ export default function ITDesignerUsersPage() {
         title="User accounts"
         description="Create sign-ins, move people between roles, and deactivate access without erasing history."
         actions={
-          <Button className="rounded-xl" onClick={openCreate}>
+          <Button onClick={openCreate}>
             <Plus className="mr-2 h-4 w-4" />
             New account
           </Button>
@@ -127,7 +127,7 @@ export default function ITDesignerUsersPage() {
           <div className="flex flex-wrap gap-2">
             <Badge
               variant="outline"
-              className={`cursor-pointer rounded-full text-[11px] ${roleFilter === null ? "border-primary text-primary" : ""}`}
+              className={`cursor-pointer rounded-full text-overline ${roleFilter === null ? "border-primary text-primary-strong" : ""}`}
               onClick={() => setRoleFilter(null)}
             >
               All ({users.length})
@@ -136,7 +136,7 @@ export default function ITDesignerUsersPage() {
               <Badge
                 key={role.id}
                 variant="outline"
-                className={`cursor-pointer rounded-full text-[11px] ${roleFilter === role.name ? "border-primary text-primary" : ""}`}
+                className={`cursor-pointer rounded-full text-overline ${roleFilter === role.name ? "border-primary text-primary-strong" : ""}`}
                 onClick={() => setRoleFilter(roleFilter === role.name ? null : role.name)}
               >
                 {role.label}
@@ -149,20 +149,20 @@ export default function ITDesignerUsersPage() {
               placeholder="Search accounts…"
               value={search}
               onChange={(e) => setSearch(e.target.value)}
-              className="h-9 rounded-xl border-border bg-muted/40 pl-9"
+              className="h-9 border-border bg-muted/40 pl-9"
             />
           </div>
         </div>
 
         {statusError && (
-          <p role="alert" className="mb-4 rounded-xl border border-destructive/30 bg-destructive/10 px-4 py-3 text-sm text-destructive">
+          <p role="alert" className="mb-4 rounded-xl border border-destructive/30 bg-destructive/10 px-4 py-3 text-sm text-destructive-strong">
             {statusError}
           </p>
         )}
 
         {loading && <p className="p-5 text-sm text-muted-foreground">Loading accounts…</p>}
         {!loading && error && (
-          <p className="rounded-xl border border-destructive/30 bg-destructive/10 px-4 py-3 text-sm text-destructive">
+          <p className="rounded-xl border border-destructive/30 bg-destructive/10 px-4 py-3 text-sm text-destructive-strong">
             Couldn't load accounts. {error.message}
           </p>
         )}
@@ -175,10 +175,10 @@ export default function ITDesignerUsersPage() {
           </div>
         )}
         {!loading && !error && filtered.length > 0 && (
-          <div className="overflow-x-auto rounded-xl border border-border/70">
+          <div className="overflow-x-auto rounded-xl border border-border">
             <table className="w-full text-sm">
               <thead>
-                <tr className="border-b border-border/70 bg-muted/40 text-left text-[11px] uppercase tracking-wider text-muted-foreground">
+                <tr className="border-b border-border bg-muted/40 text-left text-overline uppercase tracking-wider text-muted-foreground">
                   <th className="px-5 py-2.5">Name</th>
                   <th className="px-3 py-2.5">Email</th>
                   <th className="px-3 py-2.5">Role</th>
@@ -188,17 +188,17 @@ export default function ITDesignerUsersPage() {
               </thead>
               <tbody>
                 {pagination.pageItems.map((user) => (
-                  <tr key={user.id} className="border-b border-border/60 last:border-0 hover:bg-muted/30">
+                  <tr key={user.id} className="border-b border-border last:border-0 hover:bg-muted/30">
                     <td className="px-5 py-3.5 font-medium">{user.name}</td>
                     <td className="px-3 py-3.5 text-muted-foreground">{user.email}</td>
                     <td className="px-3 py-3.5">
-                      <Badge variant="outline" className="rounded-full text-[10px]">
+                      <Badge variant="outline" className="rounded-full text-overline">
                         {roleLabels.get(user.role) ?? user.role}
                       </Badge>
                     </td>
                     <td className="px-3 py-3.5">
                       {user.isActive ? (
-                        <span className="inline-flex items-center gap-1.5 text-xs text-success">
+                        <span className="inline-flex items-center gap-1.5 text-xs text-success-strong">
                           <UserCheck className="h-3.5 w-3.5" />
                           Active
                         </span>
@@ -214,7 +214,7 @@ export default function ITDesignerUsersPage() {
                         <Button
                           variant="ghost"
                           size="sm"
-                          className="rounded-lg"
+                         
                           onClick={() => openEdit(user)}
                         >
                           <Pencil className="h-4 w-4" />
@@ -223,7 +223,7 @@ export default function ITDesignerUsersPage() {
                         <Button
                           variant="outline"
                           size="sm"
-                          className="rounded-lg text-xs"
+                          className="text-xs"
                           onClick={() => void toggleActive(user)}
                         >
                           {user.isActive ? "Deactivate" : "Reactivate"}
@@ -234,7 +234,7 @@ export default function ITDesignerUsersPage() {
                           <Button
                             variant="ghost"
                             size="sm"
-                            className="rounded-lg text-destructive hover:text-destructive"
+                            className="text-destructive-strong hover:text-destructive-strong"
                             title={`Permanently delete ${user.name}`}
                             onClick={() => setDeleting(user)}
                           >
@@ -248,7 +248,7 @@ export default function ITDesignerUsersPage() {
                 ))}
               </tbody>
             </table>
-            <div className="border-t border-border/70 px-3 py-2.5">
+            <div className="border-t border-border px-3 py-2.5">
               <DataTablePagination {...pagination} />
             </div>
           </div>

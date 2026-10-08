@@ -68,12 +68,12 @@ function ValidationSummary({ raw }: { raw: string | null }) {
 
   return (
     <div className="space-y-1 text-xs">
-      <div className={`flex items-center gap-1 font-medium ${result.passed ? "text-success" : "text-destructive"}`}>
+      <div className={`flex items-center gap-1 font-medium ${result.passed ? "text-success-strong" : "text-destructive-strong"}`}>
         {result.passed ? <CheckCircle2 className="h-3 w-3" /> : <AlertTriangle className="h-3 w-3" />}
         Rule-based validation — human review required
       </div>
       {result.issues.map((i) => (
-        <div key={i} className="text-destructive">
+        <div key={i} className="text-destructive-strong">
           • {i}
         </div>
       ))}
@@ -276,7 +276,7 @@ export default function ArchitectProposals() {
       />
 
       {submitNotice && (
-        <p className="rounded-lg border border-success/30 bg-success/5 px-3 py-2 text-sm text-success">
+        <p className="rounded-lg border border-success/30 bg-success/5 px-3 py-2 text-sm text-success-strong">
           {submitNotice}
         </p>
       )}
@@ -286,7 +286,7 @@ export default function ArchitectProposals() {
       {designSubmission.warning && (
         <p
           role="alert"
-          className="rounded-lg border border-warning/30 bg-warning/5 px-3 py-2 text-sm text-warning"
+          className="rounded-lg border border-warning/30 bg-warning/5 px-3 py-2 text-sm text-warning-strong"
         >
           {designSubmission.warning}
         </p>
@@ -327,7 +327,7 @@ export default function ArchitectProposals() {
           </div>
 
           {formError && (
-            <div className="mb-4 rounded-lg border border-destructive/30 bg-destructive/5 p-3 text-sm text-destructive">
+            <div className="mb-4 rounded-lg border border-destructive/30 bg-destructive/5 p-3 text-sm text-destructive-strong">
               {formError}
             </div>
           )}
@@ -557,7 +557,7 @@ export default function ArchitectProposals() {
                       <Button
                         variant="ghost"
                         size="icon"
-                        className="h-8 w-8 rounded-lg"
+                        className="h-8 w-8"
                         disabled={c.saving}
                         title="Archive"
                         onClick={() => c.archiveProposal(proposal.id)}

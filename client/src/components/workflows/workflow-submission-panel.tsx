@@ -63,14 +63,14 @@ export function WorkflowLineItemsTable({
         {lineItems.map((item) => {
           const delta = amountOf(item.requestedAmount) - amountOf(item.currentAmount);
           return (
-            <div key={item.id} className="rounded-xl border border-border/70 p-3 text-sm">
+            <div key={item.id} className="rounded-xl border border-border p-3 text-sm">
               <div className="flex items-start justify-between gap-2">
-                <Badge variant="outline" className="rounded-full text-[10px]">
+                <Badge variant="outline" className="rounded-full text-overline">
                   {CATEGORY_LABELS[item.category] ?? item.category}
                 </Badge>
                 <span
                   className={`shrink-0 text-right font-medium tabular-nums ${
-                    delta > 0 ? "text-destructive" : delta < 0 ? "text-success" : ""
+                    delta > 0 ? "text-destructive-strong" : delta < 0 ? "text-success-strong" : ""
                   }`}
                 >
                   {delta > 0 ? "+" : ""}
@@ -90,10 +90,10 @@ export function WorkflowLineItemsTable({
             </div>
           );
         })}
-        <div className="rounded-xl border border-border/70 bg-muted/30 p-3 text-sm font-medium">
+        <div className="rounded-xl border border-border bg-muted/30 p-3 text-sm font-medium">
           <div className="flex items-center justify-between">
             <span>Total ({lineItems.length} {lineItems.length === 1 ? "change" : "changes"})</span>
-            <span className={totalDelta > 0 ? "text-destructive" : totalDelta < 0 ? "text-success" : ""}>
+            <span className={totalDelta > 0 ? "text-destructive-strong" : totalDelta < 0 ? "text-success-strong" : ""}>
               {totalDelta > 0 ? "+" : ""}
               {formatCurrency(totalDelta, currency)}
             </span>
@@ -101,10 +101,10 @@ export function WorkflowLineItemsTable({
         </div>
       </div>
 
-      <div className="hidden overflow-x-auto rounded-xl border border-border/70 md:block">
+      <div className="hidden overflow-x-auto rounded-xl border border-border md:block">
         <table className="w-full text-sm">
           <thead>
-            <tr className="border-b border-border/70 bg-muted/40 text-left text-[11px] uppercase tracking-wider text-muted-foreground">
+            <tr className="border-b border-border bg-muted/40 text-left text-overline uppercase tracking-wider text-muted-foreground">
               <th className="px-3 py-2">Category</th>
               <th className="px-3 py-2">Change</th>
               <th className="px-3 py-2 text-right">Current</th>
@@ -117,9 +117,9 @@ export function WorkflowLineItemsTable({
             {lineItems.map((item) => {
               const delta = amountOf(item.requestedAmount) - amountOf(item.currentAmount);
               return (
-                <tr key={item.id} className="border-b border-border/60 last:border-0">
+                <tr key={item.id} className="border-b border-border last:border-0">
                   <td className="px-3 py-2.5">
-                    <Badge variant="outline" className="rounded-full text-[10px]">
+                    <Badge variant="outline" className="rounded-full text-overline">
                       {CATEGORY_LABELS[item.category] ?? item.category}
                     </Badge>
                   </td>
@@ -132,7 +132,7 @@ export function WorkflowLineItemsTable({
                   </td>
                   <td
                     className={`px-3 py-2.5 text-right font-medium tabular-nums ${
-                      delta > 0 ? "text-destructive" : delta < 0 ? "text-success" : ""
+                      delta > 0 ? "text-destructive-strong" : delta < 0 ? "text-success-strong" : ""
                     }`}
                   >
                     {delta > 0 ? "+" : ""}
@@ -148,7 +148,7 @@ export function WorkflowLineItemsTable({
             })}
           </tbody>
           <tfoot>
-            <tr className="border-t border-border/70 bg-muted/30 font-medium">
+            <tr className="border-t border-border bg-muted/30 font-medium">
               <td className="px-3 py-2.5" colSpan={2}>
                 Total ({lineItems.length} {lineItems.length === 1 ? "change" : "changes"})
               </td>
@@ -160,7 +160,7 @@ export function WorkflowLineItemsTable({
               </td>
               <td
                 className={`px-3 py-2.5 text-right tabular-nums ${
-                  totalDelta > 0 ? "text-destructive" : totalDelta < 0 ? "text-success" : ""
+                  totalDelta > 0 ? "text-destructive-strong" : totalDelta < 0 ? "text-success-strong" : ""
                 }`}
               >
                 {totalDelta > 0 ? "+" : ""}
@@ -198,7 +198,7 @@ export function WorkflowAttachmentList({
           const Icon = isDocument ? FileText : StickyNote;
 
           return (
-            <li key={attachment.id} className="rounded-xl border border-border/70 bg-card p-3">
+            <li key={attachment.id} className="rounded-xl border border-border bg-card p-3">
               <div className="flex items-start gap-3">
                 <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-secondary/60 text-secondary-foreground">
                   <Icon className="h-4 w-4" />
@@ -207,7 +207,7 @@ export function WorkflowAttachmentList({
                   <div className="flex flex-wrap items-center gap-2">
                     <span className="font-medium">{attachment.label}</span>
                     {attachment.stageLabel && (
-                      <Badge variant="outline" className="rounded-full text-[10px]">
+                      <Badge variant="outline" className="rounded-full text-overline">
                         {attachment.stageLabel}
                       </Badge>
                     )}
@@ -227,7 +227,7 @@ export function WorkflowAttachmentList({
                   <Button
                     size="sm"
                     variant="outline"
-                    className="h-7 shrink-0 rounded-lg text-xs"
+                    className="h-7 shrink-0 text-xs"
                     onClick={() => setPreview(attachment)}
                   >
                     <Paperclip className="h-3.5 w-3.5" /> View file

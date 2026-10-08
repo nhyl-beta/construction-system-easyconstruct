@@ -49,13 +49,13 @@ export function RefreshReferencesCard() {
   };
 
   return (
-    <Card className="rounded-2xl">
+    <Card>
       <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-3">
         <CardTitle className="flex items-center gap-2 text-base">
           <Sparkles className="h-4 w-4 text-ai" />
           Cost reference catalog
         </CardTitle>
-        <Badge variant="outline" className="rounded-full border-ai/30 text-[10px] text-ai">
+        <Badge variant="outline" className="rounded-full border-ai/30 text-overline text-ai">
           AI
         </Badge>
       </CardHeader>
@@ -67,11 +67,11 @@ export function RefreshReferencesCard() {
               }.`
             : "Loading status…"}
         </p>
-        {error && <p className="text-xs text-destructive">{error}</p>}
+        {error && <p className="text-xs text-destructive-strong">{error}</p>}
         <Button
           size="sm"
           variant="outline"
-          className="rounded-lg"
+         
           disabled={refreshing}
           onClick={() => void handleRefresh()}
         >

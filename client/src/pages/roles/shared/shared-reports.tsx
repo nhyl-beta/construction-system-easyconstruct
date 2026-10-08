@@ -53,7 +53,7 @@ export default function SharedReportsPage() {
         {error && (
           <p
             role="alert"
-            className="rounded-lg border border-destructive/30 bg-destructive/5 px-3 py-2 text-sm text-destructive"
+            className="rounded-lg border border-destructive/30 bg-destructive/5 px-3 py-2 text-sm text-destructive-strong"
           >
             {error.message}
           </p>
@@ -66,10 +66,10 @@ export default function SharedReportsPage() {
         )}
 
         <Tabs value={tab} onValueChange={(v) => setTab(v as DecisionTab)}>
-          <TabsList className="rounded-xl">
-            <TabsTrigger value="pending" className="rounded-lg">Pending</TabsTrigger>
-            <TabsTrigger value="approved" className="rounded-lg">Approved</TabsTrigger>
-            <TabsTrigger value="rejected" className="rounded-lg">Rejected / Revision</TabsTrigger>
+          <TabsList>
+            <TabsTrigger value="pending">Pending</TabsTrigger>
+            <TabsTrigger value="approved">Approved</TabsTrigger>
+            <TabsTrigger value="rejected">Rejected / Revision</TabsTrigger>
           </TabsList>
 
           <TabsContent value={tab} className="mt-4">
@@ -89,7 +89,7 @@ export default function SharedReportsPage() {
                         <span className="font-mono text-xs text-muted-foreground">{r.id}</span>
                         <span className="ml-2 text-sm font-medium">{r.title}</span>
                         {r.type === "Final Inspection" && (
-                          <Badge variant="outline" className="ml-2 rounded-full border-primary/30 text-[10px] text-primary">
+                          <Badge variant="outline" className="ml-2 rounded-full border-primary/30 text-overline text-primary-strong">
                             Final Inspection
                           </Badge>
                         )}
@@ -99,7 +99,7 @@ export default function SharedReportsPage() {
                         <ReportStatusBadge status={r.status} />
                       </div>
                     </div>
-                    <div className="mt-1 flex flex-wrap items-center gap-3 text-[11px] text-muted-foreground">
+                    <div className="mt-1 flex flex-wrap items-center gap-3 text-overline text-muted-foreground">
                       <span>{r.project}</span>
                       <span>·</span>
                       <span>{r.location}</span>
@@ -115,7 +115,7 @@ export default function SharedReportsPage() {
                       <div className="mt-2 flex gap-2">
                         <Button
                           size="sm"
-                          className="h-7 rounded-lg text-xs"
+                          className="h-7 text-xs"
                           disabled={deciding === r.dbId}
                           onClick={() => void decide(r.dbId, "Approved")}
                         >
@@ -124,7 +124,7 @@ export default function SharedReportsPage() {
                         <Button
                           size="sm"
                           variant="outline"
-                          className="h-7 rounded-lg text-xs"
+                          className="h-7 text-xs"
                           disabled={deciding === r.dbId}
                           onClick={() => void decide(r.dbId, "Revision Required")}
                         >
@@ -133,7 +133,7 @@ export default function SharedReportsPage() {
                         <Button
                           size="sm"
                           variant="ghost"
-                          className="h-7 rounded-lg text-xs text-destructive"
+                          className="h-7 text-xs text-destructive-strong"
                           disabled={deciding === r.dbId}
                           onClick={() => void decide(r.dbId, "Rejected")}
                         >

@@ -117,7 +117,7 @@ export function AttendanceSheetImport({
       title="Upload attendance sheet"
       subtitle="Record several workers' attendance for a site from an Excel sheet"
       actions={
-        <Button variant="outline" size="sm" className="rounded-xl" onClick={() => void downloadTemplate()}>
+        <Button variant="outline" size="sm" onClick={() => void downloadTemplate()}>
           <Download className="h-4 w-4" /> Template
         </Button>
       }
@@ -156,7 +156,7 @@ export function AttendanceSheetImport({
             <Button
               type="button"
               variant="outline"
-              className="w-full justify-start gap-2 rounded-xl font-normal"
+              className="w-full justify-start gap-2 font-normal"
               onClick={() => input.current?.click()}
             >
               <FileSpreadsheet className="h-4 w-4" />
@@ -166,7 +166,7 @@ export function AttendanceSheetImport({
         </div>
 
         <Button
-          className="rounded-xl"
+         
           disabled={!file || !projectCode || busy !== null}
           onClick={() => void check()}
         >
@@ -175,13 +175,13 @@ export function AttendanceSheetImport({
         </Button>
 
         {error && (
-          <p role="alert" className="rounded-lg border border-destructive/30 bg-destructive/10 px-3 py-2 text-sm text-destructive">
+          <p role="alert" className="rounded-lg border border-destructive/30 bg-destructive/10 px-3 py-2 text-sm text-destructive-strong">
             {error}
           </p>
         )}
 
         {result && (
-          <p role="status" className="flex items-start gap-2 rounded-lg border border-success/30 bg-success/10 px-3 py-2 text-sm text-success">
+          <p role="status" className="flex items-start gap-2 rounded-lg border border-success/30 bg-success/10 px-3 py-2 text-sm text-success-strong">
             <CheckCircle2 className="mt-0.5 h-4 w-4 shrink-0" />
             Imported {result.imported} record{result.imported === 1 ? "" : "s"}
             {result.skipped > 0 ? ` (${result.skipped} row${result.skipped === 1 ? "" : "s"} skipped)` : ""}. They are
@@ -195,20 +195,20 @@ export function AttendanceSheetImport({
               <p>
                 <span className="font-medium">{report.fileName}</span> — {report.totalRows} row
                 {report.totalRows === 1 ? "" : "s"}:{" "}
-                <span className="text-success">{report.validRows} ready</span>
+                <span className="text-success-strong">{report.validRows} ready</span>
                 {report.invalidRows > 0 && (
                   <>
-                    , <span className="text-destructive">{report.invalidRows} with errors</span>
+                    , <span className="text-destructive-strong">{report.invalidRows} with errors</span>
                   </>
                 )}
               </p>
               <div className="flex gap-2">
-                <Button variant="ghost" size="sm" className="rounded-xl" onClick={reset} disabled={busy !== null}>
+                <Button variant="ghost" size="sm" onClick={reset} disabled={busy !== null}>
                   Discard
                 </Button>
                 <Button
                   size="sm"
-                  className="rounded-xl"
+                 
                   disabled={report.validRows === 0 || busy !== null}
                   onClick={() => void confirm()}
                 >
@@ -224,7 +224,7 @@ export function AttendanceSheetImport({
 
             {report.invalidRows > 0 && (
               <p className="flex items-start gap-2 text-xs text-muted-foreground">
-                <AlertTriangle className="mt-0.5 h-3.5 w-3.5 shrink-0 text-warning" />
+                <AlertTriangle className="mt-0.5 h-3.5 w-3.5 shrink-0 text-warning-strong" />
                 Rows with errors are skipped. Fix them in the sheet and upload again to add them.
               </p>
             )}
@@ -247,12 +247,12 @@ export function AttendanceSheetImport({
                   {report.rows.map((r) => (
                     <tr
                       key={r.row}
-                      className={`border-t border-border/60 align-top ${r.errors.length > 0 ? "bg-destructive/5" : ""}`}
+                      className={`border-t border-border align-top ${r.errors.length > 0 ? "bg-destructive/5" : ""}`}
                     >
                       <td className="px-3 py-2 tabular-nums text-muted-foreground">{r.row}</td>
                       <td className="px-3 py-2">
                         <div className="font-medium">{r.workerName ?? "—"}</div>
-                        <div className="font-mono text-[10px] text-muted-foreground">{r.workerId || "—"}</div>
+                        <div className="font-mono text-overline text-muted-foreground">{r.workerId || "—"}</div>
                       </td>
                       <td className="px-3 py-2 tabular-nums">{r.date ?? "—"}</td>
                       <td className="px-3 py-2 tabular-nums">{r.timeIn ?? "—"}</td>
@@ -261,11 +261,11 @@ export function AttendanceSheetImport({
                       <td className="px-3 py-2">{r.status}</td>
                       <td className="px-3 py-2">
                         {r.errors.length === 0 ? (
-                          <span className="flex items-center gap-1 text-success">
+                          <span className="flex items-center gap-1 text-success-strong">
                             <CheckCircle2 className="h-3.5 w-3.5" /> Ready
                           </span>
                         ) : (
-                          <ul className="space-y-0.5 text-destructive">
+                          <ul className="space-y-0.5 text-destructive-strong">
                             {r.errors.map((e) => (
                               <li key={e}>{e}</li>
                             ))}

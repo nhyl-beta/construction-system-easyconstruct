@@ -119,7 +119,7 @@ type SetFn = <K extends keyof DesignFormData>(
 function ErrorList({ errors }: { errors: string[] }) {
   if (!errors.length) return null;
   return (
-    <ul className="text-xs text-destructive">
+    <ul className="text-xs text-destructive-strong">
       {errors.map((e) => (
         <li key={e}>{e}</li>
       ))}
@@ -148,7 +148,7 @@ function StepBasics({
           Auto-generated code <span className="font-mono">{code}</span>{" "}
           <button
             type="button"
-            className="text-primary underline-offset-2 hover:underline"
+            className="text-primary-strong underline-offset-2 hover:underline"
             onClick={onRegenerate}
           >
             regenerate
@@ -158,24 +158,24 @@ function StepBasics({
       <div className="grid grid-cols-2 gap-5">
         <div className="col-span-2 space-y-1.5">
           <Label>
-            Design name <span className="text-destructive">*</span>
+            Design name <span className="text-destructive-strong">*</span>
           </Label>
           <Input
             value={data.name}
             onChange={(e) => set("name", e.target.value)}
             placeholder="e.g. Westgate Tower · Floor 14"
-            className="rounded-xl"
+           
           />
         </div>
         <div className="space-y-1.5">
           <Label>
-            Discipline <span className="text-destructive">*</span>
+            Discipline <span className="text-destructive-strong">*</span>
           </Label>
           <Select
             value={data.discipline}
             onValueChange={(v) => set("discipline", v)}
           >
-            <SelectTrigger className="rounded-xl">
+            <SelectTrigger>
               <SelectValue placeholder="Select discipline" />
             </SelectTrigger>
             <SelectContent>
@@ -189,13 +189,13 @@ function StepBasics({
         </div>
         <div className="space-y-1.5">
           <Label>
-            Category <span className="text-destructive">*</span>
+            Category <span className="text-destructive-strong">*</span>
           </Label>
           <Select
             value={data.category}
             onValueChange={(v) => set("category", v)}
           >
-            <SelectTrigger className="rounded-xl">
+            <SelectTrigger>
               <SelectValue placeholder="Select category" />
             </SelectTrigger>
             <SelectContent>
@@ -213,7 +213,7 @@ function StepBasics({
             value={data.description}
             onChange={(e) => set("description", e.target.value)}
             placeholder="Design intent, scope, notes…"
-            className="h-28 resize-none rounded-xl"
+            className="h-28 resize-none"
             maxLength={500}
           />
         </div>
@@ -243,7 +243,7 @@ function StepProject({
       <div className="grid grid-cols-2 gap-5">
         <div className="space-y-1.5">
           <Label>
-            Project code <span className="text-destructive">*</span>
+            Project code <span className="text-destructive-strong">*</span>
           </Label>
           <ProjectPicker
             value={data.projectCode}
@@ -257,7 +257,7 @@ function StepProject({
             value={data.client}
             onChange={(e) => set("client", e.target.value)}
             placeholder="Client name"
-            className="rounded-xl"
+           
           />
         </div>
         <div className="space-y-1.5">
@@ -266,7 +266,7 @@ function StepProject({
             value={data.building}
             onChange={(e) => set("building", e.target.value)}
             placeholder="Tower A"
-            className="rounded-xl"
+           
           />
         </div>
         <div className="space-y-1.5">
@@ -275,7 +275,7 @@ function StepProject({
             value={data.floor}
             onChange={(e) => set("floor", e.target.value)}
             placeholder="14"
-            className="rounded-xl"
+           
           />
         </div>
         <div className="space-y-1.5">
@@ -284,7 +284,7 @@ function StepProject({
             value={data.zone}
             onChange={(e) => set("zone", e.target.value)}
             placeholder="North"
-            className="rounded-xl"
+           
           />
         </div>
       </div>
@@ -313,13 +313,13 @@ function StepVersion({
       <div className="grid grid-cols-2 gap-5">
         <div className="space-y-1.5">
           <Label>
-            Version <span className="text-destructive">*</span>
+            Version <span className="text-destructive-strong">*</span>
           </Label>
           <Input
             value={data.version}
             onChange={(e) => set("version", e.target.value)}
             placeholder="v0.1"
-            className="rounded-xl"
+           
           />
         </div>
         <div className="space-y-1.5">
@@ -329,13 +329,13 @@ function StepVersion({
             min={0}
             value={data.revision}
             onChange={(e) => set("revision", Number(e.target.value) || 0)}
-            className="rounded-xl"
+           
           />
         </div>
         <div className="space-y-1.5">
           <Label>Phase</Label>
           <Select value={data.phase} onValueChange={(v) => set("phase", v)}>
-            <SelectTrigger className="rounded-xl">
+            <SelectTrigger>
               <SelectValue />
             </SelectTrigger>
             <SelectContent>
@@ -353,7 +353,7 @@ function StepVersion({
         <div className="space-y-1.5">
           <Label>Status</Label>
           <Select value={data.status} onValueChange={(v) => set("status", v)}>
-            <SelectTrigger className="rounded-xl">
+            <SelectTrigger>
               <SelectValue />
             </SelectTrigger>
             <SelectContent>
@@ -396,13 +396,13 @@ function StepTeam({
       <div className="grid grid-cols-2 gap-5">
         <div className="space-y-1.5">
           <Label>
-            Lead architect <span className="text-destructive">*</span>
+            Lead architect <span className="text-destructive-strong">*</span>
           </Label>
           <Input
             value={data.leadArchitect}
             onChange={(e) => set("leadArchitect", e.target.value)}
             placeholder="e.g. M. Rivera"
-            className="rounded-xl"
+           
           />
         </div>
         <div className="space-y-1.5">
@@ -518,7 +518,7 @@ function StepFiles({
         )}
 
         {uploadError && (
-          <p role="alert" className="text-xs text-destructive">
+          <p role="alert" className="text-xs text-destructive-strong">
             {uploadError}
           </p>
         )}
@@ -533,14 +533,14 @@ function StepFiles({
                 <button
                   type="button"
                   onClick={() => void openFileUrl(f.url).catch(() => undefined)}
-                  className="truncate text-left text-primary underline-offset-2 hover:underline"
+                  className="truncate text-left text-primary-strong underline-offset-2 hover:underline"
                 >
                   {f.name}
                 </button>
                 <button
                   type="button"
                   onClick={() => onRemove(f.url)}
-                  className="shrink-0 text-muted-foreground hover:text-destructive"
+                  className="shrink-0 text-muted-foreground hover:text-destructive-strong"
                   title="Remove"
                 >
                   <X className="h-3.5 w-3.5" />

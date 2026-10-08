@@ -1,17 +1,17 @@
 export const BUDGET_CHART_COLORS = [
-  "#10b981",
-  "#0ea5e9",
-  "#8b5cf6",
-  "#f59e0b",
-  "#f43f5e",
+  "var(--chart-1)",
+  "var(--chart-3)",
+  "var(--chart-4)",
+  "var(--chart-2)",
+  "var(--chart-5)",
 ];
 
 export const CHART_AXIS_STYLE = {
   tick: { fontSize: 10 },
-  stroke: "hsl(var(--muted-foreground))",
+  stroke: "var(--muted-foreground)",
 };
 
 export const CHART_GRID_STYLE = {
-  stroke: "hsl(var(--border))",
+  stroke: "var(--border)",
   strokeOpacity: 0.4,
 };

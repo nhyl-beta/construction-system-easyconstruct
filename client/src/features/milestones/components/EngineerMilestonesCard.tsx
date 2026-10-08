@@ -10,8 +10,8 @@ import { useEngineerMilestones } from "../hooks/use-engineer-milestones";
 import type { Milestone } from "../repositories/milestone.repository";
 
 const STATUS_TONE: Record<string, string> = {
-  active: "bg-success/10 text-success border-success/20",
-  "at-risk": "bg-warning/15 text-warning border-warning/30",
+  active: "bg-success/10 text-success-strong border-success/20",
+  "at-risk": "bg-warning/15 text-warning-strong border-warning/30",
   completed: "bg-muted text-muted-foreground border-border",
 };
 
@@ -45,13 +45,13 @@ export function EngineerMilestonesCard() {
         </div>
       </div>
       <div className="flex items-center gap-2">
-        <Badge variant="outline" className={`rounded-full px-2.5 py-0.5 text-[11px] font-medium ${STATUS_TONE[m.status] ?? ""}`}>
+        <Badge variant="outline" className={`rounded-full px-2.5 py-0.5 text-overline font-medium ${STATUS_TONE[m.status] ?? ""}`}>
           {m.status}
         </Badge>
         {!muted && (
           <Button
             size="sm"
-            className="h-8 rounded-lg"
+            className="h-8"
             disabled={completingId === m.id}
             onClick={() => {
               clearCompleteError();
@@ -66,7 +66,7 @@ export function EngineerMilestonesCard() {
   );
 
   return (
-    <Card className="rounded-2xl border-border/70 shadow-sm">
+    <Card>
       <CardHeader className="pb-3">
         <CardTitle className="text-base">Milestones</CardTitle>
         <p className="text-xs text-muted-foreground">
@@ -75,14 +75,14 @@ export function EngineerMilestonesCard() {
       </CardHeader>
       <CardContent className="p-0">
         {completeError && (
-          <p role="alert" className="mx-4 mb-2 rounded-lg border border-destructive/30 bg-destructive/5 px-3 py-2 text-xs text-destructive">
+          <p role="alert" className="mx-4 mb-2 rounded-lg border border-destructive/30 bg-destructive/5 px-3 py-2 text-xs text-destructive-strong">
             {completeError}
           </p>
         )}
         {loading ? (
           <div className="p-5 text-sm text-muted-foreground">Loading milestones…</div>
         ) : error ? (
-          <div className="p-5 text-sm text-destructive">Could not load milestones. {error}</div>
+          <div className="p-5 text-sm text-destructive-strong">Could not load milestones. {error}</div>
         ) : open.length === 0 && completed.length === 0 ? (
           <div className="p-5 text-sm text-muted-foreground">No milestones on your assigned projects yet.</div>
         ) : (

@@ -54,11 +54,11 @@ function DemoLink({ code, children }: { code: string; children: React.ReactNode 
   };
   return (
     <span>
-      <button type="button" onClick={go} className="text-primary hover:underline">
+      <button type="button" onClick={go} className="text-primary-strong hover:underline">
         {children}
       </button>
       {status === "error" && (
-        <span className="ml-1 text-xs text-destructive">
+        <span className="ml-1 text-xs text-destructive-strong">
           (not found — re-run `npm run demo:seed`/`demo:ai-signals`)
         </span>
       )}
@@ -78,10 +78,10 @@ function RuleCard({
   demo: React.ReactNode;
 }) {
   return (
-    <Card className="rounded-2xl">
+    <Card>
       <CardHeader className="flex flex-row items-center justify-between space-y-0">
         <CardTitle className="text-base">{title}</CardTitle>
-        <Badge variant="outline" className="rounded-full text-[10px]">{stage}</Badge>
+        <Badge variant="outline" className="rounded-full text-overline">{stage}</Badge>
       </CardHeader>
       <CardContent className="space-y-2 text-sm text-muted-foreground">
         {children}
@@ -111,7 +111,7 @@ export default function AiValidationReferencePage() {
       />
       <PageContent className="space-y-6 p-4 md:p-8">
         {error && (
-          <div className="rounded-xl border border-destructive/30 bg-destructive/5 p-3 text-sm text-destructive">
+          <div className="rounded-xl border border-destructive/30 bg-destructive/5 p-3 text-sm text-destructive-strong">
             {error}
           </div>
         )}
@@ -120,7 +120,7 @@ export default function AiValidationReferencePage() {
         )}
         {config && (
           <>
-            <Card className="rounded-2xl border-ai/30 bg-ai/5">
+            <Card className="border-ai/30 bg-ai/5">
               <CardContent className="flex flex-wrap items-center gap-4 p-4 text-sm">
                 <Badge variant="outline" className="rounded-full border-ai/40 text-ai">AI</Badge>
                 <span>

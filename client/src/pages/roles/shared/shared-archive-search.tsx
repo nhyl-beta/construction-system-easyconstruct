@@ -65,12 +65,12 @@ export default function SharedArchiveSearchPage() {
             value={query}
             onChange={(e) => setQuery(e.target.value)}
             placeholder="Project name, code, client, location, document title or type…"
-            className="rounded-xl pl-9"
+            className="pl-9"
             aria-label="Search archive"
           />
         </div>
 
-        {error && <p role="alert" className="text-sm text-destructive">{error}</p>}
+        {error && <p role="alert" className="text-sm text-destructive-strong">{error}</p>}
 
         {loading ? (
           <p className="text-sm text-muted-foreground">Loading the archive…</p>
@@ -83,7 +83,7 @@ export default function SharedArchiveSearchPage() {
                 <ul className="divide-y">
                   {projectHits.map((p) => (
                     <li key={p.code} className="py-2.5 text-sm">
-                      <Link to={`/projects/${p.id}`} className="font-medium text-primary hover:underline">
+                      <Link to={`/projects/${p.id}`} className="font-medium text-primary-strong hover:underline">
                         {p.name}
                       </Link>
                       <div className="text-xs text-muted-foreground">
@@ -109,7 +109,7 @@ export default function SharedArchiveSearchPage() {
                         </div>
                       </div>
                       {d.fileUrl && (
-                        <button type="button" className="inline-flex shrink-0 items-center gap-1 text-xs text-primary hover:underline" onClick={() => void openFileUrl(d.fileUrl)}>
+                        <button type="button" className="inline-flex shrink-0 items-center gap-1 text-xs text-primary-strong hover:underline" onClick={() => void openFileUrl(d.fileUrl)}>
                           Open <ExternalLink className="h-3 w-3" aria-hidden />
                         </button>
                       )}

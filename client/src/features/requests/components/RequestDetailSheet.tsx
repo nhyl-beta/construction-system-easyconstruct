@@ -26,7 +26,7 @@ const RAISERS = new Set(["project-manager", "engineer", "admin"]);
 function Field({ label, children }: { label: string; children: React.ReactNode }) {
   return (
     <div>
-      <dt className="text-[11px] text-muted-foreground">{label}</dt>
+      <dt className="text-overline text-muted-foreground">{label}</dt>
       <dd className="text-sm">{children || "—"}</dd>
     </div>
   );
@@ -42,7 +42,7 @@ function Files({ files, stage }: { files: RequestFile[]; stage: "request" | "res
           <span className="min-w-0 truncate">{f.filename}</span>
           <button
             type="button"
-            className="inline-flex shrink-0 items-center gap-1 text-primary hover:underline"
+            className="inline-flex shrink-0 items-center gap-1 text-primary-strong hover:underline"
             onClick={() => void downloadFileUrl(f.url, f.filename).catch((e: unknown) => toast.error(e instanceof Error ? e.message : "Could not download the file"))}
           >
             <FileDown className="h-3.5 w-3.5" /> Download
@@ -115,7 +115,7 @@ export function RequestDetailSheet({
           <div className="space-y-5 px-4 pb-6">
             {loading && !r && <p className="text-sm text-muted-foreground">Loading request…</p>}
             {error && (
-              <p role="alert" className="rounded-lg border border-destructive/30 bg-destructive/5 px-3 py-2 text-xs text-destructive">
+              <p role="alert" className="rounded-lg border border-destructive/30 bg-destructive/5 px-3 py-2 text-xs text-destructive-strong">
                 {error}
               </p>
             )}
@@ -160,7 +160,7 @@ export function RequestDetailSheet({
                   {r.responseText ? (
                     <>
                       <p className="mt-1 whitespace-pre-wrap text-sm">{r.responseText}</p>
-                      <p className="mt-1 text-[11px] text-muted-foreground">
+                      <p className="mt-1 text-overline text-muted-foreground">
                         {r.respondedByName} · {formatDateTime(r.respondedAt)} · {STATUS_LABEL[r.status]}
                       </p>
                       <Files files={r.files} stage="response" />
@@ -198,37 +198,37 @@ export function RequestDetailSheet({
 
                 <div className="flex flex-wrap gap-2 border-t pt-4">
                   {canSend && (
-                    <Button size="sm" className="rounded-xl" disabled={busy} onClick={() => void act(() => RequestRepository.send(r.id), `${r.number} sent`)}>
+                    <Button size="sm" disabled={busy} onClick={() => void act(() => RequestRepository.send(r.id), `${r.number} sent`)}>
                       <Send className="h-4 w-4" /> Countersign &amp; send
                     </Button>
                   )}
                   {mineToAnswer && r.status === "open" && (
-                    <Button size="sm" variant="outline" className="rounded-xl" disabled={busy} onClick={() => void act(() => RequestRepository.acknowledge(r.id), "Marked in review")}>
+                    <Button size="sm" variant="outline" disabled={busy} onClick={() => void act(() => RequestRepository.acknowledge(r.id), "Marked in review")}>
                       Start review
                     </Button>
                   )}
                   {mineToAnswer && (
-                    <Button size="sm" className="rounded-xl" disabled={busy} onClick={() => setResponding(true)}>
+                    <Button size="sm" disabled={busy} onClick={() => setResponding(true)}>
                       <CheckCircle2 className="h-4 w-4" /> Respond
                     </Button>
                   )}
                   {canFollowUp && (
-                    <Button size="sm" variant="outline" className="rounded-xl" disabled={busy} onClick={() => setFollowingUp(true)}>
+                    <Button size="sm" variant="outline" disabled={busy} onClick={() => setFollowingUp(true)}>
                       <CornerDownRight className="h-4 w-4" /> Follow up
                     </Button>
                   )}
                   {canChangeOrder && (
-                    <Button size="sm" variant="outline" className="rounded-xl" disabled={busy} onClick={() => setChangeOrder(true)}>
+                    <Button size="sm" variant="outline" disabled={busy} onClick={() => setChangeOrder(true)}>
                       <FilePlus2 className="h-4 w-4" /> Raise change order
                     </Button>
                   )}
-                  <Button size="sm" variant="outline" className="rounded-xl" asChild>
+                  <Button size="sm" variant="outline" asChild>
                     <Link to={`/requests/${r.id}/print`} target="_blank" rel="noreferrer">
                       <Printer className="h-4 w-4" /> Print / PDF
                     </Link>
                   </Button>
                   {canClose && (
-                    <Button size="sm" variant="ghost" className="rounded-xl text-muted-foreground" disabled={busy} onClick={() => setClosing(true)}>
+                    <Button size="sm" variant="ghost" className="text-muted-foreground" disabled={busy} onClick={() => setClosing(true)}>
                       <XCircle className="h-4 w-4" /> Close
                     </Button>
                   )}
@@ -296,7 +296,7 @@ function ReturnedForm({ requestId, onDone }: { requestId: number; onDone: () => 
       <Button
         size="sm"
         variant="outline"
-        className="rounded-xl"
+       
         disabled={!ok || busy}
         onClick={async () => {
           setBusy(true);
@@ -343,14 +343,14 @@ function FollowUpDialog({
           <Label htmlFor="fu-text">What still needs clarifying</Label>
           <Textarea id="fu-text" rows={4} value={text} onChange={(e) => setText(e.target.value)} disabled={busy} />
           <RequestFilePicker files={files} onChange={setFiles} disabled={busy} />
-          {error && <p role="alert" className="text-xs text-destructive">{error}</p>}
+          {error && <p role="alert" className="text-xs text-destructive-strong">{error}</p>}
         </div>
         <DialogFooter>
-          <Button variant="ghost" className="rounded-xl" disabled={busy} onClick={() => onOpenChange(false)}>
+          <Button variant="ghost" disabled={busy} onClick={() => onOpenChange(false)}>
             Cancel
           </Button>
           <Button
-            className="rounded-xl"
+           
             disabled={busy || text.trim().length < 10}
             onClick={async () => {
               setBusy(true);

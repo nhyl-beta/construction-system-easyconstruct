@@ -69,13 +69,13 @@ export function ProposalsRegister({
             value={search}
             onChange={(e) => setSearch(e.target.value)}
             placeholder="Search proposals…"
-            className="h-8 rounded-lg pl-8 text-xs"
+            className="h-8 pl-8 text-xs"
           />
         </div>
 
         {loading && <p className="text-sm text-muted-foreground">Loading proposals…</p>}
         {!loading && error && (
-          <p className="rounded-xl border border-destructive/30 bg-destructive/10 px-4 py-3 text-sm text-destructive">
+          <p className="rounded-xl border border-destructive/30 bg-destructive/10 px-4 py-3 text-sm text-destructive-strong">
             Couldn't load proposals. {error}
           </p>
         )}
@@ -98,7 +98,7 @@ export function ProposalsRegister({
         )}
 
         {selected && (
-          <div className="space-y-4 rounded-2xl border border-border/70 bg-card p-5 shadow-sm">
+          <div className="space-y-4 rounded-2xl border border-border bg-card p-5 shadow-sm">
             <div className="flex flex-wrap items-start justify-between gap-3">
               <div className="min-w-0">
                 <h3 className="whitespace-normal break-words text-sm font-semibold">

@@ -42,7 +42,7 @@ export default function AdminWorkflowConfigurationPage() {
         }
         actions={
           canManage ? (
-            <Button className="rounded-xl" onClick={() => setDialogOpen(true)}>
+            <Button onClick={() => setDialogOpen(true)}>
               <Plus className="h-4 w-4" />
               New template
             </Button>
@@ -50,7 +50,7 @@ export default function AdminWorkflowConfigurationPage() {
         }
       />
       <PageContent className="space-y-4 p-6 md:p-8">
-        <div className="flex items-start gap-2 rounded-xl border border-border/70 bg-muted/40 p-4 text-sm text-muted-foreground">
+        <div className="flex items-start gap-2 rounded-xl border border-border bg-muted/40 p-4 text-sm text-muted-foreground">
           <Info className="mt-0.5 h-4 w-4 shrink-0" />
           <p>
             Templates define the stage/role sequence new workflows are
@@ -62,7 +62,7 @@ export default function AdminWorkflowConfigurationPage() {
 
         {loading && <p className="text-sm text-muted-foreground">Loading templates…</p>}
         {!loading && error && (
-          <p className="text-sm text-destructive">{error.message}</p>
+          <p className="text-sm text-destructive-strong">{error.message}</p>
         )}
         {!loading && !error && templates.length === 0 && (
           <p className="text-sm text-muted-foreground">No workflow templates configured yet.</p>
@@ -70,7 +70,7 @@ export default function AdminWorkflowConfigurationPage() {
 
         <div className="space-y-4">
           {templates.map((t) => (
-            <Card key={t.id} className="rounded-2xl border-border/70 shadow-sm">
+            <Card key={t.id}>
               <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-3">
                 <div className="flex items-center gap-2">
                   <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-accent text-accent-foreground">
@@ -82,14 +82,14 @@ export default function AdminWorkflowConfigurationPage() {
                   </div>
                 </div>
                 <div className="flex shrink-0 items-center gap-2">
-                  <Badge variant="outline" className="rounded-full text-[10px]">
+                  <Badge variant="outline" className="rounded-full text-overline">
                     {t.activeCount} active · avg {WorkflowFormatService.avgDuration(t.avgDurationHours)}
                   </Badge>
                   {canManage && (
                     <Button
                       variant="ghost"
                       size="icon"
-                      className="h-8 w-8 rounded-lg text-destructive hover:text-destructive"
+                      className="h-8 w-8 text-destructive-strong hover:text-destructive-strong"
                       title="Delete template"
                       onClick={() => setDeletingTemplate(t)}
                     >
@@ -106,7 +106,7 @@ export default function AdminWorkflowConfigurationPage() {
                     const StageIcon = WORKFLOW_STAGE_ICONS[stage.iconKey ?? ""];
                     return (
                     <span key={`${t.id}-${i}-${stage.role}`} className="flex items-center gap-2">
-                      <Badge variant="outline" className="gap-1.5 rounded-full px-2.5 py-1 text-[11px]">
+                      <Badge variant="outline" className="gap-1.5 rounded-full px-2.5 py-1 text-overline">
                         {StageIcon && <StageIcon className="h-3 w-3" />}
                         {i + 1}. {stage.roleLabel}
                       </Badge>

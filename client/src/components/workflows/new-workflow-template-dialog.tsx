@@ -214,7 +214,7 @@ export function NewWorkflowTemplateDialog({
           {error && (
             <p
               role="alert"
-              className="rounded-lg border border-destructive/30 bg-destructive/5 px-3 py-2 text-sm text-destructive"
+              className="rounded-lg border border-destructive/30 bg-destructive/5 px-3 py-2 text-sm text-destructive-strong"
             >
               {error}
             </p>
@@ -265,7 +265,7 @@ export function NewWorkflowTemplateDialog({
                 type="button"
                 size="sm"
                 variant="ghost"
-                className="h-7 rounded-lg text-xs"
+                className="h-7 text-xs"
                 disabled={creating || stages.length >= MAX_STAGES}
                 onClick={() => setStages((prev) => [...prev, emptyStage()])}
               >
@@ -280,7 +280,7 @@ export function NewWorkflowTemplateDialog({
               >
                 <div className="flex flex-col items-center text-muted-foreground">
                   <GripVertical className="h-3.5 w-3.5" />
-                  <span className="text-[10px] tabular-nums">{index + 1}</span>
+                  <span className="text-overline tabular-nums">{index + 1}</span>
                 </div>
                 <Select
                   value={stage.role}
@@ -355,7 +355,7 @@ export function NewWorkflowTemplateDialog({
                   type="button"
                   size="icon"
                   variant="ghost"
-                  className="h-8 w-8 rounded-lg text-destructive hover:text-destructive"
+                  className="h-8 w-8 text-destructive-strong hover:text-destructive-strong"
                   disabled={creating || stages.length <= 2}
                   title="Remove this stage"
                   aria-label={`Remove stage ${index + 1}`}

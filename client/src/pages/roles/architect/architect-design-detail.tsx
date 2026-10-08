@@ -54,7 +54,7 @@ export default function ArchitectDesignDetail() {
         <Button
           variant="ghost"
           size="sm"
-          className="rounded-xl"
+         
           onClick={() => navigate("/designs")}
         >
           <ChevronLeft className="mr-1 h-4 w-4" /> All designs
@@ -95,7 +95,7 @@ export default function ArchitectDesignDetail() {
       <Button
         variant="ghost"
         size="sm"
-        className="-mb-2 rounded-xl"
+        className="-mb-2"
         onClick={() => navigate("/designs")}
       >
         <ChevronLeft className="mr-1 h-4 w-4" /> All designs
@@ -108,14 +108,14 @@ export default function ArchitectDesignDetail() {
           <>
             <RevisionLink itemType="design" itemId={d.id} current={currentRevisions[d.id]} />
             {canRaiseRequest && (
-              <Button size="sm" variant="outline" className="rounded-xl" onClick={() => setRaisingRfi(true)}>
+              <Button size="sm" variant="outline" onClick={() => setRaisingRfi(true)}>
                 <MessageSquareQuote className="mr-1 h-3.5 w-3.5" /> Raise RFI
               </Button>
             )}
             <Button
               size="sm"
               variant="outline"
-              className="rounded-xl text-destructive"
+              className="text-destructive-strong"
               onClick={() => setConfirmDelete(true)}
             >
               <Trash2 className="mr-1 h-3.5 w-3.5" /> Delete
@@ -123,7 +123,7 @@ export default function ArchitectDesignDetail() {
             {d.status !== "Approved" && (
               <Button
                 size="sm"
-                className="rounded-xl"
+               
                 disabled={requestingReview || !!pendingReview}
                 title={pendingReview ? "A review is already pending for this design" : undefined}
                 onClick={handleRequestReview}
@@ -138,7 +138,7 @@ export default function ArchitectDesignDetail() {
       />
 
       {reviewError && (
-        <p className="text-sm text-destructive">{reviewError}</p>
+        <p className="text-sm text-destructive-strong">{reviewError}</p>
       )}
 
       <div className="grid gap-4 lg:grid-cols-3">
@@ -156,7 +156,7 @@ export default function ArchitectDesignDetail() {
             <Field label="Files" value={`${d.fileCount}`} />
           </dl>
           {d.description && (
-            <div className="mt-4 border-t border-border/70 pt-4">
+            <div className="mt-4 border-t border-border pt-4">
               <div className="text-xs uppercase tracking-wider text-muted-foreground">
                 Description
               </div>
@@ -191,7 +191,7 @@ export default function ArchitectDesignDetail() {
 function Field({ label, value }: { label: string; value: string }) {
   return (
     <div>
-      <div className="text-[10px] uppercase tracking-wider text-muted-foreground">
+      <div className="text-overline uppercase tracking-wider text-muted-foreground">
         {label}
       </div>
       <div className="text-sm">{value}</div>

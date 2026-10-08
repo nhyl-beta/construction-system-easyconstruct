@@ -63,7 +63,7 @@ export function PayslipDialog({
               <Row label="Net pay" value={formatCurrency(line.net)} bold />
             </div>
 
-            <p className="text-[11px] text-muted-foreground">
+            <p className="text-overline text-muted-foreground">
               Rates used:{" "}
               {line.rateVersions
                 ? Object.entries(line.rateVersions)

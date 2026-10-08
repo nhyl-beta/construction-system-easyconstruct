@@ -74,7 +74,7 @@ export function FileListPicker({
         type="button"
         size="sm"
         variant="outline"
-        className="rounded-lg"
+       
         disabled={disabled}
         onClick={() => input.current?.click()}
       >
@@ -90,7 +90,7 @@ export function FileListPicker({
               <span className="truncate">{file.name}</span>
               <button
                 type="button"
-                className="shrink-0 text-muted-foreground hover:text-destructive"
+                className="shrink-0 text-muted-foreground hover:text-destructive-strong"
                 disabled={disabled}
                 aria-label={`Remove ${file.name}`}
                 onClick={() => onChange(files.filter((_, i) => i !== index))}
@@ -101,7 +101,7 @@ export function FileListPicker({
           ))}
         </ul>
       )}
-      <p className="text-[11px] text-muted-foreground">{hint}</p>
+      <p className="text-overline text-muted-foreground">{hint}</p>
     </div>
   );
 }

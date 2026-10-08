@@ -37,7 +37,7 @@ export function SubmittedFiles({
   if (loading) return <p className="text-sm text-muted-foreground">Loading files…</p>;
   if (error) {
     return (
-      <p role="alert" className="text-sm text-destructive">
+      <p role="alert" className="text-sm text-destructive-strong">
         {error}
       </p>
     );
@@ -50,7 +50,7 @@ export function SubmittedFiles({
         {files.map((file) => (
           <li
             key={file.key}
-            className={`flex items-start gap-3 rounded-lg border border-border/70 ${compact ? "p-2" : "p-3"}`}
+            className={`flex items-start gap-3 rounded-lg border border-border ${compact ? "p-2" : "p-3"}`}
           >
             <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-secondary/60 text-secondary-foreground">
               <FileText className="h-4 w-4" />
@@ -62,7 +62,7 @@ export function SubmittedFiles({
             <Button
               size="sm"
               variant="outline"
-              className="h-7 shrink-0 rounded-lg text-xs"
+              className="h-7 shrink-0 text-xs"
               disabled={!isRealFileUrl(file.url)}
               title={isRealFileUrl(file.url) ? undefined : "This record has no file behind it"}
               onClick={() => setPreview(file)}

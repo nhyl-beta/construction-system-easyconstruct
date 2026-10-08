@@ -43,7 +43,7 @@ export function ImpactAwarenessCard({ projectCode, className }: { projectCode?: 
       actions={<Radar className="h-4 w-4 text-muted-foreground" aria-hidden />}
     >
       {error ? (
-        <p role="alert" className="text-sm text-destructive">{error}</p>
+        <p role="alert" className="text-sm text-destructive-strong">{error}</p>
       ) : !data ? (
         <p className="text-sm text-muted-foreground">Checking projects…</p>
       ) : data.enabled === false ? (
@@ -58,7 +58,7 @@ export function ImpactAwarenessCard({ projectCode, className }: { projectCode?: 
                 <Link to={`/projects/${encodeURIComponent(p.projectCode)}`} className="hover:underline">
                   {p.projectName}
                 </Link>
-                <span className="font-mono text-[11px] font-normal text-muted-foreground">
+                <span className="font-mono text-overline font-normal text-muted-foreground">
                   {p.projectCode} · {p.phase}
                 </span>
               </h4>

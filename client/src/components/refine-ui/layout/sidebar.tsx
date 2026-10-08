@@ -72,7 +72,7 @@ function ApprovalsBadge() {
   const pending = useApprovalsPendingCount();
   if (pending === 0) return null;
   return (
-    <span className="ml-auto flex h-4 min-w-4 items-center justify-center rounded-full bg-destructive px-1 text-[10px] font-medium tabular-nums text-destructive-foreground group-data-[collapsible=icon]:hidden">
+    <span className="ml-auto flex h-4 min-w-4 items-center justify-center rounded-full bg-destructive px-1 text-overline font-medium tabular-nums text-destructive-foreground group-data-[collapsible=icon]:hidden">
       {pending > 9 ? "9+" : pending}
     </span>
   );
@@ -133,11 +133,11 @@ export function Sidebar() {
                         tooltip={item.meta?.label ?? item.label ?? item.name}
                         onClick={() => navigate(item.route ?? "/")}
                         className={cn("cursor-pointer", "w-full", {
-                          "bg-sidebar-primary text-sidebar-primary-foreground hover:bg-sidebar-primary/90 hover:text-sidebar-primary-foreground":
+                          "bg-sidebar-primary font-semibold text-sidebar-primary-foreground hover:bg-sidebar-primary/90 hover:text-sidebar-primary-foreground":
                             active,
                         })}
                       >
-                        <Icon className="h-4 w-4 shrink-0" />
+                        <Icon className="h-[18px] w-[18px] shrink-0" />
                         {/* Explicit truncate: this span used to rely on the
                             component's own `[&>span:last-child]:truncate`
                             rule, which now targets the badge span below
@@ -163,8 +163,7 @@ export function Sidebar() {
           <div
             className={cn(
               "flex", "h-8", "w-8", "shrink-0", "items-center", "justify-center",
-              "rounded-lg", "text-white", "text-xs", "font-semibold",
-              config.avatarColor,
+              "rounded-lg", "bg-primary-soft", "text-primary-strong", "text-xs", "font-semibold",
             )}
           >
             <AvatarIcon className="h-4 w-4" />
@@ -184,7 +183,7 @@ export function Sidebar() {
                 useAuth() as a fallback so the real signed-in email appears
                 when available, but this is two identity sources side by
                 side, not yet unified — see note below. */}
-            <span className="truncate text-[11px] text-muted-foreground">
+            <span className="truncate text-overline text-muted-foreground">
               {user?.email ?? `${config.label} workspace`}
             </span>
           </div>
@@ -218,10 +217,10 @@ function AppSidebarHeader() {
             "items-center",
             "justify-center",
             "rounded-lg",
-            "text-white",
+            "bg-primary-soft",
+            "text-primary-strong",
             "transition-all",
             "duration-200",
-            config.avatarColor,
             { "h-8 w-8": open, "h-7 w-7": !open },
           )}
         >
@@ -241,7 +240,7 @@ function AppSidebarHeader() {
           <span className="truncate text-sm font-semibold text-foreground leading-tight">
             {config.label}
           </span>
-          <span className="truncate text-[11px] text-orange-500 font-medium leading-tight">
+          <span className="truncate text-overline text-muted-foreground font-medium uppercase tracking-[0.06em] leading-tight">
             Construction Operations
           </span>
         </div>

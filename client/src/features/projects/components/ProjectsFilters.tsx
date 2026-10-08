@@ -33,7 +33,7 @@ export const ProjectsFilters: React.FC<{
 }> = ({ filters, onChange, onClear, active }) => (
   <>
     <Select value={filters.projectType} onValueChange={(v) => onChange("projectType", v)}>
-      <SelectTrigger aria-label="Filter by project type" className="h-9 w-40 rounded-xl text-xs">
+      <SelectTrigger aria-label="Filter by project type" className="h-9 w-40 text-xs">
         <SelectValue />
       </SelectTrigger>
       <SelectContent>
@@ -45,7 +45,7 @@ export const ProjectsFilters: React.FC<{
     </Select>
 
     <Select value={filters.deliveryType} onValueChange={(v) => onChange("deliveryType", v)}>
-      <SelectTrigger aria-label="Filter by delivery type" className="h-9 w-40 rounded-xl text-xs">
+      <SelectTrigger aria-label="Filter by delivery type" className="h-9 w-40 text-xs">
         <SelectValue />
       </SelectTrigger>
       <SelectContent>
@@ -57,7 +57,7 @@ export const ProjectsFilters: React.FC<{
     </Select>
 
     <Select value={filters.status} onValueChange={(v) => onChange("status", v)}>
-      <SelectTrigger aria-label="Filter by status" className="h-9 w-40 rounded-xl text-xs">
+      <SelectTrigger aria-label="Filter by status" className="h-9 w-40 text-xs">
         <SelectValue />
       </SelectTrigger>
       <SelectContent>
@@ -69,7 +69,7 @@ export const ProjectsFilters: React.FC<{
     </Select>
 
     <Select value={filters.risk} onValueChange={(v) => onChange("risk", v)}>
-      <SelectTrigger aria-label="Filter by risk" className="h-9 w-36 rounded-xl text-xs">
+      <SelectTrigger aria-label="Filter by risk" className="h-9 w-36 text-xs">
         <SelectValue />
       </SelectTrigger>
       <SelectContent>
@@ -81,7 +81,7 @@ export const ProjectsFilters: React.FC<{
     </Select>
 
     {active && (
-      <Button size="sm" variant="ghost" className="h-9 rounded-xl text-xs" onClick={onClear}>
+      <Button size="sm" variant="ghost" className="h-9 text-xs" onClick={onClear}>
         <X className="h-3.5 w-3.5" /> Clear
       </Button>
     )}

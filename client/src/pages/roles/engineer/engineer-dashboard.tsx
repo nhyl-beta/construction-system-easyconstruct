@@ -124,7 +124,7 @@ export default function EngineerDashboardPage() {
 
         <section className="grid grid-cols-1 gap-6 xl:grid-cols-3">
           {/* Assigned projects */}
-          <Card className="rounded-2xl border-border/70 shadow-sm xl:col-span-2">
+          <Card className="xl:col-span-2">
             <CardHeader className="pb-3">
               <CardTitle className="text-base">Your assigned projects</CardTitle>
             </CardHeader>
@@ -172,7 +172,7 @@ export default function EngineerDashboardPage() {
           </Card>
 
           {/* Recent reports */}
-          <Card className="rounded-2xl border-border/70 shadow-sm">
+          <Card>
             <CardHeader className="pb-3">
               <CardTitle className="text-base">Recent reports</CardTitle>
             </CardHeader>
@@ -194,7 +194,7 @@ export default function EngineerDashboardPage() {
                         <span className="truncate text-xs font-medium">{r.title}</span>
                         <ReportStatusBadge status={r.status} />
                       </div>
-                      <div className="text-[11px] text-muted-foreground">
+                      <div className="text-overline text-muted-foreground">
                         {r.id} · {r.project} · {r.updatedAgo}
                       </div>
                     </button>

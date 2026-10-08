@@ -45,12 +45,12 @@ export default function AdminSecurityPage() {
       <PageContent className="space-y-6 p-6 md:p-8">
         <div className="space-y-3">
           <h3 className="flex items-center gap-2 text-sm font-semibold text-foreground">
-            <ShieldAlert className="h-4 w-4 text-destructive" />
+            <ShieldAlert className="h-4 w-4 text-destructive-strong" />
             Recent sensitive actions
           </h3>
           {loading && <p className="text-sm text-muted-foreground">Loading…</p>}
           {!loading && error && (
-            <p className="text-sm text-destructive">Couldn't load audit data. {error.message}</p>
+            <p className="text-sm text-destructive-strong">Couldn't load audit data. {error.message}</p>
           )}
           {!loading && !error && sensitiveEvents.length === 0 && (
             <p className="text-sm text-muted-foreground">
@@ -62,10 +62,10 @@ export default function AdminSecurityPage() {
               {pagination.pageItems.map((log) => (
                 <div
                   key={log.id}
-                  className="flex items-center justify-between gap-3 rounded-xl border border-border/70 bg-card px-4 py-3"
+                  className="flex items-center justify-between gap-3 rounded-xl border border-border bg-card px-4 py-3"
                 >
                   <div className="flex items-center gap-3">
-                    <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-destructive/10 text-destructive">
+                    <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-destructive/10 text-destructive-strong">
                       {log.action === "deleted" ? (
                         <Trash2 className="h-4 w-4" />
                       ) : (
@@ -80,7 +80,7 @@ export default function AdminSecurityPage() {
                     </div>
                   </div>
                   <div className="flex items-center gap-2">
-                    <Badge variant="outline" className="rounded-full border-destructive/30 text-[10px] capitalize text-destructive">
+                    <Badge variant="outline" className="rounded-full border-destructive/30 text-overline capitalize text-destructive-strong">
                       {log.action}
                     </Badge>
                     <span className="text-xs text-muted-foreground">{formatRelativeTime(log.createdAt)}</span>
@@ -101,7 +101,7 @@ export default function AdminSecurityPage() {
         <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">
           <div className="min-w-0 space-y-3">
             <h3 className="flex items-center gap-2 text-sm font-semibold text-foreground">
-              <Users className="h-4 w-4 text-primary" />
+              <Users className="h-4 w-4 text-primary-strong" />
               Active sessions
               {!security.loading && (
                 <span className="text-xs font-normal text-muted-foreground">
@@ -111,7 +111,7 @@ export default function AdminSecurityPage() {
             </h3>
             {security.loading && <p className="text-sm text-muted-foreground">Loading…</p>}
             {!security.loading && security.error && (
-              <p className="text-sm text-destructive">
+              <p className="text-sm text-destructive-strong">
                 Couldn't load sign-in activity. {security.error.message}
               </p>
             )}
@@ -123,7 +123,7 @@ export default function AdminSecurityPage() {
             {sessionsPagination.pageItems.map((s) => (
               <div
                 key={s.id}
-                className="flex items-center justify-between gap-3 rounded-xl border border-border/70 bg-card px-4 py-3"
+                className="flex items-center justify-between gap-3 rounded-xl border border-border bg-card px-4 py-3"
               >
                 <div>
                   <p className="text-sm font-medium">{s.actor}</p>
@@ -147,7 +147,7 @@ export default function AdminSecurityPage() {
 
           <div className="min-w-0 space-y-3">
             <h3 className="flex items-center gap-2 text-sm font-semibold text-foreground">
-              <KeyRound className="h-4 w-4 text-destructive" />
+              <KeyRound className="h-4 w-4 text-destructive-strong" />
               Failed sign-in attempts
               {!security.loading && (
                 <span className="text-xs font-normal text-muted-foreground">
@@ -170,7 +170,7 @@ export default function AdminSecurityPage() {
             {failedLoginsPagination.pageItems.map((f) => (
               <div
                 key={f.id}
-                className="flex items-center justify-between gap-3 rounded-xl border border-border/70 bg-card px-4 py-3"
+                className="flex items-center justify-between gap-3 rounded-xl border border-border bg-card px-4 py-3"
               >
                 <div>
                   <p className="text-sm font-medium">{f.entityId}</p>

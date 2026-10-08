@@ -76,7 +76,7 @@ function RecordExpenseDialog({
   return (
     <Dialog open={open} onOpenChange={setOpen}>
       <DialogTrigger asChild>
-        <Button size="sm" className="rounded-xl">
+        <Button size="sm">
           <Plus className="h-3.5 w-3.5" /> Record expense
         </Button>
       </DialogTrigger>
@@ -115,9 +115,9 @@ function RecordExpenseDialog({
             </div>
           </div>
         </div>
-        {error && <p className="text-sm text-destructive">{error}</p>}
+        {error && <p className="text-sm text-destructive-strong">{error}</p>}
         <DialogFooter>
-          <Button disabled={!canSubmit || creating} onClick={handleSubmit} className="rounded-xl">
+          <Button disabled={!canSubmit || creating} onClick={handleSubmit}>
             {creating ? "Recording…" : "Record expense"}
           </Button>
         </DialogFooter>
@@ -158,7 +158,7 @@ export default function FinanceExpensesPage() {
 
       <PageContent className="space-y-6 p-4 md:p-8">
         {c.error && (
-          <div className="rounded-xl border border-destructive/30 bg-destructive/5 p-3 text-sm text-destructive">
+          <div className="rounded-xl border border-destructive/30 bg-destructive/5 p-3 text-sm text-destructive-strong">
             Failed to load expenses: {c.error}
           </div>
         )}
@@ -166,7 +166,7 @@ export default function FinanceExpensesPage() {
         {notice && (
           <div
             role={notice.tone === "error" ? "alert" : "status"}
-            className={`rounded-xl border p-3 text-sm ${notice.tone === "error" ? "border-destructive/30 bg-destructive/5 text-destructive" : "border-warning/40 bg-warning/10"}`}
+            className={`rounded-xl border p-3 text-sm ${notice.tone === "error" ? "border-destructive/30 bg-destructive/5 text-destructive-strong" : "border-warning/40 bg-warning/10"}`}
           >
             {notice.text}
           </div>
@@ -183,12 +183,12 @@ export default function FinanceExpensesPage() {
         />
 
         <Tabs value={active} onValueChange={setActive}>
-          <TabsList className="rounded-xl">
-            <TabsTrigger value="tracking" className="rounded-lg">Tracking</TabsTrigger>
-            <TabsTrigger value="requests" className="rounded-lg">Purchase Requests</TabsTrigger>
-            <TabsTrigger value="reimbursements" className="rounded-lg">Reimbursements</TabsTrigger>
-            <TabsTrigger value="procurement" className="rounded-lg">Procurement</TabsTrigger>
-            <TabsTrigger value="analytics" className="rounded-lg">Analytics</TabsTrigger>
+          <TabsList>
+            <TabsTrigger value="tracking">Tracking</TabsTrigger>
+            <TabsTrigger value="requests">Purchase Requests</TabsTrigger>
+            <TabsTrigger value="reimbursements">Reimbursements</TabsTrigger>
+            <TabsTrigger value="procurement">Procurement</TabsTrigger>
+            <TabsTrigger value="analytics">Analytics</TabsTrigger>
           </TabsList>
 
           <TabsContent value="tracking" className="mt-4">
@@ -200,7 +200,7 @@ export default function FinanceExpensesPage() {
                   <Button
                     variant="outline"
                     size="sm"
-                    className="h-8 rounded-lg text-xs"
+                    className="h-8 text-xs"
                     disabled={c.expenses.length === 0}
                     title="Export the rows currently shown as CSV (opens in Excel)"
                     onClick={() =>
@@ -219,11 +219,11 @@ export default function FinanceExpensesPage() {
                       value={c.query}
                       onChange={(e) => c.setQuery(e.target.value)}
                       placeholder="Search vendor, ID, project…"
-                      className="h-8 rounded-lg pl-8 text-xs"
+                      className="h-8 pl-8 text-xs"
                     />
                   </div>
                   <Select value={c.category} onValueChange={c.setCategory}>
-                    <SelectTrigger className="h-8 w-36 rounded-lg text-xs">
+                    <SelectTrigger className="h-8 w-36 text-xs">
                       <SelectValue />
                     </SelectTrigger>
                     <SelectContent>
@@ -282,12 +282,12 @@ export default function FinanceExpensesPage() {
                               <Badge
                                 title={e.anomalyReason ?? undefined}
                                 variant="outline"
-                                className={`rounded-full text-[10px] ${
+                                className={`rounded-full text-overline ${
                                   e.anomalyScore > 0.6
-                                    ? "border-destructive/30 text-destructive bg-destructive/10"
+                                    ? "border-destructive/30 text-destructive-strong bg-destructive/10"
                                     : e.anomalyScore > 0.3
-                                      ? "border-warning/30 text-warning bg-warning/10"
-                                      : "border-success/30 text-success bg-success/10"
+                                      ? "border-warning/30 text-warning-strong bg-warning/10"
+                                      : "border-success/30 text-success-strong bg-success/10"
                                 }`}
                               >
                                 {(e.anomalyScore * 100).toFixed(0)}%
@@ -300,10 +300,10 @@ export default function FinanceExpensesPage() {
                           <TableCell className="text-right">
                             {e.status === "pending" && (
                               <div className="flex justify-end gap-1.5">
-                                <Button size="sm" variant="outline" className="h-7 rounded-lg px-2 text-xs" onClick={() => setPendingDecision({ id: e.id, vendor: e.vendor, amount: e.amount, decision: "approve" })}>
+                                <Button size="sm" variant="outline" className="h-7 px-2 text-xs" onClick={() => setPendingDecision({ id: e.id, vendor: e.vendor, amount: e.amount, decision: "approve" })}>
                                   Approve
                                 </Button>
-                                <Button size="sm" variant="ghost" className="h-7 rounded-lg px-2 text-xs text-destructive" onClick={() => setPendingDecision({ id: e.id, vendor: e.vendor, amount: e.amount, decision: "reject" })}>
+                                <Button size="sm" variant="ghost" className="h-7 px-2 text-xs text-destructive-strong" onClick={() => setPendingDecision({ id: e.id, vendor: e.vendor, amount: e.amount, decision: "reject" })}>
                                   Reject
                                 </Button>
                               </div>
@@ -325,11 +325,11 @@ export default function FinanceExpensesPage() {
                 <div className="h-64">
                   <ResponsiveContainer width="100%" height="100%">
                     <BarChart data={c.breakdown}>
-                      <CartesianGrid stroke="hsl(var(--border))" strokeOpacity={0.4} vertical={false} />
-                      <XAxis dataKey="category" tick={{ fontSize: 10 }} stroke="hsl(var(--muted-foreground))" />
-                      <YAxis tick={{ fontSize: 10 }} stroke="hsl(var(--muted-foreground))" tickFormatter={(v) => formatAxisCurrency(Number(v))} />
+                      <CartesianGrid stroke="var(--border)" strokeOpacity={0.4} vertical={false} />
+                      <XAxis dataKey="category" tick={{ fontSize: 10 }} stroke="var(--muted-foreground)" />
+                      <YAxis tick={{ fontSize: 10 }} stroke="var(--muted-foreground)" tickFormatter={(v) => formatAxisCurrency(Number(v))} />
                       <Tooltip formatter={(v: number) => formatCurrency(Number(v))} />
-                      <Bar dataKey="amount" fill="#10b981" radius={[6, 6, 0, 0]} />
+                      <Bar dataKey="amount" fill="var(--chart-1)" radius={[6, 6, 0, 0]} />
                     </BarChart>
                   </ResponsiveContainer>
                 </div>
@@ -342,13 +342,13 @@ export default function FinanceExpensesPage() {
                       .map((e) => (
                         <li key={e.id} className="rounded-xl border bg-warning/5 p-3">
                           <div className="flex items-center gap-2 text-xs">
-                            <Sparkles className="h-3 w-3 text-warning" />
+                            <Sparkles className="h-3 w-3 text-warning-strong" />
                             <span className="font-mono">{e.id}</span>
                             <span>·</span>
                             <span className="font-medium">{e.vendor}</span>
                             <span className="ml-auto font-semibold">{((e.anomalyScore ?? 0) * 100).toFixed(0)}%</span>
                           </div>
-                          <p className="mt-1 text-[11px] text-muted-foreground">
+                          <p className="mt-1 text-overline text-muted-foreground">
                             {formatCurrency(e.amount)} · {e.category} · {e.project}
                           </p>
                           {e.anomalyReason && <p className="mt-1 text-xs">{e.anomalyReason}</p>}

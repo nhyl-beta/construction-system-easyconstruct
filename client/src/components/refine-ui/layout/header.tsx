@@ -85,7 +85,7 @@ function DesktopHeader() {
             </div>
             <Badge
               variant="outline"
-              className="ml-1 hidden rounded-full border-border/60 text-[10px] font-medium uppercase tracking-wide text-muted-foreground lg:inline-flex"
+              className="ml-1 hidden rounded-full border-border text-overline font-medium uppercase tracking-wide text-muted-foreground lg:inline-flex"
             >
               {config.initials}
             </Badge>
@@ -95,7 +95,7 @@ function DesktopHeader() {
             <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
             <Input
               placeholder={config.searchPlaceholder}
-              className="h-9 rounded-xl border-border bg-muted/50 pl-9"
+              className="h-9 border-border bg-muted/50 pl-9"
             />
           </div>
         </div>
@@ -104,7 +104,7 @@ function DesktopHeader() {
         <NotificationBell />
 
         {config.primaryAction.route && (
-          <Button asChild size="sm" className="rounded-xl">
+          <Button asChild size="sm">
             <Link to={config.primaryAction.route}>
               <ActionIcon className="h-4 w-4" />
               <span className="hidden sm:inline">
@@ -136,7 +136,7 @@ function DesktopHeader() {
               <TabIcon className="h-3.5 w-3.5" />
               {tab.label}
               {tab.route === "/approvals" && approvalsPending > 0 && (
-                <span className="flex h-4 min-w-4 items-center justify-center rounded-full bg-destructive px-1 text-[10px] font-medium tabular-nums text-destructive-foreground">
+                <span className="flex h-4 min-w-4 items-center justify-center rounded-full bg-destructive px-1 text-overline font-medium tabular-nums text-destructive-foreground">
                   {approvalsPending > 9 ? "9+" : approvalsPending}
                 </span>
               )}
@@ -144,7 +144,7 @@ function DesktopHeader() {
           );
         })}
         {FEATURES.aiPlaceholders && (
-          <span className="ml-auto hidden text-[11px] text-muted-foreground md:inline">
+          <span className="ml-auto hidden text-overline text-muted-foreground md:inline">
             AI · {config.primaryAi}
           </span>
         )}
@@ -232,8 +232,8 @@ const UserDropdown = () => {
         </DropdownMenuTrigger>
         <DropdownMenuContent align="end">
           <DropdownMenuItem onClick={() => setConfirming(true)}>
-            <LogOutIcon className={cn("text-destructive")} />
-            <span className={cn("text-destructive")}>
+            <LogOutIcon className={cn("text-destructive-strong")} />
+            <span className={cn("text-destructive-strong")}>
               Logout
             </span>
           </DropdownMenuItem>

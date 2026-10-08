@@ -28,7 +28,7 @@ export default function OwnerAccountRecoveryPage() {
       />
       <PageContent className="space-y-6 p-6 md:p-8">
         <div className="flex items-start gap-3 rounded-xl border border-warning/30 bg-warning/5 p-4 text-sm">
-          <ShieldAlert className="mt-0.5 h-4 w-4 shrink-0 text-warning" />
+          <ShieldAlert className="mt-0.5 h-4 w-4 shrink-0 text-warning-strong" />
           <p className="text-muted-foreground">
             This is a last-resort control, not a general password reset. It only ever targets IT
             Designer accounts, and every use is recorded in the{" "}
@@ -37,7 +37,7 @@ export default function OwnerAccountRecoveryPage() {
         </div>
 
         {error && (
-          <div className="rounded-xl border border-destructive/30 bg-destructive/10 px-4 py-3 text-sm text-destructive">
+          <div className="rounded-xl border border-destructive/30 bg-destructive/10 px-4 py-3 text-sm text-destructive-strong">
             {error}
           </div>
         )}
@@ -58,17 +58,17 @@ export default function OwnerAccountRecoveryPage() {
 
           {!loading &&
             targets.map((t) => (
-              <Card key={t.id} className="rounded-2xl border-border/70 shadow-sm">
+              <Card key={t.id}>
                 <CardContent className="flex flex-col items-start justify-between gap-3 p-4 sm:flex-row sm:items-center">
                   <div className="min-w-0">
                     <div className="flex items-center gap-2">
                       <span className="font-medium">{t.name}</span>
                       <Badge
                         variant="outline"
-                        className={`rounded-full text-[10px] ${
+                        className={`rounded-full text-overline ${
                           t.isActive
-                            ? "border-success/30 bg-success/10 text-success"
-                            : "border-destructive/30 bg-destructive/10 text-destructive"
+                            ? "border-success/30 bg-success/10 text-success-strong"
+                            : "border-destructive/30 bg-destructive/10 text-destructive-strong"
                         }`}
                       >
                         {t.isActive ? "Active" : "Deactivated"}
@@ -78,7 +78,7 @@ export default function OwnerAccountRecoveryPage() {
                   </div>
                   <Button
                     size="sm"
-                    className="rounded-xl"
+                   
                     disabled={sending}
                     onClick={async () => {
                       setSentFor(t.id);
@@ -98,7 +98,7 @@ export default function OwnerAccountRecoveryPage() {
             role="status"
             className="flex items-start gap-3 rounded-xl border border-success/30 bg-success/10 p-4 text-sm"
           >
-            <Mail className="mt-0.5 h-4 w-4 shrink-0 text-success" />
+            <Mail className="mt-0.5 h-4 w-4 shrink-0 text-success-strong" />
             <div className="space-y-1">
               <p className="font-medium text-foreground">
                 Recovery email sent to {sent.to}

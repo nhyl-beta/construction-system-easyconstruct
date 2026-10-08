@@ -10,6 +10,12 @@
  * Typography: Space Grotesk
  * Primary: OKLCH(0.6012 0.1202 168.97) — operational green
  * Secondary: OKLCH(0.9026 0.0486 84.55) — warm sand
+ *
+ * Revision notes
+ * - Every colour from the original file is unchanged.
+ * - Added: primary-strong, *-soft and *-strong status pairs, sand, border-strong
+ *   (see the "Added" blocks below). Nothing existing was renamed.
+ * - Added: KPI, badge and meter component classes at the end of the file.
  */
 
 @theme inline {
@@ -34,24 +40,35 @@
   --color-primary: var(--primary);
   --color-primary-foreground: var(--primary-foreground);
   --color-primary-soft: var(--primary-soft);
+  --color-primary-strong: var(--primary-strong);
   --color-secondary: var(--secondary);
   --color-secondary-foreground: var(--secondary-foreground);
+  --color-sand: var(--sand);
   --color-muted: var(--muted);
   --color-muted-foreground: var(--muted-foreground);
   --color-accent: var(--accent);
   --color-accent-foreground: var(--accent-foreground);
   --color-destructive: var(--destructive);
   --color-destructive-foreground: var(--destructive-foreground);
+  --color-destructive-soft: var(--destructive-soft);
+  --color-destructive-strong: var(--destructive-strong);
   --color-success: var(--success);
   --color-success-foreground: var(--success-foreground);
+  --color-success-soft: var(--success-soft);
+  --color-success-strong: var(--success-strong);
   --color-warning: var(--warning);
   --color-warning-foreground: var(--warning-foreground);
+  --color-warning-soft: var(--warning-soft);
+  --color-warning-strong: var(--warning-strong);
   --color-info: var(--info);
   --color-info-foreground: var(--info-foreground);
+  --color-info-soft: var(--info-soft);
+  --color-info-strong: var(--info-strong);
   --color-ai: var(--ai);
   --color-ai-foreground: var(--ai-foreground);
   --color-ai-soft: var(--ai-soft);
   --color-border: var(--border);
+  --color-border-strong: var(--border-strong);
   --color-input: var(--input);
   --color-ring: var(--ring);
   --color-chart-1: var(--chart-1);
@@ -67,6 +84,22 @@
   --color-sidebar-accent-foreground: var(--sidebar-accent-foreground);
   --color-sidebar-border: var(--sidebar-border);
   --color-sidebar-ring: var(--sidebar-ring);
+
+  /* Type scale (project addition, values from the design system README) */
+  --text-page-title: 24px;
+  --text-page-title--line-height: 32px;
+  --text-title: 18px;
+  --text-title--line-height: 26px;
+  --text-section-title: 16px;
+  --text-section-title--line-height: 24px;
+  --text-body: 14px;
+  --text-body--line-height: 20px;
+  --text-caption: 12px;
+  --text-caption--line-height: 16px;
+  --text-overline: 11px;
+  --text-overline--line-height: 16px;
+  --text-kpi-value: 32px;
+  --text-kpi-value--line-height: 36px;
 
   --shadow-sm: 0 1px 2px 0 oklch(0.2 0.02 250 / 0.04);
   --shadow-md: 0 4px 12px -2px oklch(0.2 0.02 250 / 0.06);
@@ -112,7 +145,7 @@
   --warning-foreground: oklch(0.25 0.05 75);
 
   --info: oklch(0.62 0.13 230);
-  --info-foreground: oklch(0.99 0 0);
+  --info-foreground: oklch(0.14 0.03 230); /* was oklch(0.99 0 0), 3.4:1; now 5.7:1 */
 
   --ai: oklch(0.55 0.18 285);
   --ai-foreground: oklch(0.99 0 0);
@@ -136,6 +169,21 @@
   --sidebar-accent-foreground: oklch(0.3 0.06 168.97);
   --sidebar-border: oklch(0.93 0.008 240);
   --sidebar-ring: oklch(0.6012 0.1202 168.97);
+
+  /* Added: text-safe green and soft/strong status pairs (strong on soft ≥ 5.7:1) */
+  --primary-strong: oklch(0.42 0.09 168.97);
+  --success-soft: oklch(0.955 0.04 155);
+  --success-strong: oklch(0.42 0.11 155);
+  --warning-soft: oklch(0.965 0.05 85);
+  --warning-strong: oklch(0.45 0.09 75);
+  --destructive-soft: oklch(0.96 0.03 25);
+  --destructive-strong: oklch(0.5 0.17 25);
+  --info-soft: oklch(0.96 0.03 230);
+  --info-strong: oklch(0.45 0.11 230);
+
+  /* Added: cream band for supporting panels, and a 3:1 outline for form controls */
+  --sand: oklch(0.975 0.012 84.55);
+  --border-strong: oklch(0.62 0.015 250);
 }
 
 .dark {
@@ -198,6 +246,19 @@
   --sidebar-accent-foreground: oklch(0.92 0.06 168.97);
   --sidebar-border: oklch(0.26 0.012 250);
   --sidebar-ring: oklch(0.68 0.13 168.97);
+
+  --primary-strong: oklch(0.82 0.12 168.97);
+  --success-soft: oklch(0.28 0.05 155);
+  --success-strong: oklch(0.82 0.12 155);
+  --warning-soft: oklch(0.3 0.05 80);
+  --warning-strong: oklch(0.86 0.12 80);
+  --destructive-soft: oklch(0.3 0.06 25);
+  --destructive-strong: oklch(0.8 0.12 25);
+  --info-soft: oklch(0.28 0.05 230);
+  --info-strong: oklch(0.82 0.1 230);
+
+  --sand: oklch(0.23 0.02 84.55);
+  --border-strong: oklch(0.55 0.015 250);
 }
 
 @layer base {
@@ -216,6 +277,16 @@
   body {
     background-color: var(--color-background);
     color: var(--color-foreground);
+    /* Every figure is set with tabular numerals. */
+    font-variant-numeric: tabular-nums;
+  }
+
+  /* Focus: solid 2px ring with a 2px offset on every focusable element. */
+  /* !important: Tailwind's outline-none / outline-hidden utilities (still on
+     several shadcn primitives) would otherwise switch the ring off. */
+  :focus-visible {
+    outline: 2px solid var(--ring) !important;
+    outline-offset: 2px !important;
   }
 
   h1,
@@ -237,4 +308,66 @@
       transition-duration: 0.001ms !important;
     }
   }
+}
+
+/*
+ * KPI, badge and meter classes. They read the raw CSS variables (var(--card)),
+ * not the --color-* theme aliases, because @theme inline does not emit those.
+ */
+@layer components {
+  .kpi-card {
+    background: var(--card);
+    color: var(--card-foreground);
+    border: 1px solid var(--border);
+    border-radius: var(--radius-lg);
+    padding: 20px;
+    box-shadow: var(--shadow-sm);
+  }
+  .kpi-label {
+    font-size: 14px;
+    line-height: 20px;
+    color: var(--muted-foreground);
+  }
+  .kpi-value {
+    font-family: var(--font-display);
+    font-size: 32px;
+    line-height: 36px;
+    font-weight: 600;
+    letter-spacing: -0.02em;
+    font-variant-numeric: tabular-nums;
+  }
+  .kpi-sub {
+    font-size: 12px;
+    line-height: 16px;
+    color: var(--muted-foreground);
+  }
+
+  /* Status badge and delta pill: soft ground, strong text, always with a word or arrow */
+  .badge,
+  .kpi-delta {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    height: 24px;
+    padding: 0 10px;
+    border-radius: 999px;
+    font-size: 12px;
+    line-height: 16px;
+    font-weight: 500;
+    background: var(--muted);
+    color: var(--muted-foreground);
+  }
+  .badge[data-tone="success"], .kpi-delta[data-tone="good"] { background: var(--success-soft); color: var(--success-strong); }
+  .badge[data-tone="warning"] { background: var(--warning-soft); color: var(--warning-strong); }
+  .badge[data-tone="danger"], .kpi-delta[data-tone="bad"] { background: var(--destructive-soft); color: var(--destructive-strong); }
+  .badge[data-tone="info"] { background: var(--info-soft); color: var(--info-strong); }
+  .badge[data-tone="ai"] { background: var(--ai-soft); color: var(--ai); }
+  .badge[data-tone="brand"] { background: var(--primary-soft); color: var(--primary-strong); }
+
+  /* Utilization meter: track + fill; set width inline, tone via data-tone */
+  .meter { height: 6px; border-radius: 999px; background: var(--muted); overflow: hidden; }
+  .meter > span { display: block; height: 100%; border-radius: inherit; background: var(--success); }
+  .meter[data-tone="warning"] > span { background: var(--warning); }
+  .meter[data-tone="danger"] > span { background: var(--destructive); }
+  .meter[data-tone="brand"] > span { background: var(--primary); }
 }

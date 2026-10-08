@@ -303,10 +303,10 @@ const handleUpload = async () => {
             role="alert"
             className="flex items-start gap-3 rounded-lg border border-destructive/40 bg-destructive/10 p-4 text-sm"
           >
-            <AlertCircle className="mt-0.5 size-4 shrink-0 text-destructive" />
+            <AlertCircle className="mt-0.5 size-4 shrink-0 text-destructive-strong" />
 
             <div className="flex-1">
-              <p className="font-medium text-destructive">
+              <p className="font-medium text-destructive-strong">
                 Unable to load advisory documents
               </p>
 
@@ -330,7 +330,7 @@ const handleUpload = async () => {
             role="status"
             className="flex items-center gap-3 rounded-lg border border-success/40 bg-success/10 p-4 text-sm"
           >
-            <CheckCircle2 className="size-4 shrink-0 text-success" />
+            <CheckCircle2 className="size-4 shrink-0 text-success-strong" />
 
             <span>{successMessage}</span>
           </div>
@@ -365,7 +365,7 @@ const handleUpload = async () => {
               {/* File */}
               <div className="space-y-2">
                 <Label htmlFor="advisory-file">
-                  Advisory Document <span className="text-destructive">*</span>
+                  Advisory Document <span className="text-destructive-strong">*</span>
                 </Label>
 
                 <div className="rounded-lg border border-dashed p-5">
@@ -390,7 +390,7 @@ const handleUpload = async () => {
                       className="flex w-full flex-col items-center justify-center gap-2 rounded-md p-6 text-center transition-colors hover:bg-muted/50"
                     >
                       <div className="rounded-full bg-primary/10 p-3">
-                        <Upload className="size-6 text-primary" />
+                        <Upload className="size-6 text-primary-strong" />
                       </div>
 
                       <span className="font-medium">
@@ -404,7 +404,7 @@ const handleUpload = async () => {
                   ) : (
                     <div className="flex items-center gap-3">
                       <div className="rounded-lg bg-primary/10 p-3">
-                        <FileText className="size-5 text-primary" />
+                        <FileText className="size-5 text-primary-strong" />
                       </div>
 
                       <div className="min-w-0 flex-1">
@@ -537,7 +537,7 @@ const handleUpload = async () => {
                   role="alert"
                   className="flex items-start gap-3 rounded-lg border border-destructive/40 bg-destructive/10 p-3 text-sm"
                 >
-                  <AlertCircle className="mt-0.5 size-4 shrink-0 text-destructive" />
+                  <AlertCircle className="mt-0.5 size-4 shrink-0 text-destructive-strong" />
 
                   <span>{formError}</span>
                 </div>
@@ -665,7 +665,7 @@ const handleUpload = async () => {
                     }`}
                   >
                     <div className="rounded-lg bg-primary/10 p-3">
-                      <FileText className="size-5 text-primary" />
+                      <FileText className="size-5 text-primary-strong" />
                     </div>
 
                     <div className="min-w-0 flex-1">
@@ -679,7 +679,7 @@ const handleUpload = async () => {
                         </Badge>
 
                         {!hasFile && (
-                          <Badge variant="outline" className="border-warning/40 text-warning">
+                          <Badge variant="outline" className="border-warning/40 text-warning-strong">
                             No file attached
                           </Badge>
                         )}

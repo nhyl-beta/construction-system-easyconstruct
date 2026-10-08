@@ -132,7 +132,7 @@ export function UserAccountDialog({
 
         <div className="space-y-4 py-2">
           {error && (
-            <p role="alert" className="text-sm text-destructive">
+            <p role="alert" className="text-sm text-destructive-strong">
               {error}
             </p>
           )}
@@ -178,7 +178,7 @@ export function UserAccountDialog({
                 : "At least 10 characters. The person can change it later from the sign-in page's \"Forgot password\" link."}
             </p>
             {isEdit && password !== "" && password.length < 10 && (
-              <p className="text-xs text-destructive">
+              <p className="text-xs text-destructive-strong">
                 Password must be at least 10 characters.
               </p>
             )}

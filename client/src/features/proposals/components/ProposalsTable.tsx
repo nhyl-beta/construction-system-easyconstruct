@@ -82,7 +82,7 @@ export function ProposalsTable({
   };
 
   return (
-    <div className="overflow-x-auto rounded-xl border border-border/70">
+    <div className="overflow-x-auto rounded-xl border border-border">
       <Table>
         <TableHeader>
           <TableRow>
@@ -123,7 +123,7 @@ export function ProposalsTable({
                 <div className="whitespace-normal break-words text-sm font-medium">
                   {p.title}
                 </div>
-                <div className="font-mono text-[11px] text-muted-foreground">
+                <div className="font-mono text-overline text-muted-foreground">
                   {p.proposalId}
                 </div>
               </TableCell>

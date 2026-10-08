@@ -14,7 +14,7 @@ export function DesignFileLinks({ files }: { files: Design["fileUrls"] }) {
         <li key={f.url}>
           <button
             type="button"
-            className="flex items-center gap-1 rounded-lg border border-border px-2 py-1 text-xs text-primary hover:bg-muted/40"
+            className="flex items-center gap-1 rounded-lg border border-border px-2 py-1 text-xs text-primary-strong hover:bg-muted/40"
             onClick={(e) => {
               e.stopPropagation();
               void openFileUrl(f.url).catch((err: Error) => toast.error(err.message));

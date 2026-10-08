@@ -92,7 +92,7 @@ export function AttendanceVerificationDialog({
               <h3 className="flex items-center gap-1.5 text-xs font-medium uppercase tracking-wide text-muted-foreground">
                 <Camera className="h-3.5 w-3.5" /> Verification photo
               </h3>
-              <div className="flex min-h-48 items-center justify-center overflow-hidden rounded-xl border border-border/70 bg-muted/30">
+              <div className="flex min-h-48 items-center justify-center overflow-hidden rounded-xl border border-border bg-muted/30">
                 {photo ? (
                   <img
                     src={photo}
@@ -111,9 +111,9 @@ export function AttendanceVerificationDialog({
               <h3 className="flex items-center gap-1.5 text-xs font-medium uppercase tracking-wide text-muted-foreground">
                 <MapPin className="h-3.5 w-3.5" /> Recorded location
               </h3>
-              <dl className="space-y-2 rounded-xl border border-border/70 p-4 text-sm">
+              <dl className="space-y-2 rounded-xl border border-border p-4 text-sm">
                 <Row label="Geofence">
-                  <Badge variant="outline" className="rounded-full text-[10px]">
+                  <Badge variant="outline" className="rounded-full text-overline">
                     {entry.geofence}
                   </Badge>
                 </Row>
@@ -177,12 +177,12 @@ export function AttendanceVerificationDialog({
                 value={remarks}
                 onChange={(e) => setRemarks(e.target.value)}
                 placeholder="What did you check, and what did you conclude?"
-                className="min-h-20 rounded-xl"
+                className="min-h-20"
               />
             </div>
 
             {error && (
-              <p role="alert" className="text-sm text-destructive md:col-span-2">
+              <p role="alert" className="text-sm text-destructive-strong md:col-span-2">
                 {error}
               </p>
             )}

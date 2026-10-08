@@ -249,7 +249,7 @@ export function InitiateWorkflowDialog({
           {(formError || error) && (
             <p
               role="alert"
-              className="rounded-lg border border-destructive/30 bg-destructive/5 px-3 py-2 text-sm text-destructive"
+              className="rounded-lg border border-destructive/30 bg-destructive/5 px-3 py-2 text-sm text-destructive-strong"
             >
               {formError ?? error?.message}
             </p>
@@ -302,7 +302,7 @@ export function InitiateWorkflowDialog({
             <div className="grid gap-1.5">
               <Label htmlFor="iw-note">
                 {noteLabel}
-                {noteRequired && <span className="text-destructive"> *</span>}
+                {noteRequired && <span className="text-destructive-strong"> *</span>}
               </Label>
               <Textarea
                 id="iw-note"
@@ -328,7 +328,7 @@ export function InitiateWorkflowDialog({
                   type="button"
                   size="sm"
                   variant="ghost"
-                  className="h-7 rounded-lg text-xs"
+                  className="h-7 text-xs"
                   disabled={submitting}
                   onClick={() => setLineItems((prev) => [...prev, emptyLineItem()])}
                 >
@@ -350,10 +350,10 @@ export function InitiateWorkflowDialog({
                 const delta = requested - current;
                 const deltaSign = delta > 0 ? "+" : delta < 0 ? "−" : "";
                 const deltaClass =
-                  delta > 0 ? "text-destructive" : delta < 0 ? "text-success" : "text-muted-foreground";
+                  delta > 0 ? "text-destructive-strong" : delta < 0 ? "text-success-strong" : "text-muted-foreground";
 
                 return (
-                  <div key={index} className="space-y-2 rounded-lg border border-border/60 bg-muted/30 p-3">
+                  <div key={index} className="space-y-2 rounded-lg border border-border bg-muted/30 p-3">
                     <div className="flex items-center justify-between">
                       <span className="text-xs font-medium text-muted-foreground">
                         Change {index + 1}
@@ -362,7 +362,7 @@ export function InitiateWorkflowDialog({
                         type="button"
                         size="icon"
                         variant="ghost"
-                        className="h-7 w-7 rounded-lg text-destructive hover:text-destructive"
+                        className="h-7 w-7 text-destructive-strong hover:text-destructive-strong"
                         title="Remove this change"
                         disabled={submitting || lineItems.length === 1}
                         onClick={() =>
@@ -375,7 +375,7 @@ export function InitiateWorkflowDialog({
 
                     <div className="grid grid-cols-1 gap-2 md:grid-cols-[minmax(0,9rem)_minmax(0,1fr)]">
                       <div className="grid gap-1">
-                        <Label className="text-[11px] text-muted-foreground">Category</Label>
+                        <Label className="text-overline text-muted-foreground">Category</Label>
                         <Select
                           value={item.category}
                           onValueChange={(v) =>
@@ -396,7 +396,7 @@ export function InitiateWorkflowDialog({
                         </Select>
                       </div>
                       <div className="grid gap-1">
-                        <Label className="text-[11px] text-muted-foreground">Description</Label>
+                        <Label className="text-overline text-muted-foreground">Description</Label>
                         <Input
                           className="h-9"
                           value={item.description}
@@ -409,7 +409,7 @@ export function InitiateWorkflowDialog({
 
                     <div className="grid grid-cols-2 gap-2 md:grid-cols-3">
                       <div className="grid gap-1">
-                        <Label className="text-[11px] text-muted-foreground">Current amount</Label>
+                        <Label className="text-overline text-muted-foreground">Current amount</Label>
                         <Input
                           className="h-9"
                           type="number"
@@ -421,7 +421,7 @@ export function InitiateWorkflowDialog({
                         />
                       </div>
                       <div className="grid gap-1">
-                        <Label className="text-[11px] text-muted-foreground">Requested amount</Label>
+                        <Label className="text-overline text-muted-foreground">Requested amount</Label>
                         <Input
                           className="h-9"
                           type="number"
@@ -433,9 +433,9 @@ export function InitiateWorkflowDialog({
                         />
                       </div>
                       <div className="col-span-2 grid gap-1 md:col-span-1">
-                        <Label className="text-[11px] text-muted-foreground">Change</Label>
+                        <Label className="text-overline text-muted-foreground">Change</Label>
                         <div
-                          className={`flex h-9 items-center rounded-md border border-border/60 bg-background px-3 text-sm font-medium ${deltaClass}`}
+                          className={`flex h-9 items-center rounded-md border border-border bg-background px-3 text-sm font-medium ${deltaClass}`}
                         >
                           {hasBothAmounts ? `${deltaSign}${formatCurrency(Math.abs(delta))}` : "—"}
                         </div>
@@ -446,7 +446,7 @@ export function InitiateWorkflowDialog({
                         was reading as a disconnected second row below. */}
                     <div className="grid grid-cols-2 gap-2 rounded-md border border-border/40 bg-background/60 p-2 md:grid-cols-[7rem_9rem_1fr]">
                       <div className="grid gap-1">
-                        <Label className="text-[11px] text-muted-foreground">Quantity</Label>
+                        <Label className="text-overline text-muted-foreground">Quantity</Label>
                         <Input
                           className="h-9"
                           type="number"
@@ -459,7 +459,7 @@ export function InitiateWorkflowDialog({
                         />
                       </div>
                       <div className="grid gap-1">
-                        <Label className="text-[11px] text-muted-foreground">Unit</Label>
+                        <Label className="text-overline text-muted-foreground">Unit</Label>
                         <Select
                           value={item.unit}
                           onValueChange={(v) => updateLineItem(index, { unit: v })}

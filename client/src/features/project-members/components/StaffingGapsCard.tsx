@@ -74,10 +74,10 @@ export function StaffingGapsCard() {
   if (!loading && gaps.length === 0) return null;
 
   return (
-    <Card className="rounded-2xl border-warning/30 bg-warning/5">
+    <Card className="border-warning/30 bg-warning/5">
       <CardHeader className="pb-3">
         <CardTitle className="flex items-center gap-2 text-base">
-          <AlertTriangle className="h-4 w-4 text-warning" />
+          <AlertTriangle className="h-4 w-4 text-warning-strong" />
           Staffed but not linked to an employee
         </CardTitle>
       </CardHeader>
@@ -88,7 +88,7 @@ export function StaffingGapsCard() {
           <ul className="space-y-1.5">
             {gaps.map((g) => (
               <li key={g.key} className="flex items-center gap-2 text-sm">
-                <UserX className="h-3.5 w-3.5 shrink-0 text-warning" />
+                <UserX className="h-3.5 w-3.5 shrink-0 text-warning-strong" />
                 <span className="font-medium">{g.userName}</span>
                 <span className="text-muted-foreground">
                   · {g.role} on {g.projectCode} · {g.reason}

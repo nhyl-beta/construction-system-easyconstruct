@@ -53,12 +53,12 @@ import type { ApprovalScope } from "@/features/workflows/types/workflow.types";
 
 const ALL = "all";
 
-// "medium" is text-warning, not text-warning-foreground — that token is dark
+// "medium" is text-warning-strong, not text-warning-foreground — that token is dark
 // ink meant for text ON a filled bg-warning chip, not standalone text on a
 // translucent bg-warning/15 tint; its dark-mode value is nearly black.
 const SEVERITY_TONE: Record<string, string> = {
-  high: "bg-destructive/10 text-destructive border-destructive/20",
-  medium: "bg-warning/15 text-warning border-warning/30",
+  high: "bg-destructive/10 text-destructive-strong border-destructive/20",
+  medium: "bg-warning/15 text-warning-strong border-warning/30",
   low: "bg-muted text-muted-foreground border-border",
 };
 
@@ -168,7 +168,7 @@ export function ApprovalQueuePanel({
         {
           label: "Overdue",
           value: `${stats.overdue}`,
-          tone: stats.overdue > 0 ? "text-destructive" : "text-foreground",
+          tone: stats.overdue > 0 ? "text-destructive-strong" : "text-foreground",
         },
         { label: "Avg cycle", value: `${stats.avgCycleDays}d`, tone: "text-foreground" },
         { label: "This week", value: `${stats.thisWeek}`, tone: "text-foreground" },
@@ -186,7 +186,7 @@ export function ApprovalQueuePanel({
 
       <div className="grid grid-cols-2 gap-3 md:grid-cols-4">
         {statCards.map((s) => (
-          <Card key={s.label} className="rounded-2xl border-border/70 shadow-sm">
+          <Card key={s.label}>
             <CardContent className="space-y-1 p-4">
               <div className="text-xs uppercase tracking-wider text-muted-foreground">
                 {s.label}
@@ -199,14 +199,14 @@ export function ApprovalQueuePanel({
 
       <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
         <Tabs value={tab} onValueChange={(v) => setTab(v as ApprovalScope)}>
-          <TabsList className="h-10 rounded-xl">
-            <TabsTrigger value="pending" className="rounded-lg">
+          <TabsList className="h-10">
+            <TabsTrigger value="pending">
               Pending
             </TabsTrigger>
-            <TabsTrigger value="mine" className="rounded-lg">
+            <TabsTrigger value="mine">
               Decided by me
             </TabsTrigger>
-            <TabsTrigger value="history" className="rounded-lg">
+            <TabsTrigger value="history">
               History
             </TabsTrigger>
           </TabsList>
@@ -215,7 +215,7 @@ export function ApprovalQueuePanel({
 
       <div className="flex flex-wrap items-center gap-2">
         <Select value={typeFilter ?? ALL} onValueChange={(v) => setTypeFilter(v === ALL ? null : v)}>
-          <SelectTrigger className="h-9 w-36 rounded-xl text-xs">
+          <SelectTrigger className="h-9 w-36 text-xs">
             <SelectValue placeholder="All types" />
           </SelectTrigger>
           <SelectContent>
@@ -226,7 +226,7 @@ export function ApprovalQueuePanel({
           </SelectContent>
         </Select>
         <Select value={requesterFilter ?? ALL} onValueChange={(v) => setRequesterFilter(v === ALL ? null : v)}>
-          <SelectTrigger className="h-9 w-40 rounded-xl text-xs">
+          <SelectTrigger className="h-9 w-40 text-xs">
             <SelectValue placeholder="All requesters" />
           </SelectTrigger>
           <SelectContent>
@@ -241,14 +241,14 @@ export function ApprovalQueuePanel({
           aria-label="From date"
           value={dateFrom}
           onChange={(e) => setDateFrom(e.target.value)}
-          className="h-9 w-36 rounded-xl text-xs"
+          className="h-9 w-36 text-xs"
         />
         <Input
           type="date"
           aria-label="To date"
           value={dateTo}
           onChange={(e) => setDateTo(e.target.value)}
-          className="h-9 w-36 rounded-xl text-xs"
+          className="h-9 w-36 text-xs"
         />
         <div className="relative w-full sm:w-56">
           <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
@@ -256,7 +256,7 @@ export function ApprovalQueuePanel({
             placeholder="Search approvals…"
             value={searchInput}
             onChange={(e) => setSearchInput(e.target.value)}
-            className="h-9 rounded-xl bg-muted/40 pl-9"
+            className="h-9 bg-muted/40 pl-9"
           />
         </div>
       </div>
@@ -267,7 +267,7 @@ export function ApprovalQueuePanel({
             <Badge
               key={f.key}
               variant="outline"
-              className="flex items-center gap-1 rounded-full border-primary/30 text-[11px] text-primary"
+              className="flex items-center gap-1 rounded-full border-primary/30 text-overline text-primary-strong"
             >
               {f.label}
               <button type="button" onClick={f.clear} aria-label={`Clear ${f.label}`}>
@@ -284,7 +284,7 @@ export function ApprovalQueuePanel({
               setDateFrom("");
               setDateTo("");
             }}
-            className="text-[11px] text-muted-foreground underline underline-offset-2"
+            className="text-overline text-muted-foreground underline underline-offset-2"
           >
             Clear all
           </button>
@@ -296,7 +296,7 @@ export function ApprovalQueuePanel({
       {error && (
         <p
           role="alert"
-          className="rounded-xl border border-destructive/30 bg-destructive/5 px-4 py-3 text-sm text-destructive"
+          className="rounded-xl border border-destructive/30 bg-destructive/5 px-4 py-3 text-sm text-destructive-strong"
         >
           {error.message}
         </p>
@@ -305,7 +305,7 @@ export function ApprovalQueuePanel({
       {uploadError && (
         <p
           role="alert"
-          className="rounded-xl border border-destructive/30 bg-destructive/5 px-4 py-3 text-sm text-destructive"
+          className="rounded-xl border border-destructive/30 bg-destructive/5 px-4 py-3 text-sm text-destructive-strong"
         >
           {uploadError}
         </p>
@@ -322,7 +322,7 @@ export function ApprovalQueuePanel({
           <p className="text-sm text-muted-foreground">No approvals match your filters.</p>
         )}
         {pagination.pageItems.map((a) => (
-          <Card key={a.stageId} className="rounded-2xl border-border/70 shadow-sm">
+          <Card key={a.stageId}>
             <CardContent className="p-4">
               <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
                 <div className="flex min-w-0 items-start gap-3">
@@ -331,13 +331,13 @@ export function ApprovalQueuePanel({
                   </div>
                   <div className="min-w-0">
                     <div className="flex flex-wrap items-center gap-2">
-                      <span className="font-mono text-[11px] text-muted-foreground">
+                      <span className="font-mono text-overline text-muted-foreground">
                         {a.workflowCode}
                       </span>
                       <span className="font-medium">{a.title}</span>
                       <Badge
                         variant="outline"
-                        className={`rounded-full px-2 py-0.5 text-[10px] ${SEVERITY_TONE[a.severity]}`}
+                        className={`rounded-full px-2 py-0.5 text-overline ${SEVERITY_TONE[a.severity]}`}
                       >
                         {a.severity}
                       </Badge>
@@ -360,14 +360,14 @@ export function ApprovalQueuePanel({
                     {(a.attachmentCount > 0 || a.lineItemCount > 0) && (
                       <div className="mt-1.5 flex flex-wrap items-center gap-2">
                         {a.attachmentCount > 0 && (
-                          <Badge variant="outline" className="rounded-full text-[10px]">
+                          <Badge variant="outline" className="rounded-full text-overline">
                             <Paperclip className="mr-1 h-3 w-3" />
                             {a.attachmentCount} submitted{" "}
                             {a.attachmentCount === 1 ? "item" : "items"}
                           </Badge>
                         )}
                         {a.lineItemCount > 0 && (
-                          <Badge variant="outline" className="rounded-full text-[10px]">
+                          <Badge variant="outline" className="rounded-full text-overline">
                             <ListTree className="mr-1 h-3 w-3" />
                             {a.lineItemCount} cost{" "}
                             {a.lineItemCount === 1 ? "change" : "changes"}
@@ -386,13 +386,13 @@ export function ApprovalQueuePanel({
                   <Button
                     size="sm"
                     variant="ghost"
-                    className="h-7 rounded-lg text-xs"
+                    className="h-7 text-xs"
                     onClick={() => setDetailWorkflowId(a.workflowId)}
                   >
                     <Eye className="h-3.5 w-3.5" /> View details
                   </Button>
                   {tab === "pending" && !canDecide ? (
-                    <Badge variant="outline" className="rounded-full text-[10px]">
+                    <Badge variant="outline" className="rounded-full text-overline">
                       Read-only
                     </Badge>
                   ) : tab === "pending" ? (
@@ -429,7 +429,7 @@ export function ApprovalQueuePanel({
                         <Button
                           size="sm"
                           variant="outline"
-                          className="h-8 shrink-0 rounded-lg text-xs"
+                          className="h-8 shrink-0 text-xs"
                           disabled={!pendingFiles[a.stageId] || uploadingStageId === a.stageId}
                           onClick={() => void attachDocument(a.workflowId, a.stageId)}
                         >
@@ -439,7 +439,7 @@ export function ApprovalQueuePanel({
                       </div>
                       <Textarea
                         placeholder="Add a comment or justification (optional)"
-                        className="min-h-16 rounded-lg text-xs"
+                        className="min-h-16 text-xs"
                         value={comments[a.stageId] ?? ""}
                         onChange={(e) =>
                           setComments((prev) => ({ ...prev, [a.stageId]: e.target.value }))
@@ -449,7 +449,7 @@ export function ApprovalQueuePanel({
                         <Button
                           size="sm"
                           variant="ghost"
-                          className="h-8 rounded-lg"
+                          className="h-8"
                           disabled={deciding === a.stageId}
                           title="Send back to the submitter for revision"
                           onClick={() =>
@@ -464,7 +464,7 @@ export function ApprovalQueuePanel({
                         <Button
                           size="sm"
                           variant="outline"
-                          className="h-8 rounded-lg"
+                          className="h-8"
                           disabled={deciding === a.stageId}
                           onClick={() =>
                             decide(a.workflowId, a.stageId, {
@@ -477,7 +477,7 @@ export function ApprovalQueuePanel({
                         </Button>
                         <Button
                           size="sm"
-                          className="h-8 rounded-lg"
+                          className="h-8"
                           disabled={deciding === a.stageId}
                           onClick={() =>
                             decide(a.workflowId, a.stageId, {
@@ -492,7 +492,7 @@ export function ApprovalQueuePanel({
                       </div>
                     </div>
                   ) : (
-                    <Badge variant="outline" className="rounded-full text-[10px] capitalize">
+                    <Badge variant="outline" className="rounded-full text-overline capitalize">
                       {a.status.replace("-", " ")}
                     </Badge>
                   )}
@@ -502,7 +502,7 @@ export function ApprovalQueuePanel({
           </Card>
         ))}
         {!loading && filteredItems.length > 0 && (
-          <div className="rounded-2xl border border-border/70 px-2 py-2">
+          <div className="rounded-2xl border border-border px-2 py-2">
             <DataTablePagination {...pagination} />
           </div>
         )}
