@@ -1,6 +1,7 @@
 import { useMemo } from "react";
 
 import { useAuditLogs } from "@/features/audit-logs/hooks/useAuditLogs";
+import { usePayrollSummary } from "@/features/payroll-summary/hooks/usePayrollSummary";
 import { useProjects } from "@/features/projects/hooks/useProjects";
 import { useProposals } from "@/features/proposals/hooks/useProposals";
 import { useActiveWorkflows, useApprovals } from "@/features/workflows/hooks/useWorkflows";
@@ -15,6 +16,9 @@ export const useOwnerDashboardController = () => {
   const approvals = useApprovals("pending");
   const auditLogs = useAuditLogs();
   const proposals = useProposals();
+  // Aggregate-only payroll summary; /api/payroll/owner-summary allows owner,
+  // admin and it-designer, and no other payroll route is called from here.
+  const payroll = usePayrollSummary();
 
   const overBudget = useMemo(
     () => projects.projects.filter((p) => p.budget > 100).length,
@@ -84,6 +88,10 @@ export const useOwnerDashboardController = () => {
 
     proposalsLoading: proposals.loading,
     proposalsKpis: proposals.kpis,
+
+    payrollLoading: payroll.loading,
+    payrollError: payroll.error,
+    payrollSummary: payroll.summary,
   } as const;
 };
 
