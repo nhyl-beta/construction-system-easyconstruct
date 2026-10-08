@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { useOpenOnAction } from "@/features/quick-search/useOpenOnAction";
 
 import {
   Clock,
@@ -173,6 +174,7 @@ export default function ArchitectProposals() {
 
   const [showCreateForm, setShowCreateForm] =
     useState(false);
+  useOpenOnAction("new-proposal", () => setShowCreateForm(true));
 
   const [submitNotice, setSubmitNotice] =
     useState<string | null>(null);

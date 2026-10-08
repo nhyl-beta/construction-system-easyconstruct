@@ -1,5 +1,6 @@
 // client/src/pages/finance/finance-expenses.tsx
 import { useState } from "react";
+import { useOpenOnAction } from "@/features/quick-search/useOpenOnAction";
 import { PageContainer } from "@/components/refine-ui/views/page-container";
 import { PageHeader } from "@/components/refine-ui/views/page-header";
 import { PageContent } from "@/components/refine-ui/views/page-content";
@@ -51,6 +52,7 @@ function RecordExpenseDialog({
   onCreate: (input: CreateExpenseInput) => Promise<boolean>;
 }) {
   const [open, setOpen] = useState(false);
+  useOpenOnAction("new-expense", () => setOpen(true));
   const [vendor, setVendor] = useState("");
   const [project, setProject] = useState("");
   const [category, setCategory] = useState("");

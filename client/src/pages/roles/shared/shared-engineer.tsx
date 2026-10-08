@@ -1,4 +1,5 @@
 import { useState, type FormEvent } from "react";
+import { useOpenOnAction } from "@/features/quick-search/useOpenOnAction";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -165,6 +166,7 @@ export function NewReportDialog({
   engineerName: string;
 }) {
   const [open, setOpen] = useState(false);
+  useOpenOnAction("new-report", () => setOpen(true));
   const [submitting, setSubmitting] = useState(false);
   const [form, setForm] = useState({
     title: "",

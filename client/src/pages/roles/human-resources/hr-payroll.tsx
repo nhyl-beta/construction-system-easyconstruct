@@ -14,6 +14,7 @@ import { DataTablePagination } from "@/components/refine-ui/data-table/data-tabl
 import { usePagination } from "@/hooks/use-pagination";
 import { KpiMini, PageHeader, StatusBadge } from "@/pages/roles/shared/shared-hr";
 import { useEffect, useMemo, useState } from "react";
+import { useOpenOnAction } from "@/features/quick-search/useOpenOnAction";
 import {
   getContributionReport,
   listPayroll,
@@ -54,6 +55,7 @@ export default function HRPayrollPage() {
   const [refreshing, setRefreshing] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [wizardOpen, setWizardOpen] = useState(false);
+  useOpenOnAction("generate-payroll", () => setWizardOpen(true));
   const [resumeBatchId, setResumeBatchId] = useState<string | null>(null);
   const [payslipLine, setPayslipLine] = useState<PayrollLine | null>(null);
   const [lastRejection, setLastRejection] = useState<Record<string, BatchDecision | undefined>>({});

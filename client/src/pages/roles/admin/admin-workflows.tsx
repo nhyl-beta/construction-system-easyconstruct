@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { useOpenOnAction } from "@/features/quick-search/useOpenOnAction";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -45,6 +46,7 @@ export default function AdminWorkflowsPage() {
   } = useWorkflowTemplates();
   const { workflows, loading: workflowsLoading, reload, update, remove } = useActiveWorkflows();
   const [dialogOpen, setDialogOpen] = useState(false);
+  useOpenOnAction("new-workflow", () => setDialogOpen(true));
   const [editingWorkflow, setEditingWorkflow] = useState<Workflow | null>(null);
   // Admin decides LAST on most chains, so it is the role with the most prior
   // stages to read — the same detail dialog every other approver now opens.

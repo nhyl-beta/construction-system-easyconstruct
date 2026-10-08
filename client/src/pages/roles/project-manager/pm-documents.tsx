@@ -1,5 +1,6 @@
 // src/pages/project-manager/pm-documents.tsx
 import { useMemo, useState } from "react";
+import { useOpenOnAction } from "@/features/quick-search/useOpenOnAction";
 import {
   FileText,
   Upload,
@@ -36,6 +37,7 @@ const TYPE_ICONS: Record<string, LucideIcon> = {
 export default function DocumentsPage() {
   const { documents, loading, uploading, upload } = useFieldDocuments();
   const [uploadOpen, setUploadOpen] = useState(false);
+  useOpenOnAction("upload-document", () => setUploadOpen(true));
   // Same viewer Consultant's advisory register uses — both read the same
   // `documents` table, so both hit the same missing-file and legacy-path
   // rows, and both now report that instead of opening a blank tab.

@@ -1,4 +1,5 @@
 import { useState, type FormEvent } from "react";
+import { useOpenOnAction } from "@/features/quick-search/useOpenOnAction";
 import { FileText, ListChecks, Paperclip, Send, Sparkles, Undo2 } from "lucide-react";
 import { toast } from "sonner";
 
@@ -104,6 +105,7 @@ function NewRequirementDialog({
   allowedProjectCodes?: string[];
 }) {
   const [open, setOpen] = useState(false);
+  useOpenOnAction("new-requirement", () => setOpen(true));
   const [submitting, setSubmitting] = useState(false);
   const [title, setTitle] = useState("");
   const [project, setProject] = useState("");

@@ -35,6 +35,7 @@ import { useBudgetAdjustments } from "@/features/finance/budgets/hooks/useBudget
 import { useBudgets } from "@/features/finance/budgets/hooks/useBudgets";
 import { formatAxisCurrency, formatCompactCurrency, formatCurrency } from "@/lib/format-currency";
 import { useEffect, useMemo, useState } from "react";
+import { useOpenOnAction } from "@/features/quick-search/useOpenOnAction";
 
 import {
   AlertTriangle,
@@ -108,6 +109,7 @@ function NewBudgetDialog({
   onCreate: (input: CreateBudgetInput) => Promise<boolean>;
 }) {
   const [open, setOpen] = useState(false);
+  useOpenOnAction("new-budget", () => setOpen(true));
   const [project, setProject] = useState("");
   const [category, setCategory] = useState("");
   // The budgets table stores only a project code. Echoing the selected

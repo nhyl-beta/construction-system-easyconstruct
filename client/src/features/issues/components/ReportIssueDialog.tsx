@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { useOpenOnAction } from "@/features/quick-search/useOpenOnAction";
 import { toast } from "sonner";
 
 import { Button } from "@/components/ui/button";
@@ -52,6 +53,7 @@ export function ReportIssueDialog({
   onReported: () => void | Promise<void>;
 }) {
   const [open, setOpen] = useState(false);
+  useOpenOnAction("report-issue", () => setOpen(true));
   const [form, setForm] = useState(EMPTY);
   const [file, setFile] = useState<File | null>(null);
   const [submitting, setSubmitting] = useState(false);
