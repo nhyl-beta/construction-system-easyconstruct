@@ -63,7 +63,7 @@ function RequestCard({ request, onRevalidated }: { request: Workflow; onRevalida
   };
 
   return (
-    <Card className="rounded-2xl border-border/70 shadow-sm">
+    <Card>
       <CardContent className="p-4">
         <button
           type="button"
@@ -80,7 +80,7 @@ function RequestCard({ request, onRevalidated }: { request: Workflow; onRevalida
 
           <div className="min-w-0 flex-1">
             <div className="flex flex-wrap items-center gap-2">
-              <span className="font-mono text-[11px] text-muted-foreground">
+              <span className="font-mono text-overline text-muted-foreground">
                 {request.code}
               </span>
               <span className="font-medium">{request.title}</span>
@@ -100,12 +100,12 @@ function RequestCard({ request, onRevalidated }: { request: Workflow; onRevalida
               )}
             </div>
             <div className="mt-1.5 flex flex-wrap items-center gap-2">
-              <Badge variant="outline" className="rounded-full text-[10px]">
+              <Badge variant="outline" className="rounded-full text-overline">
                 {request.lineItems.length}{" "}
                 {request.lineItems.length === 1 ? "change" : "changes"}
               </Badge>
               {request.attachments.length > 0 && (
-                <Badge variant="outline" className="rounded-full text-[10px]">
+                <Badge variant="outline" className="rounded-full text-overline">
                   {request.attachments.length} submitted{" "}
                   {request.attachments.length === 1 ? "item" : "items"}
                 </Badge>
@@ -114,12 +114,12 @@ function RequestCard({ request, onRevalidated }: { request: Workflow; onRevalida
           </div>
 
           <div className="shrink-0 text-right">
-            <div className="text-[11px] uppercase tracking-wider text-muted-foreground">
+            <div className="text-overline uppercase tracking-wider text-muted-foreground">
               Net change
             </div>
             <div
               className={`text-lg font-semibold tabular-nums ${
-                netChange > 0 ? "text-destructive" : netChange < 0 ? "text-success" : ""
+                netChange > 0 ? "text-destructive-strong" : netChange < 0 ? "text-success-strong" : ""
               }`}
             >
               {netChange > 0 ? "+" : ""}
@@ -129,7 +129,7 @@ function RequestCard({ request, onRevalidated }: { request: Workflow; onRevalida
         </button>
 
         {expanded && (
-          <div className="mt-4 space-y-5 border-t border-border/60 pt-4">
+          <div className="mt-4 space-y-5 border-t border-border pt-4">
             <section className="space-y-2">
               <div className="flex items-center justify-between">
                 <h3 className="text-xs font-medium uppercase tracking-wider text-muted-foreground">
@@ -140,7 +140,7 @@ function RequestCard({ request, onRevalidated }: { request: Workflow; onRevalida
                     type="button"
                     size="sm"
                     variant="ghost"
-                    className="h-7 rounded-lg text-xs"
+                    className="h-7 text-xs"
                     disabled={revalidating}
                     onClick={handleRevalidate}
                   >
@@ -217,7 +217,7 @@ export default function ImpactReviewPage() {
         {error && (
           <p
             role="alert"
-            className="rounded-xl border border-destructive/30 bg-destructive/5 px-4 py-3 text-sm text-destructive"
+            className="rounded-xl border border-destructive/30 bg-destructive/5 px-4 py-3 text-sm text-destructive-strong"
           >
             Couldn't load budget change requests. {error.message}
           </p>

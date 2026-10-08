@@ -57,7 +57,7 @@ export function DataTableFilterDropdown<TData>({
             "data-[state=open]:bg-accent",
             "w-5 h-5",
             {
-              "text-primary": isFiltered,
+              "text-primary-strong": isFiltered,
               "text-muted-foreground": !isFiltered,
             },
             triggerClassName
@@ -351,7 +351,7 @@ export function DataTableFilterCombobox<TData>({
                               "rounded-sm"
                             )}
                           >
-                            <span className={cn("text-[10px]", "leading-4")}>
+                            <span className={cn("text-overline", "leading-4")}>
                               {label}
                             </span>
                             <span
@@ -363,7 +363,7 @@ export function DataTableFilterCombobox<TData>({
                                 "w-4",
                                 "h-full",
                                 "text-muted-foreground",
-                                "hover:text-destructive",
+                                "hover:text-destructive-strong",
                                 "rounded-sm",
                                 "cursor-pointer",
                                 "transition-colors"

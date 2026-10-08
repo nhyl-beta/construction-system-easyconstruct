@@ -29,7 +29,7 @@ export default function ArchitectDocumentation() {
         title="Documentation"
         description="Specifications, permits, and supporting documents."
         actions={
-          <Button className="rounded-xl" onClick={() => setUploadOpen(true)}>
+          <Button onClick={() => setUploadOpen(true)}>
             <Upload className="h-4 w-4" /> Upload As-Built / document
           </Button>
         }
@@ -38,10 +38,10 @@ export default function ArchitectDocumentation() {
       <div className="flex flex-wrap items-center gap-2">
         <div className="relative w-64">
           <Search className="pointer-events-none absolute left-2.5 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-muted-foreground" />
-          <Input value={c.query} onChange={(e) => c.setQuery(e.target.value)} placeholder="Search documents…" className="h-8 rounded-lg pl-8 text-xs" />
+          <Input value={c.query} onChange={(e) => c.setQuery(e.target.value)} placeholder="Search documents…" className="h-8 pl-8 text-xs" />
         </div>
         <Select value={c.category} onValueChange={c.setCategory}>
-          <SelectTrigger className="h-8 w-40 rounded-lg text-xs">
+          <SelectTrigger className="h-8 w-40 text-xs">
             <SelectValue />
           </SelectTrigger>
           <SelectContent>
@@ -63,17 +63,17 @@ export default function ArchitectDocumentation() {
             <div key={d.id} className="rounded-2xl border p-4">
               <div className="flex items-start justify-between gap-2">
                 <div className="flex items-center gap-2">
-                  <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-primary/10 text-primary">
+                  <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-primary/10 text-primary-strong">
                     <FileText className="h-4 w-4" />
                   </div>
                   <div>
                     <div className="text-sm font-medium">{d.title}</div>
-                    <div className="text-[11px] text-muted-foreground">{d.category} · {d.version}</div>
+                    <div className="text-overline text-muted-foreground">{d.category} · {d.version}</div>
                   </div>
                 </div>
                 <StatusBadge status={d.status} />
               </div>
-              <div className="mt-3 flex items-center justify-between text-[11px] text-muted-foreground">
+              <div className="mt-3 flex items-center justify-between text-overline text-muted-foreground">
                 <span>{d.owner}</span>
                 <span>{d.updatedAt ? new Date(d.updatedAt).toLocaleDateString() : "—"}</span>
               </div>

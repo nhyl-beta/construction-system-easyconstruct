@@ -27,14 +27,14 @@ export function RevisionLink({
     <span className="inline-flex flex-wrap items-center gap-1.5">
       {current && (
         <>
-          <span className="text-[11px] text-muted-foreground">{versionText(current)}</span>
+          <span className="text-overline text-muted-foreground">{versionText(current)}</span>
           <RevisionStatusBadge status={current.status} />
         </>
       )}
       <Link
         to={`/revisions?itemType=${itemType}&itemId=${itemId}`}
         onClick={stopPropagation ? (e) => e.stopPropagation() : undefined}
-        className="inline-flex items-center gap-1 text-[11px] font-medium text-primary underline-offset-2 hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+        className="inline-flex items-center gap-1 text-overline font-medium text-primary-strong underline-offset-2 hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
       >
         <GitBranch className="h-3 w-3" aria-hidden="true" /> {current ? "View revisions" : "No revisions yet"}
       </Link>

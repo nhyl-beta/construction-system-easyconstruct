@@ -32,7 +32,7 @@ export const ProjectsPagination: React.FC<{
         <label className="flex items-center gap-2 text-xs text-muted-foreground">
           Rows per page
           <Select value={String(pageSize)} onValueChange={(v) => onPageSize(Number(v))}>
-            <SelectTrigger aria-label="Rows per page" className="h-8 w-16 rounded-lg text-xs">
+            <SelectTrigger aria-label="Rows per page" className="h-8 w-16 text-xs">
               <SelectValue />
             </SelectTrigger>
             <SelectContent>
@@ -46,7 +46,7 @@ export const ProjectsPagination: React.FC<{
           <Button
             variant="outline"
             size="sm"
-            className="h-8 rounded-lg"
+            className="h-8"
             disabled={page <= 1}
             onClick={() => onPage(page - 1)}
           >
@@ -58,7 +58,7 @@ export const ProjectsPagination: React.FC<{
           <Button
             variant="outline"
             size="sm"
-            className="h-8 rounded-lg"
+            className="h-8"
             disabled={page >= pages}
             onClick={() => onPage(page + 1)}
           >

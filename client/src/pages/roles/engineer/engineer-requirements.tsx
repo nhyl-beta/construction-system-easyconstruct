@@ -52,9 +52,9 @@ import { useStaffedProjectCodes } from "@/features/project-members/hooks/use-sta
 
 const STATUS_TONE: Record<string, string> = {
   Draft: "bg-muted text-muted-foreground border-border",
-  "Under Review": "bg-warning/15 text-warning border-warning/30",
-  Approved: "bg-success/10 text-success border-success/20",
-  Rejected: "bg-destructive/10 text-destructive border-destructive/20",
+  "Under Review": "bg-warning/15 text-warning-strong border-warning/30",
+  Approved: "bg-success/10 text-success-strong border-success/20",
+  Rejected: "bg-destructive/10 text-destructive-strong border-destructive/20",
 };
 
 /** Reads a File and stores it through POST /api/uploads. */
@@ -214,7 +214,7 @@ function NewRequirementDialog({
   return (
     <Dialog open={open} onOpenChange={setOpen}>
       <DialogTrigger asChild>
-        <Button className="rounded-xl">New requirement</Button>
+        <Button>New requirement</Button>
       </DialogTrigger>
       <DialogContent className="max-h-[90vh] overflow-y-auto sm:max-w-md">
         <DialogHeader>
@@ -269,7 +269,7 @@ function NewRequirementDialog({
                     type="button"
                     variant="outline"
                     size="sm"
-                    className="h-7 gap-1 rounded-lg px-2 text-xs"
+                    className="h-7 gap-1 px-2 text-xs"
                     disabled={structuring || description.trim().length < 10}
                     title={description.trim().length < 10 ? "Write a rough description first (10+ characters)" : "Organize into Objectives, Materials, Constraints and Specifications"}
                     onClick={() => void runStructure()}
@@ -287,7 +287,7 @@ function NewRequirementDialog({
               required
             />
             {structureError && (
-              <p role="alert" className="text-xs text-destructive">
+              <p role="alert" className="text-xs text-destructive-strong">
                 {structureError} You can keep writing the description yourself.
               </p>
             )}
@@ -303,7 +303,7 @@ function NewRequirementDialog({
                         <span>
                           Reworded: <span className="font-medium">{r.from}</span> → {r.to}
                         </span>
-                        <button type="button" className="shrink-0 text-primary hover:underline" onClick={() => undoOneRewrite(r)}>
+                        <button type="button" className="shrink-0 text-primary-strong hover:underline" onClick={() => undoOneRewrite(r)}>
                           Undo
                         </button>
                       </li>
@@ -347,7 +347,7 @@ function NewRequirementDialog({
           </div>
           <div className="space-y-1.5">
             <Label>
-              Supporting file <span className="text-destructive">*</span>
+              Supporting file <span className="text-destructive-strong">*</span>
             </Label>
             <FileListPicker
               files={files}
@@ -359,10 +359,10 @@ function NewRequirementDialog({
               disabled={submitting}
               invalid={triedSubmit && files.length === 0}
             />
-            {fileError && <p role="alert" className="text-xs text-destructive">{fileError}</p>}
+            {fileError && <p role="alert" className="text-xs text-destructive-strong">{fileError}</p>}
           </div>
           <DialogFooter>
-            <Button type="submit" disabled={submitting} className="rounded-xl">
+            <Button type="submit" disabled={submitting}>
               {submitting ? "Saving…" : "Save as draft"}
             </Button>
           </DialogFooter>
@@ -464,7 +464,7 @@ export default function RequirementsPage() {
           ]}
         />
 
-        <Card className="rounded-2xl border-border/70 shadow-sm">
+        <Card>
           <CardHeader className="pb-3">
             <CardTitle className="text-base">All requirements</CardTitle>
           </CardHeader>
@@ -488,7 +488,7 @@ export default function RequirementsPage() {
                       </div>
                       <Badge
                         variant="outline"
-                        className={`shrink-0 rounded-full px-2.5 py-0.5 text-[11px] font-medium ${
+                        className={`shrink-0 rounded-full px-2.5 py-0.5 text-overline font-medium ${
                           STATUS_TONE[r.status]
                         }`}
                       >
@@ -502,7 +502,7 @@ export default function RequirementsPage() {
                           <li key={a.url}>
                             <button
                               type="button"
-                              className="flex items-center gap-1 rounded-lg border border-border px-2 py-1 text-xs text-primary hover:bg-muted/40"
+                              className="flex items-center gap-1 rounded-lg border border-border px-2 py-1 text-xs text-primary-strong hover:bg-muted/40"
                               onClick={() => void openFileUrl(a.url).catch((err: Error) => toast.error(err.message))}
                             >
                               <Paperclip className="h-3 w-3" /> {a.filename}
@@ -518,7 +518,7 @@ export default function RequirementsPage() {
                       {r.status === "Draft" && canSubmit(r) && (
                         <div className="flex items-center gap-2">
                           {r.attachments.length === 0 && (
-                            <label className="cursor-pointer text-xs text-primary hover:underline">
+                            <label className="cursor-pointer text-xs text-primary-strong hover:underline">
                               Attach a file to submit
                               <input
                                 type="file"
@@ -533,7 +533,7 @@ export default function RequirementsPage() {
                           )}
                           <Button
                             size="sm"
-                            className="h-7 rounded-lg text-xs"
+                            className="h-7 text-xs"
                             disabled={busyId === r.dbId || r.attachments.length === 0}
                             title={r.attachments.length === 0 ? "Attach a file before submitting" : "Send to the Project Manager for approval"}
                             onClick={() => void submitForApproval(r)}

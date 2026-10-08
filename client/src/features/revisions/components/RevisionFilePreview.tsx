@@ -21,7 +21,7 @@ export function RevisionFilePreview({ revision, className = "h-72" }: { revision
       <div className={`flex flex-col items-center justify-center gap-2 rounded-lg border border-dashed p-4 text-center text-xs text-muted-foreground ${className}`}>
         <FileWarning className="h-5 w-5" />
         <p>No inline preview for {revision.fileName.split(".").pop()?.toUpperCase() ?? "this"} files.</p>
-        <Button size="sm" variant="outline" className="h-7 rounded-lg text-xs" onClick={() => void download()}>
+        <Button size="sm" variant="outline" className="h-7 text-xs" onClick={() => void download()}>
           <Download className="h-3 w-3" /> Download
         </Button>
       </div>
@@ -36,9 +36,9 @@ export function RevisionFilePreview({ revision, className = "h-72" }: { revision
   }
   if (error || !url) {
     return (
-      <div role="alert" className={`flex flex-col items-center justify-center gap-2 rounded-lg border border-destructive/30 p-4 text-center text-xs text-destructive ${className}`}>
+      <div role="alert" className={`flex flex-col items-center justify-center gap-2 rounded-lg border border-destructive/30 p-4 text-center text-xs text-destructive-strong ${className}`}>
         <p>{error ?? "The preview could not be loaded."}</p>
-        <Button size="sm" variant="outline" className="h-7 rounded-lg text-xs" onClick={() => void download()}>
+        <Button size="sm" variant="outline" className="h-7 text-xs" onClick={() => void download()}>
           <Download className="h-3 w-3" /> Download instead
         </Button>
       </div>

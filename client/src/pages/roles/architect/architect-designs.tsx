@@ -37,7 +37,7 @@ export default function ArchitectDesigns() {
         actions={
           <Button
             size="sm"
-            className="rounded-xl"
+           
             onClick={() => navigate("/designs/new")}
           >
             <Plus className="mr-1 h-3.5 w-3.5" />
@@ -81,11 +81,11 @@ export default function ArchitectDesigns() {
             value={c.query}
             onChange={(e) => c.setQuery(e.target.value)}
             placeholder="Search designs, projects, architects…"
-            className="h-8 rounded-lg pl-8 text-xs"
+            className="h-8 pl-8 text-xs"
           />
         </div>
         <Select value={c.status} onValueChange={c.setStatus}>
-          <SelectTrigger className="h-8 w-40 rounded-lg text-xs">
+          <SelectTrigger className="h-8 w-40 text-xs">
             <SelectValue />
           </SelectTrigger>
           <SelectContent>
@@ -126,7 +126,7 @@ export default function ArchitectDesigns() {
               >
                 <TableCell>
                   <div className="text-sm font-medium">{d.name}</div>
-                  <div className="font-mono text-[11px] text-muted-foreground">
+                  <div className="font-mono text-overline text-muted-foreground">
                     {d.code}
                   </div>
                 </TableCell>

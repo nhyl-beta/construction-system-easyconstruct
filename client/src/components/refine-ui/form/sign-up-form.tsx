@@ -94,8 +94,8 @@ export const SignUpForm = () => {
         <CardHeader className={cn("px-0")}>
           <CardTitle
             className={cn(
-              "text-green-600",
-              "dark:text-green-400",
+              "text-success-strong",
+              "dark:text-success-strong",
               "text-3xl",
               "font-semibold"
             )}
@@ -155,9 +155,9 @@ export const SignUpForm = () => {
               className={cn(
                 "w-full",
                 "mt-6",
-                "bg-green-600",
-                "hover:bg-green-700",
-                "text-white"
+                "bg-primary-strong",
+                "hover:bg-primary-strong/90",
+                "text-primary-foreground"
               )}
             >
               Sign up
@@ -228,8 +228,8 @@ export const SignUpForm = () => {
             <Link
               to="/login"
               className={cn(
-                "text-blue-600",
-                "dark:text-blue-400",
+                "text-primary-strong",
+                "dark:text-primary-strong",
                 "font-semibold",
                 "underline"
               )}

@@ -59,8 +59,8 @@ export const ForgotPasswordForm = () => {
         <CardHeader className={cn("px-0")}>
           <CardTitle
             className={cn(
-              "text-blue-600",
-              "dark:text-blue-400",
+              "text-primary-strong",
+              "dark:text-primary-strong",
               "text-3xl",
               "font-semibold"
             )}
@@ -91,9 +91,9 @@ export const ForgotPasswordForm = () => {
                 <Button
                   type="submit"
                   className={cn(
-                    "bg-blue-600",
-                    "hover:bg-blue-700",
-                    "text-white",
+                    "bg-primary-strong",
+                    "hover:bg-primary-strong/90",
+                    "text-primary-foreground",
                     "px-6"
                   )}
                 >

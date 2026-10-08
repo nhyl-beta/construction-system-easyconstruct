@@ -213,7 +213,7 @@ export default function HRWorkforcePage() {
 
       {/* Error */}
       {error && (
-        <p className="text-sm text-destructive">
+        <p className="text-sm text-destructive-strong">
           {error}
         </p>
       )}
@@ -231,7 +231,7 @@ export default function HRWorkforcePage() {
             ].map(([label, value]) => (
               <Card
                 key={String(label)}
-                className="rounded-2xl"
+               
               >
                 <CardContent className="p-4">
                   <div className="text-2xl font-semibold">
@@ -248,7 +248,7 @@ export default function HRWorkforcePage() {
 
           {/* Department and Site */}
           <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
-            <Card className="rounded-2xl">
+            <Card>
               <CardHeader>
                 <CardTitle className="text-base">
                   By department
@@ -277,7 +277,7 @@ export default function HRWorkforcePage() {
               </CardContent>
             </Card>
 
-            <Card className="rounded-2xl">
+            <Card>
               <CardHeader>
                 <CardTitle className="text-base">
                   By site
@@ -308,7 +308,7 @@ export default function HRWorkforcePage() {
           </div>
 
           {/* Daily attendance */}
-          <Card className="rounded-2xl">
+          <Card>
             <CardHeader>
               <CardTitle className="text-base">
                 Daily attendance
@@ -328,15 +328,15 @@ export default function HRWorkforcePage() {
                   >
                     <span>{row.date}</span>
 
-                    <span className="text-success">
+                    <span className="text-success-strong">
                       Present {row.present}
                     </span>
 
-                    <span className="text-warning">
+                    <span className="text-warning-strong">
                       Late {row.late}
                     </span>
 
-                    <span className="text-destructive">
+                    <span className="text-destructive-strong">
                       Absent {row.absent}
                     </span>
                   </div>

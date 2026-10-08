@@ -14,7 +14,7 @@ export default function NotFoundPage() {
   return (
     <PageContainer>
       <PageContent className="p-6 md:p-8">
-        <div className="mx-auto flex max-w-md flex-col items-center gap-4 rounded-2xl border border-border/70 bg-card p-10 text-center shadow-sm">
+        <div className="mx-auto flex max-w-md flex-col items-center gap-4 rounded-2xl border border-border bg-card p-10 text-center shadow-sm">
           <Compass className="h-10 w-10 text-muted-foreground" />
           <div>
             <h1 className="text-lg font-semibold">Page not found</h1>
@@ -26,7 +26,7 @@ export default function NotFoundPage() {
               .
             </p>
           </div>
-          <Button asChild className="rounded-xl">
+          <Button asChild>
             <Link to="/dashboard">Back to dashboard</Link>
           </Button>
         </div>

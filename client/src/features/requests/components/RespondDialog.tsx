@@ -75,7 +75,7 @@ export function RespondDialog({
           {isRfa && (
             <div className="space-y-1.5">
               <Label htmlFor="rs-outcome">
-                Outcome <span className="text-destructive">*</span>
+                Outcome <span className="text-destructive-strong">*</span>
               </Label>
               <Select value={outcome} onValueChange={(v) => setOutcome(v as RfaOutcome)} disabled={busy}>
                 <SelectTrigger id="rs-outcome" className="w-full">
@@ -89,28 +89,28 @@ export function RespondDialog({
                   ))}
                 </SelectContent>
               </Select>
-              {tried && !outcome && <p className="text-xs text-destructive">Choose an outcome.</p>}
+              {tried && !outcome && <p className="text-xs text-destructive-strong">Choose an outcome.</p>}
             </div>
           )}
           <div className="space-y-1.5">
             <Label htmlFor="rs-text">
-              Response <span className="text-destructive">*</span>
+              Response <span className="text-destructive-strong">*</span>
             </Label>
             <Textarea id="rs-text" rows={5} value={text} onChange={(e) => setText(e.target.value)} disabled={busy} aria-invalid={tried && text.trim().length < 3} />
-            {tried && text.trim().length < 3 && <p className="text-xs text-destructive">Write your response.</p>}
+            {tried && text.trim().length < 3 && <p className="text-xs text-destructive-strong">Write your response.</p>}
           </div>
           <RequestFilePicker files={files} onChange={setFiles} disabled={busy} label="Response attachments (e.g. AID-2a-1)" />
           {error && (
-            <p role="alert" className="rounded-lg border border-destructive/30 bg-destructive/5 px-3 py-2 text-xs text-destructive">
+            <p role="alert" className="rounded-lg border border-destructive/30 bg-destructive/5 px-3 py-2 text-xs text-destructive-strong">
               {error}
             </p>
           )}
         </div>
         <DialogFooter>
-          <Button variant="ghost" className="rounded-xl" disabled={busy} onClick={() => onOpenChange(false)}>
+          <Button variant="ghost" disabled={busy} onClick={() => onOpenChange(false)}>
             Cancel
           </Button>
-          <Button className="rounded-xl" disabled={busy} onClick={() => void submit()}>
+          <Button disabled={busy} onClick={() => void submit()}>
             <CheckCircle2 className="h-4 w-4" /> {busy ? "Saving…" : "Submit response"}
           </Button>
         </DialogFooter>

@@ -56,13 +56,13 @@ export default function SharedRequests() {
         description="Requests for information (RFI) and approval (RFA) between the site and the design team."
         actions={
           <div className="flex gap-2">
-            <Button size="sm" variant="outline" className="rounded-xl" asChild>
+            <Button size="sm" variant="outline" asChild>
               <Link to="/transmittals">
                 <FileSignature className="mr-1 h-3.5 w-3.5" /> Transmittals
               </Link>
             </Button>
             {canRaise && (
-              <Button size="sm" className="rounded-xl" onClick={() => setCreating(true)}>
+              <Button size="sm" onClick={() => setCreating(true)}>
                 <Plus className="mr-1 h-3.5 w-3.5" /> Raise request
               </Button>
             )}
@@ -74,7 +74,7 @@ export default function SharedRequests() {
         {role !== "admin" && (
           <div className="inline-flex rounded-xl border p-0.5" role="group" aria-label="Which requests">
             {(["mine", "all"] as const).map((s) => (
-              <Button key={s} size="sm" variant={scope === s ? "default" : "ghost"} className="h-7 rounded-lg px-3 text-xs" onClick={() => setScope(s)} aria-pressed={scope === s}>
+              <Button key={s} size="sm" variant={scope === s ? "default" : "ghost"} className="h-7 px-3 text-xs" onClick={() => setScope(s)} aria-pressed={scope === s}>
                 {s === "mine" ? mineLabel : "All on my projects"}
               </Button>
             ))}
@@ -82,10 +82,10 @@ export default function SharedRequests() {
         )}
         <div className="relative w-56">
           <Search className="pointer-events-none absolute left-2.5 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-muted-foreground" />
-          <Input value={query} onChange={(e) => setQuery(e.target.value)} placeholder="Search number, subject, sheet…" aria-label="Search requests" className="h-8 rounded-lg pl-8 text-xs" />
+          <Input value={query} onChange={(e) => setQuery(e.target.value)} placeholder="Search number, subject, sheet…" aria-label="Search requests" className="h-8 pl-8 text-xs" />
         </div>
         <Select value={kind} onValueChange={(v) => setKind(v as RequestFilters["kind"])}>
-          <SelectTrigger aria-label="Filter by type" className="h-8 w-28 rounded-lg text-xs">
+          <SelectTrigger aria-label="Filter by type" className="h-8 w-28 text-xs">
             <SelectValue />
           </SelectTrigger>
           <SelectContent>
@@ -98,7 +98,7 @@ export default function SharedRequests() {
           </SelectContent>
         </Select>
         <Select value={status} onValueChange={(v) => setStatus(v as RequestFilters["status"])}>
-          <SelectTrigger aria-label="Filter by status" className="h-8 w-40 rounded-lg text-xs">
+          <SelectTrigger aria-label="Filter by status" className="h-8 w-40 text-xs">
             <SelectValue />
           </SelectTrigger>
           <SelectContent>
@@ -110,14 +110,14 @@ export default function SharedRequests() {
             ))}
           </SelectContent>
         </Select>
-        <Button size="sm" variant={overdueOnly ? "default" : "outline"} className="h-8 rounded-lg text-xs" onClick={() => setOverdueOnly((o) => !o)} aria-pressed={overdueOnly}>
+        <Button size="sm" variant={overdueOnly ? "default" : "outline"} className="h-8 text-xs" onClick={() => setOverdueOnly((o) => !o)} aria-pressed={overdueOnly}>
           Overdue only
         </Button>
         {hasFilters && (
           <Button
             size="sm"
             variant="ghost"
-            className="h-8 gap-1 rounded-lg px-2 text-xs"
+            className="h-8 gap-1 px-2 text-xs"
             onClick={() => {
               setKind("all");
               setStatus("all");
@@ -131,7 +131,7 @@ export default function SharedRequests() {
       </div>
 
       {error ? (
-        <div role="alert" className="flex items-center justify-between gap-3 rounded-2xl border border-destructive/30 bg-destructive/5 p-4 text-sm text-destructive">
+        <div role="alert" className="flex items-center justify-between gap-3 rounded-2xl border border-destructive/30 bg-destructive/5 p-4 text-sm text-destructive-strong">
           <span>Couldn't load requests. {error}</span>
           <Button size="sm" variant="outline" onClick={reload}>
             Retry

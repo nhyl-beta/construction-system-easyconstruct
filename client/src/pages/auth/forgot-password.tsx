@@ -33,7 +33,7 @@ export default function ForgotPasswordPage() {
 
   return (
     <AuthShell>
-      <Card className="border-border/70 shadow-lg">
+      <Card className="shadow-lg">
         <CardHeader className="space-y-1.5">
           <CardTitle className="font-display text-2xl tracking-tight">
             Forgot your password?
@@ -44,7 +44,7 @@ export default function ForgotPasswordPage() {
         </CardHeader>
         <CardContent className="space-y-5">
           {status === "success" ? (
-            <Alert role="status" className="border-success/40 text-success">
+            <Alert role="status" className="border-success/40 text-success-strong">
               <CheckCircle2 className="size-4" aria-hidden="true" />
               <AlertDescription>{AUTH_MESSAGES.resetSent}</AlertDescription>
             </Alert>
@@ -78,7 +78,7 @@ export default function ForgotPasswordPage() {
                   />
                 </div>
                 {error && (
-                  <p id="reset-email-error" role="alert" className="flex items-center gap-1.5 text-xs text-destructive">
+                  <p id="reset-email-error" role="alert" className="flex items-center gap-1.5 text-xs text-destructive-strong">
                     <AlertCircle className="size-3.5" aria-hidden="true" />
                     {error}
                   </p>

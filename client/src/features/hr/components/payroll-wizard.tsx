@@ -227,7 +227,7 @@ export function PayrollWizard({ resumeBatchId, onClose, onChanged }: PayrollWiza
   const canSubmit = blocking.length === 0 && (!duplicateWarning || acknowledgeDuplicate);
 
   return (
-    <Card className="rounded-2xl">
+    <Card>
       <CardHeader className="space-y-3">
         <div className="flex items-start justify-between gap-3">
           <div>
@@ -255,7 +255,7 @@ export function PayrollWizard({ resumeBatchId, onClose, onChanged }: PayrollWiza
               key={label}
               className={`rounded-full border px-3 py-1 ${
                 step === i + 1
-                  ? "border-primary bg-primary/10 font-medium text-primary"
+                  ? "border-primary bg-primary/10 font-medium text-primary-strong"
                   : step > i + 1
                     ? "text-muted-foreground"
                     : "text-muted-foreground/60"
@@ -269,7 +269,7 @@ export function PayrollWizard({ resumeBatchId, onClose, onChanged }: PayrollWiza
 
       <CardContent className="space-y-4">
         {error && (
-          <div className="rounded-xl border border-destructive/30 bg-destructive/10 px-4 py-3 text-sm text-destructive">
+          <div className="rounded-xl border border-destructive/30 bg-destructive/10 px-4 py-3 text-sm text-destructive-strong">
             {error}
           </div>
         )}
@@ -317,7 +317,7 @@ export function PayrollWizard({ resumeBatchId, onClose, onChanged }: PayrollWiza
                 <div className="text-xs text-muted-foreground">Unverified entries left out</div>
                 <div className="text-2xl font-semibold">{readiness.unverifiedCount}</div>
                 {readiness.unverifiedCount > 0 && (
-                  <Link to="/attendance" className="text-xs text-primary underline">
+                  <Link to="/attendance" className="text-xs text-primary-strong underline">
                     Review in HR Attendance
                   </Link>
                 )}
@@ -390,7 +390,7 @@ export function PayrollWizard({ resumeBatchId, onClose, onChanged }: PayrollWiza
                   <TableRow key={l.id}>
                     <TableCell>
                       <div className="text-sm font-medium">{l.name}</div>
-                      <div className="font-mono text-[10px] text-muted-foreground">{l.empId}</div>
+                      <div className="font-mono text-overline text-muted-foreground">{l.empId}</div>
                     </TableCell>
                     <TableCell className="text-right">
                       <EditableNumber value={l.hours} disabled={busy || !editable} onCommit={(n) => void editLine(l, { hours: n })} />
@@ -483,7 +483,7 @@ export function PayrollWizard({ resumeBatchId, onClose, onChanged }: PayrollWiza
         {step === 5 && detail && (
           <div className="space-y-3">
             {issues.length === 0 && (
-              <div className="flex items-center gap-2 text-sm text-success">
+              <div className="flex items-center gap-2 text-sm text-success-strong">
                 <CheckCircle2 className="h-4 w-4" /> All checks passed.
               </div>
             )}
@@ -498,9 +498,9 @@ export function PayrollWizard({ resumeBatchId, onClose, onChanged }: PayrollWiza
                   }`}
                 >
                   {i.severity === "error" ? (
-                    <XCircle className="mt-0.5 h-4 w-4 shrink-0 text-destructive" />
+                    <XCircle className="mt-0.5 h-4 w-4 shrink-0 text-destructive-strong" />
                   ) : (
-                    <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0 text-warning" />
+                    <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0 text-warning-strong" />
                   )}
                   {i.message}
                 </li>
@@ -542,7 +542,7 @@ export function PayrollWizard({ resumeBatchId, onClose, onChanged }: PayrollWiza
               total employer cost of {formatCurrency(detail.totals.employerCost)}.
             </p>
             {!canSubmit && (
-              <p className="text-sm text-destructive">
+              <p className="text-sm text-destructive-strong">
                 Fix the blocking checks{duplicateWarning ? " and confirm the duplicate warning" : ""} in step 5 first.
               </p>
             )}

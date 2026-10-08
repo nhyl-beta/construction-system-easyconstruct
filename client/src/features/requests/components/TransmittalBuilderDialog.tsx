@@ -108,12 +108,12 @@ export function TransmittalBuilderDialog({
           <div className="space-y-1.5">
             <Label>Project</Label>
             <ProjectPicker value={project} onChange={(c) => { setProject(c); setRows([]); }} disabled={!!initialProject || busy} className="w-full" />
-            {tried && !project && <p className="text-xs text-destructive">Select a project.</p>}
+            {tried && !project && <p className="text-xs text-destructive-strong">Select a project.</p>}
           </div>
 
           <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
             <div className="space-y-1.5">
-              <Label htmlFor="tr-to">To <span className="text-destructive">*</span></Label>
+              <Label htmlFor="tr-to">To <span className="text-destructive-strong">*</span></Label>
               <Input id="tr-to" value={toName} onChange={(e) => setToName(e.target.value)} disabled={busy} aria-invalid={tried && toName.trim().length < 2} />
             </div>
             <div className="space-y-1.5">
@@ -139,7 +139,7 @@ export function TransmittalBuilderDialog({
           </div>
 
           <div className="space-y-1.5">
-            <Label htmlFor="tr-subject">Subject <span className="text-destructive">*</span></Label>
+            <Label htmlFor="tr-subject">Subject <span className="text-destructive-strong">*</span></Label>
             <Input id="tr-subject" value={subject} onChange={(e) => setSubject(e.target.value)} disabled={busy} aria-invalid={tried && subject.trim().length < 3} />
           </div>
 
@@ -158,7 +158,7 @@ export function TransmittalBuilderDialog({
 
           <fieldset className="space-y-2">
             <legend className="text-sm font-medium">
-              Items <span className="text-destructive">*</span>
+              Items <span className="text-destructive-strong">*</span>
             </legend>
             {project && candidates.length === 0 && <p className="text-xs text-muted-foreground">This project has no sent requests yet — add items by hand below.</p>}
             {candidates.length > 0 && (
@@ -183,25 +183,25 @@ export function TransmittalBuilderDialog({
                   </Button>
                 </div>
               ))}
-              <Button type="button" size="sm" variant="outline" className="rounded-lg" onClick={() => setRows((cur) => [...cur, { particulars: "", remarks: "" }])} disabled={busy}>
+              <Button type="button" size="sm" variant="outline" onClick={() => setRows((cur) => [...cur, { particulars: "", remarks: "" }])} disabled={busy}>
                 <Plus className="h-3.5 w-3.5" /> Add item
               </Button>
             </div>
-            {tried && rows.length === 0 && <p className="text-xs text-destructive">Add at least one item.</p>}
+            {tried && rows.length === 0 && <p className="text-xs text-destructive-strong">Add at least one item.</p>}
           </fieldset>
 
           {error && (
-            <p role="alert" className="rounded-lg border border-destructive/30 bg-destructive/5 px-3 py-2 text-xs text-destructive">
+            <p role="alert" className="rounded-lg border border-destructive/30 bg-destructive/5 px-3 py-2 text-xs text-destructive-strong">
               {error}
             </p>
           )}
         </div>
 
         <DialogFooter>
-          <Button variant="ghost" className="rounded-xl" disabled={busy} onClick={() => onOpenChange(false)}>
+          <Button variant="ghost" disabled={busy} onClick={() => onOpenChange(false)}>
             Cancel
           </Button>
-          <Button className="rounded-xl" disabled={busy} onClick={() => void submit()}>
+          <Button disabled={busy} onClick={() => void submit()}>
             {busy ? "Saving…" : "Create transmittal"}
           </Button>
         </DialogFooter>

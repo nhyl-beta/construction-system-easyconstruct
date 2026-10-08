@@ -13,7 +13,7 @@ export default function AdminSupportPage() {
         description="Where to go for help with accounts, access, and platform issues."
       />
       <PageContent className="space-y-4 p-6 md:p-8">
-        <Card className="rounded-2xl border-border/70 shadow-sm">
+        <Card>
           <CardContent className="flex items-start gap-3 p-5">
             <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-accent text-accent-foreground">
               <Mail className="h-4 w-4" />
@@ -26,7 +26,7 @@ export default function AdminSupportPage() {
               </p>
               <a
                 href="mailto:admin@easyconstruct.app"
-                className="mt-1 inline-block text-sm text-primary underline-offset-2 hover:underline"
+                className="mt-1 inline-block text-sm text-primary-strong underline-offset-2 hover:underline"
               >
                 admin@easyconstruct.app
               </a>
@@ -36,7 +36,7 @@ export default function AdminSupportPage() {
 
         <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
           <Link to="/reports">
-            <Card className="rounded-2xl border-border/70 shadow-sm transition hover:border-primary/40">
+            <Card className="transition hover:border-primary/40">
               <CardContent className="flex items-center gap-3 p-5">
                 <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-accent text-accent-foreground">
                   <BarChart2 className="h-4 w-4" />
@@ -49,7 +49,7 @@ export default function AdminSupportPage() {
             </Card>
           </Link>
           <Link to="/resources">
-            <Card className="rounded-2xl border-border/70 shadow-sm transition hover:border-primary/40">
+            <Card className="transition hover:border-primary/40">
               <CardContent className="flex items-center gap-3 p-5">
                 <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-accent text-accent-foreground">
                   <Wrench className="h-4 w-4" />

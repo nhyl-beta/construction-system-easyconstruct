@@ -16,7 +16,7 @@ export default function AccessDeniedPage() {
       />
       <PageContent className="flex min-h-96 flex-col items-center justify-center gap-4 p-8 text-center">
         <div className="flex items-center justify-center rounded-full bg-destructive/10 p-4">
-          <ShieldAlert className="h-6 w-6 text-destructive" />
+          <ShieldAlert className="h-6 w-6 text-destructive-strong" />
         </div>
         <div className="space-y-1">
           <h3 className="font-semibold text-foreground">

@@ -175,7 +175,7 @@ export default function HRPayrollPage() {
             <Button
               size="sm"
               variant="outline"
-              className="rounded-xl"
+             
               onClick={() => {
                 setRefreshing(true);
                 void loadPayroll();
@@ -188,14 +188,14 @@ export default function HRPayrollPage() {
             <Button
               size="sm"
               variant="outline"
-              className="rounded-xl"
+             
               disabled={rows.length === 0}
               title={rows.length === 0 ? "No payroll lines to export" : "Export the tracksheet as CSV"}
               onClick={handleExportCsv}
             >
               <Download className="h-4 w-4" /> Export
             </Button>
-            <Button size="sm" className="rounded-xl" onClick={() => openWizard(null)}>
+            <Button size="sm" onClick={() => openWizard(null)}>
               Generate Payroll <ArrowUpRight className="h-4 w-4" />
             </Button>
           </>
@@ -203,7 +203,7 @@ export default function HRPayrollPage() {
       />
 
       {error && (
-        <div className="rounded-xl border border-destructive/30 bg-destructive/10 px-4 py-3 text-sm text-destructive">
+        <div className="rounded-xl border border-destructive/30 bg-destructive/10 px-4 py-3 text-sm text-destructive-strong">
           {error}
         </div>
       )}
@@ -224,7 +224,7 @@ export default function HRPayrollPage() {
                 {why?.comment ? ` — ${why.comment}` : ""}
               </div>
             </div>
-            <Button size="sm" className="rounded-xl" onClick={() => openWizard(b.id)}>
+            <Button size="sm" onClick={() => openWizard(b.id)}>
               Fix and resubmit
             </Button>
           </div>
@@ -247,7 +247,7 @@ export default function HRPayrollPage() {
         <KpiMini label="Awaiting Finance" value={String(awaitingApproval)} tone="warning" icon={AlertTriangle} />
       </div>
 
-      <Card className="rounded-2xl">
+      <Card>
         <CardHeader>
           <CardTitle className="text-base">Batches</CardTitle>
         </CardHeader>
@@ -286,7 +286,7 @@ export default function HRPayrollPage() {
                   </TableCell>
                   <TableCell className="text-right">
                     {(b.status === "draft" || b.status === "revision_required") && (
-                      <Button size="sm" variant="outline" className="rounded-xl" onClick={() => openWizard(b.id)}>
+                      <Button size="sm" variant="outline" onClick={() => openWizard(b.id)}>
                         {b.status === "draft" ? "Continue" : "Fix and resubmit"}
                       </Button>
                     )}
@@ -298,7 +298,7 @@ export default function HRPayrollPage() {
         </CardContent>
       </Card>
 
-      <Card className="rounded-2xl">
+      <Card>
         <CardHeader className="flex flex-row flex-wrap items-start justify-between gap-3 space-y-0">
           <div>
             <CardTitle className="text-base">Tracksheet</CardTitle>
@@ -312,7 +312,7 @@ export default function HRPayrollPage() {
                 key={a.key}
                 size="sm"
                 variant="outline"
-                className="rounded-xl text-xs"
+                className="text-xs"
                 disabled={!trackFilterPeriod}
                 title={trackFilterPeriod ? `Export ${a.label} contribution report` : "Choose a period to export a contribution report"}
                 onClick={() => void handleExportContributions(a.key, a.label)}
@@ -324,7 +324,7 @@ export default function HRPayrollPage() {
               value={trackFilterPeriod ?? ALL_PERIODS}
               onValueChange={(v) => handleTrackFilterChange(v === ALL_PERIODS ? null : v)}
             >
-              <SelectTrigger className="h-9 w-40 rounded-xl text-xs">
+              <SelectTrigger className="h-9 w-40 text-xs">
                 <SelectValue placeholder="All periods" />
               </SelectTrigger>
               <SelectContent>
@@ -377,13 +377,13 @@ export default function HRPayrollPage() {
                   <TableCell>
                     <div className="flex items-center gap-2">
                       <Avatar className="h-7 w-7">
-                        <AvatarFallback className="bg-primary-soft text-[10px] font-semibold text-primary">
+                        <AvatarFallback className="bg-primary-soft text-overline font-semibold text-primary-strong">
                           {p.initials}
                         </AvatarFallback>
                       </Avatar>
                       <div>
                         <div className="text-sm font-medium">{p.name}</div>
-                        <div className="font-mono text-[10px] text-muted-foreground">{p.empId}</div>
+                        <div className="font-mono text-overline text-muted-foreground">{p.empId}</div>
                       </div>
                     </div>
                   </TableCell>

@@ -1,4 +1,5 @@
 import { Refine } from "@refinedev/core";
+import { lazy, Suspense } from "react";
 import { RefineKbar, RefineKbarProvider } from "@refinedev/kbar";
 
 import routerProvider, {
@@ -111,6 +112,11 @@ import SharedArchiveSearch from "./pages/roles/shared/shared-archive-search";
 import SharedLegacyImport from "./pages/roles/shared/shared-legacy-import";
 
 import "./App.css";
+
+// Dev-only component gallery; the conditional keeps it out of production bundles.
+const DesignSystemShowcase = import.meta.env.DEV
+  ? lazy(() => import("./pages/dev/design-system"))
+  : null;
 import ArchitectDesignCreate from "./pages/roles/architect/architect-design-create";
 import ArchitectDesignDetail from "./pages/roles/architect/architect-design-detail";
 import FinanceExpenses from "./pages/roles/finance/finance-expenses";
@@ -180,6 +186,16 @@ function App() {
                     path="/ai-validation-reference"
                     element={FEATURES.ai ? <AiValidationReferencePage /> : <Navigate to="/dashboard" replace />}
                   />
+                  {DesignSystemShowcase && (
+                    <Route
+                      path="/design-system"
+                      element={
+                        <Suspense fallback={null}>
+                          <DesignSystemShowcase />
+                        </Suspense>
+                      }
+                    />
+                  )}
                   <Route path="/reports" element={<SharedReports />} />
                   {/* Part B item 8: real decide action for gate D3, role-gated
                       server-side (consultant/project-manager/admin); every

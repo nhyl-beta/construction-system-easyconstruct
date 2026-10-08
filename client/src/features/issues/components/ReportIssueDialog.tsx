@@ -98,7 +98,7 @@ export function ReportIssueDialog({
   return (
     <Dialog open={open} onOpenChange={(next) => { setOpen(next); if (!next) setError(null); }}>
       <DialogTrigger asChild>
-        <Button className="rounded-xl">Report issue</Button>
+        <Button>Report issue</Button>
       </DialogTrigger>
       <DialogContent className="max-h-[90vh] overflow-y-auto sm:max-w-lg">
         <DialogHeader>
@@ -150,13 +150,13 @@ export function ReportIssueDialog({
             <Input id="issue-file" type="file" onChange={(e) => setFile(e.target.files?.[0] ?? null)} />
           </div>
           {error && (
-            <p role="alert" className="rounded-lg border border-destructive/30 bg-destructive/5 px-3 py-2 text-xs text-destructive">
+            <p role="alert" className="rounded-lg border border-destructive/30 bg-destructive/5 px-3 py-2 text-xs text-destructive-strong">
               {error}
             </p>
           )}
         </div>
         <DialogFooter>
-          <Button className="rounded-xl" disabled={!canSubmit || submitting} onClick={() => void submit()}>
+          <Button disabled={!canSubmit || submitting} onClick={() => void submit()}>
             {submitting ? "Submitting…" : "Submit issue"}
           </Button>
         </DialogFooter>

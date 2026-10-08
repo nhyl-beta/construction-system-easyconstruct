@@ -22,7 +22,7 @@ export default function FinanceAiReviewPage() {
       />
       <PageContent className="space-y-6 p-4 md:p-8">
         {c.error && (
-          <div className="rounded-xl border border-destructive/30 bg-destructive/5 p-3 text-sm text-destructive">
+          <div className="rounded-xl border border-destructive/30 bg-destructive/5 p-3 text-sm text-destructive-strong">
             Failed to load insights: {c.error}
           </div>
         )}
@@ -41,15 +41,15 @@ export default function FinanceAiReviewPage() {
             </div>
           ) : (
             c.insights.map((i) => (
-              <Card key={i.id} className="rounded-2xl">
+              <Card key={i.id}>
                 <CardContent className="space-y-3 p-4">
                   <div className="flex items-center justify-between">
-                    <div className="flex items-center gap-2 text-[10px] uppercase tracking-wide text-primary">
+                    <div className="flex items-center gap-2 text-overline uppercase tracking-wide text-primary-strong">
                       <Sparkles className="h-3 w-3" /> {i.category}
                     </div>
                     <Badge
                       variant="outline"
-                      className="rounded-full text-[10px]"
+                      className="rounded-full text-overline"
                     >
                       {(i.confidence * 100).toFixed(0)}% confidence
                     </Badge>
@@ -61,13 +61,13 @@ export default function FinanceAiReviewPage() {
                     </p>
                   </div>
                   <div className="space-y-1">
-                    <div className="text-[10px] uppercase tracking-wide text-muted-foreground">
+                    <div className="text-overline uppercase tracking-wide text-muted-foreground">
                       Confidence
                     </div>
                     <Progress value={i.confidence * 100} className="h-1.5" />
                   </div>
                   <div>
-                    <div className="mb-1 text-[10px] uppercase tracking-wide text-muted-foreground">
+                    <div className="mb-1 text-overline uppercase tracking-wide text-muted-foreground">
                       Impact
                     </div>
                     <p className="text-xs text-muted-foreground">{i.impact}</p>
@@ -76,7 +76,7 @@ export default function FinanceAiReviewPage() {
                     <Button
                       size="sm"
                       variant="outline"
-                      className="h-7 rounded-lg text-xs"
+                      className="h-7 text-xs"
                       onClick={() => c.acknowledge(i.id)}
                     >
                       Acknowledge
@@ -84,7 +84,7 @@ export default function FinanceAiReviewPage() {
                     <Button
                       size="sm"
                       variant="ghost"
-                      className="h-7 rounded-lg text-xs"
+                      className="h-7 text-xs"
                       onClick={() => c.dismiss(i.id)}
                     >
                       Dismiss
@@ -110,10 +110,10 @@ export default function FinanceAiReviewPage() {
                 <ShieldAlert
                   className={`mt-0.5 h-4 w-4 ${
                     r.level === "critical"
-                      ? "text-destructive"
+                      ? "text-destructive-strong"
                       : r.level === "high"
-                      ? "text-warning"
-                      : "text-success"
+                      ? "text-warning-strong"
+                      : "text-success-strong"
                   }`}
                 />
                 <div className="min-w-0 flex-1">

@@ -43,10 +43,10 @@ function RevisionEntry({ r }: { r: ProjectRevision }) {
         <span className="inline-flex items-center gap-1 font-mono text-xs font-medium">
           {r.parentVersion ?? "new"} <ArrowRight className="h-3 w-3 text-muted-foreground" /> {r.version}
         </span>
-        <span className="text-[11px] text-muted-foreground">Rev {r.revisionNumber}</span>
+        <span className="text-overline text-muted-foreground">Rev {r.revisionNumber}</span>
         <StatusBadge status={r.status} />
         {r.isDemo && (
-          <Badge variant="outline" className="rounded-full border-dashed text-[10px] font-normal text-muted-foreground">
+          <Badge variant="outline" className="rounded-full border-dashed text-overline font-normal text-muted-foreground">
             Demo data
           </Badge>
         )}
@@ -59,7 +59,7 @@ function RevisionEntry({ r }: { r: ProjectRevision }) {
         <button
           type="button"
           onClick={() => setOpen((o) => !o)}
-          className="mt-0.5 inline-flex items-center gap-0.5 text-[11px] text-primary hover:underline"
+          className="mt-0.5 inline-flex items-center gap-0.5 text-overline text-primary-strong hover:underline"
           aria-expanded={open}
         >
           {open ? (
@@ -73,7 +73,7 @@ function RevisionEntry({ r }: { r: ProjectRevision }) {
           )}
         </button>
       )}
-      <p className="mt-1 text-[11px] text-muted-foreground">
+      <p className="mt-1 text-overline text-muted-foreground">
         {r.createdBy} ·{" "}
         <time dateTime={r.createdAt ?? undefined} title={absolute(r.createdAt)}>
           {relative(r.createdAt)}
@@ -146,7 +146,7 @@ export function ProjectRevisionsPanel({ projectCode, projectStatus }: { projectC
     body = <p className="text-sm text-muted-foreground">Loading revisions…</p>;
   } else if (error && revisions.length === 0) {
     body = (
-      <div role="alert" className="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-destructive/30 bg-destructive/5 p-3 text-sm text-destructive">
+      <div role="alert" className="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-destructive/30 bg-destructive/5 p-3 text-sm text-destructive-strong">
         <span>{error}</span>
         <Button size="sm" variant="outline" onClick={refetch}>
           Retry
@@ -165,7 +165,7 @@ export function ProjectRevisionsPanel({ projectCode, projectStatus }: { projectC
         description={copy.description}
         action={
           canGenerate && !proposalPhase ? (
-            <Button size="sm" variant="outline" className="rounded-xl" disabled={generating} onClick={() => setConfirming(true)}>
+            <Button size="sm" variant="outline" disabled={generating} onClick={() => setConfirming(true)}>
               <Wand2 className="mr-1 h-3.5 w-3.5" /> {generating ? "Generating…" : "Generate demo revisions"}
             </Button>
           ) : undefined
@@ -182,8 +182,8 @@ export function ProjectRevisionsPanel({ projectCode, projectStatus }: { projectC
             ["Awaiting approval", String(summary?.awaitingApproval ?? 0)],
             ["Last change", relative(summary?.latestChangeAt ?? null)],
           ].map(([label, value]) => (
-            <div key={label} className="rounded-xl border border-border/70 px-3 py-2">
-              <dt className="text-[11px] text-muted-foreground">{label}</dt>
+            <div key={label} className="rounded-xl border border-border px-3 py-2">
+              <dt className="text-overline text-muted-foreground">{label}</dt>
               <dd className="text-sm font-semibold" title={label === "Last change" ? absolute(summary?.latestChangeAt ?? null) : undefined}>
                 {value}
               </dd>
@@ -193,7 +193,7 @@ export function ProjectRevisionsPanel({ projectCode, projectStatus }: { projectC
 
         <div className="flex flex-wrap items-center gap-2" role="group" aria-label="Filter revisions">
           <Select value={designFilter} onValueChange={setDesignFilter}>
-            <SelectTrigger aria-label="Filter by design" className="h-8 w-56 rounded-lg text-xs">
+            <SelectTrigger aria-label="Filter by design" className="h-8 w-56 text-xs">
               <SelectValue />
             </SelectTrigger>
             <SelectContent>
@@ -206,7 +206,7 @@ export function ProjectRevisionsPanel({ projectCode, projectStatus }: { projectC
             </SelectContent>
           </Select>
           <Select value={statusFilter} onValueChange={setStatusFilter}>
-            <SelectTrigger aria-label="Filter by status" className="h-8 w-40 rounded-lg text-xs">
+            <SelectTrigger aria-label="Filter by status" className="h-8 w-40 text-xs">
               <SelectValue />
             </SelectTrigger>
             <SelectContent>
@@ -218,7 +218,7 @@ export function ProjectRevisionsPanel({ projectCode, projectStatus }: { projectC
               ))}
             </SelectContent>
           </Select>
-          {error && <span role="alert" className="text-xs text-destructive">{error}</span>}
+          {error && <span role="alert" className="text-xs text-destructive-strong">{error}</span>}
         </div>
 
         {groups.length === 0 ? (
@@ -228,7 +228,7 @@ export function ProjectRevisionsPanel({ projectCode, projectStatus }: { projectC
             <section key={designId} aria-label={`${g.name} revisions`}>
               <h3 className="mb-2 flex flex-wrap items-baseline gap-2 text-sm font-medium">
                 {g.name}
-                <span className="font-mono text-[11px] font-normal text-muted-foreground">
+                <span className="font-mono text-overline font-normal text-muted-foreground">
                   {g.code}
                   {g.discipline ? ` · ${g.discipline}` : ""}
                 </span>

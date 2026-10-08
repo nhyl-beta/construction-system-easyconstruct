@@ -38,10 +38,10 @@ import { formatDue } from "@/features/projects/lib/project-format";
 
 const STATUS_TONE: Record<MilestoneStatus, string> = {
   draft: "bg-muted text-muted-foreground border-border",
-  active: "bg-info/10 text-info border-info/20",
-  "at-risk": "bg-warning/15 text-warning border-warning/30",
-  completed: "bg-success/10 text-success border-success/20",
-  cancelled: "bg-destructive/10 text-destructive border-destructive/20",
+  active: "bg-info/10 text-info-strong border-info/20",
+  "at-risk": "bg-warning/15 text-warning-strong border-warning/30",
+  completed: "bg-success/10 text-success-strong border-success/20",
+  cancelled: "bg-destructive/10 text-destructive-strong border-destructive/20",
 };
 
 interface MilestonesPanelProps {
@@ -69,13 +69,13 @@ export function MilestonesPanel({ projectCode, canManage }: MilestonesPanelProps
           </p>
         </div>
         {canManage && (
-          <Button size="sm" className="rounded-xl" onClick={() => setDialogOpen(true)}>
+          <Button size="sm" onClick={() => setDialogOpen(true)}>
             <Plus className="h-3.5 w-3.5" /> Draft milestone
           </Button>
         )}
       </div>
 
-      {error && <p className="text-sm text-destructive">{error}</p>}
+      {error && <p className="text-sm text-destructive-strong">{error}</p>}
 
       {loading ? (
         <p className="text-sm text-muted-foreground">Loading…</p>
@@ -93,7 +93,7 @@ export function MilestonesPanel({ projectCode, canManage }: MilestonesPanelProps
                   <span className="font-medium">{m.title}</span>
                   <Badge
                     variant="outline"
-                    className={`rounded-full px-2 py-0.5 text-[10px] capitalize ${STATUS_TONE[m.status]}`}
+                    className={`rounded-full px-2 py-0.5 text-overline capitalize ${STATUS_TONE[m.status]}`}
                   >
                     {m.status.replace("-", " ")}
                   </Badge>
@@ -119,7 +119,7 @@ export function MilestonesPanel({ projectCode, canManage }: MilestonesPanelProps
                   <Button
                     variant="ghost"
                     size="icon"
-                    className="h-8 w-8 rounded-lg"
+                    className="h-8 w-8"
                     disabled={saving}
                     title="Edit milestone"
                     onClick={() => setEditingMilestone(m)}
@@ -129,7 +129,7 @@ export function MilestonesPanel({ projectCode, canManage }: MilestonesPanelProps
                   <Button
                     variant="ghost"
                     size="icon"
-                    className="h-8 w-8 rounded-lg text-destructive hover:text-destructive"
+                    className="h-8 w-8 text-destructive-strong hover:text-destructive-strong"
                     disabled={saving}
                     title="Delete"
                     onClick={() => void remove(m.id)}
@@ -332,7 +332,7 @@ function NewMilestoneDialog({
         </DialogHeader>
 
         <div className="space-y-4 py-1">
-          {formError && <p className="text-sm text-destructive">{formError}</p>}
+          {formError && <p className="text-sm text-destructive-strong">{formError}</p>}
 
           <div className="grid gap-1.5">
             <Label htmlFor="ms-title">Title</Label>

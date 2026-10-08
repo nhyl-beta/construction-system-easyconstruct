@@ -11,7 +11,7 @@ export function StatusBadge({ label, toneClass, size = "md" }: StatusBadgeProps)
     <Badge
       variant="outline"
       className={`rounded-full font-medium ${toneClass} ${
-        size === "sm" ? "px-2 py-0.5 text-[10px]" : "px-2.5 py-0.5 text-[11px]"
+        size === "sm" ? "px-2 py-0.5 text-overline" : "px-2.5 py-0.5 text-overline"
       }`}
     >
       {label}

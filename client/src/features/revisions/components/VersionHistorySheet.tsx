@@ -62,7 +62,7 @@ export function VersionHistorySheet({
 
           <div className="space-y-4 px-4 pb-6">
             {onNewVersion && item && head && (
-              <Button size="sm" className="rounded-xl" onClick={() => onNewVersion(item, head.projectCode)}>
+              <Button size="sm" onClick={() => onNewVersion(item, head.projectCode)}>
                 <Plus className="h-3.5 w-3.5" /> New version
               </Button>
             )}
@@ -72,7 +72,7 @@ export function VersionHistorySheet({
               </div>
             )}
             {h.error && (
-              <div role="alert" className="space-y-2 rounded-lg border border-destructive/30 bg-destructive/5 p-3 text-sm text-destructive">
+              <div role="alert" className="space-y-2 rounded-lg border border-destructive/30 bg-destructive/5 p-3 text-sm text-destructive-strong">
                 <p>{h.error}</p>
                 <Button size="sm" variant="outline" onClick={() => void h.reload()}>
                   Retry
@@ -90,7 +90,7 @@ export function VersionHistorySheet({
                 </span>
                 <Button
                   size="sm"
-                  className="h-7 rounded-lg text-xs"
+                  className="h-7 text-xs"
                   disabled={selected.length !== 2}
                   onClick={() => setComparing([selected[0]!, selected[1]!])}
                 >

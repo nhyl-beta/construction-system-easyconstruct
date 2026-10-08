@@ -75,7 +75,7 @@ export function PlanSetsSection({ projectCode }: { projectCode: string }) {
       {loading && sets.length === 0 ? (
         <p className="text-sm text-muted-foreground">Loading plan sets…</p>
       ) : error ? (
-        <div role="alert" className="flex items-center justify-between gap-3 text-sm text-destructive">
+        <div role="alert" className="flex items-center justify-between gap-3 text-sm text-destructive-strong">
           <span>{error}</span>
           <Button size="sm" variant="outline" onClick={load}>Retry</Button>
         </div>
@@ -88,7 +88,7 @@ export function PlanSetsSection({ projectCode }: { projectCode: string }) {
               <div className="flex flex-wrap items-center justify-between gap-2">
                 <div>
                   <h4 className="text-sm font-semibold">{d.discipline}</h4>
-                  <p className="text-[11px] text-muted-foreground">
+                  <p className="text-overline text-muted-foreground">
                     Lead: {d.leadName ?? "not assigned"} · Sheets: {d.sheetRange || "—"}
                   </p>
                 </div>
@@ -145,7 +145,7 @@ export function PlanSetsSection({ projectCode }: { projectCode: string }) {
                         <Button
                           size="sm"
                           variant="outline"
-                          className="h-8 rounded-lg px-2 text-xs"
+                          className="h-8 px-2 text-xs"
                           disabled={sheetDraft[d.id] === undefined || sheetDraft[d.id] === (d.sheetRange ?? "")}
                           onClick={() => void change(d.id, { sheetRange: sheetDraft[d.id] ?? "" }, "Sheet range saved")}
                         >
@@ -156,7 +156,7 @@ export function PlanSetsSection({ projectCode }: { projectCode: string }) {
                   )}
                 </div>
               )}
-              {!canWrite && <Badge variant="outline" className="rounded-full text-[10px]">{DELIVERABLE_STATUS_LABEL[d.status]}</Badge>}
+              {!canWrite && <Badge variant="outline" className="rounded-full text-overline">{DELIVERABLE_STATUS_LABEL[d.status]}</Badge>}
 
               <div className="grid grid-cols-1 gap-3 text-xs sm:grid-cols-2">
                 <div>
@@ -189,7 +189,7 @@ export function PlanSetsSection({ projectCode }: { projectCode: string }) {
                           <Link to={`/requests?open=${r.id}`} className="font-mono hover:underline">
                             {r.number}
                           </Link>{" "}
-                          <span className={r.overdue ? "text-red-600 dark:text-red-400" : "text-muted-foreground"}>
+                          <span className={r.overdue ? "text-destructive-strong" : "text-muted-foreground"}>
                             {r.dueDate ? `· due ${formatDate(r.dueDate)}` : "· draft"}
                             {r.overdue ? " · overdue" : ""}
                           </span>

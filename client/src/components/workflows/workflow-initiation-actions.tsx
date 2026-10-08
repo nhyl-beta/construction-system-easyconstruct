@@ -189,7 +189,7 @@ export function WorkflowInitiationActions({
             <Button
               size="sm"
               variant={action.variant ?? "default"}
-              className="rounded-xl"
+             
               onClick={() => setOpenTemplate(action.templateName)}
             >
               <Icon className="h-4 w-4" />
