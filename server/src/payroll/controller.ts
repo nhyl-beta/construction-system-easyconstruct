@@ -6,6 +6,7 @@ import { logAudit } from "../utils/audit.js";
 import type { AuthedRequest } from "../middleware/auth.js";
 import { ValidationError } from "../utils/errors.js";
 import * as service from "./service.js";
+import * as ownerSummaryService from "./owner-summary.service.js";
 import type { PayrollFilters } from "./types.js";
 
 const actorOf = (req: AuthedRequest): service.Actor => ({
@@ -188,6 +189,17 @@ export const contributionReport = async (req: Request, res: Response, next: Next
       throw new ValidationError("agency must be sss, philhealth or pagibig");
     if (!period) throw new ValidationError("period is required");
     res.json(formatSuccess(await service.contributionReport(agency, period), "Contribution report"));
+  } catch (err) {
+    next(err);
+  }
+};
+
+// Owner dashboard: aggregate-only payroll summary (no employee data). Viewing
+// is deliberately not audit-logged.
+export const getOwnerSummary = async (req: Request, res: Response, next: NextFunction) => {
+  try {
+    const data = await ownerSummaryService.getOwnerSummary(req.query.months);
+    res.json(formatSuccess(data, "Payroll summary retrieved"));
   } catch (err) {
     next(err);
   }
