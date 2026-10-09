@@ -1,3 +1,4 @@
+import { useDebouncedValue } from "@/hooks/use-debounced-value";
 import {
   useCallback,
   useEffect,
@@ -71,6 +72,7 @@ export const useProposalsController = () => {
 
   const [query, setQuery] =
     useState("");
+  const debouncedQuery = useDebouncedValue(query.trim(), 300);
 
   const [status, setStatus] =
     useState("all");
@@ -88,10 +90,10 @@ export const useProposalsController = () => {
         const params =
           new URLSearchParams();
 
-        if (query.trim()) {
+        if (debouncedQuery) {
           params.set(
             "search",
-            query.trim(),
+            debouncedQuery,
           );
         }
 
@@ -121,7 +123,7 @@ export const useProposalsController = () => {
       } finally {
         setLoading(false);
       }
-    }, [query, status]);
+    }, [debouncedQuery, status]);
 
   useEffect(() => {
     void loadProposals();

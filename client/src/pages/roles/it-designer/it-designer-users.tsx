@@ -11,19 +11,18 @@ import { PageHeader } from "@/components/refine-ui/views/page-header";
 import { ConfirmDialog } from "@/components/ui/confirm-dialog";
 import { UserAccountDialog } from "@/components/users/user-account-dialog";
 import { DataTablePagination } from "@/components/refine-ui/data-table/data-table-pagination";
-import { usePagination } from "@/hooks/use-pagination";
 import { useRoles } from "@/features/roles/hooks/useRoles";
-import { useUsers } from "@/features/users/hooks/use-users";
+import { useUsersPaged } from "@/features/users/hooks/use-users-paged";
 import { StaffingGapsCard } from "@/features/project-members/components/StaffingGapsCard";
 import type { PublicUser } from "@/features/users/repositories/user.repository";
 
 export default function ITDesignerUsersPage() {
-  const { users, loading, error, create, update, setPassword, setActive, remove } =
-    useUsers();
-  const { roles } = useRoles();
-
-  const [search, setSearch] = useState("");
   const [roleFilter, setRoleFilter] = useState<string | null>(null);
+  const { list, create, update, setPassword, setActive, remove } = useUsersPaged(roleFilter);
+  const { roles } = useRoles();
+  const { loading, error: loadError, searchInput: search, setSearchInput: setSearch } = list;
+  const error = loadError;
+  const users = list.pageItems;
   const [dialogOpen, setDialogOpen] = useState(false);
   const [editing, setEditing] = useState<PublicUser | null>(null);
   const [statusError, setStatusError] = useState<string | null>(null);
@@ -55,21 +54,8 @@ export default function ITDesignerUsersPage() {
     return map;
   }, [roles]);
 
-  const filtered = useMemo(() => {
-    return users.filter((user) => {
-      if (roleFilter && user.role !== roleFilter) return false;
-      if (search) {
-        const term = search.toLowerCase();
-        const haystack = `${user.name} ${user.email} ${user.role}`.toLowerCase();
-        if (!haystack.includes(term)) return false;
-      }
-      return true;
-    });
-  }, [users, roleFilter, search]);
-
-  // Was the full, unpaginated list — fine for a handful of demo accounts,
-  // unusable once real org rosters land here.
-  const pagination = usePagination(filtered, 10);
+  const pagination = list;
+  const filtered = users;
 
   const openCreate = () => {
     setEditing(null);
@@ -130,7 +116,7 @@ export default function ITDesignerUsersPage() {
               className={`cursor-pointer rounded-full text-overline ${roleFilter === null ? "border-primary text-primary-strong" : ""}`}
               onClick={() => setRoleFilter(null)}
             >
-              All ({users.length})
+              All{roleFilter === null ? ` (${list.total})` : ""}
             </Badge>
             {roles.map((role) => (
               <Badge
@@ -170,7 +156,7 @@ export default function ITDesignerUsersPage() {
           <div className="flex flex-col items-center justify-center gap-2 rounded-xl border border-dashed border-border bg-muted/50 px-6 py-12 text-center">
             <UsersRound className="h-5 w-5 text-muted-foreground" />
             <p className="text-sm text-muted-foreground">
-              {users.length === 0 ? "No accounts yet." : "No accounts match your filters."}
+              {!list.search && !roleFilter ? "No accounts yet." : "No accounts match your filters."}
             </p>
           </div>
         )}

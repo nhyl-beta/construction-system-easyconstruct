@@ -1,3 +1,4 @@
+import { useDebouncedValue } from "@/hooks/use-debounced-value";
 import { useEffect, useMemo, useState } from "react";
 import { apiClient } from "@/services/api.client";
 import type { Design } from "../types/design.types";
@@ -6,6 +7,7 @@ export const useDesignsController = () => {
   const [designs, setDesigns] = useState<Design[]>([]);
   const [loading, setLoading] = useState(true);
   const [query, setQuery] = useState("");
+  const debouncedQuery = useDebouncedValue(query.trim(), 300);
   const [status, setStatus] = useState("all");
 
   useEffect(() => {
@@ -13,7 +15,7 @@ export const useDesignsController = () => {
     setLoading(true);
 
     const params = new URLSearchParams();
-    if (query) params.set("search", query);
+    if (debouncedQuery) params.set("search", debouncedQuery);
     if (status !== "all") params.set("status", status);
 
     apiClient
@@ -25,7 +27,7 @@ export const useDesignsController = () => {
       .finally(() => setLoading(false));
 
     return () => controller.abort();
-  }, [query, status]);
+  }, [debouncedQuery, status]);
 
   const kpis = useMemo(() => {
     const total = designs.length;

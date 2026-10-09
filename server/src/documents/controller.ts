@@ -36,7 +36,8 @@ export const getAll = async (
     if (paging.requested) {
       const search = typeof req.query.search === "string" && req.query.search.trim() ? req.query.search.trim() : undefined;
       const { items, meta } = await service.getPage({ ...filters, search }, paging);
-      return sendPaged(res, items, MSG.documents.retrieved, meta);
+      const typeCounts = req.query.counts === "1" ? await service.typeCounts(filters) : undefined;
+      return sendPaged(res, items, MSG.documents.retrieved, typeCounts ? { ...meta, typeCounts } : meta);
     }
     const data = await service.getAll(filters);
 

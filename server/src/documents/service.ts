@@ -17,6 +17,8 @@ export const getAll = async (
   return repo.findAll(filters);
 };
 
+export const typeCounts = (filters: DocumentFilters) => repo.typeCounts(filters);
+
 export const getPage = async (filters: DocumentFilters, request: PageRequest) =>
   paginate(
     request,

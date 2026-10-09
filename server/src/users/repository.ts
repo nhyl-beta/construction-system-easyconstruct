@@ -27,7 +27,7 @@ const userConditions = (filters: UserFilters): SQL[] => {
   if (filters.role) conditions.push(eq(users.role, filters.role));
   if (filters.search) {
     const s = `%${filters.search}%`;
-    conditions.push(or(ilike(users.name, s), ilike(users.email, s))!);
+    conditions.push(or(ilike(users.name, s), ilike(users.email, s), ilike(users.role, s))!);
   }
   return conditions;
 };

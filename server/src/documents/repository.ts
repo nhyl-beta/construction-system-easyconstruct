@@ -1,5 +1,5 @@
 // server/src/documents/repository.ts — NEW
-import { and, desc, eq, ilike, or, SQL } from "drizzle-orm";
+import { and, desc, eq, ilike, or, sql, SQL } from "drizzle-orm";
 import { countRows, inCodes, selectPage } from "../db/paged.js";
 import { db } from "../db/connection.js";
 import { documents } from "../db/schema/documents.js";
@@ -36,6 +36,18 @@ export const defaultDocumentOrder = [desc(documents.createdAt), desc(documents.i
 export const countFiltered = async (filters: DocumentFilters = {}) => {
   const conditions = buildConditions(filters);
   return countRows(documents, conditions.length ? and(...conditions) : undefined);
+};
+
+/** Documents per type inside a scope (the folder cards), ignoring the search and type picked on screen. */
+export const typeCounts = async (filters: DocumentFilters = {}) => {
+  const conditions = buildConditions({ ...filters, type: undefined, search: undefined });
+  const rows = await db
+    .select({ type: documents.type, count: sql<number>`count(*)::int` })
+    .from(documents)
+    .where(conditions.length ? and(...conditions) : undefined)
+    .groupBy(documents.type)
+    .orderBy(documents.type);
+  return rows.map((r) => ({ type: r.type, count: r.count }));
 };
 
 export const findPage = async (filters: DocumentFilters, window: { limit: number; offset: number }, orderBy: SQL[]) => {

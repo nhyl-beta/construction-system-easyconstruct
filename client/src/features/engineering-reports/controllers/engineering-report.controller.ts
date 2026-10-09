@@ -1,3 +1,4 @@
+import { useDebouncedValue } from "@/hooks/use-debounced-value";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import type {
   CreateEngineeringReportInput,
@@ -13,12 +14,13 @@ export function useEngineeringReportsController(scope: Scope = "all") {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<Error | null>(null);
   const [search, setSearch] = useState("");
+  const debouncedSearch = useDebouncedValue(search.trim(), 300);
 
   const load = useCallback(async () => {
     setLoading(true);
     setError(null);
     try {
-      const all = await EngineeringReportService.fetchAll({ search });
+      const all = await EngineeringReportService.fetchAll({ search: debouncedSearch });
       setReports(all);
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     } catch (err: any) {
@@ -26,7 +28,7 @@ export function useEngineeringReportsController(scope: Scope = "all") {
     } finally {
       setLoading(false);
     }
-  }, [search]);
+  }, [debouncedSearch]);
 
   useEffect(() => {
     load();

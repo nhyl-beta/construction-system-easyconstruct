@@ -49,6 +49,8 @@ export interface PageMeta {
   /** Same as `limit`, kept for the lists that predate this helper. */
   pageSize: number;
   pages: number;
+  /** Additive, endpoint-specific extras (headline counts, breakdowns…). */
+  [extra: string]: unknown;
 }
 
 type Query = Record<string, unknown>;
