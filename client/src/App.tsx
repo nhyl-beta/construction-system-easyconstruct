@@ -57,6 +57,7 @@ import ArchitectProjects from "./pages/roles/architect/architect-projects";
 import ArchitectProposals from "./pages/roles/architect/architect-proposals";
 import ArchitectRevisions from "./pages/roles/architect/architect-revisions";
 import SharedRequests from "./pages/roles/shared/shared-requests";
+import SharedClaims from "./pages/roles/shared/shared-claims";
 import SharedTransmittals from "./pages/roles/shared/shared-transmittals";
 import { RequestPrintPage, TransmittalPrintPage } from "./pages/roles/shared/print-pages";
 import { AttentionCard } from "./features/requests/components/AttentionCard";
@@ -302,6 +303,15 @@ function App() {
                   <Route path="/blueprints" element={<ArchitectBlueprints />} />
                   {/* RFI / RFA requests and transmittal cover sheets; every list is project-scoped on the server. */}
                   <Route path="/requests" element={<SharedRequests />} />
+                  {/* Reimbursement claims: the claimant's own. Finance works them on Expense Management. */}
+                  <Route
+                    path="/my-claims"
+                    element={
+                      <RequireRole allow={["engineer", "site_personnel", "project_manager", "architect", "human_resources"]}>
+                        <SharedClaims />
+                      </RequireRole>
+                    }
+                  />
                   <Route path="/transmittals" element={<SharedTransmittals />} />
 
                   {/* ── Engineer Routes ── */}
