@@ -38,10 +38,12 @@ const DELETE_ORDER = [
   "proposals", "workflows",
   "budget_adjustments", "budget_allocations", "budget_approval_steps", "budget_comments",
   "budget_documents", "budget_history", "budgets",
+  // Purchasing first: purchase_requests.requirement_id references requirements.
+  "procurement_orders", "purchase_requests", "reimbursements",
   "milestone_links", "milestones", "tasks", "issues", "requirements",
   "architect_documents", "blueprints", "design_reviews", "design_revisions", "design_engineers", "designs",
   "revisions", "engineering_reports", "documents", "expenses", "financial_risks", "cash_flow_entries",
-  "ai_insights", "approvals_queue", "procurement_orders", "purchase_requests", "reimbursements",
+  "ai_insights", "approvals_queue",
   "scheduled_reports", "payroll", "payroll_batch_decisions", "payroll_batches", "attendance",
   "transmittal_acknowledgements", "transmittal_items", "transmittals", "design_request_files", "design_requests",
   "project_deliverables",
