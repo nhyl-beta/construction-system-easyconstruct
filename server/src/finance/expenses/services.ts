@@ -7,11 +7,8 @@ import type { CreateExpenseInput, ListExpensesQuery } from "./types.js";
 import { scoreExpense } from "./anomaly.js";
 import { FEATURES } from "../../config/features.js";
 import { db } from "../../db/connection.js";
-import { budgets } from "../../db/schema/finance.js";
-import { and, desc, eq, sql } from "drizzle-orm";
 import { assertDecidable, budgetOutcome } from "./decision.js";
-import { monthKey } from "../cash-flow/months.js";
-import { refreshMonth } from "../cash-flow/service.js";
+import { applyApprovedSpend } from "../purchasing/booking.js";
 
 /** Scores one expense against every other expense (decision support; never blocks). */
 async function scoreAndStore(id: string) {
@@ -20,6 +17,24 @@ async function scoreAndStore(id: string) {
   if (!candidate) return;
   const { score, reasons } = scoreExpense(candidate, all);
   await expensesRepository.setAnomaly(id, score, reasons.length ? reasons.join("; ") : null);
+}
+
+/**
+ * After a payment created an expense: score it and attach `extraReasons`
+ * (invoice variance, duplicate claim). Runs after the payment committed, and a
+ * failure here must never fail or undo the payment.
+ */
+export async function annotateSpendExpense(id: string, extraReasons: string[]): Promise<void> {
+  try {
+    if (FEATURES.ai) await scoreAndStore(id);
+    if (extraReasons.length === 0) return;
+    const row = await expensesRepository.findById(id);
+    if (!row) return;
+    const reasons = [row.anomalyReason, ...extraReasons].filter(Boolean).join("; ");
+    await expensesRepository.setAnomaly(id, Math.max(row.anomalyScore ?? 0, 0.4), reasons);
+  } catch (e) {
+    console.error("[expenses] annotating a paid expense failed", e);
+  }
 }
 
 export const expensesService = {
@@ -93,20 +108,14 @@ export const expensesService = {
         assertDecidable(id, current.status);
         throw new NotFoundError("Expense", id);
       }
-      const [budget] = await tx
-        .select({ id: budgets.id })
-        .from(budgets)
-        .where(and(eq(budgets.project, decided.project), eq(budgets.category, decided.category)))
-        .orderBy(desc(budgets.createdAt))
-        .limit(1);
-      if (budget) {
-        await tx
-          .update(budgets)
-          .set({ actual: sql`${budgets.actual} + ${decided.amount}`, updatedAt: new Date() })
-          .where(eq(budgets.id, budget.id));
-      }
-      await refreshMonth(monthKey(decided.submittedAt), tx);
-      return { row: decided, matched: budget != null };
+      // Shared with order and claim payment: one place books actual + cash flow.
+      const { matched } = await applyApprovedSpend(tx, {
+        project: decided.project,
+        category: decided.category,
+        amount: decided.amount,
+        at: decided.submittedAt,
+      });
+      return { row: decided, matched };
     });
     return { ...row, ...budgetOutcome(matched) };
   },

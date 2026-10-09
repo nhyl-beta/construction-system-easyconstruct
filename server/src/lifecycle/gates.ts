@@ -490,7 +490,28 @@ export const noOpenRequestsCheck = (s: LifecycleSnapshot, key: string): GateChec
 
 const x5 = (s: LifecycleSnapshot): GateCheck => noOpenRequestsCheck(s, "X5");
 
-const evaluateCloseout = (s: LifecycleSnapshot): GateCheck[] => [x1(s), x2(s), x3(s), x4(s), x5(s)];
+// Money still in flight blocks closing: a purchase request waiting or approved but
+// not yet ordered, an order not yet paid or cancelled, a reimbursement claim not
+// yet paid or turned down. `unsettledPurchasing` is the ids, listed by the snapshot
+// loader with the rules in finance/purchasing/rules.ts.
+export const noUnsettledPurchasingCheck = (s: LifecycleSnapshot, key: string): GateCheck => {
+  const open = s.unsettledPurchasing ?? [];
+  return {
+    key,
+    label: "No unsettled procurement or reimbursement",
+    ownerRoles: ["project-manager", "admin", "finance-manager"],
+    passed: open.length === 0,
+    detail:
+      open.length === 0
+        ? "Every purchase request, order and claim is settled"
+        : `${open.length} unsettled: ${open.slice(0, 3).join(", ")}${open.length > 3 ? "…" : ""}`,
+    link: "/expenses",
+  };
+};
+
+const x6 = (s: LifecycleSnapshot): GateCheck => noUnsettledPurchasingCheck(s, "X6");
+
+const evaluateCloseout = (s: LifecycleSnapshot): GateCheck[] => [x1(s), x2(s), x3(s), x4(s), x5(s), x6(s)];
 
 // ── Design delivery (plan sets only) ──────────────────────────────────────
 //
@@ -585,7 +606,13 @@ const t3 = (s: LifecycleSnapshot): GateCheck => {
   };
 };
 
-const evaluateDesignDeliveryTurnover = (s: LifecycleSnapshot): GateCheck[] => [t1(s), t2(s), t3(s), noOpenRequestsCheck(s, "T4")];
+const evaluateDesignDeliveryTurnover = (s: LifecycleSnapshot): GateCheck[] => [
+  t1(s),
+  t2(s),
+  t3(s),
+  noOpenRequestsCheck(s, "T4"),
+  noUnsettledPurchasingCheck(s, "T5"),
+];
 
 const evaluateDesignDelivery = (phase: SequencedPhase, s: LifecycleSnapshot): GateCheck[] => {
   switch (phase) {

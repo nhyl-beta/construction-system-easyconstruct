@@ -14,7 +14,7 @@ import {
   uniqueIndex,
   varchar,
 } from "drizzle-orm/pg-core";
-import { requirements } from "./requirements.js";
+import { requirements, type RequirementAttachment } from "./requirements.js";
 
 export const budgetStatusEnum = pgEnum("budget_status", [
   "draft",
@@ -173,12 +173,8 @@ export const reimbursements = pgTable("reimbursements", {
   updatedAt: timestamp("updated_at").defaultNow(),
 });
 
-export interface ClaimAttachment {
-  name: string;
-  url: string;
-  size?: number | null;
-  type?: string | null;
-}
+// Receipts use the requirement attachment shape (files go through POST /api/uploads).
+export type ClaimAttachment = RequirementAttachment;
 
 // ── Procurement orders ─────────────────────────────────────────────────────
 export const procurementOrders = pgTable("procurement_orders", {

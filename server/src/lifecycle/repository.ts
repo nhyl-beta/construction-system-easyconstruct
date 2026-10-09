@@ -32,6 +32,8 @@ import { validationResults } from "../db/schema/ai-validation.js";
 import { findOpenByProjects as findOpenRequests } from "../design-requests/repository.js";
 import { projectDeliverables } from "../db/schema/project-deliverables.js";
 import { DESIGN_TURNOVER_TEMPLATE_NAME } from "./delivery.js";
+import { procurementOrders, purchaseRequests, reimbursements } from "../db/schema/finance.js";
+import { unsettledIds } from "../finance/purchasing/rules.js";
 
 // Gate X4 needs to know which workflows were raised from the "Project
 // Closeout" template (H3) without gates.ts — a pure-function module — ever
@@ -129,6 +131,20 @@ export const loadSnapshots = async (projectCodes: string[]) => {
           .from(workflowTemplates)
           .where(inArray(workflowTemplates.name, [DESIGN_TURNOVER_TEMPLATE_NAME, CLOSEOUT_TEMPLATE_NAME])),
       ]);
+
+  // Closeout / Turnover gate: purchase requests, orders and claims that are
+  // still in flight. Only id, project and status are read.
+  type StatusRow = { id: string; project: string | null; status: string };
+  const [requestStatusRows, orderStatusRows, claimStatusRows]: [StatusRow[], StatusRow[], StatusRow[]] = empty
+    ? [[], [], []]
+    : await Promise.all([
+        db.select({ id: purchaseRequests.id, project: purchaseRequests.project, status: purchaseRequests.status }).from(purchaseRequests).where(inArray(purchaseRequests.project, found)),
+        db.select({ id: procurementOrders.id, project: procurementOrders.project, status: procurementOrders.status }).from(procurementOrders).where(inArray(procurementOrders.project, found)),
+        db.select({ id: reimbursements.id, project: reimbursements.project, status: reimbursements.status }).from(reimbursements).where(inArray(reimbursements.project, found)),
+      ]);
+  const purchaseRequestsBy = groupBy(requestStatusRows, (r) => r.project);
+  const ordersBy = groupBy(orderStatusRows, (r) => r.project);
+  const claimsBy = groupBy(claimStatusRows, (r) => r.project);
 
   const turnoverTemplate = templateRows.find((t) => t.name === DESIGN_TURNOVER_TEMPLATE_NAME);
   const closeoutTemplate = templateRows.find((t) => t.name === CLOSEOUT_TEMPLATE_NAME);
@@ -250,6 +266,12 @@ export const loadSnapshots = async (projectCodes: string[]) => {
       closeoutTemplateId: closeoutTemplate?.id ?? null,
       // Gate X5: RFI/RFA requests that are still open (drafts included).
       openRequests: requestsBy.get(code) ?? none<(typeof openRequestRows)[number]>(),
+      // Closeout / Turnover gate: ids of unsettled purchase requests, orders and claims.
+      unsettledPurchasing: unsettledIds({
+        requests: purchaseRequestsBy.get(code) ?? none<StatusRow>(),
+        orders: ordersBy.get(code) ?? none<StatusRow>(),
+        claims: claimsBy.get(code) ?? none<StatusRow>(),
+      }),
       // Design delivery: the plan sets and the Design Turnover template (gate T3).
       deliverables: deliverablesBy.get(code) ?? none<(typeof deliverableRows)[number]>(),
       designTurnoverTemplateId: turnoverTemplate?.id ?? null,

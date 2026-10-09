@@ -121,6 +121,43 @@ export const expensesRepository = {
     return row;
   },
 
+  /**
+   * An expense that is already approved because a payment created it
+   * (purchase order or reimbursement). (source_type, source_id) is unique, so
+   * paying twice cannot produce a second row: the insert conflicts and nothing
+   * is returned.
+   */
+  async createApprovedFromSource(
+    exec: Pick<typeof db, "insert" | "execute">,
+    input: {
+      vendor: string;
+      project: string;
+      category: string;
+      amount: number;
+      sourceType: "purchase-order" | "reimbursement";
+      sourceId: string;
+      receiptUrl?: string | null;
+    },
+  ) {
+    const id = await nextId("EXP", exec);
+    const [row] = await exec
+      .insert(expenses)
+      .values({
+        id,
+        vendor: input.vendor,
+        project: input.project,
+        category: input.category,
+        amount: input.amount,
+        status: "approved",
+        receiptUrl: input.receiptUrl ?? null,
+        sourceType: input.sourceType,
+        sourceId: input.sourceId,
+      })
+      .onConflictDoNothing()
+      .returning();
+    return row;
+  },
+
   /** Every expense as the anomaly rules see it (amount, vendor, project, category, date, status). */
   async findAllForAnomaly(): Promise<ExpenseLike[]> {
     const rows = await db.select().from(expenses);

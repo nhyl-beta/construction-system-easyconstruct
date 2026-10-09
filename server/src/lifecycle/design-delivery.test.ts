@@ -72,7 +72,7 @@ describe("Design project — gates", () => {
 
   test("Turnover needs a Turnover Document, Client Acceptance and a completed Design Turnover workflow", () => {
     const closeout = { status: "Closeout" };
-    assert.deepEqual(keys(evaluateGate("Closeout", snap({}, closeout))), ["T1", "T2", "T3", "T4"]);
+    assert.deepEqual(keys(evaluateGate("Closeout", snap({}, closeout))), ["T1", "T2", "T3", "T4", "T5"]);
     assert.deepEqual(failing(evaluateGate("Closeout", snap({}, closeout))), ["T1", "T2", "T3"]);
     const ready = snap(
       { documents: [{ type: "Turnover Document" }, { type: "Client Acceptance" }], designTurnoverTemplateId: 7, workflows: [{ id: 1, templateId: 7, status: "completed" }] },
@@ -108,7 +108,7 @@ describe("Design project — progress", () => {
   test("Turnover 90-99 and terminal phases 100", () => {
     const closeout = { status: "Closeout" };
     // T4 (no open request) passes on its own, so 1 of 4 checks: 90 + 9 x 0.25.
-    assert.equal(computeProgress("Closeout", snap({}, closeout)), 92);
+    assert.equal(computeProgress("Closeout", snap({}, closeout)), 94); // one more gate (T5) passing
     const ready = snap({ documents: [{ type: "Turnover Document" }, { type: "Client Acceptance" }], designTurnoverTemplateId: 7, workflows: [{ id: 1, templateId: 7, status: "completed" }] }, closeout);
     assert.equal(computeProgress("Closeout", ready), 99);
     assert.equal(computeProgress("Completed", snap()), 100);
@@ -150,7 +150,19 @@ describe("Construction projects are unchanged", () => {
     assert.deepEqual(c("Design"), ["D1", "D2", "D3"]);
     assert.deepEqual(c("Pre-Construction"), ["C1", "C2", "C3", "C4", "C5"]);
     assert.deepEqual(c("Construction"), ["K1", "K2", "K3", "K4"]);
-    assert.deepEqual(c("Closeout"), ["X1", "X2", "X3", "X4", "X5"]);
+    assert.deepEqual(c("Closeout"), ["X1", "X2", "X3", "X4", "X5", "X6"]);
+  });
+
+  test("an unsettled purchase, order or claim blocks closing a Construction project (X6) and a Design turnover (T5)", () => {
+    const open = construction({ unsettledPurchasing: ["PR-0001", "RMB-0002"] }, "Closeout");
+    const x6 = evaluateGate("Closeout", open).find((c) => c.key === "X6")!;
+    assert.equal(x6.passed, false);
+    assert.match(x6.detail ?? "", /PR-0001/);
+    assert.deepEqual(x6.ownerRoles, ["project-manager", "admin", "finance-manager"]);
+    assert.ok(!failing(evaluateGate("Closeout", construction({ unsettledPurchasing: [] }, "Closeout"))).includes("X6"));
+    const design = snap({ unsettledPurchasing: ["PO-0003"] }, { status: "Closeout" });
+    assert.ok(failing(evaluateGate("Closeout", design)).includes("T5"));
+    assert.ok(!failing(evaluateGate("Closeout", snap({}, { status: "Closeout" }))).includes("T5"));
   });
 
   test("an open RFI/RFA blocks closing a Construction project (X5)", () => {
