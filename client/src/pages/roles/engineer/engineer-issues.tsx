@@ -1,4 +1,5 @@
-import { useEffect, useMemo, useState } from "react";
+import { DataTablePagination } from "@/components/refine-ui/data-table/data-table-pagination";
+import { useEffect, useState } from "react";
 import { AlertTriangle, CheckCircle2, Clock, ShieldAlert, Sparkles } from "lucide-react";
 import { FEATURES } from "@/config/features";
 import { issuesRepository, type SimilarResolvedIssue } from "@/features/issues/repositories/issues.repository";
@@ -203,27 +204,15 @@ function IssueRow({
 
 export default function IssuesPage() {
   const { user } = useAuth();
-  const { issues, loading, error, updating, updateErrors, clearUpdateError, updateStatus, refresh } = useIssues();
+  const { issues, loading, error, updating, updateErrors, clearUpdateError, updateStatus, refresh, counts, pagination } = useIssues();
   const isPm = user?.role === "project-manager";
   const isEngineer = user?.role === "engineer";
   const { codes: staffedCodes } = useStaffedProjectCodes("engineer");
 
-  const openCount = useMemo(
-    () => issues.filter((i) => i.status === "Submitted").length,
-    [issues],
-  );
-  const underReviewCount = useMemo(
-    () => issues.filter((i) => i.status === "Under Review").length,
-    [issues],
-  );
-  const criticalCount = useMemo(
-    () => issues.filter((i) => i.severity === "Critical").length,
-    [issues],
-  );
-  const resolvedCount = useMemo(
-    () => issues.filter((i) => i.status === "Resolved").length,
-    [issues],
-  );
+  const openCount = counts.submitted;
+  const underReviewCount = counts.underReview;
+  const criticalCount = counts.critical;
+  const resolvedCount = counts.resolved;
 
   return (
     <PageContainer>
@@ -268,6 +257,9 @@ export default function IssuesPage() {
                     onUpdate={(status, resolutionNotes) => updateStatus(issue.id, { status, resolutionNotes })}
                   />
                 ))}
+                <div className="border-t border-border px-4 py-3">
+                  <DataTablePagination {...pagination} />
+                </div>
               </div>
             )}
           </CardContent>

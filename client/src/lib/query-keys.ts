@@ -50,7 +50,11 @@ export const qk = {
   users: { all: api("users"), list: (params: Params) => api("users", "list", params) },
   roles: { all: api("roles") },
   audit: { all: api("audit-logs"), list: (params: Params) => api("audit-logs", "list", params) },
-  finance: { all: api("finance"), expenses: (params: Params) => api("finance", "expenses", params) },
+  finance: {
+    all: api("finance"),
+    expenses: (params: Params) => api("finance", "expenses", params),
+    payrollReview: (params: Params) => api("finance", "payroll-review", params),
+  },
   lifecycle: { myActions: api("lifecycle", "my-actions"), impact: api("lifecycle", "impact") },
   calendar: { events: api("calendar", "events") },
 } as const;

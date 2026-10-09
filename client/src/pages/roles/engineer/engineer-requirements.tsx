@@ -1,3 +1,4 @@
+import { DataTablePagination } from "@/components/refine-ui/data-table/data-table-pagination";
 import { useState, type FormEvent } from "react";
 import { useOpenOnAction } from "@/features/quick-search/useOpenOnAction";
 import { FileText, ListChecks, Paperclip, Send, Sparkles, Undo2 } from "lucide-react";
@@ -47,7 +48,6 @@ import {
   type StructuredSuggestion,
 } from "@/features/requirements/types/requirements.types";
 import { appendToSection, undoRewrite } from "@/features/requirements/lib/structured-format";
-import { RequirementService } from "@/features/requirements/services/requirement.service";
 import { useAuth } from "@/auth/auth-context";
 import { useStaffedProjectCodes } from "@/features/project-members/hooks/use-staffed-project-codes";
 
@@ -376,7 +376,7 @@ function NewRequirementDialog({
 
 export default function RequirementsPage() {
   const { user } = useAuth();
-  const { requirements, loading, createRequirement, submitRequirement, addAttachments, structureRequirement } =
+  const { requirements, loading, counts, pagination, createRequirement, submitRequirement, addAttachments, structureRequirement } =
     useRequirements();
   const [busyId, setBusyId] = useState<number | null>(null);
   const role = user?.role;
@@ -415,9 +415,7 @@ export default function RequirementsPage() {
     }
   };
 
-  const approved = RequirementService.countByStatus(requirements, "Approved");
-  const underReview = RequirementService.countByStatus(requirements, "Under Review");
-  const drafts = RequirementService.countByStatus(requirements, "Draft");
+  const { approved, underReview, drafts } = counts;
 
   return (
     <PageContainer>
@@ -441,7 +439,7 @@ export default function RequirementsPage() {
           items={[
             {
               label: "Total requirements",
-              value: loading ? "…" : `${requirements.length}`,
+              value: loading ? "…" : `${counts.total}`,
               icon: ListChecks,
               hint: "on file",
             },
@@ -547,6 +545,9 @@ export default function RequirementsPage() {
                     </div>
                   </div>
                 ))}
+                <div className="border-t border-border px-4 py-3">
+                  <DataTablePagination {...pagination} />
+                </div>
               </div>
             )}
           </CardContent>

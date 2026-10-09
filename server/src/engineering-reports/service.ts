@@ -29,6 +29,8 @@ export const getAll = async (filters: EngineeringReportFilters) => {
   return await repo.findAll(filters);
 };
 
+export const typeStatusCounts = (filters: EngineeringReportFilters) => repo.typeStatusCounts(filters);
+
 export const getPage = async (filters: EngineeringReportFilters, request: PageRequest) =>
   paginate(
     request,

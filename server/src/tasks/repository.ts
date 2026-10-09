@@ -1,5 +1,5 @@
 // server/src/tasks/repository.ts — NEW
-import { and, desc, eq, inArray, SQL } from "drizzle-orm";
+import { and, desc, eq, inArray, sql, SQL } from "drizzle-orm";
 import { db } from "../db/connection.js";
 import { tasks } from "../db/schema/task.js";
 import { countRows, inCodes, selectPage } from "../db/paged.js";
@@ -12,6 +12,32 @@ const buildConditions = (filters: TaskFilters): SQL[] => {
   if (filters.status && filters.status !== "all") conditions.push(eq(tasks.status, filters.status));
   if (filters.assignedToUserId) conditions.push(eq(tasks.assignedToUserId, filters.assignedToUserId));
   return conditions;
+};
+
+/** Per-project rollup of task statuses and progress (the engineer's progress card). */
+export const progressByProject = async (filters: TaskFilters = {}) => {
+  const conditions = buildConditions({ ...filters, status: undefined });
+  const rows = await db
+    .select({
+      projectCode: tasks.projectCode,
+      total: sql<number>`count(*)::int`,
+      completed: sql<number>`count(*) filter (where ${tasks.status} = 'Completed')::int`,
+      inProgress: sql<number>`count(*) filter (where ${tasks.status} = 'In Progress')::int`,
+      pending: sql<number>`count(*) filter (where ${tasks.status} = 'Pending')::int`,
+      progressSum: sql<number>`coalesce(sum(${tasks.progress}), 0)::int`,
+    })
+    .from(tasks)
+    .where(conditions.length ? and(...conditions) : undefined)
+    .groupBy(tasks.projectCode)
+    .orderBy(tasks.projectCode);
+  return rows.map((r) => ({
+    projectCode: r.projectCode,
+    total: r.total,
+    completed: r.completed,
+    inProgress: r.inProgress,
+    pending: r.pending,
+    percentComplete: r.total ? Math.round(r.progressSum / r.total) : 0,
+  }));
 };
 
 export const TASK_SORT_COLUMNS = {

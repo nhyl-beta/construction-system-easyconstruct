@@ -26,7 +26,8 @@ export const getAll = async (req: AuthedRequest, res: Response, next: NextFuncti
     if (paging.requested) {
       const codes = await scopedProjectCodes(req.authUser, { skipRoles: ["site-personnel"] });
       const { items, meta } = await service.getPage({ ...filters, ...(codes ? { codes } : {}) }, paging);
-      sendPaged(res, items, MSG.issues.retrieved, meta);
+      const counts = req.query.counts === "1" ? await service.headlineCounts({ ...filters, ...(codes ? { codes } : {}) }) : undefined;
+      sendPaged(res, items, MSG.issues.retrieved, counts ? { ...meta, ...counts } : meta);
       return;
     }
     const data = await scopeRowsToVisible(req.authUser, await service.getAll(filters), (i) => i.projectCode, { skipRoles: ["site-personnel"] });

@@ -1,7 +1,7 @@
 import { db } from "../db/connection.js";
 import { engineeringReports } from "../db/schema/engineering-reports.js";
 import { countRows, inCodes, selectPage } from "../db/paged.js";
-import { and, desc, eq, ilike, SQL } from "drizzle-orm";
+import { and, desc, eq, ilike, inArray, sql, SQL } from "drizzle-orm";
 import type {
   CreateEngineeringReportInput,
   UpdateEngineeringReportInput,
@@ -14,16 +14,30 @@ const buildConditions = (filters: EngineeringReportFilters): SQL[] => {
   if (filters.project && filters.project !== "all") {
     conditions.push(eq(engineeringReports.project, filters.project));
   }
+  // `type` / `status` take one value or a comma-separated list ("Submitted,Under Review").
   if (filters.type && filters.type !== "all") {
-    conditions.push(eq(engineeringReports.type, filters.type));
+    const list = filters.type.split(",").map((v) => v.trim()).filter(Boolean);
+    conditions.push(list.length > 1 ? inArray(engineeringReports.type, list) : eq(engineeringReports.type, list[0] ?? filters.type));
   }
   if (filters.status && filters.status !== "all") {
-    conditions.push(eq(engineeringReports.status, filters.status));
+    const list = filters.status.split(",").map((v) => v.trim()).filter(Boolean);
+    conditions.push(list.length > 1 ? inArray(engineeringReports.status, list) : eq(engineeringReports.status, list[0] ?? filters.status));
   }
   if (filters.search) {
     conditions.push(ilike(engineeringReports.title, `%${filters.search}%`));
   }
   return conditions;
+};
+
+/** Reports per (type, status) inside a scope - the KPI cards derive their counts from it. Status and search are ignored. */
+export const typeStatusCounts = async (filters: EngineeringReportFilters = {}) => {
+  const conditions = buildConditions({ ...filters, status: undefined, search: undefined });
+  const rows = await db
+    .select({ type: engineeringReports.type, status: engineeringReports.status, count: sql<number>`count(*)::int` })
+    .from(engineeringReports)
+    .where(conditions.length ? and(...conditions) : undefined)
+    .groupBy(engineeringReports.type, engineeringReports.status);
+  return rows.map((r) => ({ type: r.type, status: r.status, count: r.count }));
 };
 
 export const REPORT_SORT_COLUMNS = {

@@ -2,7 +2,7 @@
 import { and, desc, eq, isNotNull, SQL } from "drizzle-orm";
 import { db } from "../db/connection.js";
 import { issues } from "../db/schema/issues.js";
-import { countRows, inCodes, selectPage } from "../db/paged.js";
+import { countRows, groupCount, inCodes, selectPage } from "../db/paged.js";
 import type { CreateIssueInput, IssueFilters } from "./types.js";
 
 const buildConditions = (filters: IssueFilters): SQL[] => {
@@ -30,6 +30,17 @@ export const defaultIssueOrder = [desc(issues.createdAt), desc(issues.id)];
 export const countFiltered = async (filters: IssueFilters = {}) => {
   const conditions = buildConditions(filters);
   return countRows(issues, conditions.length ? and(...conditions) : undefined);
+};
+
+/** Headline counts for the KPI cards: per status and per severity over the caller's scope (status filter ignored). */
+export const headlineCounts = async (filters: IssueFilters = {}) => {
+  const conditions = buildConditions({ ...filters, status: undefined });
+  const where = conditions.length ? and(...conditions) : undefined;
+  const [statusCounts, severityCounts] = await Promise.all([
+    groupCount(issues, issues.status, where),
+    groupCount(issues, issues.severity, where),
+  ]);
+  return { statusCounts, severityCounts };
 };
 
 export const findPage = async (filters: IssueFilters, window: { limit: number; offset: number }, orderBy: SQL[]) => {

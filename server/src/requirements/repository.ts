@@ -1,6 +1,6 @@
 import { db } from "../db/connection.js";
 import { requirements } from "../db/schema/requirements.js";
-import { countRows, inCodes, selectPage } from "../db/paged.js";
+import { countRows, groupCount, inCodes, selectPage } from "../db/paged.js";
 import { and, desc, eq, ilike, SQL } from "drizzle-orm";
 import type {
   CreateRequirementInput,
@@ -24,6 +24,12 @@ const buildConditions = (filters: RequirementFilters): SQL[] => {
     conditions.push(ilike(requirements.title, `%${filters.search}%`));
   }
   return conditions;
+};
+
+/** Requirements per status over the caller's scope (the status filter is ignored: these are the KPI cards). */
+export const statusCounts = async (filters: RequirementFilters = {}) => {
+  const conditions = buildConditions({ ...filters, status: undefined, search: undefined });
+  return groupCount(requirements, requirements.status, conditions.length ? and(...conditions) : undefined);
 };
 
 export const REQUIREMENT_SORT_COLUMNS = {

@@ -25,6 +25,8 @@ const VALID_TRANSITIONS: Record<string, string[]> = {
 
 export const getAll = async (filters: TaskFilters) => repo.findAll(filters);
 
+export const progressByProject = (filters: TaskFilters) => repo.progressByProject(filters);
+
 export const getPage = async (filters: TaskFilters, request: PageRequest) =>
   paginate(
     request,

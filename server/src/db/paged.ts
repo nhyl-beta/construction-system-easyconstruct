@@ -29,3 +29,17 @@ export const selectPage = async <T extends PgTable>(
 /** `col IN (codes)`, with an empty list meaning "nothing" instead of invalid SQL. */
 export const inCodes = (column: AnyColumn, codes: readonly string[]): SQL =>
   codes.length ? inArray(column, [...codes]) : sql`false`;
+
+/** `SELECT col, count(*) ... GROUP BY col` over a WHERE clause: headline counts for the KPI cards. */
+export const groupCount = async (
+  table: PgTable,
+  column: AnyColumn,
+  where: SQL | undefined,
+): Promise<{ key: string; count: number }[]> => {
+  const rows = await db
+    .select({ key: sql<string>`${column}`, count: sql<number>`count(*)::int` })
+    .from(table)
+    .where(where)
+    .groupBy(sql`${column}`);
+  return rows.map((r) => ({ key: String(r.key), count: r.count }));
+};

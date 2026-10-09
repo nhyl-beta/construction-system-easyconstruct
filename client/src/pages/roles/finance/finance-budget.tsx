@@ -32,6 +32,8 @@ import {
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useBudgetAllocationController } from "@/features/finance/budgets/controllers/budget-allocation.controller.js";
 import { useBudgetAdjustments } from "@/features/finance/budgets/hooks/useBudgetAdjustments";
+import { DataTablePagination } from "@/components/refine-ui/data-table/data-table-pagination";
+import { usePagination } from "@/hooks/use-pagination";
 import { useBudgets } from "@/features/finance/budgets/hooks/useBudgets";
 import { formatAxisCurrency, formatCompactCurrency, formatCurrency } from "@/lib/format-currency";
 import { useEffect, useMemo, useState } from "react";
@@ -239,6 +241,10 @@ export default function FinanceBudget() {
     })),
   );
 
+  // The register table renders one page at a time (the charts, approvals and
+  // CSV below still work on the whole set).
+  const budgetPagination = usePagination(c.budgets, 10);
+
   const adjustments = useBudgetAdjustments();
 
   // Budgets store a project code only; the client each code belongs to lives
@@ -379,6 +385,7 @@ export default function FinanceBudget() {
               No budgets match your filters.
             </div>
           ) : (
+            <>
             <Table>
               <TableHeader>
                 <TableRow>
@@ -394,7 +401,7 @@ export default function FinanceBudget() {
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {c.budgets.map((b) => {
+                {budgetPagination.pageItems.map((b) => {
                   const pct = b.planned
                     ? Math.round((b.spent / b.planned) * 100)
                     : 0;
@@ -438,6 +445,10 @@ export default function FinanceBudget() {
                 })}
               </TableBody>
             </Table>
+            <div className="border-t px-4 py-3">
+              <DataTablePagination {...budgetPagination} />
+            </div>
+            </>
           )}
         </TabsContent>
 

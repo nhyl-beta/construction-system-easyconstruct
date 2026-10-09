@@ -1,3 +1,4 @@
+import { DataTablePagination } from "@/components/refine-ui/data-table/data-table-pagination";
 import { useState } from "react";
 import { ClipboardList, FileSearch, FolderKanban, ShieldCheck } from "lucide-react";
 
@@ -10,7 +11,6 @@ import { Progress } from "@/components/ui/progress";
 
 import { useEngineeringReports } from "@/features/engineering-reports/hooks/useEngineeringReport";
 import { PROGRESS_REPORT_TYPES } from "@/features/engineering-reports/types/engineering-reports.types";
-import { EngineeringReportService } from "@/features/engineering-reports/services/engineering-report.service";
 import { useProjectTaskProgress } from "@/features/tasks/hooks/use-project-task-progress";
 import { NewReportDialog, ReportDetailDialog, ReportStatusBadge } from "@/pages/roles/shared/shared-engineer";
 import type { EngineeringReport } from "@/features/engineering-reports/types/engineering-reports.types";
@@ -19,15 +19,13 @@ import { EngineerMilestonesCard } from "@/features/milestones/components/Enginee
 
 export default function ProgressPage() {
   const { user } = useAuth();
-  const { reports, loading, createReport } = useEngineeringReports("progress");
+  const { reports, loading, createReport, counts, pagination } = useEngineeringReports("progress");
   const { byProject, loading: taskProgressLoading } = useProjectTaskProgress();
   const [selected, setSelected] = useState<EngineeringReport | null>(null);
 
-  const openInspections = reports.filter(
-    (r) => r.type === "Site Inspection" && r.status !== "Approved",
-  ).length;
-  const technicalReviews = reports.filter((r) => r.type === "Technical Report").length;
-  const underReview = EngineeringReportService.countByStatus(reports, "Under Review");
+  const openInspections = counts.byTypeAndNotStatus("Site Inspection", "Approved");
+  const technicalReviews = counts.byType("Technical Report");
+  const underReview = counts.byStatus("Under Review");
 
   return (
     <PageContainer>
@@ -47,7 +45,7 @@ export default function ProgressPage() {
           items={[
             {
               label: "Site reports",
-              value: loading ? "…" : `${reports.length}`,
+              value: loading ? "…" : `${counts.total}`,
               icon: ClipboardList,
               hint: "progress-related reports",
             },
@@ -152,6 +150,11 @@ export default function ProgressPage() {
                     <ReportStatusBadge status={r.status} />
                   </button>
                 ))}
+              </div>
+            )}
+            {!loading && reports.length > 0 && (
+              <div className="border-t border-border px-4 py-3">
+                <DataTablePagination {...pagination} />
               </div>
             )}
           </CardContent>

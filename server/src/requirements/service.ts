@@ -37,6 +37,8 @@ const assertCanSetStatus = (status: string | undefined, actorRole: string) => {
 // The filter logic lives in repository.ts (one copy, shared with the paged read).
 export const findAll = async (filters: RequirementFilters = {}) => repo.findAll(filters);
 
+export const statusCounts = (filters: RequirementFilters) => repo.statusCounts(filters);
+
 export const getPage = async (filters: RequirementFilters, request: PageRequest) =>
   paginate(
     request,

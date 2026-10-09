@@ -44,6 +44,20 @@ export const getAll = async (req: AuthedRequest, res: Response, next: NextFuncti
   }
 };
 
+// Same visibility as the list (own tasks for site personnel, staffed/own projects otherwise).
+export const getProgress = async (req: AuthedRequest, res: Response, next: NextFunction) => {
+  try {
+    const filters: TaskFilters = {
+      assignedToUserId: req.authUser?.role === "site-personnel" ? req.authUser.id : undefined,
+    };
+    const codes = await scopedProjectCodes(req.authUser, { skipRoles: ["site-personnel"] });
+    const data = await service.progressByProject({ ...filters, ...(codes ? { codes } : {}) });
+    res.json(formatSuccess(data, MSG.tasks.retrieved));
+  } catch (err) {
+    next(err);
+  }
+};
+
 export const getById = async (req: AuthedRequest, res: Response, next: NextFunction) => {
   try {
     const data = await service.getById(Number(req.params.id));

@@ -243,7 +243,7 @@ export const RECORD_SOURCES: RecordSource[] = [
     label: "Issues",
     roles: ["project_manager", "engineer"],
     useItems: () => {
-      const r = useIssues();
+      const r = useIssues({ pageSize: 100 });
       return state(
         r.issues.map((i) => ({
           id: String(i.id),
@@ -283,7 +283,7 @@ export const RECORD_SOURCES: RecordSource[] = [
     label: "Requirements",
     roles: ["engineer", "site_personnel"],
     useItems: () => {
-      const r = useRequirements();
+      const r = useRequirements({ pageSize: 100 });
       return state(
         r.requirements.map((q) => ({
           id: String(q.dbId),
@@ -303,7 +303,7 @@ export const RECORD_SOURCES: RecordSource[] = [
     label: "Reports",
     roles: ["engineer"],
     useItems: () => {
-      const r = useEngineeringReports("all");
+      const r = useEngineeringReports("all", { pageSize: 100 });
       return state(
         r.reports.map((p) => ({
           id: String(p.dbId),

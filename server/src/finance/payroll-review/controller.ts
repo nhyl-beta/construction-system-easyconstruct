@@ -4,7 +4,7 @@ import * as service from "./service.js";
 import { sendSuccess } from "../../utils/response.js";
 import { logAudit } from "../../utils/audit.js";
 import type { AuthedRequest } from "../../middleware/auth.js";
-import { byDate, byString, respondList } from "../../utils/pagination.js";
+import { byDate, byString, formatSuccess, parsePageRequest, paginateRows, sendPaged } from "../../utils/pagination.js";
 
 /**
  * Route parameters
@@ -29,12 +29,20 @@ export const listPayrollBatches = async (
       projectCode: projectCode as string | undefined,
     });
 
-    return respondList(res, req.query, batches, "OK", {
-      createdAt: byDate((b) => b.createdAt),
-      period: byString((b) => b.period),
-      status: byString((b) => b.status),
-      projectCode: byString((b) => b.projectCode),
-    });
+    const sorters = {
+      createdAt: byDate<(typeof batches)[number]>((b) => b.createdAt),
+      period: byString<(typeof batches)[number]>((b) => b.period),
+      status: byString<(typeof batches)[number]>((b) => b.status),
+      projectCode: byString<(typeof batches)[number]>((b) => b.projectCode),
+    };
+    const paging = parsePageRequest(req.query, { sortable: Object.keys(sorters) });
+    const period = typeof req.query.period === "string" && req.query.period.trim() ? req.query.period.trim() : undefined;
+    const rows = period ? batches.filter((b) => b.period === period) : batches;
+    if (!paging.requested) return res.json(formatSuccess(rows, "OK"));
+    const { items, meta } = paginateRows(rows, paging, sorters);
+    // The period choices come from every batch, so they do not shrink once one is picked.
+    const periods = Array.from(new Set(batches.map((b) => b.period))).sort().reverse();
+    return sendPaged(res, items, "OK", { ...meta, periods });
   } catch (err) {
     return next(err);
   }

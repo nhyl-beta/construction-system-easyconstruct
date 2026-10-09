@@ -47,6 +47,8 @@ export const getPrecedentsForIssue = async (
 
 export const getAll =async (filters: IssueFilters) => repo.findAll(filters);
 
+export const headlineCounts = (filters: IssueFilters) => repo.headlineCounts(filters);
+
 export const getPage = async (filters: IssueFilters, request: PageRequest) =>
   paginate(
     request,

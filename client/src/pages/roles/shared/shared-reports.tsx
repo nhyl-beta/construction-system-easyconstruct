@@ -1,3 +1,4 @@
+import { DataTablePagination } from "@/components/refine-ui/data-table/data-table-pagination";
 // client/src/pages/roles/shared/shared-reports.tsx
 //
 // Q5: this was a bare ComingSoonCard, which is what gate X1's failing-check
@@ -9,7 +10,7 @@
 // server/src/engineering-reports/service.ts assertCanSetStatus); every
 // other role that reaches this page (owner, HR, finance) sees the same
 // list read-only, which is still strictly more useful than a stub.
-import { useMemo, useState } from "react";
+import { useState } from "react";
 import { Check, ClipboardCheck, PenLine, X } from "lucide-react";
 
 import { PageContainer } from "@/components/refine-ui/views/page-container";
@@ -24,24 +25,25 @@ import {
   PriorityBadge,
   ReportStatusBadge,
 } from "@/pages/roles/shared/shared-engineer";
-import type { ReportStatus } from "@/features/engineering-reports/types/engineering-reports.types";
 
 const DECISION_TABS = ["pending", "approved", "rejected"] as const;
 type DecisionTab = (typeof DECISION_TABS)[number];
 
-const PENDING_STATUSES: ReportStatus[] = ["Submitted", "Under Review"];
+const TAB_STATUSES: Record<DecisionTab, string> = {
+  pending: "Submitted,Under Review",
+  approved: "Approved",
+  rejected: "Rejected,Revision Required",
+};
 
 export default function SharedReportsPage() {
   const { user } = useAuth();
   const canDecide = user?.role === "project-manager" || user?.role === "admin";
-  const { reports, loading, error, decide, deciding } = useEngineeringReports("all");
   const [tab, setTab] = useState<DecisionTab>("pending");
-
-  const filtered = useMemo(() => {
-    if (tab === "pending") return reports.filter((r) => PENDING_STATUSES.includes(r.status));
-    if (tab === "approved") return reports.filter((r) => r.status === "Approved");
-    return reports.filter((r) => r.status === "Rejected" || r.status === "Revision Required");
-  }, [reports, tab]);
+  // Each tab is a status group, selected on the server.
+  const { reports, loading, error, decide, deciding, pagination } = useEngineeringReports("all", {
+    status: TAB_STATUSES[tab],
+  });
+  const filtered = reports;
 
   return (
     <PageContainer>
@@ -143,6 +145,7 @@ export default function SharedReportsPage() {
                     )}
                   </div>
                 ))}
+                <DataTablePagination {...pagination} />
               </div>
             )}
           </TabsContent>
