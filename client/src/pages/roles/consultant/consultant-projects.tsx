@@ -1,4 +1,3 @@
-import { useMemo, useState } from "react";
 import { FolderKanban, Info, Search } from "lucide-react";
 
 import { PageHeader } from "@/components/refine-ui/views/page-header";
@@ -13,7 +12,11 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
-import { useProjects } from "@/features/projects/hooks/useProjects";
+import { useServerList } from "@/hooks/use-server-list";
+import { qk } from "@/lib/query-keys";
+import { ProjectRepository } from "@/features/projects/repositories/project.repository";
+import type { Project } from "@/features/projects/types/project.types";
+import { DataTablePagination } from "@/components/refine-ui/data-table/data-table-pagination";
 import { formatDue } from "@/features/projects/lib/project-format";
 
 const riskToneClasses: Record<string, string> = {
@@ -33,18 +36,21 @@ const riskToneClasses: Record<string, string> = {
 // and strips contractValue/budget/workforce), so this page can only render
 // what the role is entitled to see.
 export default function ConsultantProjects() {
-  const { projects, loading, error } = useProjects();
-  const [search, setSearch] = useState("");
-
-  const filtered = useMemo(() => {
-    if (!search) return projects;
-    const term = search.toLowerCase();
-    return projects.filter(
-      (p) =>
-        p.name.toLowerCase().includes(term) ||
-        p.code.toLowerCase().includes(term),
-    );
-  }, [projects, search]);
+  // Search and paging happen on the server (the Consultant's staffed, non-archived projects).
+  const list = useServerList<Project>({
+    key: (params) => qk.projects.list({ ...params, role: "consultant" }),
+    fetchPage: async (params) => {
+      const page = await ProjectRepository.listPage({
+        page: params.page,
+        pageSize: params.limit,
+        search: params.search,
+        excludeArchived: true,
+      });
+      return { items: page.items, total: page.total, pages: page.pages };
+    },
+  });
+  const { pageItems: filtered, error } = list;
+  const loading = list.loading;
 
   return (
     <div className="flex-1 space-y-6 p-4 md:p-8">
@@ -65,8 +71,8 @@ export default function ConsultantProjects() {
       <div className="relative w-64">
         <Search className="pointer-events-none absolute left-2.5 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-muted-foreground" />
         <Input
-          value={search}
-          onChange={(e) => setSearch(e.target.value)}
+          value={list.searchInput}
+          onChange={(e) => list.setSearchInput(e.target.value)}
           placeholder="Search projects…"
           className="h-8 pl-8 text-xs"
         />
@@ -81,7 +87,7 @@ export default function ConsultantProjects() {
       ) : filtered.length === 0 ? (
         <div className="flex flex-col items-center justify-center gap-2 rounded-2xl border border-dashed p-10 text-center text-sm text-muted-foreground">
           <FolderKanban className="h-5 w-5" />
-          {projects.length === 0
+          {list.total === 0 && !list.search
             ? "You aren't assigned to any projects yet — ask the Project Manager to add you as a consultant."
             : "No projects match your search."}
         </div>
@@ -133,6 +139,8 @@ export default function ConsultantProjects() {
           </TableBody>
         </Table>
       )}
+
+      {!error && list.total > 0 && <DataTablePagination {...list} />}
     </div>
   );
 }

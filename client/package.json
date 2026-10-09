@@ -41,6 +41,7 @@
     "@refinedev/rest": "^2.1.0",
     "@refinedev/simple-rest": "^6.0.0",
     "@tailwindcss/vite": "^4.1.8",
+    "@tanstack/react-query": "^5.104.1",
     "@tanstack/react-table": "^8.2.6",
     "@vercel/blob": "^2.8.0",
     "class-variance-authority": "^0.7.1",

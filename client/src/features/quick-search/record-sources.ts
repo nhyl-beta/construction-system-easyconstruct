@@ -103,7 +103,7 @@ export const RECORD_SOURCES: RecordSource[] = [
     label: "Workflows",
     roles: ["admin", "it_designer"],
     useItems: () => {
-      const r = useActiveWorkflows();
+      const r = useActiveWorkflows({ pageSize: 100 });
       return state(
         r.workflows.map((w) => ({
           id: String(w.id),

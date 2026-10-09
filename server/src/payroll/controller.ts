@@ -31,7 +31,7 @@ export const getAll = async (req: AuthedRequest, res: Response, next: NextFuncti
     };
     const paging = parsePageRequest(req.query, { sortable: Object.keys(PAYROLL_SORT_COLUMNS) });
     if (paging.requested) {
-      const { items, meta } = await service.getPage(filters, paging, actorOf(req));
+      const { items, meta } = await service.getPage(filters, paging, actorOf(req), req.query.totals === "1");
       sendPaged(res, items, MSG.payroll.retrieved, meta);
       return;
     }

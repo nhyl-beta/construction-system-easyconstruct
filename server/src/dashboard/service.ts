@@ -198,24 +198,29 @@ const itDesigner = async () => {
   };
 };
 
-const humanResources = async () => {
+/**
+ * Org-wide workforce figures (headcount, active capacity, who was on site in the
+ * last 30 days, per-site utilisation). Employees and attendance are open reads
+ * for every signed-in role, so this is the same for every caller.
+ */
+export const getWorkforce = async () => {
   const [agg, employees, recentAttendance] = await Promise.all([
     workforceAggregates(),
     repo.employeeRowsForWorkforce(),
     repo.recentAttendanceByEmployee(WORKFORCE_WINDOW_DAYS),
   ]);
   return {
-    workforce: {
-      headcount: agg.totals.headcount,
-      active: agg.totals.active,
-      windowDays: WORKFORCE_WINDOW_DAYS,
-      snapshot: aggregates.workforceSnapshot(
-        employees,
-        recentAttendance.map((a) => ({ employeeId: a.employeeId, hours: a.hours })),
-      ),
-    },
+    headcount: agg.totals.headcount,
+    active: agg.totals.active,
+    windowDays: WORKFORCE_WINDOW_DAYS,
+    snapshot: aggregates.workforceSnapshot(
+      employees,
+      recentAttendance.map((a) => ({ employeeId: a.employeeId, hours: a.hours })),
+    ),
   };
 };
+
+const humanResources = async () => ({ workforce: await getWorkforce() });
 
 const settled = async <T>(fn: () => Promise<T>): Promise<T | null> => {
   try {

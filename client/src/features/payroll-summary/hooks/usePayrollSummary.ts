@@ -1,31 +1,23 @@
-import { useCallback, useEffect, useState } from "react";
+import { useQuery } from "@tanstack/react-query";
 
+import { qk } from "@/lib/query-keys";
+import { STALE } from "@/lib/query-client";
 import { PayrollSummaryRepository } from "../repositories/payroll-summary.repository";
-import type { PayrollSummary } from "../types/payroll-summary.types";
 
 /** Trend length the Owner dashboard asks for (server clamps to 1–24). */
 export const OWNER_TREND_MONTHS = 6;
 
 export function usePayrollSummary(months: number = OWNER_TREND_MONTHS) {
-  const [summary, setSummary] = useState<PayrollSummary | null>(null);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<Error | null>(null);
+  const query = useQuery({
+    queryKey: qk.payroll.summary(months),
+    queryFn: () => PayrollSummaryRepository.get(months),
+    staleTime: STALE.summary,
+  });
 
-  const reload = useCallback(async () => {
-    setLoading(true);
-    setError(null);
-    try {
-      setSummary(await PayrollSummaryRepository.get(months));
-    } catch (err) {
-      setError(err instanceof Error ? err : new Error("Failed to load the payroll summary."));
-    } finally {
-      setLoading(false);
-    }
-  }, [months]);
-
-  useEffect(() => {
-    void reload();
-  }, [reload]);
-
-  return { summary, loading, error, reload } as const;
+  return {
+    summary: query.data ?? null,
+    loading: query.isPending,
+    error: (query.error as Error | null) ?? null,
+    reload: () => query.refetch(),
+  } as const;
 }

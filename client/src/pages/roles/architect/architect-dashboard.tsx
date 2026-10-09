@@ -41,7 +41,7 @@ export default function ArchitectDashboard() {
   const revisionSummary = useRevisionSummary();
   const c = useArchitectDashboardController();
   const { user } = useAuth();
-  const { create } = useDesignReviews();
+  const { create } = useDesignReviews({ autoLoad: false });
   const [reviewDialogOpen, setReviewDialogOpen] = useState(false);
   const [selectedDesignId, setSelectedDesignId] = useState<string>("");
   const [submitting, setSubmitting] = useState(false);

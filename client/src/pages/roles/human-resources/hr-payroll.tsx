@@ -11,14 +11,19 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { DataTablePagination } from "@/components/refine-ui/data-table/data-table-pagination";
-import { usePagination } from "@/hooks/use-pagination";
+import { useServerList } from "@/hooks/use-server-list";
+import { useQuery } from "@tanstack/react-query";
+import { qk } from "@/lib/query-keys";
+import { queryClient, STALE } from "@/lib/query-client";
 import { KpiMini, PageHeader, StatusBadge } from "@/pages/roles/shared/shared-hr";
-import { useEffect, useMemo, useState } from "react";
+import { useMemo, useState } from "react";
 import { useOpenOnAction } from "@/features/quick-search/useOpenOnAction";
 import {
   getContributionReport,
-  listPayroll,
+  listPayrollAll,
   listPayrollBatches,
+  listPayrollPage,
+  type PayrollLineTotals,
   reasonLabel,
   getBatchDetail,
   type Agency,
@@ -49,53 +54,59 @@ const AGENCIES: Array<{ key: Agency; label: string }> = [
 ];
 
 export default function HRPayrollPage() {
-  const [rows, setRows] = useState<PayrollLine[]>([]);
-  const [batches, setBatches] = useState<PayrollBatch[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [refreshing, setRefreshing] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [wizardOpen, setWizardOpen] = useState(false);
   useOpenOnAction("generate-payroll", () => setWizardOpen(true));
   const [resumeBatchId, setResumeBatchId] = useState<string | null>(null);
   const [payslipLine, setPayslipLine] = useState<PayrollLine | null>(null);
-  const [lastRejection, setLastRejection] = useState<Record<string, BatchDecision | undefined>>({});
   // F1: the filter drives what the tracksheet below actually displays.
   const [trackFilterPeriod, setTrackFilterPeriod] = useState<string | null>(null);
 
-  const loadPayroll = async (period: string | null = trackFilterPeriod) => {
-    setError(null);
-    try {
-      const [payrollLines, payrollBatches] = await Promise.all([
-        listPayroll(period ?? undefined),
-        listPayrollBatches(),
-      ]);
-      setRows(payrollLines);
-      setBatches(payrollBatches);
+  // The tracksheet is paged by the server; the headline sums (gross, net,
+  // employer cost, hours) are totals over every line the period selects.
+  const pagination = useServerList<PayrollLine, PayrollLineTotals>({
+    key: (params) => qk.payroll.lines(params),
+    fetchPage: async (params) => {
+      const page = await listPayrollPage({ page: params.page, limit: params.limit, period: trackFilterPeriod });
+      return { items: page.items, total: page.total, pages: page.pages, extra: page.totals };
+    },
+    filters: { period: trackFilterPeriod },
+  });
+  const rows = pagination.pageItems;
+  const lineTotals = pagination.extra ?? { lines: 0, gross: 0, net: 0, employerCost: 0, hours: 0 };
 
-      // For each batch Finance sent back, fetch why — shown at the top.
-      const revisions = payrollBatches.filter((b) => b.status === "revision_required");
-      const details = await Promise.all(revisions.map((b) => getBatchDetail(b.id)));
-      setLastRejection(
-        Object.fromEntries(
-          details.map((d) => [
-            d.batch.id,
-            [...d.decisions].reverse().find((x) => x.action === "rejected"),
-          ]),
-        ),
-      );
-    } catch (loadError) {
-      console.error(loadError);
-      setError(loadError instanceof Error ? loadError.message : "Failed to load payroll data.");
-    } finally {
-      setLoading(false);
-      setRefreshing(false);
-    }
-  };
+  const batchesQuery = useQuery({
+    queryKey: qk.payroll.batches(),
+    queryFn: listPayrollBatches,
+    staleTime: STALE.list,
+  });
+  const batches: PayrollBatch[] = batchesQuery.data ?? [];
 
-  useEffect(() => {
-    void loadPayroll();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+  // For each batch Finance sent back, fetch why - shown at the top.
+  const revisionIds = useMemo(
+    () => batches.filter((b) => b.status === "revision_required").map((b) => b.id),
+    [batches],
+  );
+  const rejectionQuery = useQuery({
+    queryKey: [...qk.payroll.all, "rejections", revisionIds] as const,
+    queryFn: async () => {
+      const details = await Promise.all(revisionIds.map((id) => getBatchDetail(id)));
+      return Object.fromEntries(
+        details.map((d) => [d.batch.id, [...d.decisions].reverse().find((x) => x.action === "rejected")]),
+      ) as Record<string, BatchDecision | undefined>;
+    },
+    enabled: revisionIds.length > 0,
+    staleTime: STALE.list,
+  });
+  const lastRejection = rejectionQuery.data ?? {};
+
+  const loading = pagination.loading || batchesQuery.isLoading;
+  const refreshing = pagination.fetching || batchesQuery.isFetching;
+  const loadError = pagination.error ?? (batchesQuery.error as Error | null);
+  const shownError = error ?? loadError?.message ?? null;
+
+  // Refresh = invalidate the payroll queries; whatever is on screen refetches.
+  const loadPayroll = () => queryClient.invalidateQueries({ queryKey: qk.payroll.all });
 
   const trackPeriods = useMemo(
     () => Array.from(new Set(batches.map((b) => b.period))).sort().reverse(),
@@ -112,10 +123,11 @@ export default function HRPayrollPage() {
 
   const handleTrackFilterChange = (period: string | null) => {
     setTrackFilterPeriod(period);
-    void loadPayroll(period);
   };
 
-  const handleExportCsv = () => {
+  const handleExportCsv = async () => {
+    // The export covers the whole period, not only the page on screen.
+    const allRows = await listPayrollAll(trackFilterPeriod);
     downloadCsv(
       "payroll-tracksheet",
       [
@@ -123,7 +135,7 @@ export default function HRPayrollPage() {
         "SSS", "PhilHealth", "Pag-IBIG", "Withholding Tax", "Deductions", "Net",
         "Employer SSS", "Employer EC", "Employer PhilHealth", "Employer Pag-IBIG", "Employer cost", "Status",
       ],
-      rows.map((r) => [
+      allRows.map((r) => [
         r.empId, r.name, r.role, r.period, r.hours, r.overtime, r.adjustments, r.gross,
         r.sss, r.philhealth, r.pagibig, r.withholdingTax, r.deductions, r.net,
         r.employerSss, r.employerEc, r.employerPhilhealth, r.employerPagibig, r.employerCost, r.status,
@@ -154,18 +166,9 @@ export default function HRPayrollPage() {
     }
   };
 
-  const totals = useMemo(
-    () => ({
-      gross: rows.reduce((s, r) => s + r.gross, 0),
-      net: rows.reduce((s, r) => s + r.net, 0),
-      employerCost: rows.reduce((s, r) => s + r.employerCost, 0),
-    }),
-    [rows],
-  );
-
-  const pagination = usePagination(rows, 10);
-  const period = rows[0]?.period ?? "Current period";
-  const totalHours = rows.reduce((s, r) => s + r.hours, 0);
+  const totals = lineTotals;
+  const period = trackFilterPeriod ?? rows[0]?.period ?? "Current period";
+  const totalHours = lineTotals.hours;
 
   return (
     <div className="flex-1 space-y-6 p-4 md:p-6">
@@ -178,10 +181,7 @@ export default function HRPayrollPage() {
               size="sm"
               variant="outline"
              
-              onClick={() => {
-                setRefreshing(true);
-                void loadPayroll();
-              }}
+              onClick={() => void loadPayroll()}
               disabled={loading || refreshing}
             >
               <RefreshCw className={`h-4 w-4 ${refreshing ? "animate-spin" : ""}`} />
@@ -191,8 +191,8 @@ export default function HRPayrollPage() {
               size="sm"
               variant="outline"
              
-              disabled={rows.length === 0}
-              title={rows.length === 0 ? "No payroll lines to export" : "Export the tracksheet as CSV"}
+              disabled={pagination.total === 0}
+              title={pagination.total === 0 ? "No payroll lines to export" : "Export the tracksheet as CSV"}
               onClick={handleExportCsv}
             >
               <Download className="h-4 w-4" /> Export
@@ -204,9 +204,9 @@ export default function HRPayrollPage() {
         }
       />
 
-      {error && (
+      {shownError && (
         <div className="rounded-xl border border-destructive/30 bg-destructive/10 px-4 py-3 text-sm text-destructive-strong">
-          {error}
+          {shownError}
         </div>
       )}
 
@@ -305,7 +305,7 @@ export default function HRPayrollPage() {
           <div>
             <CardTitle className="text-base">Tracksheet</CardTitle>
             <p className="text-xs text-muted-foreground">
-              {period} · {rows.length} employees · {totalHours.toLocaleString()} hours logged
+              {period} · {pagination.total} employees · {totalHours.toLocaleString()} hours logged
             </p>
           </div>
           <div className="flex flex-wrap items-center gap-2">
@@ -367,7 +367,7 @@ export default function HRPayrollPage() {
                   </TableCell>
                 </TableRow>
               )}
-              {!loading && rows.length === 0 && (
+              {!loading && pagination.total === 0 && (
                 <TableRow>
                   <TableCell colSpan={13} className="py-8 text-center text-sm text-muted-foreground">
                     No payroll generated yet for this period.
@@ -411,7 +411,7 @@ export default function HRPayrollPage() {
               ))}
             </TableBody>
           </Table>
-          {rows.length > 0 && (
+          {pagination.total > 0 && (
             <div className="px-4 pt-3">
               <DataTablePagination {...pagination} />
             </div>

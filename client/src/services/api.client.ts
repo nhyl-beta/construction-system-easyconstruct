@@ -1,5 +1,8 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 import { UNAUTHORIZED_EVENT, getToken } from "@/auth/session";
+import { queryClient } from "@/lib/query-client";
+import { invalidateAfterWrite } from "@/lib/query-invalidation";
+import { resourceOf } from "@/lib/query-keys";
 
 const BASE = import.meta.env.VITE_API_BASE || "";
 
@@ -108,34 +111,71 @@ async function requestBlob(path: string): Promise<Blob> {
   return res.blob();
 }
 
+// Notifications are live: never shared, never cached (they also arrive over SSE).
+const isLive = (path: string) => resourceOf(path) === "notifications";
+
+type GetOptions = RequestInit & {
+  /** Keep the answer for this long (ms) and reuse it across screens. Default 0: always ask, but identical requests in flight at once share one network call. */
+  staleTime?: number;
+};
+
+/**
+ * GET through the shared TanStack Query client: two components asking for the
+ * same path at the same moment (the header and the sidebar both want the
+ * approvals badge) make one request, and a caller that passes `staleTime`
+ * reuses the answer until it is older than that. Callers get their own copy of
+ * the data, so sorting a result in place cannot change what another screen sees.
+ */
+async function cachedGet(path: string, opts: GetOptions = {}) {
+  const { staleTime = 0, ...init } = opts;
+  // An abortable request, or a live resource, goes straight to the network.
+  if (init.signal || isLive(path)) return request(path, { ...init, method: "GET" });
+  const data = await queryClient.fetchQuery({
+    queryKey: ["api", resourceOf(path), "get", path],
+    queryFn: () => request(path, { ...init, method: "GET" }),
+    staleTime,
+    gcTime: Math.max(staleTime, 60_000),
+  });
+  return typeof structuredClone === "function" ? structuredClone(data) : data;
+}
+
+/** Runs a write, then refreshes the cached reads it can have changed. */
+async function write<T>(path: string, run: () => Promise<T>): Promise<T> {
+  const result = await run();
+  void invalidateAfterWrite(path);
+  return result;
+}
+
 export const apiClient = {
   getBlob: (path: string) => requestBlob(path),
 
-  get: (path: string, opts: RequestInit = {}) =>
-    request(path, {
-      ...opts,
-      method: "GET",
-    }),
+  get: (path: string, opts: GetOptions = {}) => cachedGet(path, opts),
 
   post: (path: string, body: any) =>
-    request(path, {
-      method: "POST",
-      body: JSON.stringify(body),
-    }),
+    write(path, () =>
+      request(path, {
+        method: "POST",
+        body: JSON.stringify(body),
+      }),
+    ),
 
   postFormData: (
     path: string,
     formData: FormData,
-  ) => requestFormData(path, formData),
+  ) => write(path, () => requestFormData(path, formData)),
 
   patch: (path: string, body: any) =>
-    request(path, {
-      method: "PATCH",
-      body: JSON.stringify(body),
-    }),
+    write(path, () =>
+      request(path, {
+        method: "PATCH",
+        body: JSON.stringify(body),
+      }),
+    ),
 
   del: (path: string) =>
-    request(path, {
-      method: "DELETE",
-    }),
+    write(path, () =>
+      request(path, {
+        method: "DELETE",
+      }),
+    ),
 };

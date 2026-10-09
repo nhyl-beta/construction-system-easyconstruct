@@ -1,5 +1,6 @@
 import * as repo           from "./repository.js";
 import { projects } from "../db/schema/projects.js";
+import { projectKpis, type ProjectKpis } from "../dashboard/aggregates.js";
 import { orderByFor, paginate, type PageRequest } from "../utils/pagination.js";
 import * as projectMemberRepo from "../project-members/repository.js";
 import * as usersRepo from "../users/repository.js";
@@ -183,7 +184,18 @@ export const getPage = async (filters: ProjectFilters, scope: ProjectScope | und
     ({ limit, offset }) => repo.findPageSorted(scoped, limit, offset, orderBy),
   );
   const items = scope?.role === "consultant" ? rows.map(toConsultantView) : rows;
-  return { items, meta };
+
+  // Optional headline counts for the KPI strip, computed by the server so the
+  // browser does not have to download every project to show four numbers:
+  //   portfolio - the caller's non-archived portfolio, ignoring search and filters
+  //   filtered  - exactly the rows the current search / filters select
+  let kpis: ProjectKpis | undefined;
+  if (filters.kpis === "portfolio") {
+    kpis = projectKpis(await repo.statusGroups({ ...scoped, search: undefined, status: undefined, risk: undefined, projectType: undefined, deliveryType: undefined, code: undefined, excludeArchived: true }));
+  } else if (filters.kpis === "filtered") {
+    kpis = projectKpis(await repo.statusGroups(scoped));
+  }
+  return { items, meta: kpis ? { ...meta, kpis } : meta };
 };
 
 export const getById = async (id: number, scope?: ProjectScope) => {

@@ -31,6 +31,7 @@ export const getAll = async (
       excludeArchived: req.query.excludeArchived === "1",
       search: req.query.search as string,
       code: typeof req.query.code === "string" && req.query.code ? req.query.code : undefined,
+      kpis: req.query.kpis === "portfolio" || req.query.kpis === "filtered" ? req.query.kpis : undefined,
     };
     // Consultant is scoped to the projects it advises on, with commercial
     // fields stripped — see projects/service.ts getAll.

@@ -1,4 +1,4 @@
-import { useMemo, useState } from "react";
+import { useState } from "react";
 
 import {
   Card,
@@ -10,169 +10,18 @@ import {
 import { PageHeader } from "@/pages/roles/shared/shared-hr";
 import { DatePicker } from "@/components/ui/date-picker";
 
-import {
-  useEmployees,
-  useAttendance,
-} from "@/features/hr/hooks/use-hr";
+import { useWorkforceBoard } from "@/features/hr/hooks/use-workforce-board";
 
 export default function HRWorkforcePage() {
   const [from, setFrom] = useState("");
   const [to, setTo] = useState("");
 
-  const {
-    employees,
-    loading: employeesLoading,
-    error: employeesError,
-  } = useEmployees();
-
-  const {
-    attendance,
-    loading: attendanceLoading,
-    error: attendanceError,
-  } = useAttendance({
-    dateFrom: from || undefined,
-    dateTo: to || undefined,
-  });
-
-  const loading = employeesLoading || attendanceLoading;
-  const error = employeesError ?? attendanceError;
-
-  const totals = useMemo(() => {
-    const headcount = employees.length;
-
-    const active = employees.filter(
-      (employee) => employee.status === "Active",
-    ).length;
-
-    const onLeave = employees.filter(
-      (employee) => employee.status === "On Leave",
-    ).length;
-
-    const suspended = employees.filter(
-      (employee) => employee.status === "Suspended",
-    ).length;
-
-    return {
-      headcount,
-      active,
-      onLeave,
-      suspended,
-      attendanceRecords: attendance.length,
-    };
-  }, [employees, attendance]);
-
-  const byDepartment = useMemo(() => {
-    const departments = new Map<
-      string,
-      {
-        department: string;
-        headcount: number;
-        active: number;
-      }
-    >();
-
-    for (const employee of employees) {
-      const existing = departments.get(employee.department);
-
-      if (existing) {
-        existing.headcount += 1;
-
-        if (employee.status === "Active") {
-          existing.active += 1;
-        }
-      } else {
-        departments.set(employee.department, {
-          department: employee.department,
-          headcount: 1,
-          active: employee.status === "Active" ? 1 : 0,
-        });
-      }
-    }
-
-    return Array.from(departments.values()).sort((a, b) =>
-      a.department.localeCompare(b.department),
-    );
-  }, [employees]);
-
-  const bySite = useMemo(() => {
-    const sites = new Map<
-      string,
-      {
-        site: string;
-        headcount: number;
-        present: number;
-      }
-    >();
-
-    for (const employee of employees) {
-      const existing = sites.get(employee.site);
-
-      if (existing) {
-        existing.headcount += 1;
-      } else {
-        sites.set(employee.site, {
-          site: employee.site,
-          headcount: 1,
-          present: 0,
-        });
-      }
-    }
-
-    for (const record of attendance) {
-      const existing = sites.get(record.site);
-
-      if (existing && record.attendanceStatus === "Present") {
-        existing.present += 1;
-      }
-    }
-
-    return Array.from(sites.values()).sort((a, b) =>
-      a.site.localeCompare(b.site),
-    );
-  }, [employees, attendance]);
-
-  const dailyAttendance = useMemo(() => {
-    const daily = new Map<
-      string,
-      {
-        date: string;
-        present: number;
-        late: number;
-        absent: number;
-      }
-    >();
-
-    for (const record of attendance) {
-      const existing = daily.get(record.logDate);
-
-      if (!existing) {
-        daily.set(record.logDate, {
-          date: record.logDate,
-          present: record.attendanceStatus === "Present" ? 1 : 0,
-          late: record.attendanceStatus === "Late" ? 1 : 0,
-          absent: record.attendanceStatus === "Absent" ? 1 : 0,
-        });
-
-        continue;
-      }
-
-      if (record.attendanceStatus === "Present") {
-        existing.present += 1;
-      }
-
-      if (record.attendanceStatus === "Late") {
-        existing.late += 1;
-      }
-
-      if (record.attendanceStatus === "Absent") {
-        existing.absent += 1;
-      }
-    }
-
-    return Array.from(daily.values()).sort((a, b) =>
-      a.date.localeCompare(b.date),
-    );
-  }, [attendance]);
+  // Counts by status, department, site and day come from the server.
+  const { board, loading, error } = useWorkforceBoard({ from: from || undefined, to: to || undefined });
+  const totals = board.totals;
+  const byDepartment = board.byDepartment;
+  const bySite = board.bySite;
+  const dailyAttendance = board.dailyAttendance;
 
   return (
     <div className="flex-1 space-y-6 p-4 md:p-6">

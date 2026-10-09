@@ -106,3 +106,66 @@ export async function workforceAggregates(from?: string, to?: string) {
     attendanceRecords: days.reduce((sum, d) => sum + d.records, 0),
   };
 }
+
+/**
+ * The HR "Workforce reporting" board: headcount by status, headcount and
+ * present-days per department and site, and a daily Present / Late / Absent
+ * tally, all counted in SQL. The definitions are those the page used when it
+ * counted full lists in the browser: "present" is attendance_status = 'Present'
+ * (per attendance site), not verification status.
+ */
+export async function workforceBoard(from?: string, to?: string) {
+  const inRange = and(...rangeConditions(from, to));
+
+  const [totalsRow, departments, sites, presentBySite, daily] = await Promise.all([
+    db
+      .select({
+        headcount: sql<number>`count(*)::int`,
+        active: sql<number>`(count(*) filter (where ${employees.status} = 'Active'))::int`,
+        onLeave: sql<number>`(count(*) filter (where ${employees.status} = 'On Leave'))::int`,
+        suspended: sql<number>`(count(*) filter (where ${employees.status} = 'Suspended'))::int`,
+      })
+      .from(employees),
+    db
+      .select({
+        department: employees.department,
+        headcount: sql<number>`count(*)::int`,
+        active: sql<number>`(count(*) filter (where ${employees.status} = 'Active'))::int`,
+      })
+      .from(employees)
+      .groupBy(employees.department),
+    db
+      .select({ site: employees.site, headcount: sql<number>`count(*)::int` })
+      .from(employees)
+      .groupBy(employees.site),
+    db
+      .select({ site: attendance.site, present: sql<number>`count(*)::int` })
+      .from(attendance)
+      .where(and(eq(attendance.attendanceStatus, "Present"), inRange))
+      .groupBy(attendance.site),
+    db
+      .select({
+        date: attendance.logDate,
+        present: sql<number>`(count(*) filter (where ${attendance.attendanceStatus} = 'Present'))::int`,
+        late: sql<number>`(count(*) filter (where ${attendance.attendanceStatus} = 'Late'))::int`,
+        absent: sql<number>`(count(*) filter (where ${attendance.attendanceStatus} = 'Absent'))::int`,
+        records: sql<number>`count(*)::int`,
+      })
+      .from(attendance)
+      .where(inRange)
+      .groupBy(attendance.logDate),
+  ]);
+
+  const presentLookup = new Map(presentBySite.map((r) => [r.site, r.present]));
+  const totals = totalsRow[0] ?? { headcount: 0, active: 0, onLeave: 0, suspended: 0 };
+  return {
+    totals: { ...totals, attendanceRecords: daily.reduce((sum, d) => sum + d.records, 0) },
+    byDepartment: departments.sort((a, b) => a.department.localeCompare(b.department)),
+    bySite: sites
+      .map((s) => ({ site: s.site, headcount: s.headcount, present: presentLookup.get(s.site) ?? 0 }))
+      .sort((a, b) => a.site.localeCompare(b.site)),
+    dailyAttendance: daily
+      .map(({ records: _records, ...d }) => d)
+      .sort((a, b) => a.date.localeCompare(b.date)),
+  };
+}

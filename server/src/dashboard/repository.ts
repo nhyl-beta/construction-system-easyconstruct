@@ -257,8 +257,11 @@ export const recentAttendanceByEmployee = async (days: number) =>
 
 // ── Finance ─────────────────────────────────────────────────────────────────
 
+/** One row per budget line: project and planned amount (as a number, like GET /finance/budgets). */
 export const budgetAllocation = async () =>
-  db.select({ project: budgets.project, planned: budgets.planned }).from(budgets).orderBy(asc(budgets.id));
+  (await db.select({ project: budgets.project, planned: budgets.planned }).from(budgets).orderBy(asc(budgets.id))).map(
+    (b) => ({ project: b.project, planned: Number(b.planned) }),
+  );
 
 /** The newest `limit` expenses — the same window GET /finance/expenses serves by default. */
 export const recentExpenses = async (limit: number) =>

@@ -220,6 +220,39 @@ export async function listPayroll(period?: string, batchId?: string): Promise<Pa
   return raw.map(normalizeLine);
 }
 
+export interface PayrollLineTotals {
+  lines: number;
+  gross: number;
+  net: number;
+  employerCost: number;
+  hours: number;
+}
+
+/** One page of payroll lines, plus the sums over every line the filter selects. */
+export async function listPayrollPage(params: {
+  page: number;
+  limit: number;
+  period?: string | null;
+}): Promise<{ items: PayrollLine[]; total: number; pages: number; totals: PayrollLineTotals }> {
+  const qs = new URLSearchParams({ page: String(params.page), limit: String(params.limit), totals: "1" });
+  if (params.period) qs.set("period", params.period);
+  const json = (await apiClient.get(`/payroll?${qs.toString()}`)) as {
+    data: RawLine[];
+    meta: { total: number; pages: number; totals: PayrollLineTotals };
+  };
+  return { items: json.data.map(normalizeLine), total: json.meta.total, pages: json.meta.pages, totals: json.meta.totals };
+}
+
+/** Every line of a period, 100 per request (for CSV export). */
+export async function listPayrollAll(period?: string | null): Promise<PayrollLine[]> {
+  const all: PayrollLine[] = [];
+  for (let page = 1; ; page++) {
+    const result = await listPayrollPage({ page, limit: 100, period });
+    all.push(...result.items);
+    if (page >= result.pages || result.items.length === 0) return all;
+  }
+}
+
 export async function listPayrollBatches(): Promise<PayrollBatch[]> {
   const raw = await unwrap<Record<string, unknown>[]>(apiClient.get("/payroll/batches/all"));
   return raw.map(normalizeBatch);

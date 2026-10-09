@@ -28,6 +28,8 @@ import { evaluateSignals } from "../signals/index.js";
 import { FEATURES } from "../config/features.js";
 import { scopeRowsToAssigned } from "../projects/scope.js";
 import { visibleProjectCodes } from "../projects/service.js";
+import { ALL_DOMAIN, cached } from "../cache/index.js";
+import { userScope } from "../cache/scope.js";
 
 export interface MyActionItem {
   projectCode: string;
@@ -153,7 +155,13 @@ router.get("/impact", async (req: AuthedRequest, res, next) => {
   try {
     if (!req.authUser) throw new UnauthorizedError();
     const { id, role, name } = req.authUser;
-    res.json(formatSuccess(await getImpactAwareness({ id, role, name }), "Impact awareness retrieved"));
+    // Decision-support signals for every project the caller can see: per user,
+    // invalidated by any write, 60 s.
+    const data = await cached("lifecycle", userScope(req.authUser)!, 60, () => getImpactAwareness({ id, role, name }), {
+      query: { kind: "impact" },
+      deps: [ALL_DOMAIN],
+    });
+    res.json(formatSuccess(data, "Impact awareness retrieved"));
   } catch (err) {
     next(err);
   }
@@ -162,10 +170,17 @@ router.get("/impact", async (req: AuthedRequest, res, next) => {
 router.get("/my-actions", async (req: AuthedRequest, res, next) => {
   try {
     if (!req.authUser) throw new UnauthorizedError();
-    const data = await scopeRowsToAssigned(
-      req.authUser,
-      await getMyActions({ id: req.authUser.id, role: req.authUser.role }),
-      (item) => item.projectCode,
+    const auth = req.authUser;
+    // "What is waiting on me": gate checks and signals across every project,
+    // the heaviest read behind the dashboards. Per user, invalidated by any
+    // write anywhere, 60 s.
+    const data = await cached(
+      "lifecycle",
+      userScope(auth)!,
+      60,
+      async () =>
+        scopeRowsToAssigned(auth, await getMyActions({ id: auth.id, role: auth.role }), (item) => item.projectCode),
+      { query: { kind: "my-actions" }, deps: [ALL_DOMAIN] },
     );
     res.json(formatSuccess(data, "Actions waiting on you retrieved"));
   } catch (err) {

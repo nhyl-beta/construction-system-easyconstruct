@@ -137,16 +137,29 @@ export const getAll = async (filters: PayrollFilters, actor: Actor = SYSTEM_ACTO
   return rows.filter((l) => !l.batchId || !hidden.has(l.batchId));
 };
 
-/** One page of lines; the Finance draft-batch exclusion is part of the query, so counts match what is shown. */
-export const getPage = async (filters: PayrollFilters, request: PageRequest, actor: Actor = SYSTEM_ACTOR) => {
+/**
+ * One page of lines; the Finance draft-batch exclusion is part of the query, so
+ * counts match what is shown. With `withTotals`, the sums over the whole filter
+ * set (not just this page) come back too.
+ */
+export const getPage = async (
+  filters: PayrollFilters,
+  request: PageRequest,
+  actor: Actor = SYSTEM_ACTOR,
+  withTotals = false,
+) => {
   const hidden = await draftBatchIds(actor);
   const scoped: PayrollFilters = { ...filters, ...(hidden.size ? { excludeBatchIds: [...hidden] } : {}) };
-  return paginate(
-    request,
-    () => repo.countFiltered(scoped),
-    (window) =>
-      repo.findPage(scoped, window, orderByFor(request, repo.PAYROLL_SORT_COLUMNS, repo.defaultPayrollOrder, payroll.id)),
-  );
+  const [page, totals] = await Promise.all([
+    paginate(
+      request,
+      () => repo.countFiltered(scoped),
+      (window) =>
+        repo.findPage(scoped, window, orderByFor(request, repo.PAYROLL_SORT_COLUMNS, repo.defaultPayrollOrder, payroll.id)),
+    ),
+    withTotals ? repo.sumFiltered(scoped) : Promise.resolve(undefined),
+  ]);
+  return totals ? { items: page.items, meta: { ...page.meta, totals } } : page;
 };
 
 export const getById = async (id: number, actor: Actor = SYSTEM_ACTOR) => {

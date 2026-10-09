@@ -106,8 +106,8 @@ export default function ConsultantDashboardPage() {
               <p className="text-xs text-muted-foreground">
                 {c.loading
                   ? "Loading…"
-                  : `${c.proposalsAwaitingReview.length} proposal${
-                      c.proposalsAwaitingReview.length === 1
+                  : `${c.proposalsAwaitingReviewCount} proposal${
+                      c.proposalsAwaitingReviewCount === 1
                         ? ""
                         : "s"
                     } pending advisory review`}
@@ -130,7 +130,7 @@ export default function ConsultantDashboardPage() {
               <div className="p-5 text-sm text-muted-foreground">
                 Loading proposals…
               </div>
-            ) : c.proposalsAwaitingReview.length === 0 ? (
+            ) : c.proposalsAwaitingReviewCount === 0 ? (
               <div className="p-8 text-center text-sm text-muted-foreground">
                 No proposals are currently awaiting your review.
               </div>

@@ -1,4 +1,4 @@
-import { and, desc, eq, inArray, isNull, notInArray, or, SQL } from "drizzle-orm";
+import { and, desc, eq, inArray, isNull, notInArray, or, sql, SQL } from "drizzle-orm";
 import { countRows, selectPage } from "../db/paged.js";
 import { db } from "../db/connection.js";
 import { payroll } from "../db/schema/payroll.js";
@@ -35,6 +35,28 @@ export const defaultPayrollOrder = [desc(payroll.id)];
 export const countFiltered = async (filters: PayrollFilters = {}) => {
   const conditions = buildConditions(filters);
   return countRows(payroll, conditions.length ? and(...conditions) : undefined);
+};
+
+/** Sums over a filter set - what the tracksheet's headline cards show. */
+export const sumFiltered = async (filters: PayrollFilters = {}) => {
+  const conditions = buildConditions(filters);
+  const [row] = await db
+    .select({
+      lines: sql<number>`count(*)::int`,
+      gross: sql<string>`coalesce(sum(${payroll.gross}), 0)`,
+      net: sql<string>`coalesce(sum(${payroll.net}), 0)`,
+      employerCost: sql<string>`coalesce(sum(${payroll.employerCost}), 0)`,
+      hours: sql<string>`coalesce(sum(${payroll.hours}), 0)`,
+    })
+    .from(payroll)
+    .where(conditions.length ? and(...conditions) : undefined);
+  return {
+    lines: row?.lines ?? 0,
+    gross: Number(row?.gross ?? 0),
+    net: Number(row?.net ?? 0),
+    employerCost: Number(row?.employerCost ?? 0),
+    hours: Number(row?.hours ?? 0),
+  };
 };
 
 export const findPage = async (filters: PayrollFilters, window: { limit: number; offset: number }, orderBy: SQL[]) => {

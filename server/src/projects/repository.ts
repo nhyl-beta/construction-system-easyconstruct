@@ -105,6 +105,17 @@ export const findNarrow = async (filters: ProjectFilters) => {
     .orderBy(...defaultOrder);
 };
 
+/** Projects per status for a filter set (what the KPI strips are folded from). */
+export const statusGroups = async (filters: ProjectFilters): Promise<{ status: string; n: number }[]> => {
+  if (filters.codes && filters.codes.length === 0) return [];
+  const conditions = buildConditions(filters);
+  return db
+    .select({ status: projects.status, n: sql<number>`count(*)::int` })
+    .from(projects)
+    .where(conditions.length ? and(...conditions) : undefined)
+    .groupBy(projects.status);
+};
+
 export const countFiltered = async (filters: ProjectFilters): Promise<number> => {
   if (filters.codes && filters.codes.length === 0) return 0;
   const conditions = buildConditions(filters);

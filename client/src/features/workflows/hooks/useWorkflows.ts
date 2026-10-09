@@ -1,4 +1,9 @@
 import { useCallback, useEffect, useState } from "react";
+import { useQuery } from "@tanstack/react-query";
+
+import { qk } from "@/lib/query-keys";
+import { STALE } from "@/lib/query-client";
+import { useServerList } from "@/hooks/use-server-list";
 
 import { WorkflowRepository } from "../repositories/workflow.repository";
 
@@ -22,33 +27,24 @@ import type {
  */
 
 export function useWorkflowTemplates() {
-  const [templates, setTemplates] = useState<WorkflowTemplate[]>([]);
-  const [loading, setLoading] = useState(false);
+  // Templates are configuration: kept for five minutes, shared by every screen.
+  const query = useQuery({
+    queryKey: qk.workflows.templates,
+    queryFn: () => WorkflowRepository.listTemplates(),
+    staleTime: STALE.config,
+  });
+  const templates = query.data ?? [];
+  const loading = query.isLoading;
   const [creating, setCreating] = useState(false);
-  const [error, setError] = useState<Error | null>(null);
+  const [actionError, setError] = useState<Error | null>(null);
+  const error = actionError ?? ((query.error as Error | null) ?? null);
 
+  // A write through apiClient already invalidated the workflow queries, so the
+  // list refreshes on its own; this is for an explicit "reload".
   const reload = useCallback(async () => {
-    setLoading(true);
     setError(null);
-
-    try {
-      const result = await WorkflowRepository.listTemplates();
-
-      setTemplates(result);
-    } catch (err) {
-      setError(
-        err instanceof Error
-          ? err
-          : new Error("Failed to load workflow templates."),
-      );
-    } finally {
-      setLoading(false);
-    }
-  }, []);
-
-  useEffect(() => {
-    void reload();
-  }, [reload]);
+    await query.refetch();
+  }, [query]);
 
   const createWorkflow = useCallback(
     async (input: CreateWorkflowInput) => {
@@ -58,8 +54,7 @@ export function useWorkflowTemplates() {
       try {
         const created = await WorkflowRepository.create(input);
 
-        // Refresh template active counts after creating a workflow.
-        await reload();
+        // (Template active counts refresh on their own: the write invalidated them.)
 
         return created;
       } catch (err) {
@@ -87,7 +82,6 @@ export function useWorkflowTemplates() {
 
       try {
         const created = await WorkflowRepository.createTemplate(input);
-        await reload();
         return created;
       } catch (err) {
         setError(
@@ -112,7 +106,6 @@ export function useWorkflowTemplates() {
 
       try {
         await WorkflowRepository.deleteTemplate(id);
-        await reload();
         return true;
       } catch (err) {
         setError(
@@ -155,69 +148,44 @@ export function useWorkflowTemplates() {
  * =========================================================
  */
 
-export function useActiveWorkflows() {
-  const [workflows, setWorkflows] = useState<Workflow[]>([]);
-  const [loading, setLoading] = useState(false);
-  const [error, setError] = useState<Error | null>(null);
-
-  const reload = useCallback(async () => {
-    setLoading(true);
-    setError(null);
-
-    try {
-      const result = await WorkflowRepository.listActive();
-
-      setWorkflows(result);
-    } catch (err) {
-      setError(
-        err instanceof Error
-          ? err
-          : new Error("Failed to load active workflows."),
-      );
-    } finally {
-      setLoading(false);
-    }
-  }, []);
-
-  useEffect(() => {
-    void reload();
-  }, [reload]);
+export function useActiveWorkflows(options: { pageSize?: number } = {}) {
+  // Active workflows come a page at a time from the server (stages, attachments
+  // and line items are loaded for that page only). The previous page stays on
+  // screen while the next loads.
+  const list = useServerList<Workflow>({
+    key: (params) => qk.workflows.list(params),
+    fetchPage: (params) => WorkflowRepository.listActivePage(params),
+    initialPageSize: options.pageSize ?? 10,
+  });
 
   const [saving, setSaving] = useState(false);
 
-  const update = useCallback(
-    async (id: number, input: UpdateWorkflowInput) => {
-      setSaving(true);
-      try {
-        const updated = await WorkflowRepository.update(id, input);
-        await reload();
-        return updated;
-      } finally {
-        setSaving(false);
-      }
-    },
-    [reload],
-  );
+  const update = useCallback(async (id: number, input: UpdateWorkflowInput) => {
+    setSaving(true);
+    try {
+      // The write invalidates the workflow queries; the list refetches itself.
+      return await WorkflowRepository.update(id, input);
+    } finally {
+      setSaving(false);
+    }
+  }, []);
 
-  const remove = useCallback(
-    async (id: number) => {
-      setSaving(true);
-      try {
-        const deleted = await WorkflowRepository.remove(id);
-        await reload();
-        return deleted;
-      } finally {
-        setSaving(false);
-      }
-    },
-    [reload],
-  );
+  const remove = useCallback(async (id: number) => {
+    setSaving(true);
+    try {
+      return await WorkflowRepository.remove(id);
+    } finally {
+      setSaving(false);
+    }
+  }, []);
 
   return {
-    workflows,
-    loading,
-    error,
-    reload,
+    workflows: list.pageItems,
+    /** Page controls for <DataTablePagination {...pagination} />. */
+    pagination: list,
+    loading: list.loading,
+    error: list.error,
+    reload: list.reload,
     saving,
     update,
     remove,
@@ -238,103 +206,62 @@ export function useActiveWorkflows() {
 // safe to call from the generic Sidebar regardless of which role is signed
 // in — a role with no approvable stage just gets 0 back.
 export function useApprovalsPendingCount(): number {
-  const [pending, setPending] = useState(0);
-
-  useEffect(() => {
-    let cancelled = false;
-    WorkflowRepository.getApprovalStats()
-      .then((stats) => {
-        if (!cancelled) setPending(stats.pending);
-      })
-      .catch(() => {
-        // Sidebar badge is a convenience, not a critical read — stay at 0.
-      });
-    return () => {
-      cancelled = true;
-    };
-  }, []);
-
-  return pending;
+  // The header and the sidebar both show this badge: one shared query, one request.
+  const query = useQuery({
+    queryKey: qk.approvals.stats,
+    queryFn: () => WorkflowRepository.getApprovalStats(),
+    staleTime: STALE.badge,
+    // The badge is a convenience, not a critical read - stay at 0 on failure.
+    retry: false,
+  });
+  return query.data?.pending ?? 0;
 }
 
 export function useApprovals(scope: ApprovalScope) {
-  type ApprovalItems = Awaited<
-    ReturnType<typeof WorkflowRepository.listApprovals>
-  >;
+  const queue = useQuery({
+    queryKey: qk.approvals.queue(scope),
+    queryFn: () => WorkflowRepository.listApprovals(scope),
+    staleTime: STALE.list,
+  });
+  // Same query as the sidebar badge, so it is not fetched twice.
+  const statsQuery = useQuery({
+    queryKey: qk.approvals.stats,
+    queryFn: () => WorkflowRepository.getApprovalStats(),
+    staleTime: STALE.badge,
+  });
 
-  const [items, setItems] = useState<ApprovalItems>([]);
-  const [stats, setStats] = useState<ApprovalStats | null>(null);
-  const [loading, setLoading] = useState(false);
   const [deciding, setDeciding] = useState<number | null>(null);
-  const [error, setError] = useState<Error | null>(null);
+  const [actionError, setError] = useState<Error | null>(null);
+  const error = actionError ?? ((queue.error ?? statsQuery.error) as Error | null) ?? null;
 
   const reload = useCallback(async () => {
-    setLoading(true);
     setError(null);
-
-    try {
-      const [queue, queueStats] = await Promise.all([
-        WorkflowRepository.listApprovals(scope),
-        WorkflowRepository.getApprovalStats(),
-      ]);
-
-      setItems(queue);
-      setStats(queueStats);
-    } catch (err) {
-      setError(
-        err instanceof Error
-          ? err
-          : new Error("Failed to load workflow approvals."),
-      );
-    } finally {
-      setLoading(false);
-    }
-  }, [scope]);
-
-  useEffect(() => {
-    void reload();
-  }, [reload]);
+    await Promise.all([queue.refetch(), statsQuery.refetch()]);
+  }, [queue, statsQuery]);
 
   const decide = useCallback(
-    async (
-      workflowId: number,
-      stageId: number,
-      input: DecideStageInput,
-    ) => {
+    async (workflowId: number, stageId: number, input: DecideStageInput) => {
       setDeciding(stageId);
       setError(null);
 
       try {
-        const updated = await WorkflowRepository.decideStage(
-          workflowId,
-          stageId,
-          input,
-        );
-
-        // Refresh approval queue after a decision.
-        await reload();
-
-        return updated;
+        // The decision invalidates the workflow queries (queue, badge,
+        // dashboard); they refetch on their own.
+        return await WorkflowRepository.decideStage(workflowId, stageId, input);
       } catch (err) {
-        const normalizedError =
-          err instanceof Error
-            ? err
-            : new Error("Failed to decide workflow stage.");
-
-        setError(normalizedError);
-
+        setError(err instanceof Error ? err : new Error("Failed to decide workflow stage."));
         return null;
       } finally {
         setDeciding(null);
       }
     },
-    [reload],
+    [],
   );
 
   return {
-    items,
-    stats,
-    loading,
+    items: queue.data ?? [],
+    stats: (statsQuery.data ?? null) as ApprovalStats | null,
+    loading: queue.isLoading || statsQuery.isLoading,
     deciding,
     error,
     reload,
@@ -354,36 +281,21 @@ export function useApprovals(scope: ApprovalScope) {
  */
 
 export function useWorkflowDetail(workflowId: number | null) {
-  const [workflow, setWorkflow] = useState<Workflow | null>(null);
-  const [loading, setLoading] = useState(false);
-  const [error, setError] = useState<Error | null>(null);
+  const query = useQuery({
+    queryKey: ["api", "workflows", "one", workflowId] as const,
+    queryFn: () => WorkflowRepository.getById(workflowId as number),
+    enabled: workflowId !== null,
+    staleTime: STALE.live,
+  });
 
-  const reload = useCallback(async () => {
-    if (workflowId === null) return;
-
-    setLoading(true);
-    setError(null);
-
-    try {
-      setWorkflow(await WorkflowRepository.getById(workflowId));
-    } catch (err) {
-      setError(
-        err instanceof Error ? err : new Error("Failed to load the workflow."),
-      );
-    } finally {
-      setLoading(false);
-    }
-  }, [workflowId]);
-
-  useEffect(() => {
-    if (workflowId === null) {
-      setWorkflow(null);
-      return;
-    }
-    void reload();
-  }, [workflowId, reload]);
-
-  return { workflow, loading, error, reload } as const;
+  return {
+    workflow: workflowId === null ? null : (query.data ?? null),
+    loading: query.isLoading,
+    error: (query.error as Error | null) ?? null,
+    reload: useCallback(async () => {
+      await query.refetch();
+    }, [query]),
+  } as const;
 }
 
 /**
@@ -393,32 +305,20 @@ export function useWorkflowDetail(workflowId: number | null) {
  */
 
 export function useBudgetChangeRequests() {
-  const [requests, setRequests] = useState<Workflow[]>([]);
-  const [loading, setLoading] = useState(false);
-  const [error, setError] = useState<Error | null>(null);
+  const query = useQuery({
+    queryKey: ["api", "workflows", "budget-change-requests"] as const,
+    queryFn: () => WorkflowRepository.listBudgetChangeRequests(),
+    staleTime: STALE.list,
+  });
 
-  const reload = useCallback(async () => {
-    setLoading(true);
-    setError(null);
-
-    try {
-      setRequests(await WorkflowRepository.listBudgetChangeRequests());
-    } catch (err) {
-      setError(
-        err instanceof Error
-          ? err
-          : new Error("Failed to load budget change requests."),
-      );
-    } finally {
-      setLoading(false);
-    }
-  }, []);
-
-  useEffect(() => {
-    void reload();
-  }, [reload]);
-
-  return { requests, loading, error, reload } as const;
+  return {
+    requests: query.data ?? ([] as Workflow[]),
+    loading: query.isLoading,
+    error: (query.error as Error | null) ?? null,
+    reload: useCallback(async () => {
+      await query.refetch();
+    }, [query]),
+  } as const;
 }
 
 /**

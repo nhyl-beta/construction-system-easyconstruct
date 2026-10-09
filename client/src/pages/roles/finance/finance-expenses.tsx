@@ -134,7 +134,7 @@ export default function FinanceExpensesPage() {
   const { user } = useAuth();
   // The server enforces this too (403); the buttons are simply not offered to other roles.
   const canDecide = user?.role === "finance-manager" || user?.role === "admin";
-  const pagination = usePagination(c.expenses, 10);
+  const pagination = c.pagination;
   const [pendingDecision, setPendingDecision] = useState<{ id: string; vendor: string; amount: number; decision: "approve" | "reject" } | null>(null);
   const [deciding, setDeciding] = useState(false);
   const [notice, setNotice] = useState<{ tone: "warn" | "error"; text: string } | null>(null);
@@ -203,13 +203,13 @@ export default function FinanceExpensesPage() {
                     variant="outline"
                     size="sm"
                     className="h-8 text-xs"
-                    disabled={c.expenses.length === 0}
+                    disabled={pagination.total === 0}
                     title="Export the rows currently shown as CSV (opens in Excel)"
-                    onClick={() =>
+                    onClick={async () =>
                       downloadCsv(
                         "expenses",
                         ["ID", "Vendor", "Project", "Category", "Amount", "Submitted", "Status", "Anomaly score", "Anomaly reason"],
-                        c.expenses.map((e) => [e.id, e.vendor, e.project, e.category, e.amount, e.submittedAt, e.status, e.anomalyScore ?? "", e.anomalyReason ?? ""]),
+                        (await c.fetchAllMatching()).map((e) => [e.id, e.vendor, e.project, e.category, e.amount, e.submittedAt, e.status, e.anomalyScore ?? "", e.anomalyReason ?? ""]),
                       )
                     }
                   >
@@ -246,7 +246,7 @@ export default function FinanceExpensesPage() {
                     <div key={i} className="h-10 animate-pulse rounded-lg bg-muted/40" />
                   ))}
                 </div>
-              ) : c.expenses.length === 0 ? (
+              ) : pagination.total === 0 ? (
                 <div className="p-6 text-center text-sm text-muted-foreground">
                   No expenses match your filters.
                 </div>
@@ -317,7 +317,7 @@ export default function FinanceExpensesPage() {
                   </TableBody>
                 </Table>
               )}
-              {c.expenses.length > 0 && <DataTablePagination {...pagination} />}
+              {pagination.total > 0 && <DataTablePagination {...pagination} />}
             </SectionCard>
           </TabsContent>
 
@@ -339,8 +339,7 @@ export default function FinanceExpensesPage() {
               {FEATURES.ai && (
                 <SectionCard title="Anomaly detection" subtitle="Rule-based: duplicate payments and amounts far above history. Advisory only.">
                   <ul className="space-y-2">
-                    {c.expenses
-                      .filter((e) => (e.anomalyScore ?? 0) >= 0.4)
+                    {c.anomalies
                       .map((e) => (
                         <li key={e.id} className="rounded-xl border bg-warning/5 p-3">
                           <div className="flex items-center gap-2 text-xs">

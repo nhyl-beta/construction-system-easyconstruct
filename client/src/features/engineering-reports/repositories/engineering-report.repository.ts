@@ -6,7 +6,7 @@ import type {
   EngineeringReportFilters,
 } from "../types/engineering-reports.types";
 
-interface BackendEngineeringReport {
+export interface BackendEngineeringReport {
   id: number;
   reportId: string;
   title: string;
@@ -27,7 +27,7 @@ interface BackendEngineeringReport {
   updatedAt: string | null;
 }
 
-function normalizeReport(raw: BackendEngineeringReport): EngineeringReport {
+export function normalizeReport(raw: BackendEngineeringReport): EngineeringReport {
   return {
     id: raw.reportId,
     dbId: raw.id,

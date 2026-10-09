@@ -18,6 +18,7 @@ export const expensesController = {
           category: category as string | undefined,
         },
         paging,
+        req.query.extras === "1",
       );
 
       return sendPaged(res, items, "Expenses retrieved successfully", meta);

@@ -28,17 +28,24 @@ export const expensesService = {
   },
 
   /** The same list with its total: the page window comes from the shared pagination request. */
-  async listPage(params: Pick<ListExpensesQuery, "query" | "category">, request: PageRequest) {
-    return paginate(
-      request,
-      () => expensesRepository.countMany(params),
-      (window) =>
-        expensesRepository.findPage(
-          params,
-          window,
-          orderByFor(request, EXPENSE_SORT_COLUMNS, defaultExpenseOrder, expensesTable.id),
-        ),
-    );
+  async listPage(params: Pick<ListExpensesQuery, "query" | "category">, request: PageRequest, withExtras = false) {
+    const [page, extras] = await Promise.all([
+      paginate(
+        request,
+        () => expensesRepository.countMany(params),
+        (window) =>
+          expensesRepository.findPage(
+            params,
+            window,
+            orderByFor(request, EXPENSE_SORT_COLUMNS, defaultExpenseOrder, expensesTable.id),
+          ),
+      ),
+      // Spend per category and the flagged expenses across the whole filter set (the Analytics tab).
+      withExtras
+        ? Promise.all([expensesRepository.breakdown(params), expensesRepository.anomalies(params, 50)])
+        : Promise.resolve(undefined),
+    ]);
+    return extras ? { items: page.items, meta: { ...page.meta, breakdown: extras[0], anomalies: extras[1] } } : page;
   },
 
   async create(input: CreateExpenseInput) {

@@ -1,4 +1,6 @@
 import { Refine } from "@refinedev/core";
+import { QueryClientProvider } from "@tanstack/react-query";
+import { queryClient } from "@/lib/query-client";
 import { lazy, Suspense } from "react";
 import { RefineKbar, RefineKbarProvider } from "@refinedev/kbar";
 
@@ -124,6 +126,7 @@ import NotFoundPage from "./pages/not-found";
 
 function App() {
   return (
+    <QueryClientProvider client={queryClient}>
     <BrowserRouter>
       <AuthProvider>
         <RefineKbarProvider>
@@ -137,6 +140,8 @@ function App() {
               options={{
                 syncWithLocation: true,
                 warnWhenUnsavedChanges: true,
+                // Refine and the app's own data hooks share one query client.
+                reactQuery: { clientConfig: queryClient },
                 projectId: "2gnXaG-MhFPwx-oPqcp0",
                 title: {
                   text: "EasyConstruct",
@@ -553,6 +558,7 @@ function App() {
         </RefineKbarProvider>
       </AuthProvider>
     </BrowserRouter>
+    </QueryClientProvider>
   );
 }
 

@@ -82,6 +82,8 @@ export interface ProjectFilters {
   /** Project Manager scope (set by the service, never read from the request). */
   pmUserId?: number;
   pmName?: string;
+  /** Ask for headline status counts in the paged response's meta (see projects/service.ts getPage). */
+  kpis?: "portfolio" | "filtered";
   /** Exact project code (resolves a human code to a row under pagination; additive to `search`). */
   code?: string;
   /** Restrict to these project codes (staffed roles' assigned projects; set by the service). */
