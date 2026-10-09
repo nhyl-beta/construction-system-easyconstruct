@@ -80,7 +80,7 @@ export const RECORD_SOURCES: RecordSource[] = [
     label: "Proposals",
     roles: ["architect", "consultant", "owner", "it_designer"],
     useItems: () => {
-      const r = useProposals();
+      const r = useProposals({ pageSize: 100 });
       return state(
         r.proposals.map((p) => ({
           id: String(p.id),
@@ -123,7 +123,7 @@ export const RECORD_SOURCES: RecordSource[] = [
     label: "Approvals",
     roles: ["project_manager", "human_resources", "finance_manager", "architect", "engineer"],
     useItems: () => {
-      const r = useApprovals("pending");
+      const r = useApprovals("pending", 100);
       return state(
         r.items.map((a) => ({
           id: String(a.stageId),

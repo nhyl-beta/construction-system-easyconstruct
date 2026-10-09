@@ -210,6 +210,8 @@ export const resubmitStage = async (req: AuthedRequest, res: Response, next: Nex
   }
 };
 
+const text = (v: unknown) => (typeof v === "string" && v.trim() ? v.trim() : undefined);
+
 export const getApprovals = async (req: AuthedRequest, res: Response, next: NextFunction) => {
   try {
     const scope = (req.query.scope as ApprovalScope) ?? "pending";
@@ -218,7 +220,13 @@ export const getApprovals = async (req: AuthedRequest, res: Response, next: Next
     const codes = await visibleProjectCodes(scopeOf(req));
     const paging = parsePageRequest(req.query, { sortable: service.APPROVAL_SORTABLE });
     if (paging.requested) {
-      const { items, meta } = await service.getApprovalQueuePage(scope, role, name, codes, paging);
+      const { items, meta } = await service.getApprovalQueuePage(scope, role, name, codes, paging, {
+        type: text(req.query.type),
+        requestedBy: text(req.query.requestedBy),
+        from: text(req.query.from),
+        to: text(req.query.to),
+        search: text(req.query.search),
+      });
       sendPaged(res, items, MSG.workflows.retrieved, meta);
       return;
     }

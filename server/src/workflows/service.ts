@@ -846,11 +846,46 @@ export const getApprovalQueuePage = async (
   requesterName: string,
   visibleCodes: ReadonlySet<string> | null | undefined,
   request: PageRequest,
+  filters: ApprovalQueueFilters = {},
 ) => {
   // The queue's own order (oldest pending first / newest decision first) is the default.
   const rows = await loadQueueRows(scope, requesterRole, requesterName, visibleCodes);
-  const { items, meta } = paginateRows(rows, request, QUEUE_SORTERS);
-  return { items: await toQueueItems(items), meta };
+  const { items, meta } = paginateRows(rows.filter(queueFilter(filters)), request, QUEUE_SORTERS);
+  return {
+    items: await toQueueItems(items),
+    // Filter choices come from the whole queue, not the filtered page.
+    meta: {
+      ...meta,
+      types: distinctSorted(rows.map((r) => r.workflow.type)),
+      requesters: distinctSorted(rows.map((r) => r.workflow.createdBy)),
+    },
+  };
+};
+
+export interface ApprovalQueueFilters {
+  type?: string;
+  requestedBy?: string;
+  /** Inclusive dates, YYYY-MM-DD, compared with the stage's created date (UTC). */
+  from?: string;
+  to?: string;
+  search?: string;
+}
+
+const distinctSorted = (values: Array<string | null | undefined>) =>
+  Array.from(new Set(values.filter((v): v is string => !!v))).sort();
+
+const queueFilter = (f: ApprovalQueueFilters) => (r: QueueRow) => {
+  if (f.type && r.workflow.type !== f.type) return false;
+  if (f.requestedBy && r.workflow.createdBy !== f.requestedBy) return false;
+  const day = r.stage.createdAt ? new Date(r.stage.createdAt).toISOString().slice(0, 10) : null;
+  if (f.from && (!day || day < f.from)) return false;
+  if (f.to && (!day || day > f.to)) return false;
+  if (f.search) {
+    const term = f.search.toLowerCase();
+    const haystack = `${r.workflow.code} ${r.workflow.title} ${r.workflow.projectCode} ${r.workflow.createdBy ?? ""}`.toLowerCase();
+    if (!haystack.includes(term)) return false;
+  }
+  return true;
 };
 
 export const getApprovalStats = async (

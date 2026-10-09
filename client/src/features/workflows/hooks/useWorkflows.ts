@@ -7,7 +7,9 @@ import { useServerList } from "@/hooks/use-server-list";
 
 import { WorkflowRepository } from "../repositories/workflow.repository";
 
+import { apiClient } from "@/services/api.client";
 import type {
+  ApprovalQueueItem,
   ApprovalScope,
   ApprovalStats,
   CreateWorkflowInput,
@@ -217,10 +219,11 @@ export function useApprovalsPendingCount(): number {
   return query.data?.pending ?? 0;
 }
 
-export function useApprovals(scope: ApprovalScope) {
+/** `limit` fetches only the first N queue items (cards that show a few rows). */
+export function useApprovals(scope: ApprovalScope, limit?: number) {
   const queue = useQuery({
-    queryKey: qk.approvals.queue(scope),
-    queryFn: () => WorkflowRepository.listApprovals(scope),
+    queryKey: qk.approvals.queue(scope, limit ? { limit } : undefined),
+    queryFn: () => WorkflowRepository.listApprovals(scope, limit),
     staleTime: STALE.list,
   });
   // Same query as the sidebar badge, so it is not fetched twice.
@@ -262,6 +265,83 @@ export function useApprovals(scope: ApprovalScope) {
     items: queue.data ?? [],
     stats: (statsQuery.data ?? null) as ApprovalStats | null,
     loading: queue.isLoading || statsQuery.isLoading,
+    deciding,
+    error,
+    reload,
+    decide,
+  } as const;
+}
+
+export interface ApprovalQueueFilters {
+  type: string | null;
+  requestedBy: string | null;
+  dateFrom: string;
+  dateTo: string;
+}
+
+/**
+ * The approvals tab: the queue paged, searched and filtered on the server
+ * (GET /workflows/approvals?page&limit&search&type&requestedBy&from&to). The
+ * filter choices (types, requesters) come back in `meta`, computed from the
+ * whole queue so they do not shrink as filters are applied.
+ */
+export function useApprovalsPaged(scope: ApprovalScope, filters: ApprovalQueueFilters) {
+  const list = useServerList<ApprovalQueueItem, { types: string[]; requesters: string[] }>({
+    key: (params) => qk.approvals.queue(scope, params),
+    filters: { scope, ...filters },
+    fetchPage: async (params, signal) => {
+      const qs = new URLSearchParams({ scope, page: String(params.page), limit: String(params.limit) });
+      if (params.search) qs.set("search", params.search);
+      if (filters.type) qs.set("type", filters.type);
+      if (filters.requestedBy) qs.set("requestedBy", filters.requestedBy);
+      if (filters.dateFrom) qs.set("from", filters.dateFrom);
+      if (filters.dateTo) qs.set("to", filters.dateTo);
+      const json = await apiClient.get(`/workflows/approvals?${qs.toString()}`, { signal });
+      return {
+        items: (json?.data ?? []) as ApprovalQueueItem[],
+        total: json?.meta?.total ?? 0,
+        pages: json?.meta?.pages,
+        extra: { types: json?.meta?.types ?? [], requesters: json?.meta?.requesters ?? [] },
+      };
+    },
+  });
+  const statsQuery = useQuery({
+    queryKey: qk.approvals.stats,
+    queryFn: () => WorkflowRepository.getApprovalStats(),
+    staleTime: STALE.badge,
+  });
+
+  const [deciding, setDeciding] = useState<number | null>(null);
+  const [actionError, setError] = useState<Error | null>(null);
+  const error = actionError ?? list.error ?? ((statsQuery.error as Error | null) ?? null);
+  const { reload: reloadList } = list;
+  const { refetch: refetchStats } = statsQuery;
+
+  const reload = useCallback(async () => {
+    setError(null);
+    await Promise.all([reloadList(), refetchStats()]);
+  }, [reloadList, refetchStats]);
+
+  const decide = useCallback(async (workflowId: number, stageId: number, input: DecideStageInput) => {
+    setDeciding(stageId);
+    setError(null);
+    try {
+      return await WorkflowRepository.decideStage(workflowId, stageId, input);
+    } catch (err) {
+      setError(err instanceof Error ? err : new Error("Failed to decide workflow stage."));
+      return null;
+    } finally {
+      setDeciding(null);
+    }
+  }, []);
+
+  return {
+    list,
+    items: list.pageItems,
+    typeOptions: list.extra?.types ?? [],
+    requesterOptions: list.extra?.requesters ?? [],
+    stats: (statsQuery.data ?? null) as ApprovalStats | null,
+    loading: list.loading || statsQuery.isLoading,
     deciding,
     error,
     reload,

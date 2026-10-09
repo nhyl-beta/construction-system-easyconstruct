@@ -82,6 +82,9 @@ export function useServerList<T, X = undefined>({
     setCurrentPage(1);
   }, []);
 
+  const { refetch } = query;
+  const reload = useCallback(() => refetch(), [refetch]);
+
   return {
     pageItems: query.data?.items ?? [],
     /** The page's `extra` payload (see ServerPage). */
@@ -102,6 +105,6 @@ export function useServerList<T, X = undefined>({
     /** True whenever a request is in flight (also while the previous page is shown). */
     fetching: query.isFetching,
     error: query.error as Error | null,
-    reload: () => query.refetch(),
+    reload,
   };
 }

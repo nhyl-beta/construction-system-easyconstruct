@@ -4,7 +4,7 @@ import {
   type NewProposal,
 } from "../db/schema/proposals.js";
 
-import { and, desc, eq, ilike, or, SQL } from "drizzle-orm";
+import { and, desc, eq, ilike, isNull, ne, or, sql, SQL } from "drizzle-orm";
 import { countRows, inCodes, selectPage } from "../db/paged.js";
 
 export interface ProposalFilters {
@@ -13,6 +13,10 @@ export interface ProposalFilters {
   projectCode?: string;
   status?: string;
   search?: string;
+  /** Hide this status (the architect register hides Archived). */
+  excludeStatus?: string;
+  /** The consultant's review queue: Pending, and assigned to the consultant or to nobody yet. */
+  reviewQueue?: boolean;
 }
 
 const buildConditions = (filters: ProposalFilters): SQL[] => {
@@ -20,6 +24,11 @@ const buildConditions = (filters: ProposalFilters): SQL[] => {
   if (filters.codes) conditions.push(inCodes(proposals.projectCode, filters.codes));
   if (filters.projectCode) conditions.push(eq(proposals.projectCode, filters.projectCode));
   if (filters.status && filters.status !== "all") conditions.push(eq(proposals.status, filters.status));
+  if (filters.excludeStatus) conditions.push(ne(proposals.status, filters.excludeStatus));
+  if (filters.reviewQueue) {
+    conditions.push(sql`lower(trim(${proposals.status})) = 'pending'`);
+    conditions.push(or(isNull(proposals.assignedReviewer), sql`trim(${proposals.assignedReviewer}) = ''`, sql`lower(trim(${proposals.assignedReviewer})) = 'consultant'`)!);
+  }
   if (filters.search) {
     const s = `%${filters.search}%`;
     conditions.push(or(ilike(proposals.title, s), ilike(proposals.proposalId, s), ilike(proposals.projectCode, s))!);
@@ -37,6 +46,17 @@ export const PROPOSAL_SORT_COLUMNS = {
 } as const;
 
 export const defaultProposalOrder = [desc(proposals.id)];
+
+/** Proposals per status inside a scope (the KPI cards), ignoring the status, search and queue picked on screen. */
+export const statusCounts = async (filters: ProposalFilters = {}) => {
+  const conditions = buildConditions({ codes: filters.codes, projectCode: filters.projectCode, excludeStatus: filters.excludeStatus });
+  const rows = await db
+    .select({ status: proposals.status, count: sql<number>`count(*)::int` })
+    .from(proposals)
+    .where(conditions.length ? and(...conditions) : undefined)
+    .groupBy(proposals.status);
+  return rows.map((r) => ({ status: r.status, count: r.count }));
+};
 
 export const proposalRepository = {
   async countFiltered(filters: ProposalFilters = {}) {

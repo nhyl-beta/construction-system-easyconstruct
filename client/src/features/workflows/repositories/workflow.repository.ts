@@ -83,8 +83,10 @@ export const WorkflowRepository = {
     );
   },
 
-  async listApprovals(scope: ApprovalScope): Promise<ApprovalQueueItem[]> {
-    return unwrap<ApprovalQueueItem[]>(apiClient.get(`/workflows/approvals?scope=${scope}`));
+  async listApprovals(scope: ApprovalScope, limit?: number): Promise<ApprovalQueueItem[]> {
+    return unwrap<ApprovalQueueItem[]>(
+      apiClient.get(`/workflows/approvals?scope=${scope}${limit ? `&page=1&limit=${limit}` : ""}`),
+    );
   },
 
   async getApprovalStats(): Promise<ApprovalStats> {

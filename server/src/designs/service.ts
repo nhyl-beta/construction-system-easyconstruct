@@ -66,6 +66,8 @@ export const getAll = async (filters: DesignFilters) => {
   return attachEngineers(rows, memberships);
 };
 
+export const statusCounts = (filters: DesignFilters) => repo.statusCounts(filters);
+
 export const getPage = async (filters: DesignFilters, request: PageRequest) => {
   const { items: rows, meta } = await paginate(
     request,

@@ -1,41 +1,53 @@
-import { useDebouncedValue } from "@/hooks/use-debounced-value";
-import { useEffect, useMemo, useState } from "react";
+import { useMemo, useState } from "react";
+import { useServerList } from "@/hooks/use-server-list";
+import { qk } from "@/lib/query-keys";
 import { apiClient } from "@/services/api.client";
 import type { Design } from "../types/design.types";
 
+interface DesignsExtra {
+  statusCounts: { status: string; count: number }[];
+}
+
 export const useDesignsController = () => {
-  const [designs, setDesigns] = useState<Design[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [query, setQuery] = useState("");
-  const debouncedQuery = useDebouncedValue(query.trim(), 300);
   const [status, setStatus] = useState("all");
 
-  useEffect(() => {
-    const controller = new AbortController();
-    setLoading(true);
+  const list = useServerList<Design, DesignsExtra>({
+    key: (params) => qk.designs.list(params),
+    filters: { status },
+    fetchPage: async (params, signal) => {
+      const qs = new URLSearchParams({ page: String(params.page), limit: String(params.limit), counts: "1" });
+      if (params.search) qs.set("search", params.search);
+      if (status !== "all") qs.set("status", status);
+      const json = await apiClient.get(`/designs?${qs.toString()}`, { signal });
+      return {
+        items: (json?.data ?? []) as Design[],
+        total: json?.meta?.total ?? 0,
+        pages: json?.meta?.pages,
+        extra: { statusCounts: json?.meta?.statusCounts ?? [] },
+      };
+    },
+  });
 
-    const params = new URLSearchParams();
-    if (debouncedQuery) params.set("search", debouncedQuery);
-    if (status !== "all") params.set("status", status);
-
-    apiClient
-      .get(`/designs?${params.toString()}`, { signal: controller.signal })
-      .then((json) => setDesigns(json?.data ?? []))
-      .catch((err) => {
-        if (err.name !== "AbortError") console.error(err);
-      })
-      .finally(() => setLoading(false));
-
-    return () => controller.abort();
-  }, [debouncedQuery, status]);
-
+  // The cards count what the filters select, across every page.
   const kpis = useMemo(() => {
-    const total = designs.length;
-    const inReview = designs.filter((d) => d.status === "In Review").length;
-    const approved = designs.filter((d) => d.status === "Approved").length;
-    const revisionNeeded = designs.filter((d) => d.status === "Revision Needed").length;
-    return { total, inReview, approved, revisionNeeded };
-  }, [designs]);
+    const counts = list.extra?.statusCounts ?? [];
+    const n = (name: string) => counts.find((c) => c.status === name)?.count ?? 0;
+    return {
+      total: counts.reduce((sum, c) => sum + c.count, 0),
+      inReview: n("In Review"),
+      approved: n("Approved"),
+      revisionNeeded: n("Revision Needed"),
+    };
+  }, [list.extra]);
 
-  return { designs, loading, query, setQuery, status, setStatus, kpis };
+  return {
+    designs: list.pageItems,
+    loading: list.loading,
+    query: list.searchInput,
+    setQuery: list.setSearchInput,
+    status,
+    setStatus,
+    kpis,
+    pagination: list,
+  };
 };

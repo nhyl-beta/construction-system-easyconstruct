@@ -1,4 +1,4 @@
-import { and, desc, eq, ilike, inArray, or, SQL } from "drizzle-orm";
+import { and, desc, eq, ilike, inArray, or, sql, SQL } from "drizzle-orm";
 import { countRows, inCodes, selectPage } from "../db/paged.js";
 import { db } from "../db/connection.js";
 import { designEngineers } from "../db/schema/design-engineers.js";
@@ -46,6 +46,17 @@ const buildConditions = (filters: DesignFilters): SQL[] => {
   }
 
   return conditions;
+};
+
+/** Designs per status inside a filter set (the KPI cards count what the list shows). */
+export const statusCounts = async (filters: DesignFilters = {}) => {
+  const conditions = buildConditions(filters);
+  const rows = await db
+    .select({ status: designs.status, count: sql<number>`count(*)::int` })
+    .from(designs)
+    .where(conditions.length ? and(...conditions) : undefined)
+    .groupBy(designs.status);
+  return rows.map((r) => ({ status: r.status, count: r.count }));
 };
 
 export const DESIGN_SORT_COLUMNS = {

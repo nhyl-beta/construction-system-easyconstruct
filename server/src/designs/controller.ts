@@ -22,7 +22,8 @@ export const getAll = async (req: Request, res: Response, next: NextFunction) =>
     if (paging.requested) {
       const codes = isAssignedScoped(auth) ? [...(await assignedCodesFor(auth))] : undefined;
       const { items, meta } = await service.getPage({ ...filters, ...(codes ? { codes } : {}) }, paging);
-      sendPaged(res, items, MSG.designs.retrieved, meta);
+      const statusCounts = req.query.counts === "1" ? await service.statusCounts({ ...filters, ...(codes ? { codes } : {}) }) : undefined;
+      sendPaged(res, items, MSG.designs.retrieved, statusCounts ? { ...meta, statusCounts } : meta);
       return;
     }
     const data = await scopeRowsToAssigned(auth, await service.getAll(filters), (d) => d.projectCode);

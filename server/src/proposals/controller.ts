@@ -28,9 +28,18 @@ export const proposalController = {
             projectCode: text(req.query.projectCode),
             status: text(req.query.status),
             search: text(req.query.search),
+            excludeStatus: text(req.query.excludeStatus),
+            reviewQueue: req.query.queue === "consultant",
           },
           paging,
         );
+        if (req.query.counts === "1") {
+          const statusCounts = await proposalService.statusCounts({
+            ...(isAssignedScoped(auth) ? { codes: [...(await assignedCodesFor(auth))] } : {}),
+            projectCode: text(req.query.projectCode),
+          });
+          return { data: items, meta: { ...meta, statusCounts } };
+        }
         return { data: items, meta };
       }
       const data = await scopeRowsToAssigned(

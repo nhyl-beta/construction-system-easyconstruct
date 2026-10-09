@@ -1,3 +1,4 @@
+import { DataTablePagination } from "@/components/refine-ui/data-table/data-table-pagination";
 import { useEffect, useState } from "react";
 
 import {
@@ -66,7 +67,8 @@ export default function ConsultantProposalsPage() {
     refresh: loadProposals,
     reviewProposal: submitReview,
     validateProposal,
-  } = useProposals();
+    pagination,
+  } = useProposals({ queue: "consultant" });
 
   // J: a proposal created while the AI flag was off has no stored validation
   // summary. Ask the server to compute it once per proposal, then reload so the
@@ -154,63 +156,9 @@ export default function ConsultantProposalsPage() {
    *
    */
 
-  const pendingProposals =
-    proposals.filter((proposal) => {
-      /*
-       * Only pending proposals require review.
-       */
-
-      if (
-        proposal.status
-          ?.trim()
-          .toLowerCase() !==
-        "pending"
-      ) {
-        return false;
-      }
-
-      /*
-       * Normalize assigned reviewer.
-       */
-
-      const assignedReviewer =
-        proposal.assignedReviewer
-          ?.trim()
-          .toLowerCase();
-
-      /*
-       * New proposal:
-       *
-       * assignedReviewer = consultant
-       */
-
-      if (
-        assignedReviewer ===
-        "consultant"
-      ) {
-        return true;
-      }
-
-      /*
-       * Legacy proposal: no assignedReviewer was recorded at all.
-       *
-       * THE BUG THIS FIXES: this used to also require
-       * submittedBy?.toLowerCase() === "architect" — but submittedBy holds
-       * the architect's actual display name (e.g. "Ana Villanueva",
-       * "Architect Test"), never the literal role name, so that check never
-       * matched a real proposal and this branch was dead code. Proposal
-       * creation is architect/admin-gated server-side (proposals/routes.ts)
-       * and review is consultant/admin-gated, so an unassigned Pending
-       * proposal always belongs in this queue regardless of who submitted
-       * it.
-       */
-
-      if (!assignedReviewer) {
-        return true;
-      }
-
-      return false;
-    });
+  // The review queue (Pending, assigned to the consultant or to nobody yet) is
+  // selected on the server: see proposals/repository.ts reviewQueue.
+  const pendingProposals = proposals;
 
   useEffect(() => {
     if (autoTabPicked || loading || approvalsPending === null) return;
@@ -1001,6 +949,10 @@ export default function ConsultantProposalsPage() {
 
               </table>
 
+            </div>
+
+            <div className="border-t border-border px-4 py-3">
+              <DataTablePagination {...pagination} />
             </div>
 
           </div>

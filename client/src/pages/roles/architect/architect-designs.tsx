@@ -1,3 +1,4 @@
+import { DataTablePagination } from "@/components/refine-ui/data-table/data-table-pagination";
 import { PageHeader } from "@/components/refine-ui/views/page-header";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -105,6 +106,7 @@ export default function ArchitectDesigns() {
           No designs match your filters.
         </div>
       ) : (
+        <>
         <Table>
           <TableHeader>
             <TableRow>
@@ -150,6 +152,10 @@ export default function ArchitectDesigns() {
             ))}
           </TableBody>
         </Table>
+        <div className="border-t px-4 py-3">
+          <DataTablePagination {...c.pagination} />
+        </div>
+        </>
       )}
     </div>
   );

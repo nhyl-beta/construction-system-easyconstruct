@@ -12,6 +12,7 @@ import {
   proposalRepository,
   PROPOSAL_SORT_COLUMNS,
   defaultProposalOrder,
+  statusCounts,
   type ProposalFilters,
 } from "./repository.js";
 import { proposals as proposalsTable } from "../db/schema/proposals.js";
@@ -47,6 +48,8 @@ export const proposalService = {
         ),
     );
   },
+
+  statusCounts: (filters: ProposalFilters) => statusCounts(filters),
 
   async getById(id: number) {
     const proposal =
