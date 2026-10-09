@@ -21,9 +21,6 @@ interface UseExpensesResult {
   fetchAllMatching: () => Promise<Expense[]>;
   /** Expenses the anomaly rules flagged, across the whole selection. */
   anomalies: Expense[];
-  purchaseRequests: unknown[];
-  reimbursements: unknown[];
-  procurement: unknown[];
   breakdown: { category: string; amount: number }[];
   query: string;
   setQuery: (q: string) => void;
@@ -148,9 +145,6 @@ export function useExpensesController(): UseExpensesResult {
     pagination: list,
     fetchAllMatching,
     anomalies: list.extra?.anomalies ?? [],
-    purchaseRequests: [],
-    reimbursements: [],
-    procurement: [],
     breakdown: list.extra?.breakdown ?? [],
     query: list.searchInput,
     setQuery: list.setSearchInput,
