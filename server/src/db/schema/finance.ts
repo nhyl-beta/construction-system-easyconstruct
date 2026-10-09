@@ -1,5 +1,9 @@
+import { sql } from "drizzle-orm";
 import {
+  boolean,
+  date,
   integer,
+  jsonb,
   numeric,
   pgEnum,
   pgTable,
@@ -7,8 +11,10 @@ import {
   serial,
   text,
   timestamp,
+  uniqueIndex,
   varchar,
 } from "drizzle-orm/pg-core";
+import { requirements } from "./requirements.js";
 
 export const budgetStatusEnum = pgEnum("budget_status", [
   "draft",
@@ -83,7 +89,14 @@ export const expenses = pgTable("expenses", {
   // Plain-language reasons behind a non-zero score (finance/expenses/anomaly.ts).
   anomalyReason: text("anomaly_reason"),
   receiptUrl: text("receipt_url"),
-});
+  // Where the spend came from: a direct ledger entry ("manual"), a paid
+  // procurement order, or a paid reimbursement. (source_type, source_id) is
+  // unique so a payment can never create two expenses.
+  sourceType: varchar("source_type", { length: 32 }).notNull().default("manual"),
+  sourceId: varchar("source_id", { length: 32 }),
+}, (t) => [
+  uniqueIndex("expenses_source_unique").on(t.sourceType, t.sourceId).where(sql`${t.sourceId} IS NOT NULL`),
+]);
 
 // ── Purchase requests ──────────────────────────────────────────────────────
 export const purchaseRequests = pgTable("purchase_requests", {
@@ -98,7 +111,35 @@ export const purchaseRequests = pgTable("purchase_requests", {
   }).notNull(),
   requestedAt: timestamp("requested_at").defaultNow().notNull(),
   status: varchar("status", { length: 32 }).notNull(),
+  // pending-pm | pending-finance | approved | rejected | ordered | cancelled
+  category: varchar("category", { length: 64 }),
+  requirementId: integer("requirement_id").references(() => requirements.id),
+  // `amount` is computed on the server from these.
+  lineItems: jsonb("line_items").$type<PurchaseLineItem[]>().notNull().default([]),
+  neededBy: date("needed_by", { mode: "string" }),
+  justification: text("justification"),
+  preferredVendor: varchar("preferred_vendor", { length: 255 }),
+  requestedByUserId: integer("requested_by_user_id"),
+  requestedByRole: varchar("requested_by_role", { length: 40 }),
+  endorsedBy: varchar("endorsed_by", { length: 255 }),
+  endorsedAt: timestamp("endorsed_at"),
+  decidedBy: varchar("decided_by", { length: 255 }),
+  decidedAt: timestamp("decided_at"),
+  decisionNote: text("decision_note"),
+  overBudget: boolean("over_budget").notNull().default(false),
+  // Money this request currently holds in budgets.committed.
+  committedAmount: numeric("committed_amount", { precision: 14, scale: 2, mode: "number" })
+    .notNull()
+    .default(0),
+  updatedAt: timestamp("updated_at").defaultNow(),
 });
+
+export interface PurchaseLineItem {
+  description: string;
+  qty: number;
+  unit: string;
+  unitCost: number;
+}
 
 // ── Reimbursements ─────────────────────────────────────────────────────────
 export const reimbursements = pgTable("reimbursements", {
@@ -112,7 +153,32 @@ export const reimbursements = pgTable("reimbursements", {
   }).notNull(),
   submittedAt: timestamp("submitted_at").defaultNow().notNull(),
   status: varchar("status", { length: 32 }).notNull(),
+  // pending-pm | pending-finance | approved | rejected | paid | cancelled
+  claimantUserId: integer("claimant_user_id"),
+  claimantRole: varchar("claimant_role", { length: 40 }),
+  project: varchar("project", { length: 255 }),
+  category: varchar("category", { length: 64 }),
+  incurredOn: date("incurred_on", { mode: "string" }),
+  // Receipts: same shape as requirements.attachments.
+  attachments: jsonb("attachments").$type<ClaimAttachment[]>().notNull().default([]),
+  endorsedBy: varchar("endorsed_by", { length: 255 }),
+  endorsedAt: timestamp("endorsed_at"),
+  decidedBy: varchar("decided_by", { length: 255 }),
+  decidedAt: timestamp("decided_at"),
+  decisionNote: text("decision_note"),
+  paidAt: timestamp("paid_at"),
+  paidBy: varchar("paid_by", { length: 255 }),
+  paymentReference: varchar("payment_reference", { length: 128 }),
+  expenseId: varchar("expense_id", { length: 32 }),
+  updatedAt: timestamp("updated_at").defaultNow(),
 });
+
+export interface ClaimAttachment {
+  name: string;
+  url: string;
+  size?: number | null;
+  type?: string | null;
+}
 
 // ── Procurement orders ─────────────────────────────────────────────────────
 export const procurementOrders = pgTable("procurement_orders", {
@@ -126,7 +192,27 @@ export const procurementOrders = pgTable("procurement_orders", {
     mode: "number",
   }).notNull(),
   eta: varchar("eta", { length: 64 }),
-  status: varchar("status", { length: 32 }).notNull(), // "In transit" | "Delivered" | ...
+  status: varchar("status", { length: 32 }).notNull(), // ordered | in-transit | delivered | paid | cancelled
+  purchaseRequestId: varchar("purchase_request_id", { length: 32 }).unique(),
+  category: varchar("category", { length: 64 }),
+  lineItems: jsonb("line_items").$type<PurchaseLineItem[]>().notNull().default([]),
+  etaDate: date("eta_date", { mode: "string" }),
+  shippedAt: timestamp("shipped_at"),
+  deliveredAt: timestamp("delivered_at"),
+  receivedByUserId: integer("received_by_user_id"),
+  receivedBy: varchar("received_by", { length: 255 }),
+  deliveryNote: text("delivery_note"),
+  deliveryReceiptUrl: text("delivery_receipt_url"),
+  invoiceNumber: varchar("invoice_number", { length: 128 }),
+  invoiceAmount: numeric("invoice_amount", { precision: 14, scale: 2, mode: "number" }),
+  varianceNote: text("variance_note"),
+  paidAt: timestamp("paid_at"),
+  paidBy: varchar("paid_by", { length: 255 }),
+  expenseId: varchar("expense_id", { length: 32 }),
+  createdBy: varchar("created_by", { length: 255 }),
+  createdByUserId: integer("created_by_user_id"),
+  createdAt: timestamp("created_at").defaultNow(),
+  updatedAt: timestamp("updated_at").defaultNow(),
 });
 
 // ── Approvals queue ────────────────────────────────────────────────────────

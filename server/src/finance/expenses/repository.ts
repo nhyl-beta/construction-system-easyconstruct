@@ -5,6 +5,7 @@ import type { ExpenseLike } from "./anomaly.js";
 
 import { db } from "../../db/connection.js";
 import { expenses } from "../../db/schema/finance.js";
+import { nextId } from "../purchasing/ids.js";
 
 import type { CreateExpenseInput, ListExpensesQuery } from "./types.js";
 
@@ -112,7 +113,7 @@ export const expensesRepository = {
   },
 
   async create(input: CreateExpenseInput) {
-    const id = `EXP-${Math.floor(1000 + Math.random() * 9000)}`;
+    const id = await nextId("EXP", db);
     const [row] = await db
       .insert(expenses)
       .values({ id, ...input, amount: input.amount, status: "pending" })

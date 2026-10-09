@@ -176,6 +176,13 @@
       "when": 1790900000000,
       "tag": "0024_cash_flow_month_unique",
       "breakpoints": true
+    },
+    {
+      "idx": 25,
+      "version": "7",
+      "when": 1791000000000,
+      "tag": "0025_purchasing",
+      "breakpoints": true
     }
   ]
 }
