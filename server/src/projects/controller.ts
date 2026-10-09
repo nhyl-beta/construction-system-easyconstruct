@@ -6,6 +6,8 @@ import type { AuthedRequest } from "../middleware/auth.js";
 import * as service from "./service.js";
 import type { ProjectFilters } from "./types.js";
 import { parsePageRequest, sendPaged } from "../utils/pagination.js";
+import { cached } from "../cache/index.js";
+import { visibilityScope } from "../cache/scope.js";
 import { PROJECT_SORT_COLUMNS } from "./repository.js";
 
 const PROJECT_SORTABLE = Object.keys(PROJECT_SORT_COLUMNS);
@@ -36,13 +38,21 @@ export const getAll = async (
     // Server-side pagination is opt-in (page / limit, or the older pageSize);
     // every other caller keeps receiving the plain array.
     const paging = parsePageRequest(req.query, { sortable: PROJECT_SORTABLE });
-    if (paging.requested) {
-      const { items, meta } = await service.getPage(filters, scope, paging);
-      sendPaged(res, items, MSG.projects.retrieved, meta);
+    // 60 s, keyed by who may share the rows (a PM / staffed role sees its own
+    // projects, everyone else the same set within their role) and by the exact query.
+    const load = async () =>
+      paging.requested
+        ? await service.getPage(filters, scope, paging)
+        : { items: await service.getAll(filters, scope), meta: undefined };
+    const shared = visibilityScope(req.authUser);
+    const result = shared
+      ? await cached("projects", shared, 60, load, { query: req.query })
+      : await load();
+    if (result.meta) {
+      sendPaged(res, result.items, MSG.projects.retrieved, result.meta);
       return;
     }
-    const data = await service.getAll(filters, scope);
-    res.json(formatSuccess(data, MSG.projects.retrieved));
+    res.json(formatSuccess(result.items, MSG.projects.retrieved));
   } catch (err) {
     next(err);
   }

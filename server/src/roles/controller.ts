@@ -3,6 +3,7 @@ import { MSG } from "../constants/messages.js";
 import { formatSuccess } from "../utils/response.js";
 import * as service from "./service.js";
 import { byString, respondList } from "../utils/pagination.js";
+import { cached } from "../cache/index.js";
 
 export const getAll = async (
   req: Request,
@@ -10,7 +11,9 @@ export const getAll = async (
   next: NextFunction,
 ) => {
   try {
-    const data = await service.getAll();
+    // Role configuration (not role resolution - permission checks never read this
+    // cache). 5 min; role writes invalidate the `config` domain.
+    const data = await cached("config", "all", 300, () => service.getAll());
     respondList(res, req.query, data, MSG.roles.retrieved, {
       name: byString((r) => r.name),
     });

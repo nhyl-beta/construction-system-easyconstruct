@@ -35,6 +35,7 @@
   "type": "module",
   "dependencies": {
     "@neondatabase/serverless": "^1.1.0",
+    "@upstash/redis": "^1.39.0",
     "@vercel/blob": "^2.8.0",
     "bcryptjs": "^3.0.3",
     "cors": "^2.8.6",

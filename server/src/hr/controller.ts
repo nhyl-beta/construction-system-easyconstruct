@@ -4,6 +4,7 @@ import { formatSuccess } from "../utils/response.js";
 import { ValidationError } from "../utils/errors.js";
 import * as service from "./service.js";
 import { byString, paginateRows, parsePageRequest, respondList } from "../utils/pagination.js";
+import { cached } from "../cache/index.js";
 import {
   attendanceQuerySchema,
   payrollQuerySchema,
@@ -87,7 +88,9 @@ export const attendanceSummary = async (req: Request, res: Response, next: NextF
   try {
     const date = parseQuery(attendanceQuerySchema, { date: req.query.date }).date
       ?? new Date().toISOString().slice(0, 10);
-    res.json(formatSuccess(await service.attendanceSummary(date), "Attendance summary retrieved"));
+    // Today's attendance counts only (no rows), same for every caller. 15 s.
+    const summary = await cached("attendance", "all", 15, () => service.attendanceSummary(date), { query: { date }, deps: ["employees"] });
+    res.json(formatSuccess(summary, "Attendance summary retrieved"));
   } catch (error) { next(error); }
 };
 
@@ -150,9 +153,11 @@ export const grossTracking = async (req: Request, res: Response, next: NextFunct
 export const workforceReport = async (req: Request, res: Response, next: NextFunction) => {
   try {
     const query = parseQuery(workforceQuerySchema, req.query);
-    res.json(formatSuccess(
-      await service.workforceReport(query.from, query.to),
-      "Workforce report retrieved",
-    ));
+    // Heavy-ish aggregate over employees, attendance and payroll, same for every caller. 60 s.
+    const report = await cached("reports", "all", 60, () => service.workforceReport(query.from, query.to), {
+      query,
+      deps: ["employees", "attendance", "payroll"],
+    });
+    res.json(formatSuccess(report, "Workforce report retrieved"));
   } catch (error) { next(error); }
 };

@@ -9,11 +9,16 @@ import * as service from "./service.js";
 import type { ApprovalScope } from "./types.js";
 import { assertProjectVisible, scopeRowsToVisible, scopedProjectCodes, visibleProjectCodes } from "../projects/service.js";
 import { parsePageRequest, sendPaged } from "../utils/pagination.js";
+import { ALL_DOMAIN, cached } from "../cache/index.js";
+import { userScope } from "../cache/scope.js";
 import { WORKFLOW_SORT_COLUMNS } from "./repository.js";
 
 export const getTemplates = async (_req: AuthedRequest, res: Response, next: NextFunction) => {
   try {
-    const data = await service.getTemplates();
+    // System configuration: identical for everyone, changes rarely. 5 min; any
+    // write (a workflow created or a template edited) invalidates it, because
+    // each template carries its active-workflow count.
+    const data = await cached("workflows", "all", 300, () => service.getTemplates(), { deps: ["config"] });
     res.json(formatSuccess(data, MSG.workflows.retrieved));
   } catch (err) {
     next(err);
@@ -228,8 +233,12 @@ export const getApprovalStats = async (req: AuthedRequest, res: Response, next: 
   try {
     const role = req.authUser?.role ?? "";
     const name = req.authUser?.name ?? req.authUser?.email ?? "";
-    const codes = await visibleProjectCodes(scopeOf(req));
-    const data = await service.getApprovalStats(role, name, codes);
+    // The sidebar / header badge asks for this on every page. It depends on the
+    // caller's role and visible projects, so the entry is per user; any write
+    // anywhere invalidates it (the `all` domain). 20 s.
+    const load = async () => service.getApprovalStats(role, name, await visibleProjectCodes(scopeOf(req)));
+    const scope = userScope(req.authUser);
+    const data = scope ? await cached("workflows", scope, 20, load, { query: { stats: true }, deps: [ALL_DOMAIN] }) : await load();
     res.json(formatSuccess(data, MSG.workflows.retrieved));
   } catch (err) {
     next(err);

@@ -3,6 +3,8 @@ import type { AuthedRequest } from "../middleware/auth.js";
 import { logAudit } from "../utils/audit.js";
 import { assertAssignedToProject, assignedCodesFor, isAssignedScoped, scopeRowsToAssigned } from "../projects/scope.js";
 import { parsePageRequest } from "../utils/pagination.js";
+import { cached } from "../cache/index.js";
+import { userScope } from "../cache/scope.js";
 import { PROPOSAL_SORT_COLUMNS } from "./repository.js";
 
 import {
@@ -14,32 +16,37 @@ export const proposalController = {
     req: Request,
     res: Response,
   ) {
+    const auth = (req as AuthedRequest).authUser;
     const paging = parsePageRequest(req.query, { sortable: Object.keys(PROPOSAL_SORT_COLUMNS) });
-    if (paging.requested) {
-      const auth = (req as AuthedRequest).authUser;
-      const text = (v: unknown) => (typeof v === "string" && v.trim() ? v.trim() : undefined);
-      const { items, meta } = await proposalService.getPage(
-        {
-          ...(isAssignedScoped(auth) ? { codes: [...(await assignedCodesFor(auth))] } : {}),
-          projectCode: text(req.query.projectCode),
-          status: text(req.query.status),
-          search: text(req.query.search),
-        },
-        paging,
+    const text = (v: unknown) => (typeof v === "string" && v.trim() ? v.trim() : undefined);
+
+    const load = async () => {
+      if (paging.requested) {
+        const { items, meta } = await proposalService.getPage(
+          {
+            ...(isAssignedScoped(auth) ? { codes: [...(await assignedCodesFor(auth))] } : {}),
+            projectCode: text(req.query.projectCode),
+            status: text(req.query.status),
+            search: text(req.query.search),
+          },
+          paging,
+        );
+        return { data: items, meta };
+      }
+      const data = await scopeRowsToAssigned(
+        auth,
+        await proposalService.getAll(),
+        (p) => p.projectCode,
       );
-      return res.json({ success: true, data: items, meta });
-    }
+      return { data, meta: undefined };
+    };
 
-    const data = await scopeRowsToAssigned(
-      (req as AuthedRequest).authUser,
-      await proposalService.getAll(),
-      (p) => p.projectCode,
-    );
+    // 60 s. Only an architect gets a narrowed list (its assigned projects), so
+    // an architect's entry is its own; every other role shares one.
+    const scope = isAssignedScoped(auth) ? userScope(auth) : "all";
+    const result = scope ? await cached("proposals", scope, 60, load, { query: req.query }) : await load();
 
-    return res.json({
-      success: true,
-      data,
-    });
+    return res.json(result.meta ? { success: true, data: result.data, meta: result.meta } : { success: true, data: result.data });
   },
 
   async getById(

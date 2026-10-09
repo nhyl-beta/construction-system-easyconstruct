@@ -10,6 +10,7 @@ import type { AttendanceFilters } from "./types.js";
 import * as sheetImport from "./import.js";
 import { ValidationError } from "../utils/errors.js";
 import { parsePageRequest, sendPaged } from "../utils/pagination.js";
+import { cached } from "../cache/index.js";
 import { ATTENDANCE_SORT_COLUMNS } from "./repository.js";
 
 export const getAll = async (req: Request, res: Response, next: NextFunction) => {
@@ -41,7 +42,8 @@ export const getAll = async (req: Request, res: Response, next: NextFunction) =>
 
 export const heatmap = async (_req: Request, res: Response, next: NextFunction) => {
   try {
-    res.json(formatSuccess(await service.getHeatmap(), "Attendance heatmap retrieved"));
+    // Aggregate only (14-day counts per site), same for every caller. 15 s.
+    res.json(formatSuccess(await cached("attendance", "all", 15, () => service.getHeatmap()), "Attendance heatmap retrieved"));
   } catch (err) {
     next(err);
   }

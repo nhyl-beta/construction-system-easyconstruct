@@ -10,6 +10,7 @@ import * as ownerSummaryService from "./owner-summary.service.js";
 import type { PayrollFilters } from "./types.js";
 import { byDate, byString, parsePageRequest, respondList, sendPaged } from "../utils/pagination.js";
 import { PAYROLL_SORT_COLUMNS } from "./repository.js";
+import { cached } from "../cache/index.js";
 
 const actorOf = (req: AuthedRequest): service.Actor => ({
   name: req.authUser?.name ?? "unknown",
@@ -211,7 +212,11 @@ export const contributionReport = async (req: Request, res: Response, next: Next
 // is deliberately not audit-logged.
 export const getOwnerSummary = async (req: Request, res: Response, next: NextFunction) => {
   try {
-    const data = await ownerSummaryService.getOwnerSummary(req.query.months);
+    // Payroll aggregates for the owner dashboard (no individual pay data), same
+    // for the three roles allowed here. 30 s; payroll writes invalidate it.
+    const data = await cached("payroll", "all", 30, () => ownerSummaryService.getOwnerSummary(req.query.months), {
+      query: { months: req.query.months },
+    });
     res.json(formatSuccess(data, "Payroll summary retrieved"));
   } catch (err) {
     next(err);
