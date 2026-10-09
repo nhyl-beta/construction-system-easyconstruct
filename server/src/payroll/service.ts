@@ -10,6 +10,7 @@ import * as attendanceRepo from "../attendance/repository.js";
 import * as notifications from "../notifications/service.js";
 import { refreshProjectProgress } from "../lifecycle/service.js";
 import * as repo from "./repository.js";
+import { orderByFor, paginate, type PageRequest } from "../utils/pagination.js";
 import * as batchRepo from "./batch-repository.js";
 import { computeLine, getRules, periodEndDate, round2, type PayrollRules } from "./engine.js";
 import { validateBatchLines } from "./validation.js";
@@ -128,12 +129,37 @@ const syncBatchTotals = async (batchId: string, tx: Tx) => {
 // Finance never sees a batch HR is still building — nor its lines.
 const draftBatchIds = async (actor: Actor): Promise<Set<string>> =>
   actor.role.replace(/_/g, "-") === "finance-manager"
-    ? new Set((await batchRepo.findAll()).filter((b) => b.status === "draft").map((b) => b.id))
+    ? await batchRepo.findDraftIds()
     : new Set();
 
 export const getAll = async (filters: PayrollFilters, actor: Actor = SYSTEM_ACTOR) => {
   const [rows, hidden] = await Promise.all([repo.findAll(filters), draftBatchIds(actor)]);
   return rows.filter((l) => !l.batchId || !hidden.has(l.batchId));
+};
+
+/**
+ * One page of lines; the Finance draft-batch exclusion is part of the query, so
+ * counts match what is shown. With `withTotals`, the sums over the whole filter
+ * set (not just this page) come back too.
+ */
+export const getPage = async (
+  filters: PayrollFilters,
+  request: PageRequest,
+  actor: Actor = SYSTEM_ACTOR,
+  withTotals = false,
+) => {
+  const hidden = await draftBatchIds(actor);
+  const scoped: PayrollFilters = { ...filters, ...(hidden.size ? { excludeBatchIds: [...hidden] } : {}) };
+  const [page, totals] = await Promise.all([
+    paginate(
+      request,
+      () => repo.countFiltered(scoped),
+      (window) =>
+        repo.findPage(scoped, window, orderByFor(request, repo.PAYROLL_SORT_COLUMNS, repo.defaultPayrollOrder, payroll.id)),
+    ),
+    withTotals ? repo.sumFiltered(scoped) : Promise.resolve(undefined),
+  ]);
+  return totals ? { items: page.items, meta: { ...page.meta, totals } } : page;
 };
 
 export const getById = async (id: number, actor: Actor = SYSTEM_ACTOR) => {
@@ -157,15 +183,9 @@ const loadBatch = async (id: string, actor: Actor = SYSTEM_ACTOR): Promise<Batch
   return batch;
 };
 
-const employeesFor = async (lines: LineRow[]) => {
-  const map = new Map<string, EmployeeRow>();
-  for (const l of lines) {
-    if (map.has(l.empId)) continue;
-    const e = await employeesRepo.findByEmployeeId(l.empId);
-    if (e) map.set(l.empId, e);
-  }
-  return map;
-};
+// One query for every distinct employee on the batch (was one per line).
+const employeesFor = async (lines: LineRow[]): Promise<Map<string, EmployeeRow>> =>
+  employeesRepo.findByEmployeeIds(lines.map((l) => l.empId));
 
 export const validateBatch = async (batch: BatchRow, lines: LineRow[]) => {
   const employees = await employeesFor(lines);
@@ -267,8 +287,9 @@ export const getAttendanceReadiness = async (
   const excluded: ExcludedWorker[] = [];
   const eligible = new Set<string>();
 
+  const rosterById = await employeesRepo.findByEmployeeIds(employeeIds);
   for (const employeeId of employeeIds) {
-    const e = await employeesRepo.findByEmployeeId(employeeId);
+    const e = rosterById.get(employeeId);
     if (!e) {
       excluded.push({ employeeId, name: employeeId, status: "Unknown", reason: "Not in the employee roster" });
     } else if (e.status !== "Active") {
@@ -310,9 +331,10 @@ export const generate = async (input: GeneratePayrollInput, actor: Actor = SYSTE
     seen.add(e.employeeId);
   }
 
+  const employeesById = await employeesRepo.findByEmployeeIds(input.entries.map((e) => e.employeeId));
   const employees: EmployeeRow[] = [];
   for (const e of input.entries) {
-    const employee = await employeesRepo.findByEmployeeId(e.employeeId);
+    const employee = employeesById.get(e.employeeId);
     if (!employee) throw new NotFoundError("Employee", e.employeeId);
     employees.push(employee);
   }
@@ -337,10 +359,10 @@ export const generate = async (input: GeneratePayrollInput, actor: Actor = SYSTE
       },
       tx,
     );
-    for (const [i, entry] of input.entries.entries()) {
-      const employee = employees[i]!;
-      await repo.create(
-        {
+    await repo.createMany(
+      input.entries.map((entry, i) => {
+        const employee = employees[i]!;
+        return {
           batchId,
           empId: employee.employeeId,
           name: employee.name,
@@ -357,10 +379,10 @@ export const generate = async (input: GeneratePayrollInput, actor: Actor = SYSTE
             },
             rules,
           ),
-        },
-        tx,
-      );
-    }
+        };
+      }),
+      tx,
+    );
     await syncBatchTotals(batchId, tx);
   });
 
@@ -631,9 +653,8 @@ export const isAgency = (v: unknown): v is Agency => AGENCIES.includes(v as Agen
 // Employee share + employer share per employee for one agency and period,
 // across approved batches only (a liability exists once Finance approves).
 export const contributionReport = async (agency: Agency, period: string) => {
-  const batches = (await batchRepo.findAll()).filter(
-    (b) => b.status === "approved" && b.period === period,
-  );
+  const batches = await batchRepo.findApprovedForPeriod(period);
+  const linesByBatch = await repo.findByBatches(batches.map((b) => b.id));
   const rows: Array<{
     batchId: string;
     projectCode: string | null;
@@ -647,7 +668,7 @@ export const contributionReport = async (agency: Agency, period: string) => {
   }> = [];
 
   for (const b of batches) {
-    for (const l of await repo.findByBatch(b.id)) {
+    for (const l of linesByBatch.get(b.id) ?? []) {
       const employeeShare = Number(agency === "sss" ? l.sss : agency === "philhealth" ? l.philhealth : l.pagibig);
       const employerShare = Number(
         agency === "sss" ? l.employerSss : agency === "philhealth" ? l.employerPhilhealth : l.employerPagibig,

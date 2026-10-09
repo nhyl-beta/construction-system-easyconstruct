@@ -240,7 +240,7 @@ describe("evaluateGate — Closeout (X1-X5)", () => {
 
     const checks = evaluateGate("Closeout", snapshot);
     assert.deepEqual(failing(checks), []);
-    assert.deepEqual(keysOf(checks), ["X1", "X2", "X3", "X4", "X5"]);
+    assert.deepEqual(keysOf(checks), ["X1", "X2", "X3", "X4", "X5", "X6"]);
   });
 
   test("X5: an open RFI/RFA hard-blocks closing; answered ones do not", () => {

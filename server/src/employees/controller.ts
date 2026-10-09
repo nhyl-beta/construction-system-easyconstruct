@@ -6,6 +6,9 @@ import { logAudit } from "../utils/audit.js";
 import * as service from "./service.js";
 import type { EmployeeFilters } from "./types.js";
 import { AuthedRequest } from "../middleware/auth.js";
+import { parsePageRequest, sendPaged } from "../utils/pagination.js";
+import { cached } from "../cache/index.js";
+import { EMPLOYEE_SORT_COLUMNS } from "./repository.js";
 
 export const getAll = async (
   req: Request,
@@ -15,11 +18,28 @@ export const getAll = async (
   try {
     const filters: EmployeeFilters = {
       search: req.query.search as string,
+      employeeId: typeof req.query.employeeId === "string" && req.query.employeeId ? req.query.employeeId : undefined,
       department: req.query.department as string,
       status: req.query.status as string,
     };
-    const data = await service.getAll(filters);
-    res.json(formatSuccess(data, MSG.employees.retrieved));
+    const paging = parsePageRequest(req.query, { sortable: Object.keys(EMPLOYEE_SORT_COLUMNS), defaultOrder: "asc" });
+    // The employee list is the same for every caller who can reach this route
+    // (no per-user scoping), so `all` is a safe scope. 60 s.
+    const result = await cached(
+      "employees",
+      "all",
+      60,
+      async () =>
+        paging.requested
+          ? await service.getPage(filters, paging)
+          : { items: await service.getAll(filters), meta: undefined },
+      { query: req.query },
+    );
+    if (result.meta) {
+      sendPaged(res, result.items, MSG.employees.retrieved, result.meta);
+      return;
+    }
+    res.json(formatSuccess(result.items, MSG.employees.retrieved));
   } catch (err) {
     next(err);
   }

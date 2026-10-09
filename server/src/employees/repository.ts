@@ -1,7 +1,8 @@
-import { and, eq, ilike, or, SQL } from "drizzle-orm";
+import { and, eq, ilike, inArray, or, SQL } from "drizzle-orm";
 
 import { db } from "../db/connection.js";
 import { employees } from "../db/schema/employees.js";
+import { countRows, selectPage } from "../db/paged.js";
 
 import type {
   CreateEmployeeInput,
@@ -9,27 +10,19 @@ import type {
   UpdateEmployeeInput,
 } from "./types.js";
 
-export const findAll = async (
-  filters: EmployeeFilters = {},
-) => {
+const buildConditions = (filters: EmployeeFilters): SQL[] => {
   const conditions: SQL[] = [];
 
-  if (
-    filters.department &&
-    filters.department !== "all"
-  ) {
-    conditions.push(
-      eq(employees.department, filters.department),
-    );
+  if (filters.department && filters.department !== "all") {
+    conditions.push(eq(employees.department, filters.department));
   }
 
-  if (
-    filters.status &&
-    filters.status !== "all"
-  ) {
-    conditions.push(
-      eq(employees.status, filters.status),
-    );
+  if (filters.status && filters.status !== "all") {
+    conditions.push(eq(employees.status, filters.status));
+  }
+
+  if (filters.employeeId) {
+    conditions.push(eq(employees.employeeId, filters.employeeId));
   }
 
   if (filters.search) {
@@ -46,6 +39,14 @@ export const findAll = async (
     }
   }
 
+  return conditions;
+};
+
+export const findAll = async (
+  filters: EmployeeFilters = {},
+) => {
+  const conditions = buildConditions(filters);
+
   if (conditions.length > 0) {
     return await db
       .select()
@@ -54,6 +55,33 @@ export const findAll = async (
   }
 
   return await db.select().from(employees);
+};
+
+export const EMPLOYEE_SORT_COLUMNS = {
+  name: employees.name,
+  employeeId: employees.employeeId,
+  role: employees.role,
+  department: employees.department,
+  site: employees.site,
+  status: employees.status,
+  hiredOn: employees.hiredOn,
+  createdAt: employees.createdAt,
+} as const;
+
+export const defaultEmployeeOrder = [employees.name, employees.id];
+
+export const countFiltered = async (filters: EmployeeFilters = {}) => {
+  const conditions = buildConditions(filters);
+  return countRows(employees, conditions.length ? and(...conditions) : undefined);
+};
+
+export const findPage = async (
+  filters: EmployeeFilters,
+  window: { limit: number; offset: number },
+  orderBy: SQL[],
+) => {
+  const conditions = buildConditions(filters);
+  return selectPage(employees, conditions.length ? and(...conditions) : undefined, orderBy, window);
 };
 
 export const findById = async (id: number) => {
@@ -83,6 +111,19 @@ export const findByEmployeeId = async (
     .where(eq(employees.employeeId, employeeId));
 
   return employee ?? null;
+};
+
+/**
+ * Several employees by their human code in ONE query (replaces a
+ * findByEmployeeId call per row). Unknown ids are simply absent from the map.
+ */
+export const findByEmployeeIds = async (employeeIds: string[]) => {
+  const unique = [...new Set(employeeIds)];
+  const byId = new Map<string, typeof employees.$inferSelect>();
+  if (unique.length === 0) return byId;
+  const rows = await db.select().from(employees).where(inArray(employees.employeeId, unique));
+  for (const row of rows) byId.set(row.employeeId, row);
+  return byId;
 };
 
 export const findByEmail = async (email: string) => {

@@ -12,6 +12,7 @@ import { corsMiddleware } from "./middleware/cors.js";
 import { errorMiddleware } from "./middleware/error.js";
 import { logger } from "./middleware/logger.js";
 import { requestId } from "./middleware/request-id.js";
+import { cacheInvalidation } from "./cache/invalidate.js";
 import projectRoutes from "./projects/routes.js";
 import proposalRoutes from "./proposals/routes.js";
 import hrRoutes from "./hr/routes.js";
@@ -44,6 +45,7 @@ import milestoneRoutes from "./milestones/routes.js";
 import myActionsRoutes from "./lifecycle/my-actions.js";
 import aiValidationRoutes from "./ai-validation/routes.js";
 import calendarRoutes from "./calendar/routes.js";
+import dashboardRoutes from "./dashboard/routes.js";
 
 import uploadRoutes from "./uploads/routes.js";
 
@@ -61,6 +63,8 @@ app.use(express.json({ limit: "12mb" }));
 app.use(corsMiddleware);
 app.use(requestId);
 app.use(logger);
+// After any write that did not fail on the client's side, invalidate the cached reads it can change.
+app.use(cacheInvalidation);
 
 // Uploaded files are deliberately NOT served statically: project documents
 // are private, so every stored file (Vercel Blob or local disk) is read
@@ -122,6 +126,8 @@ app.use("/api/calendar", calendarRoutes);
 // ai-signals E6: admin-only manual refresh of the cached cost catalog.
 app.use("/api/ai-validation", aiValidationRoutes);
 app.use("/api/uploads", uploadRoutes);
+// Role-aware dashboard totals (replaces downloading full lists to count them in the browser).
+app.use("/api/dashboard", dashboardRoutes);
 
 
 app.use(errorMiddleware);

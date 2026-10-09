@@ -7,7 +7,9 @@ import { logAudit } from "../utils/audit.js";
 import * as service from "./service.js";
 import type { AuthedRequest } from "../middleware/auth.js";
 import type { TaskFilters } from "./types.js";
-import { assertProjectVisible, scopeRowsToVisible } from "../projects/service.js";
+import { assertProjectVisible, scopeRowsToVisible, scopedProjectCodes } from "../projects/service.js";
+import { parsePageRequest, sendPaged } from "../utils/pagination.js";
+import { TASK_SORT_COLUMNS } from "./repository.js";
 
 export const getAll = async (req: AuthedRequest, res: Response, next: NextFunction) => {
   try {
@@ -26,7 +28,30 @@ export const getAll = async (req: AuthedRequest, res: Response, next: NextFuncti
           : undefined,
     };
     // Site personnel keep their stricter own-tasks filter (above); everyone else sees staffed/own projects only.
+    const paging = parsePageRequest(req.query, { sortable: Object.keys(TASK_SORT_COLUMNS) });
+    if (paging.requested) {
+      // Visibility is a project-code filter inside the query, so the page and
+      // its total only ever count rows the caller may see.
+      const codes = await scopedProjectCodes(req.authUser, { skipRoles: ["site-personnel"] });
+      const { items, meta } = await service.getPage({ ...filters, ...(codes ? { codes } : {}) }, paging);
+      sendPaged(res, items, MSG.tasks.retrieved, meta);
+      return;
+    }
     const data = await scopeRowsToVisible(req.authUser, await service.getAll(filters), (t) => t.projectCode, { skipRoles: ["site-personnel"] });
+    res.json(formatSuccess(data, MSG.tasks.retrieved));
+  } catch (err) {
+    next(err);
+  }
+};
+
+// Same visibility as the list (own tasks for site personnel, staffed/own projects otherwise).
+export const getProgress = async (req: AuthedRequest, res: Response, next: NextFunction) => {
+  try {
+    const filters: TaskFilters = {
+      assignedToUserId: req.authUser?.role === "site-personnel" ? req.authUser.id : undefined,
+    };
+    const codes = await scopedProjectCodes(req.authUser, { skipRoles: ["site-personnel"] });
+    const data = await service.progressByProject({ ...filters, ...(codes ? { codes } : {}) });
     res.json(formatSuccess(data, MSG.tasks.retrieved));
   } catch (err) {
     next(err);

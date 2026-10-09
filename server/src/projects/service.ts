@@ -1,4 +1,7 @@
 import * as repo           from "./repository.js";
+import { projects } from "../db/schema/projects.js";
+import { projectKpis, type ProjectKpis } from "../dashboard/aggregates.js";
+import { orderByFor, paginate, type PageRequest } from "../utils/pagination.js";
 import * as projectMemberRepo from "../project-members/repository.js";
 import * as usersRepo from "../users/repository.js";
 import { ForbiddenError, NotFoundError, ValidationError } from "../utils/errors.js";
@@ -25,7 +28,7 @@ const CONSULTANT_HIDDEN_FIELDS = [
   "workforce",
 ] as const;
 
-function toConsultantView(project: Awaited<ReturnType<typeof repo.findAll>>[number]) {
+export function toConsultantView(project: Awaited<ReturnType<typeof repo.findAll>>[number]) {
   const scoped: Record<string, unknown> = { ...project };
   for (const field of CONSULTANT_HIDDEN_FIELDS) delete scoped[field];
   return scoped;
@@ -70,6 +73,21 @@ export const scopeRowsToVisible = async <T>(
   return filterRowsToCodes(rows, codes, codeOf);
 };
 
+/**
+ * `scopeRowsToVisible`, expressed as a list of codes a query can filter on
+ * (`WHERE project_code IN (…)`) instead of rows to filter afterwards. `null`
+ * means no restriction. Same rules: unauthenticated / skipped roles pass, a
+ * PM sees their own projects, a staffed role its assignments.
+ */
+export const scopedProjectCodes = async (
+  auth: { id: number; role: string; name: string } | undefined,
+  opts: VisibilityOptions = {},
+): Promise<string[] | null> => {
+  if (!auth || isSkipped(auth.role, opts)) return null;
+  const codes = await visibleProjectCodes({ role: auth.role, userId: auth.id, name: auth.name });
+  return codes ? [...codes] : null;
+};
+
 /** 403 unless the caller may see `projectCode`. For by-id reads and for writes against another project's rows. */
 export const assertProjectVisible = async (
   auth: { id: number; role: string; name: string } | undefined,
@@ -86,10 +104,8 @@ export const assertProjectVisible = async (
 /** @deprecated use scopeRowsToVisible — kept so older callers keep compiling. */
 export const scopeRowsToPm = scopeRowsToVisible;
 /** Project codes a Project Manager is assigned to (for other modules' scoping). */
-export const projectCodesForPm = async (scope: ProjectScope): Promise<Set<string>> => {
-  const projects = await repo.findAll({});
-  return new Set(projects.filter((p) => isOwnProject(p, scope)).map((p) => p.code));
-};
+export const projectCodesForPm = async (scope: ProjectScope): Promise<Set<string>> =>
+  new Set(await repo.findCodesForPm(scope.userId, scope.name));
 
 /**
  * Roles whose project visibility is their staffing, not the whole portfolio.
@@ -152,16 +168,34 @@ const visibleProjects = async (filters: ProjectFilters, scope?: ProjectScope) =>
 export const getAll = async (filters: ProjectFilters, scope?: ProjectScope) =>
   visibleProjects({ ...filters, page: undefined, pageSize: undefined }, scope);
 
-/** Server-side pagination: the filtered, scoped list sliced to one page. */
-export const getPage = async (filters: ProjectFilters, scope?: ProjectScope) => {
-  const all = await visibleProjects(filters, scope);
-  const pageSize = Math.min(Math.max(filters.pageSize ?? 10, 1), 100);
-  const pages = Math.max(Math.ceil(all.length / pageSize), 1);
-  const page = Math.min(Math.max(filters.page ?? 1, 1), pages);
-  return {
-    items: all.slice((page - 1) * pageSize, page * pageSize),
-    meta: { total: all.length, page, pageSize, pages },
-  };
+/** Server-side pagination: the filtered, scoped list, one page, fetched with LIMIT/OFFSET (not sliced in JS). */
+export const getPage = async (filters: ProjectFilters, scope: ProjectScope | undefined, request: PageRequest) => {
+  let scoped: ProjectFilters = { ...filters, page: undefined, pageSize: undefined };
+  if (scope?.role === "project-manager") {
+    scoped = { ...scoped, pmUserId: scope.userId, pmName: scope.name };
+  } else if (scope && MEMBERSHIP_SCOPED_ROLES.has(scope.role)) {
+    scoped = { ...scoped, codes: [...(await assignedProjectCodes(scope.userId))] };
+  }
+
+  const orderBy = orderByFor(request, repo.PROJECT_SORT_COLUMNS, repo.defaultOrder, projects.id);
+  const { items: rows, meta } = await paginate(
+    request,
+    () => repo.countFiltered(scoped),
+    ({ limit, offset }) => repo.findPageSorted(scoped, limit, offset, orderBy),
+  );
+  const items = scope?.role === "consultant" ? rows.map(toConsultantView) : rows;
+
+  // Optional headline counts for the KPI strip, computed by the server so the
+  // browser does not have to download every project to show four numbers:
+  //   portfolio - the caller's non-archived portfolio, ignoring search and filters
+  //   filtered  - exactly the rows the current search / filters select
+  let kpis: ProjectKpis | undefined;
+  if (filters.kpis === "portfolio") {
+    kpis = projectKpis(await repo.statusGroups({ ...scoped, search: undefined, status: undefined, risk: undefined, projectType: undefined, deliveryType: undefined, code: undefined, excludeArchived: true }));
+  } else if (filters.kpis === "filtered") {
+    kpis = projectKpis(await repo.statusGroups(scoped));
+  }
+  return { items, meta: kpis ? { ...meta, kpis } : meta };
 };
 
 export const getById = async (id: number, scope?: ProjectScope) => {

@@ -9,6 +9,8 @@ import { tasks } from "../db/schema/task.js";
 import * as roleRepo from "../roles/repository.js";
 import { ConflictError, NotFoundError, ValidationError } from "../utils/errors.js";
 import * as repo from "./repository.js";
+import { users as usersTable } from "../db/schema/users.js";
+import { orderByFor, paginate, type PageRequest } from "../utils/pagination.js";
 import type {
   CreateUserInput,
   UpdateUserInput,
@@ -18,6 +20,13 @@ import type {
 const PASSWORD_SALT_ROUNDS = 10;
 
 export const getAll = async (filters: UserFilters) => repo.findAll(filters);
+
+export const getPage = async (filters: UserFilters, request: PageRequest) =>
+  paginate(
+    request,
+    () => repo.countFiltered(filters),
+    (window) => repo.findPage(filters, window, orderByFor(request, repo.USER_SORT_COLUMNS, repo.defaultUserOrder, usersTable.id)),
+  );
 
 export const getById = async (id: number) => {
   const user = await repo.findById(id);

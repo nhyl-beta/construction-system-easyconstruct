@@ -66,14 +66,29 @@ const conditionsFor = (f: RevisionFilters): SQL[] => {
   return c;
 };
 
+export const REVISION_SORT_COLUMNS = {
+  createdAt: revisions.createdAt,
+  versionNumber: revisions.versionNumber,
+  itemTitle: revisions.itemTitle,
+  projectCode: revisions.projectCode,
+  status: revisions.status,
+} as const;
+
+export const defaultRevisionOrder = [desc(revisions.createdAt), desc(revisions.id)];
+
 /** One page, newest first (id as the stable tiebreak so rows do not shuffle between pages). */
-export const findPage = async (filters: RevisionFilters, limit: number, offset: number) => {
+export const findPage = async (
+  filters: RevisionFilters,
+  limit: number,
+  offset: number,
+  orderBy: SQL[] = defaultRevisionOrder,
+) => {
   const where = conditionsFor(filters);
   const rows = await db
     .select()
     .from(revisions)
     .where(where.length ? and(...where) : undefined)
-    .orderBy(desc(revisions.createdAt), desc(revisions.id))
+    .orderBy(...orderBy)
     .limit(limit)
     .offset(offset);
   return rows.map(normalizeRevision);

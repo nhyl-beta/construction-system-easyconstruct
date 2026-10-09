@@ -1,3 +1,4 @@
+import { DataTablePagination } from "@/components/refine-ui/data-table/data-table-pagination";
 // client/src/features/proposals/components/ProposalsRegister.tsx
 //
 // The read-only view of the proposal register. Owner and IT Designer both
@@ -11,7 +12,7 @@
 // Selecting a row opens the proposal's full detail — content, AI validation,
 // reviewer, decision and timestamps — so "read-only" still means seeing
 // everything about a submission, just not changing it.
-import { useMemo, useState } from "react";
+import { useState } from "react";
 import { FileText, Search } from "lucide-react";
 
 import { PageContainer } from "@/components/refine-ui/views/page-container";
@@ -35,20 +36,10 @@ export function ProposalsRegister({
   title,
   description,
 }: ProposalsRegisterProps) {
-  const { proposals, loading, error, kpis } = useProposals();
-  const [search, setSearch] = useState("");
+  const { proposals, loading, error, kpis, query: search, setQuery: setSearch, pagination } = useProposals();
   const [selected, setSelected] = useState<Proposal | null>(null);
 
-  const filtered = useMemo(() => {
-    if (!search) return proposals;
-    const term = search.toLowerCase();
-    return proposals.filter(
-      (p) =>
-        p.title.toLowerCase().includes(term) ||
-        p.proposalId.toLowerCase().includes(term) ||
-        p.projectCode.toLowerCase().includes(term),
-    );
-  }, [proposals, search]);
+  const filtered = proposals;
 
   return (
     <PageContainer>
@@ -83,7 +74,7 @@ export function ProposalsRegister({
           <div className="flex flex-col items-center justify-center gap-2 rounded-xl border border-dashed border-border bg-muted/50 px-6 py-12 text-center">
             <FileText className="h-5 w-5 text-muted-foreground" />
             <p className="text-sm text-muted-foreground">
-              {proposals.length === 0
+              {!search
                 ? "No proposals submitted yet."
                 : "No proposals match your search."}
             </p>
@@ -96,6 +87,7 @@ export function ProposalsRegister({
             onSelect={setSelected}
           />
         )}
+        {!loading && !error && filtered.length > 0 && <DataTablePagination {...pagination} />}
 
         {selected && (
           <div className="space-y-4 rounded-2xl border border-border bg-card p-5 shadow-sm">

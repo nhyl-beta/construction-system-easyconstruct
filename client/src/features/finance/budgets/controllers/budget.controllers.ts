@@ -1,3 +1,4 @@
+import { useDebouncedValue } from "@/hooks/use-debounced-value";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { apiClient } from "@/services/api.client";
 import type { Budget, BudgetTotals } from "../types/budget.types";
@@ -16,6 +17,7 @@ export const useBudgetsController = (initialQuery = "") => {
   const [creating, setCreating] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [query, setQuery] = useState(initialQuery);
+  const debouncedQuery = useDebouncedValue(query.trim(), 300);
   const [fy, setFy] = useState("all");
   const [reloadToken, setReloadToken] = useState(0);
 
@@ -24,7 +26,7 @@ export const useBudgetsController = (initialQuery = "") => {
     setLoading(true);
 
     const params = new URLSearchParams();
-    if (query) params.set("search", query);
+    if (debouncedQuery) params.set("search", debouncedQuery);
     if (fy !== "all") params.set("fiscalYear", fy);
 
     // Was raw fetch() with no Authorization header — /api/finance now
@@ -40,7 +42,7 @@ export const useBudgetsController = (initialQuery = "") => {
       .finally(() => setLoading(false));
 
     return () => controller.abort();
-  }, [query, fy, reloadToken]);
+  }, [debouncedQuery, fy, reloadToken]);
 
   const reload = useCallback(() => setReloadToken((t) => t + 1), []);
 

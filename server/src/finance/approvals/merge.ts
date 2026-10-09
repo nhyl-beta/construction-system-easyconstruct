@@ -1,11 +1,11 @@
 ﻿// server/src/finance/approvals/merge.ts
 //
-// Pure merge of the three things waiting on Finance's sign-off into one list,
+// Pure merge of everything waiting on Finance's sign-off into one list,
 // oldest first. No database, so ordering, limit and total are unit-tested.
-export type ApprovalKind = "Expense" | "Payroll" | "Budget";
+export type ApprovalKind = "Expense" | "Payroll" | "Budget" | "Purchase request" | "Reimbursement";
 
 export interface PendingItem {
-  /** Unique across sources: exp-<id>, pay-<id>, bud-<id>. */
+  /** Unique across sources: exp-<id>, pay-<id>, bud-<id>, pr-<id>, rmb-<id>. */
   id: string;
   kind: ApprovalKind;
   reference: string;

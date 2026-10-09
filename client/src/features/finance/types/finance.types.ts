@@ -21,35 +21,9 @@ export interface Expense {
   /** Plain-language reasons behind a non-zero score (rule-based). */
   anomalyReason?: string | null;
   receiptUrl: string | null;
-}
-
-export interface PurchaseRequest {
-  id: string;
-  title: string;
-  project: string;
-  requestedBy: string;
-  amount: number;
-  requestedAt: string;
-  status: string;
-}
-
-export interface Reimbursement {
-  id: string;
-  employee: string;
-  purpose: string;
-  amount: number;
-  submittedAt: string;
-  status: string;
-}
-
-export interface ProcurementOrder {
-  id: string;
-  vendor: string;
-  project: string;
-  items: number;
-  amount: number;
-  eta: string | null;
-  status: string;
+  /** Where the spend came from: a direct entry, a paid order or a paid claim. */
+  sourceType?: "manual" | "purchase-order" | "reimbursement";
+  sourceId?: string | null;
 }
 
 // One row of the dashboard's "Pending approvals" card: something waiting on
@@ -57,9 +31,9 @@ export interface ProcurementOrder {
 // GET /finance/approvals. There is no SLA data in the system, so only how long
 // it has been waiting is shown.
 export interface Approval {
-  /** Unique across sources: exp-<id>, pay-<id>, bud-<id>. */
+  /** Unique across sources: exp-<id>, pay-<id>, bud-<id>, pr-<id>, rmb-<id>. */
   id: string;
-  kind: "Expense" | "Payroll" | "Budget";
+  kind: "Expense" | "Payroll" | "Budget" | "Purchase request" | "Reimbursement";
   reference: string;
   requestedBy: string;
   amount: number;

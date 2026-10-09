@@ -10,7 +10,13 @@ import * as workflowsRepo from "../workflows/repository.js";
 
 import {
   proposalRepository,
+  PROPOSAL_SORT_COLUMNS,
+  defaultProposalOrder,
+  statusCounts,
+  type ProposalFilters,
 } from "./repository.js";
+import { proposals as proposalsTable } from "../db/schema/proposals.js";
+import { orderByFor, paginate, type PageRequest } from "../utils/pagination.js";
 
 const DESIGN_APPROVAL_TEMPLATE = "Design Proposal Approval";
 
@@ -29,6 +35,21 @@ export const proposalService = {
   async getAll() {
     return proposalRepository.findAll();
   },
+
+  async getPage(filters: ProposalFilters, request: PageRequest) {
+    return paginate(
+      request,
+      () => proposalRepository.countFiltered(filters),
+      (window) =>
+        proposalRepository.findPage(
+          filters,
+          window,
+          orderByFor(request, PROPOSAL_SORT_COLUMNS, defaultProposalOrder, proposalsTable.id),
+        ),
+    );
+  },
+
+  statusCounts: (filters: ProposalFilters) => statusCounts(filters),
 
   async getById(id: number) {
     const proposal =

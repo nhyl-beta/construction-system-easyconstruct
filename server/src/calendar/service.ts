@@ -56,9 +56,13 @@ export const getCalendarEvents = async (actor: {
   const codes = [...projectByCode.keys()];
   const events: CalendarEvent[] = [];
 
-  const milestoneLists = await Promise.all(codes.map((code) => milestonesRepo.findAll(code)));
-  for (const list of milestoneLists) {
-    for (const m of list) {
+  // Two grouped queries instead of one milestones query and one history query per project.
+  const [milestonesByCode, historyByCode] = await Promise.all([
+    milestonesRepo.findAllForProjects(codes),
+    lifecycleRepo.findPhaseHistoryForProjects(codes),
+  ]);
+  for (const code of codes) {
+    for (const m of milestonesByCode.get(code) ?? []) {
       const date = toIsoDate(m.estimatedCompletionDate);
       if (!date) continue;
       const project = projectByCode.get(m.projectCode);
@@ -74,7 +78,7 @@ export const getCalendarEvents = async (actor: {
     }
   }
 
-  const allWorkflows = await workflowsRepo.findWorkflows();
+  const allWorkflows = await workflowsRepo.findWorkflowsForProjects(codes);
   for (const wf of allWorkflows) {
     if (!projectByCode.has(wf.projectCode)) continue;
     const date = toIsoDate(wf.createdAt);
@@ -91,11 +95,8 @@ export const getCalendarEvents = async (actor: {
     });
   }
 
-  const historyLists = await Promise.all(
-    codes.map((code) => lifecycleRepo.findPhaseHistory(code)),
-  );
-  for (const list of historyLists) {
-    for (const h of list) {
+  for (const code of codes) {
+    for (const h of historyByCode.get(code) ?? []) {
       const date = toIsoDate(h.createdAt);
       if (!date) continue;
       const project = projectByCode.get(h.projectCode);

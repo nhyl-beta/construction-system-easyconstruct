@@ -1,4 +1,5 @@
-import { and, desc, eq, inArray, sql } from "drizzle-orm";
+import { and, desc, eq, ilike, inArray, or, sql, SQL } from "drizzle-orm";
+import { countRows, inCodes, selectPage } from "../db/paged.js";
 import { db } from "../db/connection.js";
 import {
   workflowAttachments,
@@ -60,6 +61,65 @@ export const countActiveByTemplate = async (): Promise<Map<number, number>> => {
 export const findWorkflows = async (status?: string) => {
   const query = db.select().from(workflows).orderBy(desc(workflows.createdAt));
   return status ? query.where(eq(workflows.status, status)) : query;
+};
+
+/** Workflows of the given projects only (newest first, like findWorkflows). */
+export const findWorkflowsForProjects = async (projectCodes: string[]) =>
+  projectCodes.length === 0
+    ? []
+    : db
+        .select()
+        .from(workflows)
+        .where(inArray(workflows.projectCode, projectCodes))
+        .orderBy(desc(workflows.createdAt));
+
+// ── Paged workflow list ────────────────────────────────────────────────────
+
+export interface WorkflowListFilters {
+  status?: string;
+  /** Restrict to these project codes (visibility scope; set by the controller). */
+  codes?: string[];
+  projectCode?: string;
+  search?: string;
+}
+
+const workflowConditions = (filters: WorkflowListFilters): SQL[] => {
+  const conditions: SQL[] = [];
+  if (filters.status) conditions.push(eq(workflows.status, filters.status));
+  if (filters.codes) conditions.push(inCodes(workflows.projectCode, filters.codes));
+  if (filters.projectCode) conditions.push(eq(workflows.projectCode, filters.projectCode));
+  if (filters.search) {
+    const s = `%${filters.search}%`;
+    conditions.push(or(ilike(workflows.title, s), ilike(workflows.code, s), ilike(workflows.projectCode, s))!);
+  }
+  return conditions;
+};
+
+export const WORKFLOW_SORT_COLUMNS = {
+  title: workflows.title,
+  code: workflows.code,
+  projectCode: workflows.projectCode,
+  status: workflows.status,
+  type: workflows.type,
+  severity: workflows.severity,
+  createdAt: workflows.createdAt,
+  updatedAt: workflows.updatedAt,
+} as const;
+
+export const defaultWorkflowOrder = [desc(workflows.createdAt), desc(workflows.id)];
+
+export const countWorkflows = async (filters: WorkflowListFilters) => {
+  const conditions = workflowConditions(filters);
+  return countRows(workflows, conditions.length ? and(...conditions) : undefined);
+};
+
+export const findWorkflowsPage = async (
+  filters: WorkflowListFilters,
+  window: { limit: number; offset: number },
+  orderBy: SQL[],
+) => {
+  const conditions = workflowConditions(filters);
+  return selectPage(workflows, conditions.length ? and(...conditions) : undefined, orderBy, window);
 };
 
 export const findWorkflowById = async (id: number) => {
@@ -160,6 +220,56 @@ export const findPendingStagesForRole = async (role: string, isPrivileged: boole
     .orderBy(workflowStages.createdAt);
 };
 
+/**
+ * Counts behind GET /workflows/approvals/stats, computed in SQL. The old code
+ * loaded the pending queue AND every decided stage in the system, plus their
+ * attachments and line items, only to count them. Same definitions:
+ *  - pending: stages in "current" for this role (admin / it-designer: every role)
+ *  - overdue: pending for more than 48 hours
+ *  - history: stages decided "done" or "rejected" (any decider)
+ *  - avgCycleDays: mean of decided_at - created_at over history rows that have both
+ *  - thisWeek: history rows decided in the last 7 days
+ * `codes` restricts to workflows of those projects (null = no restriction).
+ */
+export const findApprovalStats = async (
+  role: string,
+  isPrivileged: boolean,
+  codes: readonly string[] | null,
+) => {
+  const scope = codes ? inCodes(workflows.projectCode, codes) : undefined;
+
+  const [pendingRow] = await db
+    .select({
+      pending: sql<number>`count(*)::int`,
+      overdue: sql<number>`(count(*) filter (where ${workflowStages.createdAt} < now() - interval '48 hours'))::int`,
+    })
+    .from(workflowStages)
+    .innerJoin(workflows, eq(workflowStages.workflowId, workflows.id))
+    .where(
+      and(
+        eq(workflowStages.status, "current"),
+        isPrivileged ? undefined : eq(workflowStages.role, role),
+        scope,
+      ),
+    );
+
+  const [historyRow] = await db
+    .select({
+      avgDays: sql<string | null>`avg(extract(epoch from (${workflowStages.decidedAt} - ${workflowStages.createdAt})) / 86400.0) filter (where ${workflowStages.createdAt} is not null and ${workflowStages.decidedAt} is not null)`,
+      thisWeek: sql<number>`(count(*) filter (where ${workflowStages.decidedAt} >= now() - interval '7 days'))::int`,
+    })
+    .from(workflowStages)
+    .innerJoin(workflows, eq(workflowStages.workflowId, workflows.id))
+    .where(and(inArray(workflowStages.status, ["done", "rejected"]), scope));
+
+  return {
+    pending: pendingRow?.pending ?? 0,
+    overdue: pendingRow?.overdue ?? 0,
+    avgDays: historyRow?.avgDays == null ? 0 : Number(historyRow.avgDays),
+    thisWeek: historyRow?.thisWeek ?? 0,
+  };
+};
+
 export const findDecidedStagesBy = async (decidedBy: string) => {
   return db
     .select({ stage: workflowStages, workflow: workflows })
@@ -192,6 +302,28 @@ export const findAttachmentsForWorkflows = async (workflowIds: number[]) => {
     .leftJoin(workflowStages, eq(workflowAttachments.stageId, workflowStages.id))
     .where(inArray(workflowAttachments.workflowId, workflowIds))
     .orderBy(workflowAttachments.createdAt);
+};
+
+/** workflow id -> attachment count (SQL COUNT, no attachment rows or file text loaded). */
+export const countAttachmentsByWorkflow = async (workflowIds: number[]): Promise<Map<number, number>> => {
+  if (workflowIds.length === 0) return new Map();
+  const rows = await db
+    .select({ workflowId: workflowAttachments.workflowId, n: sql<number>`count(*)::int` })
+    .from(workflowAttachments)
+    .where(inArray(workflowAttachments.workflowId, workflowIds))
+    .groupBy(workflowAttachments.workflowId);
+  return new Map(rows.map((r) => [r.workflowId, r.n]));
+};
+
+/** workflow id -> line item count (SQL COUNT). */
+export const countLineItemsByWorkflow = async (workflowIds: number[]): Promise<Map<number, number>> => {
+  if (workflowIds.length === 0) return new Map();
+  const rows = await db
+    .select({ workflowId: workflowLineItems.workflowId, n: sql<number>`count(*)::int` })
+    .from(workflowLineItems)
+    .where(inArray(workflowLineItems.workflowId, workflowIds))
+    .groupBy(workflowLineItems.workflowId);
+  return new Map(rows.map((r) => [r.workflowId, r.n]));
 };
 
 export const insertAttachments = async (

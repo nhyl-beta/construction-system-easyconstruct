@@ -23,6 +23,7 @@ import { useOwnerDashboardController } from "@/features/dashboard/controllers/ow
 import { formatDue } from "@/features/projects/lib/project-format";
 import { formatRelativeTime } from "@/lib/format-relative-time";
 import { useNavigate } from "react-router";
+import { OwnerPayrollSection } from "@/features/payroll-summary/components/OwnerPayrollSection";
 import { ImpactAwarenessCard } from "@/features/lifecycle/components/ImpactAwarenessCard";
 
 const riskToneClasses: Record<string, string> = {
@@ -101,6 +102,13 @@ export default function OwnerDashboardPage() {
           },
           { label: "Recorded actions", value: `${c.auditEventCount}`, icon: ShieldCheck },
         ]}
+      />
+
+      {/* ── Payroll: read-only aggregates of approved payroll ── */}
+      <OwnerPayrollSection
+        summary={c.payrollSummary}
+        loading={c.payrollLoading}
+        error={c.payrollError}
       />
 
       {/* ── Main grid — portfolio table + audit trail ── */}

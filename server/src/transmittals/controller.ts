@@ -5,6 +5,7 @@ import { formatSuccess } from "../utils/response.js";
 import { UnauthorizedError } from "../utils/errors.js";
 import type { AuthedRequest } from "../middleware/auth.js";
 import * as service from "./service.js";
+import { byDate, byString, respondList } from "../utils/pagination.js";
 
 const actorOf = (req: AuthedRequest): service.Actor => {
   const u = req.authUser;
@@ -24,7 +25,14 @@ const wrap =
 
 export const list = wrap(async (req, res) => {
   const projectCode = typeof req.query.projectCode === "string" && req.query.projectCode ? req.query.projectCode : undefined;
-  res.json(formatSuccess(await service.list(projectCode, actorOf(req)), "Transmittals retrieved"));
+  respondList(res, req.query, await service.list(projectCode, actorOf(req)), "Transmittals retrieved", {
+    controlNo: byString((t) => t.controlNo),
+    subject: byString((t) => t.subject),
+    projectCode: byString((t) => t.projectCode),
+    status: byString((t) => t.status),
+    dateIssued: byString((t) => t.dateIssued),
+    createdAt: byDate((t) => t.createdAt),
+  });
 });
 export const getById = wrap(async (req, res) => {
   res.json(formatSuccess(await service.getById(id(req), actorOf(req)), "Transmittal retrieved"));

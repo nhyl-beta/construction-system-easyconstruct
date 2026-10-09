@@ -1,5 +1,7 @@
 // server/src/tasks/service.ts — NEW
 import { ForbiddenError, NotFoundError, ValidationError } from "../utils/errors.js";
+import { tasks } from "../db/schema/task.js";
+import { orderByFor, paginate, type PageRequest } from "../utils/pagination.js";
 import { assertProjectWritable, refreshProjectProgress } from "../lifecycle/service.js";
 import * as repo from "./repository.js";
 import * as milestonesRepo from "../milestones/repository.js";
@@ -22,6 +24,15 @@ const VALID_TRANSITIONS: Record<string, string[]> = {
 };
 
 export const getAll = async (filters: TaskFilters) => repo.findAll(filters);
+
+export const progressByProject = (filters: TaskFilters) => repo.progressByProject(filters);
+
+export const getPage = async (filters: TaskFilters, request: PageRequest) =>
+  paginate(
+    request,
+    () => repo.countFiltered(filters),
+    (window) => repo.findPage(filters, window, orderByFor(request, repo.TASK_SORT_COLUMNS, repo.defaultTaskOrder, tasks.id)),
+  );
 
 export const getById = async (id: number) => {
   const task = await repo.findById(id);
@@ -133,8 +144,9 @@ export const updateStatus = async (
     // G2: if every task linked to a milestone is now Completed, tell the PM
     // the milestone itself is ready to be moved along.
     const linkedMilestones = await milestonesRepo.findMilestonesLinkedToTask(updated.id);
+    const linksByMilestone = await milestonesRepo.findLinksForMilestones(linkedMilestones.map((m) => m.id));
     for (const milestone of linkedMilestones) {
-      const links = await milestonesRepo.findLinks(milestone.id);
+      const links = linksByMilestone.get(milestone.id) ?? [];
       const taskLinks = links.filter((l) => l.linkType === "task");
       const allDone = taskLinks.length > 0 && taskLinks.every((l) => l.task?.status === "Completed");
       if (allDone) {

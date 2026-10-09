@@ -4,6 +4,7 @@ import { HTTP } from "../constants/http-status.js";
 import { MSG } from "../constants/messages.js";
 import { formatSuccess } from "../utils/response.js";
 import * as service from "./service.js";
+import { byDate, byString, respondList } from "../utils/pagination.js";
 import type { AuthedRequest } from "../middleware/auth.js";
 import { assertAssignedToDesign, assertAssignedToProject, scopeRowsByDesign } from "../projects/scope.js";
 
@@ -16,7 +17,12 @@ export const getAll = async (req: Request, res: Response, next: NextFunction) =>
       // Plans started from the Revisions page belong to a project directly.
       (d) => d.projectCode,
     );
-    res.json(formatSuccess(data, MSG.architectDocuments.retrieved));
+    respondList(res, req.query, data, MSG.architectDocuments.retrieved, {
+      title: byString((d) => d.title),
+      category: byString((d) => d.category),
+      status: byString((d) => d.status),
+      updatedAt: byDate((d) => d.updatedAt),
+    });
   } catch (err) { next(err); }
 };
 export const getById = async (req: Request, res: Response, next: NextFunction) => {

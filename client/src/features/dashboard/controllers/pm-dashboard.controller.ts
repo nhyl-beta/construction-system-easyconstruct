@@ -1,44 +1,25 @@
 import { useMemo } from "react";
-import { useProjects } from "@/features/projects/hooks/useProjects";
+import { normalizeProject } from "@/features/projects/repositories/project.repository";
+import { useDashboardSummary, type ProjectManagerSummary } from "../hooks/useDashboardSummary";
 
 export const usePmDashboardController = () => {
-  const projects = useProjects();
+  const { summary, loading, error } = useDashboardSummary<ProjectManagerSummary>();
 
-  // Same status-string matching approach as ProjectService.calcKpis,
-  // but scoped to what the dashboard actually displays (risk breakdown
-  // instead of just counts).
-  const riskBreakdown = useMemo(() => {
-    const high = projects.projects.filter((p) => p.risk === "high").length;
-    const medium = projects.projects.filter((p) => p.risk === "medium").length;
-    const low = projects.projects.filter((p) => p.risk === "low").length;
-    return { high, medium, low };
-  }, [projects.projects]);
-
-  const overBudget = useMemo(
-    () => projects.projects.filter((p) => p.budget > 100).length,
-    [projects.projects],
-  );
-
-  // Attention-sorted: risk desc, then budget overrun desc — surfaces the
-  // projects most likely to need the PM's attention today, without
-  // fabricating a separate "attention score" concept.
-  const attentionSorted = useMemo(() => {
-    const riskWeight: Record<string, number> = { high: 2, medium: 1, low: 0 };
-    return [...projects.projects].sort((a, b) => {
-      const riskDiff = riskWeight[b.risk] - riskWeight[a.risk];
-      if (riskDiff !== 0) return riskDiff;
-      return b.budget - a.budget;
-    });
-  }, [projects.projects]);
+  // Attention order (risk, then budget) and every count are computed by the
+  // server over the PM's own non-archived projects.
+  const topProjects = useMemo(() => (summary?.projects.top ?? []).map(normalizeProject), [summary]);
 
   return {
-    loading: projects.loading,
-    error: projects.error,
-    kpis: projects.kpis,
-    riskBreakdown,
-    overBudget,
-    topProjects: attentionSorted.slice(0, 5),
-    totalProjectCount: projects.projects.length,
-    projects: projects.projects,
+    loading,
+    error,
+    kpis: summary?.projects.kpis ?? { total: 0, onTrack: 0, atRisk: 0, delayed: 0 },
+    riskBreakdown: summary?.projects.riskBreakdown ?? { high: 0, medium: 0, low: 0 },
+    overBudget: summary?.projects.overBudget ?? 0,
+    topProjects,
+    totalProjectCount: summary?.projects.total ?? 0,
+    /** Portfolio split by lifecycle phase, biggest first (drives the "Projects by phase" chart). */
+    phases: summary?.projects.byPhase ?? [],
+    /** Open tasks per project, top 8 (drives the "Open workload" chart). */
+    workload: summary?.workload ?? [],
   };
 };

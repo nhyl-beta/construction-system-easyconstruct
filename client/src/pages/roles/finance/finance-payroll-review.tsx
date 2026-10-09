@@ -1,8 +1,8 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useState } from "react";
 
 import {
   decidePayrollReview,
-  listPayrollReview,
+  listPayrollReviewPage,
   type PayrollReviewBatch,
 } from "@/features/finance/apis/payroll-review-api";
 import {
@@ -24,6 +24,8 @@ import {
 } from "@/components/ui/select";
 import { DataTablePagination } from "@/components/refine-ui/data-table/data-table-pagination";
 import { usePagination } from "@/hooks/use-pagination";
+import { useServerList } from "@/hooks/use-server-list";
+import { qk } from "@/lib/query-keys";
 import { formatCurrency } from "@/lib/format-currency";
 import { downloadCsv } from "@/lib/export-csv";
 import { Download } from "lucide-react";
@@ -40,37 +42,45 @@ function Figure({ label, value, strong }: { label: string; value: string; strong
 }
 
 export default function FinancePayrollReviewPage() {
-  const [batches, setBatches] = useState<PayrollReviewBatch[]>([]);
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [detail, setDetail] = useState<BatchDetail | null>(null);
   const [detailLoading, setDetailLoading] = useState(false);
 
-  const [loading, setLoading] = useState(true);
   const [processing, setProcessing] = useState(false);
   const [error, setError] = useState("");
 
   const [periodFilter, setPeriodFilter] = useState<string | null>(null);
+  // Batches are paged (and filtered by period) on the server.
+  const pagination = useServerList<PayrollReviewBatch, { periods: string[] }>({
+    key: (params) => qk.finance.payrollReview(params),
+    filters: { period: periodFilter ?? "" },
+    fetchPage: async (params, signal) => {
+      const page = await listPayrollReviewPage(params.page, params.limit, periodFilter, signal);
+      return { items: page.items, total: page.total, pages: page.pages, extra: { periods: page.periods } };
+    },
+  });
+  const loading = pagination.loading;
+  const periods = pagination.extra?.periods ?? [];
   const [reasonCode, setReasonCode] = useState("");
   const [comment, setComment] = useState("");
   const [confirming, setConfirming] = useState<"approved" | "rejected" | null>(null);
   const [payslipLine, setPayslipLine] = useState<PayrollLine | null>(null);
 
   async function loadBatches() {
-    try {
-      setLoading(true);
-      setError("");
-      setBatches(await listPayrollReview());
-    } catch (err) {
-      console.error(err);
-      setError("Failed to load payroll batches.");
-    } finally {
-      setLoading(false);
-    }
+    setError("");
+    await pagination.reload();
   }
 
-  useEffect(() => {
-    void loadBatches();
-  }, []);
+  // Every batch the filter selects (for the CSV), fetched page by page.
+  async function fetchAllBatches() {
+    const all: PayrollReviewBatch[] = [];
+    for (let page = 1; ; page += 1) {
+      const next = await listPayrollReviewPage(page, 100, periodFilter);
+      all.push(...next.items);
+      if (page >= (next.pages ?? 1) || next.items.length === 0) break;
+    }
+    return all;
+  }
 
   useEffect(() => {
     if (!selectedId) {
@@ -94,15 +104,6 @@ export default function FinancePayrollReviewPage() {
     };
   }, [selectedId]);
 
-  const periods = useMemo(
-    () => Array.from(new Set(batches.map((b) => b.period))).sort().reverse(),
-    [batches],
-  );
-  const filteredBatches = useMemo(
-    () => (periodFilter ? batches.filter((b) => b.period === periodFilter) : batches),
-    [batches, periodFilter],
-  );
-  const pagination = usePagination(filteredBatches, 10);
   const linePagination = usePagination(detail?.lines ?? [], 8);
 
   const batch = detail?.batch ?? null;
@@ -159,9 +160,9 @@ export default function FinancePayrollReviewPage() {
         <button
           type="button"
           className="inline-flex h-9 items-center gap-1.5 rounded-xl border px-3 text-xs hover:bg-muted disabled:opacity-50"
-          disabled={filteredBatches.length === 0}
+          disabled={pagination.total === 0}
           title={detail ? "Export the open batch's payroll lines as CSV" : "Export the batches shown as CSV"}
-          onClick={() =>
+          onClick={async () =>
             detail
               ? downloadCsv(
                   `payroll-${detail.batch.id}`,
@@ -171,7 +172,7 @@ export default function FinancePayrollReviewPage() {
               : downloadCsv(
                   "payroll-batches",
                   ["Batch", "Period", "Group", "Project", "Employees", "Overtime hours", "Gross", "Deductions", "Net", "Employer cost", "Status", "Reviewed by", "Reviewed at"],
-                  filteredBatches.map((b) => [b.id, b.period, b.group, b.projectCode ?? "", b.employees, b.overtimeHours, b.grossPayroll, b.deductions, b.netPayroll, b.employerCost ?? "", b.status, b.reviewedBy ?? "", b.reviewedAt ?? ""]),
+                  (await fetchAllBatches()).map((b) => [b.id, b.period, b.group, b.projectCode ?? "", b.employees, b.overtimeHours, b.grossPayroll, b.deductions, b.netPayroll, b.employerCost ?? "", b.status, b.reviewedBy ?? "", b.reviewedAt ?? ""]),
                 )
           }
         >
@@ -197,7 +198,7 @@ export default function FinancePayrollReviewPage() {
         <div className="rounded-md border border-destructive/30 bg-destructive-soft p-3 text-sm text-destructive-strong">{error}</div>
       )}
 
-      {batches.length === 0 ? (
+      {pagination.total === 0 && !periodFilter ? (
         <div className="rounded-lg border p-6">
           <p className="text-muted-foreground">No payroll batches are currently available for review.</p>
         </div>

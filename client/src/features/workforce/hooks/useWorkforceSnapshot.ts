@@ -1,13 +1,11 @@
-// Part C3/C4/E: a single, real cross-project workforce data path, shared by
-// admin-dashboard.tsx's "Workforce snapshot" card and hr-dashboard.tsx's
-// WorkforceSection — one query set, not two ad-hoc ones. Built on the
-// existing, already-unrestricted GET /employees and GET /attendance
-// endpoints (both open to any authenticated role — see
-// server/src/employees/routes.ts / server/src/attendance/routes.ts); no new
-// server endpoint was needed since neither read was ever role/project
-// filtered to begin with.
-import { useEffect, useState, useCallback } from "react";
+// Part C3/C4/E: the one cross-project workforce data path, shared by
+// admin-dashboard.tsx's "Workforce snapshot" card and hr-dashboard.tsx. The
+// server counts employees and recent attendance (GET /api/dashboard/workforce);
+// the browser no longer downloads both full lists to do it.
+import { useQuery } from "@tanstack/react-query";
 import { apiClient } from "@/services/api.client";
+import { qk } from "@/lib/query-keys";
+import { STALE } from "@/lib/query-client";
 
 export interface EmployeeRow {
   id: number;
@@ -22,15 +20,6 @@ export interface EmployeeRow {
   hiredOn: string;
   payRate: string;
   rateType: string;
-}
-
-interface AttendanceRow {
-  id: number;
-  employeeId: string;
-  site: string;
-  hours: string | null;
-  attendanceStatus: string;
-  logDate: string;
 }
 
 export interface WorkforceSiteSummary {
@@ -55,69 +44,44 @@ export interface WorkforceSnapshot {
 
 const WINDOW_DAYS = 30;
 
+interface WorkforceFigures {
+  headcount: number;
+  active: number;
+  windowDays: number;
+  snapshot: {
+    totalEmployees: number;
+    totalCapacity: number;
+    assignedRecently: number;
+    available: number;
+    overtimeCrews: number;
+    sites: WorkforceSiteSummary[];
+  };
+}
+
+/**
+ * Org-wide workforce figures, counted by the server (GET /api/dashboard/workforce)
+ * instead of downloading every employee and every attendance row. One shared
+ * query: the HR page header, its Workforce tab and the Admin "Workforce
+ * snapshot" card all read the same cached answer.
+ */
 export function useWorkforceSnapshot(): WorkforceSnapshot {
-  const [employees, setEmployees] = useState<EmployeeRow[]>([]);
-  const [attendance, setAttendance] = useState<AttendanceRow[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<Error | null>(null);
+  const query = useQuery({
+    queryKey: qk.dashboard.workforce,
+    queryFn: async () => ((await apiClient.get("/dashboard/workforce")) as { data: WorkforceFigures }).data,
+    staleTime: STALE.summary,
+  });
 
-  const load = useCallback(() => {
-    setLoading(true);
-    setError(null);
-    Promise.all([apiClient.get("/employees"), apiClient.get("/attendance")])
-      .then(([empRes, attRes]: [any, any]) => {
-        setEmployees(empRes.data ?? []);
-        setAttendance(attRes.data ?? []);
-      })
-      .catch((err) => setError(err instanceof Error ? err : new Error("Failed to load workforce data.")))
-      .finally(() => setLoading(false));
-  }, []);
-
-  useEffect(() => {
-    load();
-  }, [load]);
-
-  const active = employees.filter((e) => e.status === "Active");
-  const totalCapacity = active.length;
-
-  const cutoff = new Date();
-  cutoff.setDate(cutoff.getDate() - WINDOW_DAYS);
-  const recentAttendance = attendance.filter((a) => new Date(a.logDate) >= cutoff);
-  const assignedEmployeeIds = new Set(recentAttendance.map((a) => a.employeeId));
-  const assignedRecently = assignedEmployeeIds.size;
-  const available = Math.max(0, totalCapacity - assignedRecently);
-
-  const overtimeEmployeeIds = new Set(
-    recentAttendance.filter((a) => Number(a.hours ?? 0) > 8).map((a) => a.employeeId),
-  );
-  const overtimeCrews = overtimeEmployeeIds.size;
-
-  const siteMap = new Map<string, { capacity: number; assigned: number }>();
-  for (const e of active) {
-    const entry = siteMap.get(e.site) ?? { capacity: 0, assigned: 0 };
-    entry.capacity += 1;
-    siteMap.set(e.site, entry);
-  }
-  for (const empId of assignedEmployeeIds) {
-    const emp = employees.find((e) => e.employeeId === empId);
-    if (!emp) continue;
-    const entry = siteMap.get(emp.site);
-    if (entry) entry.assigned += 1;
-  }
-  const sites: WorkforceSiteSummary[] = Array.from(siteMap.entries())
-    .map(([site, v]) => ({ site, capacity: v.capacity, assigned: v.assigned, available: Math.max(0, v.capacity - v.assigned) }))
-    .sort((a, b) => b.capacity - a.capacity);
-
+  const snapshot = query.data?.snapshot;
   return {
-    loading,
-    error,
-    totalEmployees: employees.length,
-    totalCapacity,
-    assignedRecently,
-    available,
-    overtimeCrews,
-    sites,
-    windowDays: WINDOW_DAYS,
-    reload: load,
+    loading: query.isPending,
+    error: (query.error as Error | null) ?? null,
+    totalEmployees: snapshot?.totalEmployees ?? 0,
+    totalCapacity: snapshot?.totalCapacity ?? 0,
+    assignedRecently: snapshot?.assignedRecently ?? 0,
+    available: snapshot?.available ?? 0,
+    overtimeCrews: snapshot?.overtimeCrews ?? 0,
+    sites: snapshot?.sites ?? [],
+    windowDays: query.data?.windowDays ?? WINDOW_DAYS,
+    reload: () => void query.refetch(),
   };
 }

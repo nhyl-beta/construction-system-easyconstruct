@@ -18,6 +18,14 @@ router.use(authenticate);
 const canRead = requireRole("human-resources", "finance-manager", "admin", "it-designer");
 const canWrite = requireRole("human-resources", "admin", "it-designer");
 
+// Owner dashboard summary: aggregates of approved payroll, read-only. This is
+// the only payroll route the owner role can reach. Before "/:id".
+router.get(
+  "/owner-summary",
+  requireRole("owner", "admin", "it-designer"),
+  controller.getOwnerSummary,
+);
+
 // Tracksheet
 router.get("/", canRead, controller.getAll);
 

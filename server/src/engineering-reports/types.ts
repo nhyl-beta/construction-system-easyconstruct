@@ -65,6 +65,8 @@ export interface CreateEngineeringReportInput {
 export interface UpdateEngineeringReportInput extends Partial<CreateEngineeringReportInput> {}
 
 export interface EngineeringReportFilters {
+  /** Restrict to these project codes (visibility scope; set by the controller). */
+  codes?: string[];
   project?: string;
   type?: string;
   status?: string;

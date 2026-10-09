@@ -1,52 +1,20 @@
 import { useMemo } from "react";
-import { useProjects } from "@/features/projects/hooks/useProjects";
-import { useActiveWorkflows, useApprovals } from "@/features/workflows/hooks/useWorkflows";
+import { normalizeProject } from "@/features/projects/repositories/project.repository";
 import { useNotifications } from "@/features/notifications/hooks/useNotifications";
-import { useAuditLogs } from "@/features/audit-logs/hooks/useAuditLogs";
-import { useProposals } from "@/features/proposals/hooks/useProposals";
+import { useDashboardSummary, type ExecutiveSummary } from "../hooks/useDashboardSummary";
 
+// Admin's org-wide picture. The totals and the few rows drawn come from one
+// GET /api/dashboard/summary (counted by the server); notifications keep their
+// own live hook, exactly as before.
 export const useAdminDashboardController = () => {
-  const projects = useProjects();
-  const workflows = useActiveWorkflows();
-  const approvals = useApprovals("pending");
+  const { summary, loading: summaryLoading, error } = useDashboardSummary<ExecutiveSummary>();
   const notifications = useNotifications();
-  const auditLogs = useAuditLogs();
-  const proposals = useProposals();
 
-  // Same risk-weighted sort the PM dashboard uses for "needs attention" —
-  // kept identical so both dashboards read the same data the same way.
-  const attentionSorted = useMemo(() => {
-    const riskWeight: Record<string, number> = { high: 2, medium: 1, low: 0 };
-    return [...projects.projects].sort((a, b) => {
-      const riskDiff = riskWeight[b.risk] - riskWeight[a.risk];
-      if (riskDiff !== 0) return riskDiff;
-      return b.budget - a.budget;
-    });
-  }, [projects.projects]);
-
-  const overBudget = useMemo(
-    () => projects.projects.filter((p) => p.budget > 100).length,
-    [projects.projects],
-  );
-
-  const activeWorkflowCount = useMemo(
-    () => workflows.workflows.filter((w) => w.status === "active").length,
-    [workflows.workflows],
-  );
-
-  const completedWorkflowCount = useMemo(
-    () => workflows.workflows.filter((w) => w.status === "completed").length,
-    [workflows.workflows],
-  );
+  const topProjects = useMemo(() => (summary?.projects.top ?? []).map(normalizeProject), [summary]);
 
   const unreadNotificationCount = useMemo(
     () => notifications.notifications.filter((n) => !n.isRead).length,
     [notifications.notifications],
-  );
-
-  const recentActivity = useMemo(
-    () => auditLogs.logs.slice(0, 6),
-    [auditLogs.logs],
   );
 
   const recentNotifications = useMemo(
@@ -54,35 +22,34 @@ export const useAdminDashboardController = () => {
     [notifications.notifications],
   );
 
-  const loading =
-    projects.loading || workflows.loading || approvals.loading;
+  const recentActivity = useMemo(() => (summary?.audit.recent ?? []).slice(0, 6), [summary]);
 
   return {
-    loading,
-    projectsLoading: projects.loading,
-    projectsError: projects.error,
-    kpis: projects.kpis,
-    overBudget,
-    topProjects: attentionSorted.slice(0, 5),
-    totalProjectCount: projects.projects.length,
+    loading: summaryLoading,
+    projectsLoading: summaryLoading,
+    projectsError: error,
+    kpis: summary?.projects.kpis ?? { total: 0, onTrack: 0, atRisk: 0, delayed: 0 },
+    overBudget: summary?.projects.overBudget ?? 0,
+    topProjects,
+    totalProjectCount: summary?.projects.total ?? 0,
 
-    workflowsLoading: workflows.loading,
-    workflowsError: workflows.error,
-    activeWorkflowCount,
-    completedWorkflowCount,
+    workflowsLoading: summaryLoading,
+    workflowsError: error,
+    activeWorkflowCount: summary?.workflows.active ?? 0,
+    completedWorkflowCount: summary?.workflows.completed ?? 0,
 
-    approvalsLoading: approvals.loading,
-    pendingApprovals: approvals.stats?.pending ?? approvals.items.length,
-    overdueApprovals: approvals.stats?.overdue ?? 0,
+    approvalsLoading: summaryLoading,
+    pendingApprovals: summary?.approvals.pending ?? 0,
+    overdueApprovals: summary?.approvals.overdue ?? 0,
 
     notificationsLoading: notifications.loading,
     unreadNotificationCount,
     recentNotifications,
 
-    auditLogsLoading: auditLogs.loading,
+    auditLogsLoading: summaryLoading,
     recentActivity,
 
-    proposalsLoading: proposals.loading,
-    proposalsKpis: proposals.kpis,
+    proposalsLoading: summaryLoading,
+    proposalsKpis: summary?.proposals.kpis ?? { total: 0, pending: 0, approved: 0, revisionRequested: 0 },
   };
 };

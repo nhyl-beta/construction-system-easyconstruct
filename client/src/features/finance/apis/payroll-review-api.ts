@@ -57,6 +57,35 @@ export async function listPayrollReview(): Promise<
   );
 }
 
+export interface PayrollReviewPage {
+  items: PayrollReviewBatch[];
+  total: number;
+  pages?: number;
+  /** Every period that has a batch (not just the ones on this page). */
+  periods: string[];
+}
+
+/** One page of batches, optionally for a single period (GET ...?page&limit&period). */
+export async function listPayrollReviewPage(
+  page: number,
+  limit: number,
+  period: string | null,
+  signal?: AbortSignal,
+): Promise<PayrollReviewPage> {
+  const qs = new URLSearchParams({ page: String(page), limit: String(limit) });
+  if (period) qs.set("period", period);
+  const json = (await apiClient.get(`${BASE_PATH}?${qs.toString()}`, { signal })) as {
+    data?: PayrollReviewBatch[];
+    meta?: { total?: number; pages?: number; periods?: string[] };
+  };
+  return {
+    items: json.data ?? [],
+    total: json.meta?.total ?? 0,
+    pages: json.meta?.pages,
+    periods: json.meta?.periods ?? [],
+  };
+}
+
 export async function getPayrollReview(
   id: string,
 ): Promise<PayrollReviewBatch> {

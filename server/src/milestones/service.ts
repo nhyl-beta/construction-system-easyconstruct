@@ -3,6 +3,8 @@ import { ConflictError, ForbiddenError, NotFoundError } from "../utils/errors.js
 import * as notificationsService from "../notifications/service.js";
 import { assertProjectWritable, refreshProjectProgress } from "../lifecycle/service.js";
 import * as repo from "./repository.js";
+import { milestones as milestonesTable } from "../db/schema/milestones.js";
+import { orderByFor, paginate, type PageRequest } from "../utils/pagination.js";
 import * as projectMemberRepo from "../project-members/repository.js";
 import { assertEngineerMayUpdate, openLinkedTasks } from "./permissions.js";
 import * as tasksRepo from "../tasks/repository.js";
@@ -28,6 +30,13 @@ const NOTIFY_ROLES_BY_STATUS: Partial<Record<MilestoneStatus, string[]>> = {
 };
 
 export const getAll = async (projectCode?: string) => repo.findAll(projectCode);
+
+export const getPage = async (filters: repo.MilestoneFilters, request: PageRequest) =>
+  paginate(
+    request,
+    () => repo.countFiltered(filters),
+    (window) => repo.findPage(filters, window, orderByFor(request, repo.MILESTONE_SORT_COLUMNS, repo.defaultMilestoneOrder, milestonesTable.id)),
+  );
 
 export const getById = async (id: number) => {
   const milestone = await repo.findById(id);
@@ -140,9 +149,17 @@ const syncLinkedTaskDueDates = async (milestone: {
   if (!limit) return;
   const links = await repo.findLinks(milestone.id);
   const moved: string[] = [];
+  const tasksById = await tasksRepo.findByIds(
+    links.flatMap((link) => (link.linkType === "task" && link.task ? [link.task.id] : [])),
+  );
+  const handled = new Set<number>();
   for (const link of links) {
     if (link.linkType !== "task" || !link.task) continue;
-    const task = await tasksRepo.findById(link.task.id);
+    // A task linked twice is read once above; handle it once, as the old
+    // per-link re-read effectively did.
+    if (handled.has(link.task.id)) continue;
+    handled.add(link.task.id);
+    const task = tasksById.get(link.task.id);
     if (!task || task.status === "Completed") continue;
     if (task.dueDate && task.dueDate <= limit) continue;
     await tasksRepo.update(task.id, { dueDate: limit });

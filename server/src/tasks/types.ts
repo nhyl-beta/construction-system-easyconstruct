@@ -41,6 +41,8 @@ export interface UpdateTaskStatusInput {
 export interface UpdateTaskInput extends Partial<CreateTaskInput> {}
 
 export interface TaskFilters {
+  /** Restrict to these project codes (visibility scope; set by the controller). */
+  codes?: string[];
   projectCode?: string;
   status?: string;
   assignedToUserId?: number;

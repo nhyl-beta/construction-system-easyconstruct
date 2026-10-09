@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { useOpenOnAction } from "@/features/quick-search/useOpenOnAction";
 import { Link, useSearchParams } from "react-router";
 import { FileSignature, Plus, Search, X } from "lucide-react";
 
@@ -34,6 +35,7 @@ export default function SharedRequests() {
   const [query, setQuery] = useState("");
   const [overdueOnly, setOverdueOnly] = useState(false);
   const [creating, setCreating] = useState(false);
+  useOpenOnAction("raise", () => setCreating(true));
 
   const box = scope === "mine" ? (isResponder ? "inbox" : canRaise && role !== "admin" ? "raised" : undefined) : undefined;
   const { requests, loading, error, reload } = useRequests({ kind, status, search: query, box, overdue: overdueOnly });

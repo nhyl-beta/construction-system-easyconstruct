@@ -1,4 +1,9 @@
+import { DataTablePagination } from "@/components/refine-ui/data-table/data-table-pagination";
 import { useState, type FormEvent } from "react";
+import { RequirementPurchase } from "@/features/finance/components/RequirementPurchase";
+import { usePurchaseRequests } from "@/features/finance/hooks/use-purchase-requests";
+import { useProcurement } from "@/features/finance/hooks/use-procurement";
+import { useOpenOnAction } from "@/features/quick-search/useOpenOnAction";
 import { FileText, ListChecks, Paperclip, Send, Sparkles, Undo2 } from "lucide-react";
 import { toast } from "sonner";
 
@@ -46,7 +51,6 @@ import {
   type StructuredSuggestion,
 } from "@/features/requirements/types/requirements.types";
 import { appendToSection, undoRewrite } from "@/features/requirements/lib/structured-format";
-import { RequirementService } from "@/features/requirements/services/requirement.service";
 import { useAuth } from "@/auth/auth-context";
 import { useStaffedProjectCodes } from "@/features/project-members/hooks/use-staffed-project-codes";
 
@@ -104,6 +108,7 @@ function NewRequirementDialog({
   allowedProjectCodes?: string[];
 }) {
   const [open, setOpen] = useState(false);
+  useOpenOnAction("new-requirement", () => setOpen(true));
   const [submitting, setSubmitting] = useState(false);
   const [title, setTitle] = useState("");
   const [project, setProject] = useState("");
@@ -374,12 +379,16 @@ function NewRequirementDialog({
 
 export default function RequirementsPage() {
   const { user } = useAuth();
-  const { requirements, loading, createRequirement, submitRequirement, addAttachments, structureRequirement } =
+  const { requirements, loading, counts, pagination, createRequirement, submitRequirement, addAttachments, structureRequirement } =
     useRequirements();
   const [busyId, setBusyId] = useState<number | null>(null);
   const role = user?.role;
   const isSitePersonnel = role === "site-personnel";
   const canCreate = role === "engineer" || role === "admin" || isSitePersonnel;
+  // Purchasing: Engineers raise requests, Engineers and Site Personnel confirm what arrives.
+  // Nothing is fetched for any other role. The server scopes both lists to staffed projects.
+  const followsPurchasing = role === "engineer" || isSitePersonnel;
+  const purchasing = { requests: usePurchaseRequests(followsPurchasing), orders: useProcurement(followsPurchasing) };
   const { codes: staffedSiteCodes } = useStaffedProjectCodes("site-personnel");
   // Site personnel submit only drafts they wrote themselves (requirements
   // store the author as a display name); engineers/admins submit any draft.
@@ -413,9 +422,7 @@ export default function RequirementsPage() {
     }
   };
 
-  const approved = RequirementService.countByStatus(requirements, "Approved");
-  const underReview = RequirementService.countByStatus(requirements, "Under Review");
-  const drafts = RequirementService.countByStatus(requirements, "Draft");
+  const { approved, underReview, drafts } = counts;
 
   return (
     <PageContainer>
@@ -439,7 +446,7 @@ export default function RequirementsPage() {
           items={[
             {
               label: "Total requirements",
-              value: loading ? "…" : `${requirements.length}`,
+              value: loading ? "…" : `${counts.total}`,
               icon: ListChecks,
               hint: "on file",
             },
@@ -496,6 +503,15 @@ export default function RequirementsPage() {
                       </Badge>
                     </div>
                     <p className="whitespace-pre-line text-sm text-muted-foreground">{r.description}</p>
+                    {followsPurchasing && (
+                      <RequirementPurchase
+                        requirement={{ dbId: r.dbId, title: r.title, project: r.project, category: r.category, status: r.status }}
+                        purchasing={purchasing}
+                        canRaise={role === "engineer"}
+                        canReceive
+                        routingHint="It goes to the Project Manager to endorse, then to Finance to approve."
+                      />
+                    )}
                     {r.attachments.length > 0 && (
                       <ul className="flex flex-wrap gap-2">
                         {r.attachments.map((a) => (
@@ -545,6 +561,9 @@ export default function RequirementsPage() {
                     </div>
                   </div>
                 ))}
+                <div className="border-t border-border px-4 py-3">
+                  <DataTablePagination {...pagination} />
+                </div>
               </div>
             )}
           </CardContent>

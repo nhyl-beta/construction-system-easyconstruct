@@ -9,6 +9,7 @@ const router = Router();
 router.use(authenticate);
 
 router.get("/", controller.getAll);
+router.get("/progress", controller.getProgress);
 router.get("/:id", controller.getById);
 router.post("/", requireRole("project-manager", "engineer"), validate(createTaskSchema), controller.create);
 router.patch("/:id/status", requireRole("site-personnel"), validate(updateTaskStatusSchema), controller.updateStatus);

@@ -46,7 +46,30 @@ async function unwrap<T>(promise: Promise<unknown>): Promise<T> {
   return json as T;
 }
 
+export interface RequirementsPage {
+  items: Requirement[];
+  total: number;
+  pages?: number;
+  /** Requirements per status across the caller's whole scope (all pages). */
+  statusCounts: { key: string; count: number }[];
+}
+
 export const RequirementRepository = {
+  /** One page of the list plus the per-status headline counts (`counts=1`). */
+  async listPage(page: number, limit: number, signal?: AbortSignal): Promise<RequirementsPage> {
+    const qs = new URLSearchParams({ page: String(page), limit: String(limit), counts: "1" });
+    const json = (await apiClient.get(`/requirements?${qs.toString()}`, { signal })) as {
+      data?: BackendRequirement[];
+      meta?: { total?: number; pages?: number; statusCounts?: { key: string; count: number }[] };
+    };
+    return {
+      items: (json.data ?? []).map(normalizeRequirement),
+      total: json.meta?.total ?? 0,
+      pages: json.meta?.pages,
+      statusCounts: json.meta?.statusCounts ?? [],
+    };
+  },
+
   async list(filters: RequirementFilters = {}): Promise<Requirement[]> {
     const params = new URLSearchParams();
     if (filters.project) params.set("project", filters.project);

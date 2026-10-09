@@ -4,12 +4,15 @@ import { Header } from "@/components/refine-ui/layout/header";
 import { ThemeProvider } from "@/components/refine-ui/theme/theme-provider";
 import { SidebarInset, SidebarProvider } from "@/components/ui/sidebar";
 import { cn } from "@/lib/utils";
+import { QuickSearchPalette } from "@/features/quick-search/QuickSearchPalette";
+import { QuickSearchProvider } from "@/features/quick-search/QuickSearchProvider";
 import type { PropsWithChildren } from "react";
 import { Sidebar } from "./sidebar";
 
 export function Layout({ children }: PropsWithChildren) {
   return (
     <ThemeProvider>
+      <QuickSearchProvider>
       <SidebarProvider>
         <Sidebar />
         <SidebarInset>
@@ -34,7 +37,9 @@ export function Layout({ children }: PropsWithChildren) {
             {children}
           </main>
         </SidebarInset>
+        <QuickSearchPalette />
       </SidebarProvider>
+      </QuickSearchProvider>
     </ThemeProvider>
   );
 }

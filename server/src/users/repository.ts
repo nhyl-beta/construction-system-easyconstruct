@@ -1,6 +1,7 @@
 import { db } from "../db/connection.js";
 import { users } from "../db/schema/users.js";
-import { eq } from "drizzle-orm";
+import { and, asc, eq, ilike, or, SQL } from "drizzle-orm";
+import { countRows } from "../db/paged.js";
 import type { CreateUserInput, UpdateUserInput, UserFilters } from "./types.js";
 
 // Never select `password`. This module serves two callers: the read-only,
@@ -19,6 +20,42 @@ export const findAll = async (filters: UserFilters = {}) => {
   return filters.role
     ? await db.select(PUBLIC_COLUMNS).from(users).where(eq(users.role, filters.role))
     : await db.select(PUBLIC_COLUMNS).from(users);
+};
+
+const userConditions = (filters: UserFilters): SQL[] => {
+  const conditions: SQL[] = [];
+  if (filters.role) conditions.push(eq(users.role, filters.role));
+  if (filters.search) {
+    const s = `%${filters.search}%`;
+    conditions.push(or(ilike(users.name, s), ilike(users.email, s), ilike(users.role, s))!);
+  }
+  return conditions;
+};
+
+export const USER_SORT_COLUMNS = {
+  id: users.id,
+  name: users.name,
+  email: users.email,
+  role: users.role,
+} as const;
+
+export const defaultUserOrder = [asc(users.id)];
+
+export const countFiltered = async (filters: UserFilters = {}) => {
+  const conditions = userConditions(filters);
+  return countRows(users, conditions.length ? and(...conditions) : undefined);
+};
+
+/** One page of PUBLIC columns only (the password hash is never selected). */
+export const findPage = async (filters: UserFilters, window: { limit: number; offset: number }, orderBy: SQL[]) => {
+  const conditions = userConditions(filters);
+  return db
+    .select(PUBLIC_COLUMNS)
+    .from(users)
+    .where(conditions.length ? and(...conditions) : undefined)
+    .orderBy(...orderBy)
+    .limit(window.limit)
+    .offset(window.offset);
 };
 
 export const findById = async (id: number) => {

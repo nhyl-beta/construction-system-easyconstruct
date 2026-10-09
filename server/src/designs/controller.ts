@@ -5,7 +5,9 @@ import { formatSuccess } from "../utils/response.js";
 import * as service from "./service.js";
 import type { DesignFilters } from "./types.js";
 import type { AuthedRequest } from "../middleware/auth.js";
-import { assertAssignedToProject, scopeRowsToAssigned } from "../projects/scope.js";
+import { assertAssignedToProject, assignedCodesFor, isAssignedScoped, scopeRowsToAssigned } from "../projects/scope.js";
+import { parsePageRequest, sendPaged } from "../utils/pagination.js";
+import { DESIGN_SORT_COLUMNS } from "./repository.js";
 
 export const getAll = async (req: Request, res: Response, next: NextFunction) => {
   const auth = (req as AuthedRequest).authUser;
@@ -16,6 +18,14 @@ export const getAll = async (req: Request, res: Response, next: NextFunction) =>
       projectCode: req.query.projectCode as string,
       search: req.query.search as string,
     };
+    const paging = parsePageRequest(req.query, { sortable: Object.keys(DESIGN_SORT_COLUMNS) });
+    if (paging.requested) {
+      const codes = isAssignedScoped(auth) ? [...(await assignedCodesFor(auth))] : undefined;
+      const { items, meta } = await service.getPage({ ...filters, ...(codes ? { codes } : {}) }, paging);
+      const statusCounts = req.query.counts === "1" ? await service.statusCounts({ ...filters, ...(codes ? { codes } : {}) }) : undefined;
+      sendPaged(res, items, MSG.designs.retrieved, statusCounts ? { ...meta, statusCounts } : meta);
+      return;
+    }
     const data = await scopeRowsToAssigned(auth, await service.getAll(filters), (d) => d.projectCode);
     res.json(formatSuccess(data, MSG.designs.retrieved));
   } catch (err) { next(err); }

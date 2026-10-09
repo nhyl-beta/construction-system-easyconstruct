@@ -10,6 +10,8 @@ import * as service from "./service.js";
 import { assignedCodesFor, isAssignedScoped } from "../projects/scope.js";
 
 import type { AuthedRequest } from "../middleware/auth.js";
+import { parsePageRequest, sendPaged } from "../utils/pagination.js";
+import { DOCUMENT_SORT_COLUMNS } from "./repository.js";
 
 export const getAll = async (
   req: AuthedRequest,
@@ -24,12 +26,20 @@ export const getAll = async (
           ? [...(await assignedCodesFor(req.authUser))]
           : undefined;
 
-    const data = await service.getAll({
+    const filters = {
       project: req.query.project as string,
       type: req.query.type as string,
       stage: req.query.stage as string,
       projectCodes,
-    });
+    };
+    const paging = parsePageRequest(req.query, { sortable: Object.keys(DOCUMENT_SORT_COLUMNS) });
+    if (paging.requested) {
+      const search = typeof req.query.search === "string" && req.query.search.trim() ? req.query.search.trim() : undefined;
+      const { items, meta } = await service.getPage({ ...filters, search }, paging);
+      const typeCounts = req.query.counts === "1" ? await service.typeCounts(filters) : undefined;
+      return sendPaged(res, items, MSG.documents.retrieved, typeCounts ? { ...meta, typeCounts } : meta);
+    }
+    const data = await service.getAll(filters);
 
     return res.json(
       formatSuccess(

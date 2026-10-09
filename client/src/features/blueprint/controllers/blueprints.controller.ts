@@ -1,3 +1,4 @@
+import { useDebouncedValue } from "@/hooks/use-debounced-value";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { apiClient } from "@/services/api.client";
 import type { Blueprint, CreateBlueprintInput } from "../types/blueprint.types";
@@ -13,6 +14,7 @@ export const useBlueprintsController = () => {
   const [blueprints, setBlueprints] = useState<Blueprint[]>([]);
   const [loading, setLoading] = useState(true);
   const [query, setQuery] = useState("");
+  const debouncedQuery = useDebouncedValue(query.trim(), 300);
   const [folder, setFolder] = useState("all");
   const [projectCode, setProjectCode] = useState("");
   const [creating, setCreating] = useState(false);
@@ -20,7 +22,7 @@ export const useBlueprintsController = () => {
 
   const load = useCallback(() => {
     const params = new URLSearchParams();
-    if (query) params.set("search", query);
+    if (debouncedQuery) params.set("search", debouncedQuery);
     if (folder !== "all") params.set("folder", folder);
     if (projectCode) params.set("projectCode", projectCode);
     setLoading(true);
@@ -31,7 +33,7 @@ export const useBlueprintsController = () => {
       .then((data) => setBlueprints(data ?? []))
       .catch((err) => console.error(err))
       .finally(() => setLoading(false));
-  }, [query, folder, projectCode]);
+  }, [debouncedQuery, folder, projectCode]);
 
   useEffect(() => {
     load();

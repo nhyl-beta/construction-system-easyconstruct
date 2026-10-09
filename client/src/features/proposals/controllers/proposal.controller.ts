@@ -1,10 +1,10 @@
 import {
-  useCallback,
-  useEffect,
   useMemo,
   useState,
 } from "react";
 
+import { useServerList } from "@/hooks/use-server-list";
+import { qk } from "@/lib/query-keys";
 import { apiClient } from "@/services/api.client";
 
 import type {
@@ -59,73 +59,51 @@ function unwrap<T>(json: any): T {
   return json as T;
 }
 
-export const useProposalsController = () => {
-  const [proposals, setProposals] =
-    useState<Proposal[]>([]);
+export interface ProposalsListOptions {
+  /** "consultant": only the Pending proposals awaiting the consultant (or nobody yet). */
+  queue?: "consultant";
+  /** Leave Archived proposals out of the list (the KPI counts still include them). */
+  hideArchived?: boolean;
+  pageSize?: number;
+}
 
-  const [loading, setLoading] =
-    useState(true);
+interface ProposalsExtra {
+  statusCounts: { status: string; count: number }[];
+}
 
-  const [saving, setSaving] =
-    useState(false);
+export const useProposalsController = (options: ProposalsListOptions = {}) => {
+  const { queue, hideArchived = false, pageSize = 10 } = options;
+  const [saving, setSaving] = useState(false);
+  const [status, setStatus] = useState("all");
+  const [mutationError, setMutationError] = useState<string | null>(null);
 
-  const [query, setQuery] =
-    useState("");
+  const list = useServerList<Proposal, ProposalsExtra>({
+    key: (params) => qk.proposals.list({ ...params, queue }),
+    filters: { status, queue: queue ?? "", hideArchived },
+    initialPageSize: pageSize,
+    fetchPage: async (params, signal) => {
+      const qs = new URLSearchParams({ page: String(params.page), limit: String(params.limit), counts: "1" });
+      if (params.search) qs.set("search", params.search);
+      if (status !== "all") qs.set("status", status);
+      if (queue) qs.set("queue", queue);
+      if (hideArchived) qs.set("excludeStatus", "Archived");
+      const json = await apiClient.get(`/proposals?${qs.toString()}`, { signal });
+      return {
+        items: (json?.data ?? []) as Proposal[],
+        total: json?.meta?.total ?? 0,
+        pages: json?.meta?.pages,
+        extra: { statusCounts: json?.meta?.statusCounts ?? [] },
+      };
+    },
+  });
 
-  const [status, setStatus] =
-    useState("all");
-
-  const [error, setError] =
-    useState<string | null>(null);
-
-  const loadProposals =
-    useCallback(async () => {
-      setLoading(true);
-
-      setError(null);
-
-      try {
-        const params =
-          new URLSearchParams();
-
-        if (query.trim()) {
-          params.set(
-            "search",
-            query.trim(),
-          );
-        }
-
-        if (status !== "all") {
-          params.set(
-            "status",
-            status,
-          );
-        }
-
-        const qs = params.toString();
-        const json = await apiClient.get(
-          `/proposals${qs ? `?${qs}` : ""}`,
-        );
-
-        setProposals(
-          unwrap<Proposal[]>(json) ?? [],
-        );
-      } catch (err) {
-        console.error(err);
-
-        setError(
-          err instanceof Error
-            ? err.message
-            : "Failed to load proposals.",
-        );
-      } finally {
-        setLoading(false);
-      }
-    }, [query, status]);
-
-  useEffect(() => {
-    void loadProposals();
-  }, [loadProposals]);
+  const proposals = list.pageItems;
+  const query = list.searchInput;
+  const setQuery = list.setSearchInput;
+  const loading = list.loading;
+  const error = mutationError ?? (list.error ? list.error.message : null);
+  const setError = setMutationError;
+  const loadProposals = list.reload;
 
   /*
    * CREATE
@@ -272,36 +250,16 @@ export const useProposalsController = () => {
     };
 
   const kpis = useMemo(() => {
-    const total =
-      proposals.length;
-
-    const pending =
-      proposals.filter(
-        (p) =>
-          p.status === "Pending" ||
-          p.status === "In Review",
-      ).length;
-
-    const approved =
-      proposals.filter(
-        (p) =>
-          p.status === "Approved",
-      ).length;
-
-    const revisionRequested =
-      proposals.filter(
-        (p) =>
-          p.status ===
-          "Revision Requested",
-      ).length;
-
+    const counts = list.extra?.statusCounts ?? [];
+    const n = (...names: string[]) =>
+      counts.filter((c) => names.includes(c.status)).reduce((sum, c) => sum + c.count, 0);
     return {
-      total,
-      pending,
-      approved,
-      revisionRequested,
+      total: counts.reduce((sum, c) => sum + c.count, 0),
+      pending: n("Pending", "In Review"),
+      approved: n("Approved"),
+      revisionRequested: n("Revision Requested"),
     };
-  }, [proposals]);
+  }, [list.extra]);
 
   /**
    * J: asks the server to compute (and store) the rule-based validation
@@ -330,6 +288,8 @@ export const useProposalsController = () => {
     kpis,
 
     refresh: loadProposals,
+
+    pagination: list,
 
     createProposal,
 

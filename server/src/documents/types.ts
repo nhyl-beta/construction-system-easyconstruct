@@ -47,4 +47,6 @@ export interface DocumentFilters {
   type?: string;
   projectCodes?: string[];
   stage?: string;
+  /** Title / document id contains this text (paged lists only). */
+  search?: string;
 }
