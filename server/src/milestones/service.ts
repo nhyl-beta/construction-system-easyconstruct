@@ -140,9 +140,17 @@ const syncLinkedTaskDueDates = async (milestone: {
   if (!limit) return;
   const links = await repo.findLinks(milestone.id);
   const moved: string[] = [];
+  const tasksById = await tasksRepo.findByIds(
+    links.flatMap((link) => (link.linkType === "task" && link.task ? [link.task.id] : [])),
+  );
+  const handled = new Set<number>();
   for (const link of links) {
     if (link.linkType !== "task" || !link.task) continue;
-    const task = await tasksRepo.findById(link.task.id);
+    // A task linked twice is read once above; handle it once, as the old
+    // per-link re-read effectively did.
+    if (handled.has(link.task.id)) continue;
+    handled.add(link.task.id);
+    const task = tasksById.get(link.task.id);
     if (!task || task.status === "Completed") continue;
     if (task.dueDate && task.dueDate <= limit) continue;
     await tasksRepo.update(task.id, { dueDate: limit });

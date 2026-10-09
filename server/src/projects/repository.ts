@@ -1,9 +1,9 @@
 import { db }       from "../db/connection.js";
 import { projects } from "../db/schema/projects.js";
-import { eq, ne, ilike, and, or, isNull, SQL } from 'drizzle-orm';
+import { eq, ne, ilike, and, or, isNull, inArray, sql, SQL } from 'drizzle-orm';
 import type { CreateProjectInput, UpdateProjectInput, ProjectFilters } from "./types.js";
 
-export const findAll = async (filters: ProjectFilters = {}) => {
+const buildConditions = (filters: ProjectFilters): SQL[] => {
   const conditions: SQL[] = [];
 
   if (filters.status && filters.status !== 'all')
@@ -21,16 +21,9 @@ export const findAll = async (filters: ProjectFilters = {}) => {
     conditions.push(eq(projects.deliveryType, filters.deliveryType));
 
   // Project Manager scope — see projects/service.ts isOwnProject.
-  if (filters.pmUserId != null) {
-    conditions.push(
-      or(
-        eq(projects.pmUserId, filters.pmUserId),
-        filters.pmName
-          ? and(isNull(projects.pmUserId), eq(projects.pm, filters.pmName))
-          : undefined,
-      )!,
-    );
-  }
+  if (filters.pmUserId != null) conditions.push(pmScope(filters.pmUserId, filters.pmName));
+
+  if (filters.codes) conditions.push(inArray(projects.code, filters.codes));
 
   if (filters.search) {
     const s = `%${filters.search}%`;
@@ -43,9 +36,62 @@ export const findAll = async (filters: ProjectFilters = {}) => {
     );
   }
 
+  return conditions;
+};
+
+const pmScope = (pmUserId: number, pmName?: string): SQL =>
+  or(
+    eq(projects.pmUserId, pmUserId),
+    pmName
+      ? and(isNull(projects.pmUserId), eq(projects.pm, pmName))
+      : undefined,
+  )!;
+
+export const findAll = async (filters: ProjectFilters = {}) => {
+  // An explicit empty code list matches nothing — and must not reach the
+  // database as `IN ()`.
+  if (filters.codes && filters.codes.length === 0) return [];
+  const conditions = buildConditions(filters);
   return conditions.length
     ? await db.select().from(projects).where(and(...conditions))
     : await db.select().from(projects);
+};
+
+/** Project codes a Project Manager owns (code column only — no full-table read). */
+export const findCodesForPm = async (pmUserId: number, pmName?: string): Promise<string[]> => {
+  const rows = await db.select({ code: projects.code }).from(projects).where(pmScope(pmUserId, pmName));
+  return rows.map((r) => r.code);
+};
+
+// Same ordering rule as projects/ordering.ts compareProjects, expressed in SQL:
+// live work first, then Completed, Cancelled, Archived; most recently updated
+// first inside a group (a null updated_at counts as oldest); id breaks ties.
+const orderClause = [
+  sql`case ${projects.status} when 'Completed' then 1 when 'Cancelled' then 2 when 'Archived' then 3 else 0 end`,
+  sql`coalesce(${projects.updatedAt}, 'epoch'::timestamp) desc`,
+  sql`${projects.id} desc`,
+];
+
+export const countFiltered = async (filters: ProjectFilters): Promise<number> => {
+  if (filters.codes && filters.codes.length === 0) return 0;
+  const conditions = buildConditions(filters);
+  const [row] = await db
+    .select({ n: sql<number>`count(*)::int` })
+    .from(projects)
+    .where(conditions.length ? and(...conditions) : undefined);
+  return row?.n ?? 0;
+};
+
+export const findPageSorted = async (filters: ProjectFilters, limit: number, offset: number) => {
+  if (filters.codes && filters.codes.length === 0) return [];
+  const conditions = buildConditions(filters);
+  return db
+    .select()
+    .from(projects)
+    .where(conditions.length ? and(...conditions) : undefined)
+    .orderBy(...orderClause)
+    .limit(limit)
+    .offset(offset);
 };
 
 export const findByCode = async (code: string) => {

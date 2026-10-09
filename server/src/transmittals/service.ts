@@ -26,9 +26,10 @@ const require = async (id: number) => {
 
 /** Every item that points at a request must point at one on the same project. */
 const checkItems = async (projectCode: string, items: CreateTransmittalInput["items"]) => {
+  const requests = await repo.findByIds(items.flatMap((it) => (it.requestId ? [it.requestId] : [])));
   for (const it of items) {
     if (!it.requestId) continue;
-    const req = await repo.findById(it.requestId);
+    const req = requests.get(it.requestId);
     if (!req || req.projectCode !== projectCode) throw new ValidationError(`Request ${it.requestId} is not on project ${projectCode}`);
   }
 };

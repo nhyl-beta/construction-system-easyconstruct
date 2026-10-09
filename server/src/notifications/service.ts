@@ -61,7 +61,14 @@ export const notifyProject = async (
   const recipientUserIds = new Set<number>();
   const roleBroadcasts = new Set<string>();
 
-  for (const role of new Set(roles)) {
+  const distinctRoles = new Set(roles);
+  const memberRoles = [...distinctRoles].filter(isMemberRole);
+  // One members query for every staffable role (was one per role).
+  const members = memberRoles.length
+    ? await projectMemberRepo.findAll({ projectCode })
+    : [];
+
+  for (const role of distinctRoles) {
     if (role === "project-manager") {
       const project = await projectsRepo.findByCode(projectCode);
       if (project?.pmUserId != null) recipientUserIds.add(project.pmUserId);
@@ -69,8 +76,7 @@ export const notifyProject = async (
       continue;
     }
     if (isMemberRole(role)) {
-      const members = await projectMemberRepo.findAll({ projectCode, role: role as (typeof PROJECT_MEMBER_ROLES)[number] });
-      for (const m of members) recipientUserIds.add(m.userId);
+      for (const m of members) if (m.role === role) recipientUserIds.add(m.userId);
       continue;
     }
     roleBroadcasts.add(role);

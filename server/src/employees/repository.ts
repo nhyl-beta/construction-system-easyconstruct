@@ -1,4 +1,4 @@
-import { and, eq, ilike, or, SQL } from "drizzle-orm";
+import { and, eq, ilike, inArray, or, SQL } from "drizzle-orm";
 
 import { db } from "../db/connection.js";
 import { employees } from "../db/schema/employees.js";
@@ -83,6 +83,19 @@ export const findByEmployeeId = async (
     .where(eq(employees.employeeId, employeeId));
 
   return employee ?? null;
+};
+
+/**
+ * Several employees by their human code in ONE query (replaces a
+ * findByEmployeeId call per row). Unknown ids are simply absent from the map.
+ */
+export const findByEmployeeIds = async (employeeIds: string[]) => {
+  const unique = [...new Set(employeeIds)];
+  const byId = new Map<string, typeof employees.$inferSelect>();
+  if (unique.length === 0) return byId;
+  const rows = await db.select().from(employees).where(inArray(employees.employeeId, unique));
+  for (const row of rows) byId.set(row.employeeId, row);
+  return byId;
 };
 
 export const findByEmail = async (email: string) => {

@@ -10,6 +10,23 @@ export const findAll = async (projectCode?: string) => {
   return projectCode ? query.where(eq(milestones.projectCode, projectCode)) : query;
 };
 
+/** Milestones of several projects in one query, grouped by project code (each group oldest first). */
+export const findAllForProjects = async (projectCodes: string[]) => {
+  const grouped = new Map<string, (typeof milestones.$inferSelect)[]>();
+  if (projectCodes.length === 0) return grouped;
+  const rows = await db
+    .select()
+    .from(milestones)
+    .where(inArray(milestones.projectCode, projectCodes))
+    .orderBy(asc(milestones.createdAt));
+  for (const row of rows) {
+    const list = grouped.get(row.projectCode) ?? [];
+    list.push(row);
+    grouped.set(row.projectCode, list);
+  }
+  return grouped;
+};
+
 export const findById = async (id: number) => {
   const [row] = await db.select().from(milestones).where(eq(milestones.id, id));
   return row ?? null;
@@ -41,25 +58,45 @@ export const remove = async (id: number) => {
 
 // ── Links (F4) ───────────────────────────────────────────────────────────
 
-export const findLinks = async (milestoneId: number) => {
-  const links = await db.select().from(milestoneLinks).where(eq(milestoneLinks.milestoneId, milestoneId));
-  const taskLinkIds = links.filter((l) => l.linkType === "task").map((l) => l.linkId);
+/**
+ * Links (with the linked task's summary) for several milestones in two queries,
+ * keyed by milestone id. Milestones with no links map to [].
+ */
+export const findLinksForMilestones = async (milestoneIds: number[]) => {
+  const byMilestone = new Map<number, Array<(typeof milestoneLinks.$inferSelect) & {
+    task: { id: number; title: string; status: string; assignedToUserId: number | null; assignedToName: string | null } | null | undefined;
+  }>>();
+  const ids = [...new Set(milestoneIds)];
+  for (const id of ids) byMilestone.set(id, []);
+  if (ids.length === 0) return byMilestone;
+
+  const links = await db.select().from(milestoneLinks).where(inArray(milestoneLinks.milestoneId, ids));
+  const taskLinkIds = [...new Set(links.filter((l) => l.linkType === "task").map((l) => l.linkId))];
   const linkedTasks = taskLinkIds.length
     ? await db.select().from(tasks).where(inArray(tasks.id, taskLinkIds))
     : [];
   const taskById = new Map(linkedTasks.map((t) => [t.id, t]));
 
-  return links.map((link) => {
-    if (link.linkType !== "task") return { ...link, task: undefined };
+  for (const link of links) {
+    const list = byMilestone.get(link.milestoneId);
+    if (!list) continue;
+    if (link.linkType !== "task") {
+      list.push({ ...link, task: undefined });
+      continue;
+    }
     const t = taskById.get(link.linkId);
-    return {
+    list.push({
       ...link,
       task: t
         ? { id: t.id, title: t.title, status: t.status, assignedToUserId: t.assignedToUserId, assignedToName: t.assignedToName }
         : null,
-    };
-  });
+    });
+  }
+  return byMilestone;
 };
+
+export const findLinks = async (milestoneId: number) =>
+  (await findLinksForMilestones([milestoneId])).get(milestoneId) ?? [];
 
 // G2: the reverse of findLinks — given a task, which milestone(s) reference
 // it, so a task completion can check whether its milestone is now fully done.

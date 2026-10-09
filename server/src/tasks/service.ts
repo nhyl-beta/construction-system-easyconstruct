@@ -133,8 +133,9 @@ export const updateStatus = async (
     // G2: if every task linked to a milestone is now Completed, tell the PM
     // the milestone itself is ready to be moved along.
     const linkedMilestones = await milestonesRepo.findMilestonesLinkedToTask(updated.id);
+    const linksByMilestone = await milestonesRepo.findLinksForMilestones(linkedMilestones.map((m) => m.id));
     for (const milestone of linkedMilestones) {
-      const links = await milestonesRepo.findLinks(milestone.id);
+      const links = linksByMilestone.get(milestone.id) ?? [];
       const taskLinks = links.filter((l) => l.linkType === "task");
       const allDone = taskLinks.length > 0 && taskLinks.every((l) => l.task?.status === "Completed");
       if (allDone) {

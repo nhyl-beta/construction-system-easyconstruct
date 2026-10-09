@@ -68,9 +68,12 @@ export const getMyActions = async (actor: {
 
   const gateItems: MyActionItem[] = [];
   const signalItems: MyActionItem[] = [];
-  for (const project of relevant) {
-    if (!isSequencedPhase(project.status)) continue;
-    const snapshot = await repo.loadSnapshot(project.code);
+  const sequenced = relevant.filter((project) => isSequencedPhase(project.status));
+  // One batched read for every project (the per-project loader ran ~17
+  // queries per project on each dashboard load).
+  const snapshots = await repo.loadSnapshots(sequenced.map((project) => project.code));
+  for (const project of sequenced) {
+    const snapshot = snapshots.get(project.code);
     if (!snapshot) continue;
     const checks = evaluateGate(project.status as SequencedPhase, snapshot);
     for (const check of checks) {
@@ -133,8 +136,9 @@ export const getImpactAwareness = async (actor: { id: number; role: string; name
   const codes = await visibleProjectCodes({ role: actor.role, userId: actor.id, name: actor.name });
   const projects = (await projectsRepo.findAll({})).filter((p) => !TERMINAL_PHASES.has(p.status) && (codes === null || codes.has(p.code)));
   const out: { projectCode: string; projectName: string; phase: string; signals: ReturnType<typeof evaluateSignals> }[] = [];
+  const snapshots = await repo.loadSnapshots(projects.map((project) => project.code));
   for (const project of projects) {
-    const snapshot = await repo.loadSnapshot(project.code);
+    const snapshot = snapshots.get(project.code);
     if (!snapshot) continue;
     const signals = evaluateSignals(snapshot);
     if (signals.length > 0) out.push({ projectCode: project.code, projectName: project.name, phase: project.status, signals });

@@ -8,6 +8,17 @@ import type {
   UpdateDesignInput,
 } from "./types.js";
 
+/** id → project code for just these designs (id and project_code columns only). */
+export const findProjectCodesByIds = async (ids: number[]): Promise<Map<number, string>> => {
+  const unique = [...new Set(ids)];
+  if (unique.length === 0) return new Map();
+  const rows = await db
+    .select({ id: designs.id, projectCode: designs.projectCode })
+    .from(designs)
+    .where(inArray(designs.id, unique));
+  return new Map(rows.map((r) => [r.id, r.projectCode]));
+};
+
 export const findAll = async (filters: DesignFilters = {}) => {
   const conditions: SQL[] = [];
 

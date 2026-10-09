@@ -1,4 +1,4 @@
-import { and, eq, SQL } from "drizzle-orm";
+import { and, eq, inArray, SQL } from "drizzle-orm";
 import { db } from "../db/connection.js";
 import { payroll } from "../db/schema/payroll.js";
 import type { PayrollFilters } from "./types.js";
@@ -23,6 +23,24 @@ export const findAll = async (filters: PayrollFilters = {}) => {
 export const findByBatch = async (batchId: string, client: Db = db) =>
   client.select().from(payroll).where(eq(payroll.batchId, batchId)).orderBy(payroll.id);
 
+/** Lines of several batches in one query, grouped by batch id (each group ordered by line id). */
+export const findByBatches = async (batchIds: string[]) => {
+  const grouped = new Map<string, (typeof payroll.$inferSelect)[]>();
+  if (batchIds.length === 0) return grouped;
+  const rows = await db
+    .select()
+    .from(payroll)
+    .where(inArray(payroll.batchId, batchIds))
+    .orderBy(payroll.id);
+  for (const row of rows) {
+    if (!row.batchId) continue;
+    const list = grouped.get(row.batchId) ?? [];
+    list.push(row);
+    grouped.set(row.batchId, list);
+  }
+  return grouped;
+};
+
 export const findById = async (id: number, client: Db = db) => {
   const [row] = await client.select().from(payroll).where(eq(payroll.id, id));
   return row ?? null;
@@ -32,6 +50,10 @@ export const create = async (data: typeof payroll.$inferInsert, client: Db = db)
   const [created] = await client.insert(payroll).values(data).returning();
   return created;
 };
+
+/** Several lines in one INSERT (a batch used to be one INSERT per employee). */
+export const createMany = async (rows: (typeof payroll.$inferInsert)[], client: Db = db) =>
+  rows.length ? client.insert(payroll).values(rows).returning() : [];
 
 export const update = async (
   id: number,

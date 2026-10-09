@@ -86,10 +86,8 @@ export const assertProjectVisible = async (
 /** @deprecated use scopeRowsToVisible — kept so older callers keep compiling. */
 export const scopeRowsToPm = scopeRowsToVisible;
 /** Project codes a Project Manager is assigned to (for other modules' scoping). */
-export const projectCodesForPm = async (scope: ProjectScope): Promise<Set<string>> => {
-  const projects = await repo.findAll({});
-  return new Set(projects.filter((p) => isOwnProject(p, scope)).map((p) => p.code));
-};
+export const projectCodesForPm = async (scope: ProjectScope): Promise<Set<string>> =>
+  new Set(await repo.findCodesForPm(scope.userId, scope.name));
 
 /**
  * Roles whose project visibility is their staffing, not the whole portfolio.
@@ -152,16 +150,22 @@ const visibleProjects = async (filters: ProjectFilters, scope?: ProjectScope) =>
 export const getAll = async (filters: ProjectFilters, scope?: ProjectScope) =>
   visibleProjects({ ...filters, page: undefined, pageSize: undefined }, scope);
 
-/** Server-side pagination: the filtered, scoped list sliced to one page. */
+/** Server-side pagination: the filtered, scoped list, one page, fetched with LIMIT/OFFSET (not sliced in JS). */
 export const getPage = async (filters: ProjectFilters, scope?: ProjectScope) => {
-  const all = await visibleProjects(filters, scope);
+  let scoped: ProjectFilters = { ...filters, page: undefined, pageSize: undefined };
+  if (scope?.role === "project-manager") {
+    scoped = { ...scoped, pmUserId: scope.userId, pmName: scope.name };
+  } else if (scope && MEMBERSHIP_SCOPED_ROLES.has(scope.role)) {
+    scoped = { ...scoped, codes: [...(await assignedProjectCodes(scope.userId))] };
+  }
+
+  const total = await repo.countFiltered(scoped);
   const pageSize = Math.min(Math.max(filters.pageSize ?? 10, 1), 100);
-  const pages = Math.max(Math.ceil(all.length / pageSize), 1);
+  const pages = Math.max(Math.ceil(total / pageSize), 1);
   const page = Math.min(Math.max(filters.page ?? 1, 1), pages);
-  return {
-    items: all.slice((page - 1) * pageSize, page * pageSize),
-    meta: { total: all.length, page, pageSize, pages },
-  };
+  const rows = await repo.findPageSorted(scoped, pageSize, (page - 1) * pageSize);
+  const items = scope?.role === "consultant" ? rows.map(toConsultantView) : rows;
+  return { items, meta: { total, page, pageSize, pages } };
 };
 
 export const getById = async (id: number, scope?: ProjectScope) => {

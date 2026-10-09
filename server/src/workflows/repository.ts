@@ -62,6 +62,16 @@ export const findWorkflows = async (status?: string) => {
   return status ? query.where(eq(workflows.status, status)) : query;
 };
 
+/** Workflows of the given projects only (newest first, like findWorkflows). */
+export const findWorkflowsForProjects = async (projectCodes: string[]) =>
+  projectCodes.length === 0
+    ? []
+    : db
+        .select()
+        .from(workflows)
+        .where(inArray(workflows.projectCode, projectCodes))
+        .orderBy(desc(workflows.createdAt));
+
 export const findWorkflowById = async (id: number) => {
   const [row] = await db.select().from(workflows).where(eq(workflows.id, id));
   return row ?? null;

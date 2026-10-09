@@ -29,7 +29,7 @@ import { payrollBatches } from "../db/schema/finance.js";
 import { projectPhaseHistory } from "../db/schema/project-phase-history.js";
 import { workflowTemplates } from "../db/schema/workflows.js";
 import { validationResults } from "../db/schema/ai-validation.js";
-import { findOpenByProject as findOpenRequests } from "../design-requests/repository.js";
+import { findOpenByProjects as findOpenRequests } from "../design-requests/repository.js";
 import { projectDeliverables } from "../db/schema/project-deliverables.js";
 import { DESIGN_TURNOVER_TEMPLATE_NAME } from "./delivery.js";
 
@@ -41,137 +41,142 @@ export const CLOSEOUT_TEMPLATE_NAME = "Project Closeout";
 
 export type LifecycleSnapshot = NonNullable<Awaited<ReturnType<typeof loadSnapshot>>>;
 
-export const loadSnapshot = async (projectCode: string) => {
-  const [project] = await db.select().from(projects).where(eq(projects.code, projectCode));
-  if (!project) return null;
+const groupBy = <T>(rows: T[], keyOf: (row: T) => string | number | null | undefined) => {
+  const grouped = new Map<string | number, T[]>();
+  for (const row of rows) {
+    const key = keyOf(row);
+    if (key == null) continue;
+    const list = grouped.get(key);
+    if (list) list.push(row);
+    else grouped.set(key, [row]);
+  }
+  return grouped;
+};
 
+const none = <T>(): T[] => [];
+
+/**
+ * Snapshots for several projects in a fixed number of queries (one per table,
+ * `project_code IN (…)`), instead of ~17 queries per project. The cross-project
+ * dashboards (my-actions, impact awareness) used to call the single-project
+ * loader once per active project; each table is now read once and grouped.
+ * Projects that do not exist are absent from the returned map.
+ */
+export const loadSnapshots = async (projectCodes: string[]) => {
+  const codes = [...new Set(projectCodes)];
+
+  const [projectRows, memberRows] = codes.length
+    ? await Promise.all([
+        db.select().from(projects).where(inArray(projects.code, codes)),
+        db.select().from(projectMembers).where(inArray(projectMembers.projectCode, codes)),
+      ])
+    : [[], []];
+  const found = projectRows.map((p) => p.code);
+
+  const empty = found.length === 0;
   const [
-    members,
-    projectProposals,
-    projectDocuments,
-    projectDesigns,
-    projectBlueprints,
-    projectRequirements,
-    projectBudgets,
-    projectMilestones,
-    projectTasks,
-    projectIssues,
-    projectEngineeringReports,
-    projectPayrollBatches,
-    projectWorkflows,
-    phaseHistory,
-  ] = await Promise.all([
-    db.select().from(projectMembers).where(eq(projectMembers.projectCode, projectCode)),
-    db.select().from(proposals).where(eq(proposals.projectCode, projectCode)),
-    db.select().from(documents).where(eq(documents.project, projectCode)),
-    db.select().from(designs).where(eq(designs.projectCode, projectCode)),
-    db.select().from(blueprints).where(eq(blueprints.projectCode, projectCode)),
-    db.select().from(requirements).where(eq(requirements.project, projectCode)),
-    db.select().from(budgets).where(eq(budgets.project, projectCode)),
-    db.select().from(milestones).where(eq(milestones.projectCode, projectCode)),
-    db.select().from(tasks).where(eq(tasks.projectCode, projectCode)),
-    db.select().from(issues).where(eq(issues.projectCode, projectCode)),
-    db.select().from(engineeringReports).where(eq(engineeringReports.project, projectCode)),
-    db.select().from(payrollBatches).where(eq(payrollBatches.projectCode, projectCode)),
-    db.select().from(workflows).where(eq(workflows.projectCode, projectCode)),
-    db
-      .select()
-      .from(projectPhaseHistory)
-      .where(eq(projectPhaseHistory.projectCode, projectCode)),
-  ]);
+    proposalRows,
+    documentRows,
+    designRows,
+    blueprintRows,
+    requirementRows,
+    budgetRows,
+    milestoneRows,
+    taskRows,
+    issueRows,
+    engineeringReportRows,
+    payrollBatchRows,
+    workflowRows,
+    phaseHistoryRows,
+    openRequestRows,
+    deliverableRows,
+    validationRows,
+  ] = empty
+    ? [[], [], [], [], [], [], [], [], [], [], [], [], [], [], [], []]
+    : await Promise.all([
+        db.select().from(proposals).where(inArray(proposals.projectCode, found)),
+        db.select().from(documents).where(inArray(documents.project, found)),
+        db.select().from(designs).where(inArray(designs.projectCode, found)),
+        db.select().from(blueprints).where(inArray(blueprints.projectCode, found)),
+        db.select().from(requirements).where(inArray(requirements.project, found)),
+        db.select().from(budgets).where(inArray(budgets.project, found)),
+        db.select().from(milestones).where(inArray(milestones.projectCode, found)),
+        db.select().from(tasks).where(inArray(tasks.projectCode, found)),
+        db.select().from(issues).where(inArray(issues.projectCode, found)),
+        db.select().from(engineeringReports).where(inArray(engineeringReports.project, found)),
+        db.select().from(payrollBatches).where(inArray(payrollBatches.projectCode, found)),
+        db.select().from(workflows).where(inArray(workflows.projectCode, found)),
+        db.select().from(projectPhaseHistory).where(inArray(projectPhaseHistory.projectCode, found)),
+        findOpenRequests(found),
+        db.select().from(projectDeliverables).where(inArray(projectDeliverables.projectCode, found)),
+        db.select().from(validationResults).where(inArray(validationResults.projectCode, found)),
+      ]);
 
-  const designIds = projectDesigns.map((d) => d.id);
-  const projectDesignReviews = designIds.length
-    ? await db.select().from(designReviews).where(inArray(designReviews.designId, designIds))
+  const designIds = designRows.map((d) => d.id);
+  const milestoneIds = milestoneRows.map((m) => m.id);
+  const workflowIds = workflowRows.map((w) => w.id);
+  const staffedUserIds = [...new Set(memberRows.map((m) => m.userId))];
+
+  const [reviewRows, milestoneLinkRows, stageRows, employeeRows, templateRows] = empty
+    ? [[], [], [], [], []]
+    : await Promise.all([
+        designIds.length ? db.select().from(designReviews).where(inArray(designReviews.designId, designIds)) : Promise.resolve([]),
+        milestoneIds.length ? db.select().from(milestoneLinks).where(inArray(milestoneLinks.milestoneId, milestoneIds)) : Promise.resolve([]),
+        workflowIds.length ? db.select().from(workflowStages).where(inArray(workflowStages.workflowId, workflowIds)) : Promise.resolve([]),
+        staffedUserIds.length ? db.select().from(employees).where(inArray(employees.userId, staffedUserIds)) : Promise.resolve([]),
+        db
+          .select()
+          .from(workflowTemplates)
+          .where(inArray(workflowTemplates.name, [DESIGN_TURNOVER_TEMPLATE_NAME, CLOSEOUT_TEMPLATE_NAME])),
+      ]);
+
+  const turnoverTemplate = templateRows.find((t) => t.name === DESIGN_TURNOVER_TEMPLATE_NAME);
+  const closeoutTemplate = templateRows.find((t) => t.name === CLOSEOUT_TEMPLATE_NAME);
+
+  // Resolved issues carrying notes, for every category that is open on ANY of
+  // these projects — one query. Each project then keeps up to 3 per category
+  // among ITS open categories, newest first (the same rule as before).
+  const openCategoriesByProject = new Map<string, Set<string>>();
+  for (const issue of issueRows) {
+    if (issue.status !== "Submitted" && issue.status !== "Under Review") continue;
+    const set = openCategoriesByProject.get(issue.projectCode) ?? new Set<string>();
+    set.add(issue.category);
+    openCategoriesByProject.set(issue.projectCode, set);
+  }
+  const allOpenCategories = [...new Set([...openCategoriesByProject.values()].flatMap((set) => [...set]))];
+  const resolvedWithNotes = allOpenCategories.length
+    ? await db
+        .select({
+          issueCode: issues.issueCode,
+          title: issues.title,
+          category: issues.category,
+          resolutionNotes: issues.resolutionNotes,
+          updatedAt: issues.updatedAt,
+        })
+        .from(issues)
+        .where(
+          and(
+            eq(issues.status, "Resolved"),
+            inArray(issues.category, allOpenCategories),
+            isNotNull(issues.resolutionNotes),
+          ),
+        )
+        .orderBy(desc(issues.updatedAt))
     : [];
 
-  const milestoneIds = projectMilestones.map((m) => m.id);
-  const projectMilestoneLinks = milestoneIds.length
-    ? await db.select().from(milestoneLinks).where(inArray(milestoneLinks.milestoneId, milestoneIds))
-    : [];
-
-  const workflowIds = projectWorkflows.map((w) => w.id);
-  const projectWorkflowStages = workflowIds.length
-    ? await db.select().from(workflowStages).where(inArray(workflowStages.workflowId, workflowIds))
-    : [];
-
-  // Referenced workflows for proposals not raised against THIS project's own
-  // workflows list can't happen (a proposal's workflow always shares its
-  // project code), but proposals are looked up by workflowId, so resolve
-  // those ids against `projectWorkflows` directly rather than a second query.
-  const proposalWorkflowIds = projectProposals
-    .map((p) => p.workflowId)
-    .filter((id): id is number => id != null);
-  const proposalWorkflows =
-    proposalWorkflowIds.length > 0
-      ? projectWorkflows.filter((w) => proposalWorkflowIds.includes(w.id))
-      : [];
-
-  const staffedUserIds = members.map((m) => m.userId);
-  const staffedEmployees = staffedUserIds.length
-    ? await db.select().from(employees).where(inArray(employees.userId, staffedUserIds))
-    : [];
-
-  // Gate X5: RFI/RFA requests that are still open (drafts included).
-  const openRequests = await findOpenRequests(projectCode);
-
-  // Design delivery: the plan sets and the Design Turnover template (gate T3).
-  const deliverables = await db.select().from(projectDeliverables).where(eq(projectDeliverables.projectCode, projectCode));
-  const [turnoverTemplate] = await db
-    .select()
-    .from(workflowTemplates)
-    .where(eq(workflowTemplates.name, DESIGN_TURNOVER_TEMPLATE_NAME));
-
-  const [closeoutTemplate] = await db
-    .select()
-    .from(workflowTemplates)
-    .where(eq(workflowTemplates.name, CLOSEOUT_TEMPLATE_NAME));
-
-  // ai-signals D2: decision-support-only fields, read by signals/*.ts, never
-  // by gates.ts. validationResults is scoped to this project (the column
-  // already carries it); issuePrecedents deliberately is NOT — it draws on
-  // resolved issues from every project, but exposes only the fields safe to
-  // show across a project boundary (never another project's commercial data).
-  const projectValidationResults = await db
-    .select()
-    .from(validationResults)
-    .where(eq(validationResults.projectCode, projectCode));
-
-  const openIssueCategories = Array.from(
-    new Set(
-      projectIssues
-        .filter((i) => i.status === "Submitted" || i.status === "Under Review")
-        .map((i) => i.category),
-    ),
-  );
-  let issuePrecedents: {
+  type Precedent = {
     issueCode: string;
     title: string;
     category: string;
     resolutionNotes: string;
     updatedAt: Date | null;
-  }[] = [];
-  if (openIssueCategories.length > 0) {
-    const resolvedWithNotes = await db
-      .select({
-        issueCode: issues.issueCode,
-        title: issues.title,
-        category: issues.category,
-        resolutionNotes: issues.resolutionNotes,
-        updatedAt: issues.updatedAt,
-      })
-      .from(issues)
-      .where(
-        and(
-          eq(issues.status, "Resolved"),
-          inArray(issues.category, openIssueCategories),
-          isNotNull(issues.resolutionNotes),
-        ),
-      )
-      .orderBy(desc(issues.updatedAt));
-
-    const byCategory = new Map<string, typeof issuePrecedents>();
+  };
+  const precedentsFor = (projectCode: string): Precedent[] => {
+    const categories = openCategoriesByProject.get(projectCode);
+    if (!categories || categories.size === 0) return [];
+    const byCategory = new Map<string, Precedent[]>();
     for (const row of resolvedWithNotes) {
+      if (!categories.has(row.category)) continue;
       if (!row.resolutionNotes || row.resolutionNotes.trim() === "") continue;
       const list = byCategory.get(row.category) ?? [];
       if (list.length < 3) {
@@ -179,38 +184,91 @@ export const loadSnapshot = async (projectCode: string) => {
         byCategory.set(row.category, list);
       }
     }
-    issuePrecedents = Array.from(byCategory.values()).flat();
-  }
-
-  return {
-    project,
-    members,
-    proposals: projectProposals,
-    proposalWorkflows,
-    documents: projectDocuments,
-    designs: projectDesigns,
-    designReviews: projectDesignReviews,
-    blueprints: projectBlueprints,
-    requirements: projectRequirements,
-    budgets: projectBudgets,
-    milestones: projectMilestones,
-    milestoneLinks: projectMilestoneLinks,
-    tasks: projectTasks,
-    issues: projectIssues,
-    engineeringReports: projectEngineeringReports,
-    payrollBatches: projectPayrollBatches,
-    workflows: projectWorkflows,
-    workflowStages: projectWorkflowStages,
-    phaseHistory,
-    staffedEmployees,
-    closeoutTemplateId: closeoutTemplate?.id ?? null,
-    openRequests,
-    deliverables,
-    designTurnoverTemplateId: turnoverTemplate?.id ?? null,
-    validationResults: projectValidationResults,
-    issuePrecedents,
+    return Array.from(byCategory.values()).flat();
   };
+
+  const membersBy = groupBy(memberRows, (r) => r.projectCode);
+  const proposalsBy = groupBy(proposalRows, (r) => r.projectCode);
+  const documentsBy = groupBy(documentRows, (r) => r.project);
+  const designsBy = groupBy(designRows, (r) => r.projectCode);
+  const blueprintsBy = groupBy(blueprintRows, (r) => r.projectCode);
+  const requirementsBy = groupBy(requirementRows, (r) => r.project);
+  const budgetsBy = groupBy(budgetRows, (r) => r.project);
+  const milestonesBy = groupBy(milestoneRows, (r) => r.projectCode);
+  const tasksBy = groupBy(taskRows, (r) => r.projectCode);
+  const issuesBy = groupBy(issueRows, (r) => r.projectCode);
+  const reportsBy = groupBy(engineeringReportRows, (r) => r.project);
+  const batchesBy = groupBy(payrollBatchRows, (r) => r.projectCode);
+  const workflowsBy = groupBy(workflowRows, (r) => r.projectCode);
+  const historyBy = groupBy(phaseHistoryRows, (r) => r.projectCode);
+  const requestsBy = groupBy(openRequestRows, (r) => r.projectCode);
+  const deliverablesBy = groupBy(deliverableRows, (r) => r.projectCode);
+  const validationBy = groupBy(validationRows, (r) => r.projectCode);
+  const reviewsByDesign = groupBy(reviewRows, (r) => r.designId);
+  const linksByMilestone = groupBy(milestoneLinkRows, (r) => r.milestoneId);
+  const stagesByWorkflow = groupBy(stageRows, (r) => r.workflowId);
+
+  const assemble = (project: (typeof projectRows)[number]) => {
+    const code = project.code;
+    const projectDesigns = designsBy.get(code) ?? none<(typeof designRows)[number]>();
+    const projectMilestones = milestonesBy.get(code) ?? none<(typeof milestoneRows)[number]>();
+    const projectWorkflows = workflowsBy.get(code) ?? none<(typeof workflowRows)[number]>();
+    const projectProposals = proposalsBy.get(code) ?? none<(typeof proposalRows)[number]>();
+    const members = membersBy.get(code) ?? none<(typeof memberRows)[number]>();
+
+    // A proposal's workflow always shares its project code, so resolve the
+    // proposals' workflow ids against this project's own workflows.
+    const proposalWorkflowIds = projectProposals
+      .map((p) => p.workflowId)
+      .filter((id): id is number => id != null);
+    const staffed = new Set(members.map((m) => m.userId));
+
+    return {
+      project,
+      members,
+      proposals: projectProposals,
+      proposalWorkflows:
+        proposalWorkflowIds.length > 0
+          ? projectWorkflows.filter((w) => proposalWorkflowIds.includes(w.id))
+          : none<(typeof workflowRows)[number]>(),
+      documents: documentsBy.get(code) ?? none<(typeof documentRows)[number]>(),
+      designs: projectDesigns,
+      designReviews: projectDesigns.flatMap((d) => reviewsByDesign.get(d.id) ?? none<(typeof reviewRows)[number]>()),
+      blueprints: blueprintsBy.get(code) ?? none<(typeof blueprintRows)[number]>(),
+      requirements: requirementsBy.get(code) ?? none<(typeof requirementRows)[number]>(),
+      budgets: budgetsBy.get(code) ?? none<(typeof budgetRows)[number]>(),
+      milestones: projectMilestones,
+      milestoneLinks: projectMilestones.flatMap((m) => linksByMilestone.get(m.id) ?? none<(typeof milestoneLinkRows)[number]>()),
+      tasks: tasksBy.get(code) ?? none<(typeof taskRows)[number]>(),
+      issues: issuesBy.get(code) ?? none<(typeof issueRows)[number]>(),
+      engineeringReports: reportsBy.get(code) ?? none<(typeof engineeringReportRows)[number]>(),
+      payrollBatches: batchesBy.get(code) ?? none<(typeof payrollBatchRows)[number]>(),
+      workflows: projectWorkflows,
+      workflowStages: projectWorkflows.flatMap((w) => stagesByWorkflow.get(w.id) ?? none<(typeof stageRows)[number]>()),
+      phaseHistory: historyBy.get(code) ?? none<(typeof phaseHistoryRows)[number]>(),
+      staffedEmployees: employeeRows.filter((e) => e.userId != null && staffed.has(e.userId)),
+      closeoutTemplateId: closeoutTemplate?.id ?? null,
+      // Gate X5: RFI/RFA requests that are still open (drafts included).
+      openRequests: requestsBy.get(code) ?? none<(typeof openRequestRows)[number]>(),
+      // Design delivery: the plan sets and the Design Turnover template (gate T3).
+      deliverables: deliverablesBy.get(code) ?? none<(typeof deliverableRows)[number]>(),
+      designTurnoverTemplateId: turnoverTemplate?.id ?? null,
+      // ai-signals D2: decision-support-only fields, read by signals/*.ts, never
+      // by gates.ts. validationResults is scoped to this project;
+      // issuePrecedents deliberately draws on resolved issues from every
+      // project but exposes only fields safe to show across a project boundary.
+      validationResults: validationBy.get(code) ?? none<(typeof validationRows)[number]>(),
+      issuePrecedents: precedentsFor(code),
+    };
+  };
+
+  const snapshots = new Map<string, ReturnType<typeof assemble>>();
+  for (const project of projectRows) snapshots.set(project.code, assemble(project));
+  return snapshots;
 };
+
+export const loadSnapshot = async (projectCode: string) =>
+  (await loadSnapshots([projectCode])).get(projectCode) ?? null;
 
 /** Advance (Proposal -> Design) of a Design project: one plan set per chosen discipline. Idempotent. */
 export const ensureDeliverables = async (projectCode: string, disciplines: string[]) => {
@@ -245,6 +303,23 @@ export const insertPhaseHistory = async (row: {
     })
     .returning();
   return created;
+};
+
+/** Phase history of several projects in one query, grouped by code (each group oldest first). */
+export const findPhaseHistoryForProjects = async (projectCodes: string[]) => {
+  const grouped = new Map<string, (typeof projectPhaseHistory.$inferSelect)[]>();
+  if (projectCodes.length === 0) return grouped;
+  const rows = await db
+    .select()
+    .from(projectPhaseHistory)
+    .where(inArray(projectPhaseHistory.projectCode, projectCodes))
+    .orderBy(projectPhaseHistory.createdAt);
+  for (const row of rows) {
+    const list = grouped.get(row.projectCode) ?? [];
+    list.push(row);
+    grouped.set(row.projectCode, list);
+  }
+  return grouped;
 };
 
 export const findPhaseHistory = async (projectCode: string) =>

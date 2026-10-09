@@ -1,5 +1,5 @@
 // server/src/tasks/repository.ts — NEW
-import { and, desc, eq, SQL } from "drizzle-orm";
+import { and, desc, eq, inArray, SQL } from "drizzle-orm";
 import { db } from "../db/connection.js";
 import { tasks } from "../db/schema/task.js";
 import type { CreateTaskInput, TaskFilters, UpdateTaskInput } from "./types.js";
@@ -19,6 +19,14 @@ export const findAll = async (filters: TaskFilters = {}) => {
 export const findById = async (id: number) => {
   const [row] = await db.select().from(tasks).where(eq(tasks.id, id));
   return row ?? null;
+};
+
+/** Several tasks in one query, keyed by id. */
+export const findByIds = async (ids: number[]) => {
+  const unique = [...new Set(ids)];
+  if (unique.length === 0) return new Map<number, typeof tasks.$inferSelect>();
+  const rows = await db.select().from(tasks).where(inArray(tasks.id, unique));
+  return new Map(rows.map((r) => [r.id, r]));
 };
 
 export const create = async (data: CreateTaskInput) => {

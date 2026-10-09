@@ -82,6 +82,8 @@ export interface ProjectFilters {
   /** Project Manager scope (set by the service, never read from the request). */
   pmUserId?: number;
   pmName?: string;
+  /** Restrict to these project codes (staffed roles' assigned projects; set by the service). */
+  codes?: string[];
   page?: number;
   pageSize?: number;
 }

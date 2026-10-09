@@ -1,6 +1,8 @@
-import * as employeesRepo from "../employees/repository.js";
-import * as attendanceRepo from "../attendance/repository.js";
-import * as payrollRepo from "../payroll/repository.js";
+import { and, eq, gte, lte, sql, SQL } from "drizzle-orm";
+import { db } from "../db/connection.js";
+import { attendance } from "../db/schema/attendance.js";
+import { employees } from "../db/schema/employees.js";
+import { payroll } from "../db/schema/payroll.js";
 
 export interface WorkforceReportFilters {
   department?: string;
@@ -10,53 +12,92 @@ export interface WorkforceReportFilters {
   period?: string; // payroll period label, for the payroll summary section
 }
 
+// Every figure is a COUNT / SUM / GROUP BY in the database; the previous
+// version loaded all employees, all attendance rows in range and all payroll
+// lines and counted them here. Same filters, same output shape.
 export const getSummary = async (filters: WorkforceReportFilters) => {
-  const employees = await employeesRepo.findAll({
-    department: filters.department,
-    status: filters.status,
-  });
+  const employeeConditions: SQL[] = [];
+  if (filters.department && filters.department !== "all")
+    employeeConditions.push(eq(employees.department, filters.department));
+  if (filters.status && filters.status !== "all")
+    employeeConditions.push(eq(employees.status, filters.status));
+  const employeeWhere = employeeConditions.length ? and(...employeeConditions) : undefined;
 
-  const attendance = await attendanceRepo.findAll({
-    dateFrom: filters.dateFrom,
-    dateTo: filters.dateTo,
-  });
+  const attendanceConditions: SQL[] = [];
+  if (filters.dateFrom) attendanceConditions.push(gte(attendance.logDate, filters.dateFrom));
+  if (filters.dateTo) attendanceConditions.push(lte(attendance.logDate, filters.dateTo));
+  const attendanceWhere = attendanceConditions.length ? and(...attendanceConditions) : undefined;
 
-  const payrollLines = await payrollRepo.findAll({ period: filters.period });
+  const [employeeTotals, byDepartmentRows, byPositionRows, attendanceRows, payrollTotals] =
+    await Promise.all([
+      db
+        .select({
+          total: sql<number>`count(*)::int`,
+          active: sql<number>`(count(*) filter (where ${employees.status} = 'Active'))::int`,
+        })
+        .from(employees)
+        .where(employeeWhere),
+      db
+        .select({ key: employees.department, n: sql<number>`count(*)::int` })
+        .from(employees)
+        .where(employeeWhere)
+        .groupBy(employees.department),
+      db
+        .select({ key: employees.role, n: sql<number>`count(*)::int` })
+        .from(employees)
+        .where(employeeWhere)
+        .groupBy(employees.role),
+      db
+        .select({
+          status: attendance.attendanceStatus,
+          n: sql<number>`count(*)::int`,
+          hours: sql<string>`coalesce(sum(${attendance.hours}), 0)`,
+        })
+        .from(attendance)
+        .where(attendanceWhere)
+        .groupBy(attendance.attendanceStatus),
+      db
+        .select({
+          lines: sql<number>`count(*)::int`,
+          gross: sql<string>`coalesce(sum(${payroll.gross}), 0)`,
+          net: sql<string>`coalesce(sum(${payroll.net}), 0)`,
+        })
+        .from(payroll)
+        .where(filters.period ? eq(payroll.period, filters.period) : undefined),
+    ]);
 
-  const activeEmployees = employees.filter((e) => e.status === "Active").length;
-  const inactiveEmployees = employees.length - activeEmployees;
+  const totalEmployees = employeeTotals[0]?.total ?? 0;
+  const activeEmployees = employeeTotals[0]?.active ?? 0;
 
-  const byDepartment: Record<string, number> = {};
-  const byPosition: Record<string, number> = {};
-  for (const e of employees) {
-    byDepartment[e.department] = (byDepartment[e.department] ?? 0) + 1;
-    byPosition[e.role] = (byPosition[e.role] ?? 0) + 1;
-  }
+  const toRecord = (rows: { key: string; n: number }[]) =>
+    Object.fromEntries(rows.map((r) => [r.key, r.n])) as Record<string, number>;
 
   const attendanceByStatus: Record<string, number> = {};
+  let totalRecords = 0;
   let totalHours = 0;
-  for (const a of attendance) {
-    attendanceByStatus[a.attendanceStatus] =
-      (attendanceByStatus[a.attendanceStatus] ?? 0) + 1;
-    totalHours += a.hours ? Number(a.hours) : 0;
+  for (const row of attendanceRows) {
+    attendanceByStatus[row.status] = row.n;
+    totalRecords += row.n;
+    totalHours += Number(row.hours);
   }
 
-  const totalGrossLabor = payrollLines.reduce((sum, p) => sum + Number(p.gross), 0);
-  const totalNetPay = payrollLines.reduce((sum, p) => sum + Number(p.net), 0);
+  const lineCount = payrollTotals[0]?.lines ?? 0;
+  const totalGrossLabor = Number(payrollTotals[0]?.gross ?? 0);
+  const totalNetPay = Number(payrollTotals[0]?.net ?? 0);
 
   return {
-    totalEmployees: employees.length,
+    totalEmployees,
     activeEmployees,
-    inactiveEmployees,
-    employeesByDepartment: byDepartment,
-    employeesByPosition: byPosition,
+    inactiveEmployees: totalEmployees - activeEmployees,
+    employeesByDepartment: toRecord(byDepartmentRows),
+    employeesByPosition: toRecord(byPositionRows),
     attendanceSummary: {
-      totalRecords: attendance.length,
+      totalRecords,
       byStatus: attendanceByStatus,
       totalHoursWorked: Number(totalHours.toFixed(1)),
     },
     payrollSummary: {
-      lineCount: payrollLines.length,
+      lineCount,
       totalGrossLabor: Number(totalGrossLabor.toFixed(2)),
       totalNetPay: Number(totalNetPay.toFixed(2)),
     },
