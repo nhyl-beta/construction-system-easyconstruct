@@ -9,6 +9,9 @@ import * as employeeService from "../employees/service.js";
 import type { AttendanceFilters } from "./types.js";
 import * as sheetImport from "./import.js";
 import { ValidationError } from "../utils/errors.js";
+import { parsePageRequest, sendPaged } from "../utils/pagination.js";
+import { cached } from "../cache/index.js";
+import { ATTENDANCE_SORT_COLUMNS } from "./repository.js";
 
 export const getAll = async (req: Request, res: Response, next: NextFunction) => {
   try {
@@ -21,14 +24,13 @@ export const getAll = async (req: Request, res: Response, next: NextFunction) =>
       search: req.query.search as string,
       verification: req.query.verification as string,
     };
-    // Server-side pagination is opt-in (page/pageSize), same convention as
-    // GET /projects; every other caller still gets the whole list.
-    if (req.query.page !== undefined || req.query.pageSize !== undefined) {
-      const { items, meta } = await service.getPage(filters, {
-        page: Number(req.query.page) || 1,
-        pageSize: Number(req.query.pageSize) || undefined,
-      });
-      res.json({ ...formatSuccess(items, MSG.attendance.retrieved), meta });
+    // Server-side pagination is opt-in (page / limit, or the older pageSize),
+    // same convention as GET /projects; every other caller still gets the
+    // whole list.
+    const paging = parsePageRequest(req.query, { sortable: Object.keys(ATTENDANCE_SORT_COLUMNS) });
+    if (paging.requested) {
+      const { items, meta } = await service.getPage(filters, paging);
+      sendPaged(res, items, MSG.attendance.retrieved, meta);
       return;
     }
     const data = await service.getAll(filters);
@@ -40,7 +42,8 @@ export const getAll = async (req: Request, res: Response, next: NextFunction) =>
 
 export const heatmap = async (_req: Request, res: Response, next: NextFunction) => {
   try {
-    res.json(formatSuccess(await service.getHeatmap(), "Attendance heatmap retrieved"));
+    // Aggregate only (14-day counts per site), same for every caller. 15 s.
+    res.json(formatSuccess(await cached("attendance", "all", 15, () => service.getHeatmap()), "Attendance heatmap retrieved"));
   } catch (err) {
     next(err);
   }

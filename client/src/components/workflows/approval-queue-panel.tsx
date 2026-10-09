@@ -11,7 +11,7 @@
 // details" action the PM's had — the admin, deciding last, could see the least.
 // One component means a fix to what an approver can see before deciding lands
 // for every role at the same time.
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useState } from "react";
 import {
   CheckCircle2,
   Clock,
@@ -40,12 +40,10 @@ import {
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Textarea } from "@/components/ui/textarea";
 import { DataTablePagination } from "@/components/refine-ui/data-table/data-table-pagination";
-import { usePagination } from "@/hooks/use-pagination";
-import { useDebouncedValue } from "@/hooks/use-debounced-value";
 import { useAuth } from "@/auth/auth-context";
 import { WorkflowDetailDialog } from "@/components/workflows/workflow-detail-dialog";
 import { WorkflowInitiationActions } from "@/components/workflows/workflow-initiation-actions";
-import { useApprovals } from "@/features/workflows/hooks/useWorkflows";
+import { useApprovalsPaged } from "@/features/workflows/hooks/useWorkflows";
 import { WorkflowRepository } from "@/features/workflows/repositories/workflow.repository";
 import { WorkflowFormatService } from "@/features/workflows/services/workflow.service";
 import { formatRelativeTime } from "@/lib/format-relative-time";
@@ -75,8 +73,7 @@ export function ApprovalQueuePanel({
 }: ApprovalQueuePanelProps) {
   const { user } = useAuth();
   const [tab, setTab] = useState<ApprovalScope>("pending");
-  const { items, stats, loading, deciding, error, decide, reload } = useApprovals(tab);
-  const [comments, setComments] = useState<Record<number, string>>({});
+    const [comments, setComments] = useState<Record<number, string>>({});
   // A document Finance (or any approver) attaches to the workflow before
   // deciding on it — e.g. Finance's own cost-impact worksheet on a budget
   // change. Uploaded immediately on "Attach", independently of the eventual
@@ -106,40 +103,29 @@ export function ApprovalQueuePanel({
   };
   const [detailWorkflowId, setDetailWorkflowId] = useState<number | null>(null);
 
-  // G2: real filters over what useApprovals already fetches for this tab —
-  // same "fetch the tab's full set, filter/paginate client-side" convention
-  // as most other lists in the app (see hooks/use-pagination.ts) — plus real
-  // pagination in place of rendering every item with no page boundary.
-  const [searchInput, setSearchInput] = useState("");
-  const search = useDebouncedValue(searchInput, 300);
+  // Search, type, requester and date filters and paging run on the server
+  // (GET /workflows/approvals?...); only the filter state lives here.
   const [typeFilter, setTypeFilter] = useState<string | null>(null);
   const [requesterFilter, setRequesterFilter] = useState<string | null>(null);
   const [dateFrom, setDateFrom] = useState("");
   const [dateTo, setDateTo] = useState("");
-
-  const typeOptions = useMemo(
-    () => Array.from(new Set(items.map((a) => a.type).filter((t): t is string => !!t))).sort(),
-    [items],
-  );
-  const requesterOptions = useMemo(
-    () => Array.from(new Set(items.map((a) => a.requestedBy).filter((r): r is string => !!r))).sort(),
-    [items],
-  );
-
-  const filteredItems = useMemo(() => {
-    return items.filter((a) => {
-      if (typeFilter && a.type !== typeFilter) return false;
-      if (requesterFilter && a.requestedBy !== requesterFilter) return false;
-      if (dateFrom && (!a.createdAt || a.createdAt.slice(0, 10) < dateFrom)) return false;
-      if (dateTo && (!a.createdAt || a.createdAt.slice(0, 10) > dateTo)) return false;
-      if (search) {
-        const term = search.toLowerCase();
-        const haystack = `${a.workflowCode} ${a.title} ${a.projectCode} ${a.requestedBy ?? ""}`.toLowerCase();
-        if (!haystack.includes(term)) return false;
-      }
-      return true;
-    });
-  }, [items, typeFilter, requesterFilter, dateFrom, dateTo, search]);
+  const {
+    list,
+    items,
+    typeOptions,
+    requesterOptions,
+    stats,
+    loading,
+    deciding,
+    error,
+    decide,
+    reload,
+  } = useApprovalsPaged(tab, { type: typeFilter, requestedBy: requesterFilter, dateFrom, dateTo });
+  const searchInput = list.searchInput;
+  const setSearchInput = list.setSearchInput;
+  const search = list.search;
+  const filteredItems = items;
+  const filtering = !!(search || typeFilter || requesterFilter || dateFrom || dateTo);
 
   const activeFilters: { key: string; label: string; clear: () => void }[] = [];
   if (search) activeFilters.push({ key: "search", label: `Search: "${search}"`, clear: () => setSearchInput("") });
@@ -148,13 +134,12 @@ export function ApprovalQueuePanel({
   if (dateFrom) activeFilters.push({ key: "dateFrom", label: `From: ${dateFrom}`, clear: () => setDateFrom("") });
   if (dateTo) activeFilters.push({ key: "dateTo", label: `To: ${dateTo}`, clear: () => setDateTo("") });
 
-  const pagination = usePagination(filteredItems, 10);
-  // Any filter (or the tab itself) changing resets to page 1 — otherwise a
-  // narrower result set can leave the view stranded on a now-empty page.
+  const pagination = list;
+  // Changing tab goes back to the first page.
   useEffect(() => {
     pagination.setCurrentPage(1);
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [tab, search, typeFilter, requesterFilter, dateFrom, dateTo]);
+  }, [tab]);
 
   // IT Designer's workflow scope is read-only, enforced first on the server
   // (server/src/workflows/routes.ts) — decide/attach would 403 there even if
@@ -313,12 +298,12 @@ export function ApprovalQueuePanel({
 
       <div className="space-y-2">
         {loading && <p className="text-sm text-muted-foreground">Loading approvals…</p>}
-        {!loading && items.length === 0 && (
+        {!loading && items.length === 0 && !filtering && (
           <p className="text-sm text-muted-foreground">
             {tab === "pending" ? emptyPendingMessage : "No items here yet."}
           </p>
         )}
-        {!loading && items.length > 0 && filteredItems.length === 0 && (
+        {!loading && items.length === 0 && filtering && (
           <p className="text-sm text-muted-foreground">No approvals match your filters.</p>
         )}
         {pagination.pageItems.map((a) => (

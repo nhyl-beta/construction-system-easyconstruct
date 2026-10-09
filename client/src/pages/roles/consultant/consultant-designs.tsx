@@ -1,3 +1,4 @@
+import { DataTablePagination } from "@/components/refine-ui/data-table/data-table-pagination";
 import { PageHeader } from "@/components/refine-ui/views/page-header";
 import { Input } from "@/components/ui/input";
 import { KpiStrip } from "@/components/ui/kpi-strip";
@@ -81,6 +82,7 @@ export default function ConsultantDesigns() {
           No designs match your filters.
         </div>
       ) : (
+        <>
         <Table>
           <TableHeader>
             <TableRow>
@@ -137,6 +139,10 @@ export default function ConsultantDesigns() {
             ))}
           </TableBody>
         </Table>
+        <div className="border-t px-4 py-3">
+          <DataTablePagination {...c.pagination} />
+        </div>
+        </>
       )}
 
       <DesignDetailDialog design={selected} onOpenChange={(open) => !open && setSelected(null)} />

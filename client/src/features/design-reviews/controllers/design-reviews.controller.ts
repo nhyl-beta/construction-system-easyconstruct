@@ -1,12 +1,13 @@
 // controllers/design-reviews.controller.ts
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { apiClient } from "@/services/api.client";
+import { STALE } from "@/lib/query-client";
 import type { DesignReview } from "../types/design-review.types";
 import type { Design } from "@/features/designs/types/design.types";
 
-export const useDesignReviewsController = () => {
+export const useDesignReviewsController = ({ autoLoad = true }: { autoLoad?: boolean } = {}) => {
   const [reviews, setReviews] = useState<DesignReview[]>([]);
-  const [loading, setLoading] = useState(true);
+  const [loading, setLoading] = useState(autoLoad);
   // Joined client-side so a review row can show the design's name, project and
   // files (GET /designs is open to every authenticated role).
   const [designsById, setDesignsById] = useState<Record<number, Design>>({});
@@ -25,18 +26,19 @@ export const useDesignReviewsController = () => {
       .finally(() => setLoading(false));
   }, []);
 
-  useEffect(() => { fetchReviews(); }, [fetchReviews]);
+  useEffect(() => { if (autoLoad) fetchReviews(); }, [fetchReviews, autoLoad]);
 
   useEffect(() => {
+    if (!autoLoad) return;
     apiClient
-      .get("/designs")
+      .get("/designs", { staleTime: STALE.list })
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
       .then((json: any) => {
         const rows: Design[] = json?.data ?? [];
         setDesignsById(Object.fromEntries(rows.map((d) => [d.id, d])));
       })
       .catch((err) => console.error(err));
-  }, []);
+  }, [autoLoad]);
 
   const decide = async (id: number, decision: "Approved" | "Rejected" | "Changes Requested") => {
     await apiClient.post(`/design-reviews/${id}/decide`, { decision });

@@ -4,12 +4,9 @@
 // (donut) and where the open work sits (bar: open tasks per project). Both are
 // computed from data the dashboard already has access to (own projects, own
 // tasks) — nothing new on the server.
-import { useMemo } from "react";
 import { Bar, BarChart, CartesianGrid, Cell, Pie, PieChart, ResponsiveContainer, Tooltip, XAxis, YAxis } from "recharts";
 
 import { SectionCard } from "@/components/ui/section-card";
-import { useProjectTaskProgress } from "@/features/tasks/hooks/use-project-task-progress";
-import type { Project } from "@/features/projects/types/project.types";
 
 const PALETTE = [
   "var(--chart-1)",
@@ -20,24 +17,29 @@ const PALETTE = [
   "var(--muted-foreground)",
 ];
 
-export function PmPortfolioCharts({ projects }: { projects: Project[] }) {
-  const tasks = useProjectTaskProgress();
+// Both charts are drawn from the dashboard summary the server computed (the
+// split of the PM's own projects by phase, and open tasks per project), so this
+// component no longer downloads the project and task lists to count them.
+export interface PhaseSlice {
+  name: string;
+  value: number;
+}
+export interface WorkloadBar {
+  project: string;
+  pending: number;
+  inProgress: number;
+}
 
-  const byPhase = useMemo(() => {
-    const counts = new Map<string, number>();
-    for (const p of projects) counts.set(p.status, (counts.get(p.status) ?? 0) + 1);
-    return Array.from(counts, ([name, value]) => ({ name, value })).sort((a, b) => b.value - a.value);
-  }, [projects]);
-
-  const workload = useMemo(() => {
-    const mine = new Set(projects.map((p) => p.code));
-    return tasks.byProject
-      .filter((t) => mine.has(t.projectCode))
-      .map((t) => ({ project: t.projectCode, pending: t.pending, inProgress: t.inProgress }))
-      .filter((t) => t.pending + t.inProgress > 0)
-      .sort((a, b) => b.pending + b.inProgress - (a.pending + a.inProgress))
-      .slice(0, 8);
-  }, [projects, tasks.byProject]);
+export function PmPortfolioCharts({
+  phases: byPhase,
+  workload,
+  loading,
+}: {
+  phases: PhaseSlice[];
+  workload: WorkloadBar[];
+  loading: boolean;
+}) {
+  const tasks = { loading };
 
   return (
     <section className="grid grid-cols-1 gap-6 lg:grid-cols-2">

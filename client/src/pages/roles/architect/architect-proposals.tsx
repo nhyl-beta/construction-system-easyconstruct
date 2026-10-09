@@ -1,4 +1,6 @@
+import { DataTablePagination } from "@/components/refine-ui/data-table/data-table-pagination";
 import { useState } from "react";
+import { useOpenOnAction } from "@/features/quick-search/useOpenOnAction";
 
 import {
   Clock,
@@ -163,7 +165,7 @@ function EditProposalDialog({
 }
 
 export default function ArchitectProposals() {
-  const c = useProposals();
+  const c = useProposals({ hideArchived: true });
   const { user } = useAuth();
 
   // Submitting a proposal also opens its Design Proposal Approval workflow
@@ -173,6 +175,7 @@ export default function ArchitectProposals() {
 
   const [showCreateForm, setShowCreateForm] =
     useState(false);
+  useOpenOnAction("new-proposal", () => setShowCreateForm(true));
 
   const [submitNotice, setSubmitNotice] =
     useState<string | null>(null);
@@ -490,7 +493,6 @@ export default function ArchitectProposals() {
               </TableRow>
             ) : (
               c.proposals
-                .filter((proposal) => proposal.status !== "Archived")
                 .map((proposal) => (
                 <TableRow key={proposal.id}>
                   <TableCell className="font-mono text-xs">
@@ -571,6 +573,9 @@ export default function ArchitectProposals() {
             )}
           </TableBody>
         </Table>
+        <div className="border-t px-4 py-3">
+          <DataTablePagination {...c.pagination} />
+        </div>
       </div>
     </div>
   );

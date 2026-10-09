@@ -7,7 +7,8 @@ import { ProjectsHeader } from "@/features/projects/components/ProjectsHeader";
 import { ProjectsKpiStrip } from "@/features/projects/components/ProjectsKpiStrip";
 import { ProjectsTable } from "@/features/projects/components/ProjectsTable";
 import { ProjectsToolbar } from "@/features/projects/components/ProjectsToolbar";
-import { useProjects } from "@/features/projects/hooks/useProjects";
+import { useProjectsPaged } from "@/features/projects/hooks/useProjectsPaged";
+import { ProjectsPagination } from "@/features/projects/components/ProjectsPagination";
 import { useAuth } from "@/auth/auth-context";
 
 import { Plus } from "lucide-react";
@@ -22,7 +23,7 @@ import { useNavigate } from "react-router";
 const CAN_CREATE_PROJECT = ["project-manager", "admin", "it-designer"];
 
 export default function PMProjects() {
-  const ctrl = useProjects();
+  const ctrl = useProjectsPaged({ kpis: "filtered", archivedToggle: true });
   const navigate = useNavigate();
   const { user } = useAuth();
   const canCreate = CAN_CREATE_PROJECT.includes(user?.role ?? "");
@@ -57,14 +58,29 @@ export default function PMProjects() {
         <div className="rounded-xl border border-destructive/30 bg-destructive/10 px-4 py-3 text-sm text-destructive-strong">
           Couldn’t load projects. {ctrl.error.message}
         </div>
-      ) : ctrl.loading ? (
+      ) : ctrl.loading && ctrl.projects.length === 0 ? (
         <ProjectLoadingState />
       ) : ctrl.projects.length === 0 ? (
         <ProjectEmptyState />
-      ) : ctrl.view === "table" ? (
-        <ProjectsTable projects={ctrl.projects} />
       ) : (
-        <ProjectsGrid projects={ctrl.projects} />
+        <div className={ctrl.loading ? "opacity-60 transition-opacity" : "transition-opacity"}>
+          {ctrl.view === "table" ? (
+            <ProjectsTable projects={ctrl.projects} />
+          ) : (
+            <ProjectsGrid projects={ctrl.projects} />
+          )}
+        </div>
+      )}
+
+      {!ctrl.error && ctrl.total > 0 && (
+        <ProjectsPagination
+          page={ctrl.page}
+          pages={ctrl.pages}
+          pageSize={ctrl.pageSize}
+          total={ctrl.total}
+          onPage={ctrl.setPage}
+          onPageSize={ctrl.setPageSize}
+        />
       )}
     </div>
   );

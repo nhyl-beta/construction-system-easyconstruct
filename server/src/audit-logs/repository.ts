@@ -29,11 +29,20 @@ const buildConditions = (filters: AuditLogFilters): SQL[] => {
   return conditions;
 };
 
-export const findAll = async (filters: AuditLogFilters = {}) => {
+export const AUDIT_SORT_COLUMNS = {
+  createdAt: auditLogs.createdAt,
+  actor: auditLogs.actor,
+  action: auditLogs.action,
+  entityType: auditLogs.entityType,
+} as const;
+
+export const defaultAuditOrder = [desc(auditLogs.createdAt)];
+
+export const findAll = async (filters: AuditLogFilters = {}, orderBy: SQL[] = defaultAuditOrder) => {
   const conditions = buildConditions(filters);
   const base = db.select().from(auditLogs);
   const scoped = conditions.length ? base.where(and(...conditions)) : base;
-  const ordered = scoped.orderBy(desc(auditLogs.createdAt));
+  const ordered = scoped.orderBy(...orderBy);
 
   // Pagination is opt-in: existing callers (dashboard widgets that count or
   // filter across the *whole* audit trail, not just one page of it) pass

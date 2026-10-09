@@ -1,5 +1,5 @@
 import { Download, Filter, MoreHorizontal, Plus, Search } from "lucide-react";
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import { Link } from "react-router";
 
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
@@ -34,12 +34,15 @@ import { departments } from "@/providers/mock-data";
 import {
   deactivateEmployee,
   deleteEmployee,
-  listEmployees,
+  listEmployeesAll,
+  listEmployeesPage,
 } from "@/features/hr/hr-api";
 import type { Employee } from "@/features/hr/types";
 import { downloadCsv } from "@/lib/export-csv";
 import { DataTablePagination } from "@/components/refine-ui/data-table/data-table-pagination";
-import { usePagination } from "@/hooks/use-pagination";
+import { useServerList } from "@/hooks/use-server-list";
+import { qk } from "@/lib/query-keys";
+import { useWorkforceSnapshot } from "@/features/workforce/hooks/useWorkforceSnapshot";
 
 function EmployeeRow({
   e,
@@ -127,56 +130,40 @@ function EmployeeRow({
 }
 
 export default function HREmployeesPage() {
-  const [query, setQuery] = useState("");
   const [dept, setDept] = useState("all");
   const [status, setStatus] = useState("all");
-  const [filtered, setFiltered] = useState<Employee[]>([]);
-  const [total, setTotal] = useState(0);
-  // Was the full filtered list rendered in one unbroken pass — fine with a
-  // handful of demo hires, unusable once a real headcount lands here.
-  const pagination = usePagination(filtered, 10);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
+  // Search (debounced), the two filters and paging all go to the server; the
+  // total headcount in the card header is the shared workforce figure.
+  const pagination = useServerList<Employee>({
+    key: (params) => qk.employees.list(params),
+    fetchPage: (params) =>
+      listEmployeesPage({ page: params.page, limit: params.limit, search: params.search, department: dept, status }),
+    filters: { dept, status },
+  });
+  const workforce = useWorkforceSnapshot();
+  const loading = pagination.loading;
+  const error = pagination.error?.message ?? null;
+  const query = pagination.searchInput;
+  const setQuery = pagination.setSearchInput;
 
-  const refresh = async () => {
-    setLoading(true);
-    setError(null);
-    try {
-      const [scoped, all] = await Promise.all([
-        listEmployees({ search: query, department: dept, status }),
-        listEmployees(),
-      ]);
-      setFiltered(scoped);
-      setTotal(all.length);
-    } catch (err) {
-      setError(err instanceof Error ? err.message : "Failed to load employees.");
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  useEffect(() => {
-    const timeout = setTimeout(refresh, query ? 250 : 0);
-    return () => clearTimeout(timeout);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [query, dept, status]);
-
+  // Deactivate / delete go through apiClient, which invalidates the employee
+  // queries: the table refetches itself.
   const handleArchive = async (e: Employee) => {
     await deactivateEmployee(e.dbId);
-    refresh();
   };
 
   const handleDelete = async (e: Employee) => {
     if (!window.confirm(`Delete ${e.name}? This cannot be undone.`)) return;
     await deleteEmployee(e.dbId);
-    refresh();
   };
 
-  const handleExportCsv = () => {
+  const handleExportCsv = async () => {
+    // Export covers everything the filters select, not just the page on screen.
+    const rows = await listEmployeesAll({ search: pagination.search, department: dept, status });
     downloadCsv(
       "employees",
       ["Employee ID", "Name", "Role", "Department", "Site", "Status", "Hired On", "Email", "Phone"],
-      filtered.map((e) => [
+      rows.map((e) => [
         e.id,
         e.name,
         e.role,
@@ -197,7 +184,7 @@ export default function HREmployeesPage() {
         subtitle="Directory, roles, and workforce records"
         actions={
           <>
-            <Button variant="outline" size="sm" onClick={handleExportCsv} disabled={filtered.length === 0}>
+            <Button variant="outline" size="sm" onClick={handleExportCsv} disabled={pagination.total === 0}>
               <Download className="h-4 w-4" /> Export
             </Button>
             <Button size="sm" asChild>
@@ -247,7 +234,7 @@ export default function HREmployeesPage() {
                 <SelectItem value="Archived">Archived</SelectItem>
               </SelectContent>
             </Select>
-            <Button variant="outline" size="sm" onClick={handleExportCsv} disabled={filtered.length === 0}>
+            <Button variant="outline" size="sm" onClick={handleExportCsv} disabled={pagination.total === 0}>
               <Download className="h-4 w-4" /> CSV
             </Button>
           </div>
@@ -259,7 +246,7 @@ export default function HREmployeesPage() {
           <div>
             <CardTitle className="text-base">Employee directory</CardTitle>
             <p className="text-xs text-muted-foreground">
-              {loading ? "Loading…" : `${filtered.length} of ${total} employees`}
+              {loading ? "Loading…" : `${pagination.total} of ${workforce.totalEmployees} employees`}
               {" "}· bulk actions available
             </p>
           </div>
@@ -295,7 +282,7 @@ export default function HREmployeesPage() {
                   </TableCell>
                 </TableRow>
               )}
-              {!error && !loading && filtered.length === 0 && (
+              {!error && !loading && pagination.total === 0 && (
                 <TableRow>
                   <TableCell colSpan={9} className="py-8 text-center text-sm text-muted-foreground">
                     No employees match these filters.
@@ -313,7 +300,7 @@ export default function HREmployeesPage() {
                 ))}
             </TableBody>
           </Table>
-          {!error && filtered.length > 0 && (
+          {!error && pagination.total > 0 && (
             <div className="border-t border-border px-4 py-3">
               <DataTablePagination {...pagination} />
             </div>

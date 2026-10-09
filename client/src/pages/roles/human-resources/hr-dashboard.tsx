@@ -80,7 +80,6 @@ import {
 
 import { useEffect, useMemo, useState } from "react";
 import { Link } from "react-router";
-import { useWorkforceReport } from "@/features/hr/hooks/use-hr";
 import { WaitingOnYouCard } from "@/features/lifecycle/components/WaitingOnYouCard";
 
 
@@ -1260,7 +1259,8 @@ function ReportsSection() {
 export default function HRDashboardPage() {
   const [tab, setTab] = useState("overview");
   const [showEmployeeModal, setShowEmployeeModal] = useState(false);
-  const { report, error: reportError } = useWorkforceReport();
+  // Two numbers for the header line, counted by the server (shared with the Workforce tab).
+  const workforce = useWorkforceSnapshot();
 
   return (
     <div className="flex-1 space-y-6 p-4 md:p-6">
@@ -1309,10 +1309,10 @@ export default function HRDashboardPage() {
           </TabsTrigger>
         </TabsList>
         <div className="text-xs text-muted-foreground">
-          {reportError
+          {workforce.error
             ? "Live workforce data is unavailable."
-            : report
-            ? `Live workforce data · ${report.totals.active} active of ${report.totals.headcount} employees`
+            : !workforce.loading
+            ? `Live workforce data · ${workforce.totalCapacity} active of ${workforce.totalEmployees} employees`
             : "Loading live workforce data…"}
         </div>
 

@@ -1,7 +1,7 @@
-import { normalizeDeliveryType, Project, RiskLevel, StatusTone } from "../types/project.types";
+import { normalizeDeliveryType, Project, ProjectsKpi, RiskLevel, StatusTone } from "../types/project.types";
 import { apiClient } from "@/services/api.client";
 
-interface BackendProject {
+export interface BackendProject {
   id?: number;
   name: string;
   code: string;
@@ -42,7 +42,7 @@ function normalizeRisk(risk: string | undefined): RiskLevel {
   return VALID_RISKS.includes(lower as RiskLevel) ? (lower as RiskLevel) : "low";
 }
 
-function normalizeProject(raw: BackendProject): Project {
+export function normalizeProject(raw: BackendProject): Project {
   return {
     id: raw.id != null ? String(raw.id) : raw.code,
     code: raw.code,
@@ -117,6 +117,8 @@ export interface ProjectPageQuery {
   projectType?: string;
   deliveryType?: string;
   excludeArchived?: boolean;
+  /** Ask the server for headline counts: "portfolio" ignores search and filters, "filtered" follows them. */
+  kpis?: "portfolio" | "filtered";
 }
 
 export interface ProjectPage {
@@ -125,6 +127,7 @@ export interface ProjectPage {
   page: number;
   pageSize: number;
   pages: number;
+  kpis?: ProjectsKpi;
 }
 
 export const ProjectRepository = {
@@ -132,19 +135,38 @@ export const ProjectRepository = {
   async listPage(query: ProjectPageQuery): Promise<ProjectPage> {
     const params = new URLSearchParams();
     params.set("page", String(query.page));
-    params.set("pageSize", String(query.pageSize));
+    params.set("limit", String(query.pageSize));
     if (query.search) params.set("search", query.search);
     if (query.status && query.status !== "all") params.set("status", query.status);
     if (query.risk && query.risk !== "all") params.set("risk", query.risk);
     if (query.projectType && query.projectType !== "all") params.set("projectType", query.projectType);
     if (query.deliveryType && query.deliveryType !== "all") params.set("deliveryType", query.deliveryType);
     if (query.excludeArchived) params.set("excludeArchived", "1");
+    if (query.kpis) params.set("kpis", query.kpis);
     // apiClient returns the raw { success, message, data, meta } envelope.
     const json = (await apiClient.get(`/projects?${params.toString()}`)) as {
       data: BackendProject[];
-      meta: { total: number; page: number; pageSize: number; pages: number };
+      meta: { total: number; page: number; pageSize: number; pages: number; kpis?: ProjectsKpi };
     };
     return { items: json.data.map(normalizeProject), ...json.meta };
+  },
+
+  /**
+   * Every non-archived project the caller can see, fetched a page of 100 at a
+   * time (one request for up to 100 projects). For pickers and lookups that
+   * need the whole set; tables page through listPage instead.
+   */
+  async listAll(opts: { excludeArchived?: boolean } = {}): Promise<Project[]> {
+    const all: Project[] = [];
+    for (let page = 1; ; page++) {
+      const result = await ProjectRepository.listPage({
+        page,
+        pageSize: 100,
+        excludeArchived: opts.excludeArchived ?? true,
+      });
+      all.push(...result.items);
+      if (page >= result.pages || result.items.length === 0) return all;
+    }
   },
 
   async list(q?: string): Promise<Project[]> {
@@ -165,8 +187,10 @@ export const ProjectRepository = {
         return null;
       }
     }
+    // `code` is an exact-match filter: one row (or none) however many projects
+    // contain this text, so it keeps working under pagination.
     const raw = await unwrap<BackendProject[]>(
-      apiClient.get(`/projects?search=${encodeURIComponent(idOrCode)}`),
+      apiClient.get(`/projects?code=${encodeURIComponent(idOrCode)}`),
     );
     const match = raw.find((project) => project.code === idOrCode);
     return match ? normalizeProject(match) : null;
@@ -179,7 +203,7 @@ export const ProjectRepository = {
 
   async patch(code: string, patch: Partial<Project>): Promise<Project | null> {
     const existing = await unwrap<BackendProject[]>(
-      apiClient.get(`/projects?search=${encodeURIComponent(code)}`),
+      apiClient.get(`/projects?code=${encodeURIComponent(code)}`),
     );
     const target = existing.find((project) => project.code === code);
     if (!target?.id) return null;
@@ -190,7 +214,7 @@ export const ProjectRepository = {
 
   async delete(code: string): Promise<Project | null> {
     const existing = await unwrap<BackendProject[]>(
-      apiClient.get(`/projects?search=${encodeURIComponent(code)}`),
+      apiClient.get(`/projects?code=${encodeURIComponent(code)}`),
     );
     const target = existing.find((project) => project.code === code);
     if (!target?.id) return null;

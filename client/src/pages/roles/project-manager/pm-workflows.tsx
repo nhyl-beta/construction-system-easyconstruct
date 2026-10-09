@@ -1,9 +1,11 @@
 import { useState } from "react";
+import { useOpenOnAction } from "@/features/quick-search/useOpenOnAction";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { ConfirmDialog } from "@/components/ui/confirm-dialog";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { DataTablePagination } from "@/components/refine-ui/data-table/data-table-pagination";
 import { NewWorkflowDialog } from "@/components/workflows/new-workflow-dialog";
 import {
   useActiveWorkflows,
@@ -33,8 +35,9 @@ export default function WorkflowsPage() {
   const { user } = useAuth();
   const isAdmin = user?.role === "admin" || user?.role === "it-designer";
   const { templates, loading: templatesLoading, creating, createWorkflow, error: workflowError, clearError } = useWorkflowTemplates();
-  const { workflows, loading: workflowsLoading, reload, update, remove } = useActiveWorkflows();
+  const { workflows, pagination, loading: workflowsLoading, update, remove } = useActiveWorkflows();
   const [dialogOpen, setDialogOpen] = useState(false);
+  useOpenOnAction("new-workflow", () => setDialogOpen(true));
   const [editingWorkflow, setEditingWorkflow] = useState<Workflow | null>(null);
   // Same dialog the Approvals page opens, so what a PM can see here before
   // signing off is exactly what they see there — these two views drifting
@@ -47,8 +50,8 @@ export default function WorkflowsPage() {
   const resubmitStage = async (workflowId: number, stageId: number) => {
     setResubmittingStageId(stageId);
     try {
+      // The write invalidates the workflow queries, so the list refetches itself.
       await WorkflowRepository.resubmitStage(workflowId, stageId);
-      await reload();
     } finally {
       setResubmittingStageId(null);
     }
@@ -188,6 +191,7 @@ export default function WorkflowsPage() {
               </Card>
             );
           })}
+          {pagination.total > 0 && <DataTablePagination {...pagination} />}
         </TabsContent>
 
         <TabsContent value="templates" className="grid grid-cols-1 gap-4 md:grid-cols-2">
@@ -255,7 +259,6 @@ export default function WorkflowsPage() {
         error={workflowError}
         onSubmit={async (input) => {
           const created = await createWorkflow(input);
-          if (created) await reload();
           return created;
         }}
       />

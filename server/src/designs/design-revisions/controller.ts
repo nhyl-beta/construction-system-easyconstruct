@@ -4,6 +4,7 @@ import { HTTP } from "../../constants/http-status.js";
 import { MSG } from "../../constants/messages.js";
 import { formatSuccess } from "../../utils/response.js";
 import * as service from "./service.js";
+import { byDate, byString, respondList } from "../../utils/pagination.js";
 import { ensureProjectRevisionDemo } from "./demo.js";
 import { env } from "../../config/env.js";
 import { ForbiddenError, ValidationError } from "../../utils/errors.js";
@@ -34,7 +35,11 @@ export const getAll = async (req: Request, res: Response, next: NextFunction) =>
       res.json({ ...formatSuccess(items, MSG.designRevisions.retrieved), meta: { ...summary, demoAllowed: demoAllowed() } });
       return;
     }
-    res.json(formatSuccess(await service.getAll(filters, scopeOf(req)), MSG.designRevisions.retrieved));
+    respondList(res, req.query, await service.getAll(filters, scopeOf(req)), MSG.designRevisions.retrieved, {
+      version: byString((r) => String(r.version)),
+      status: byString((r) => r.status),
+      createdAt: byDate((r) => r.createdAt),
+    });
   } catch (err) { next(err); }
 };
 

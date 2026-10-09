@@ -1,5 +1,8 @@
 import { ConflictError, NotFoundError } from "../utils/errors.js";
 import * as repo from "./repository.js";
+import { asc } from "drizzle-orm";
+import { employees } from "../db/schema/employees.js";
+import { orderByFor, paginate, type PageRequest } from "../utils/pagination.js";
 
 import type {
   CreateEmployeeInput,
@@ -36,6 +39,18 @@ function initialsFrom(name: string): string {
 export const getAll = async (filters: EmployeeFilters = {}) => {
   return await repo.findAll(filters);
 };
+
+export const getPage = async (filters: EmployeeFilters, request: PageRequest) =>
+  paginate(
+    request,
+    () => repo.countFiltered(filters),
+    (window) =>
+      repo.findPage(
+        filters,
+        window,
+        orderByFor(request, repo.EMPLOYEE_SORT_COLUMNS, repo.defaultEmployeeOrder.map((c) => asc(c)), employees.id),
+      ),
+  );
 
 export const getById = async (id: number) => {
   const employee = await repo.findById(id);

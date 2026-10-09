@@ -3,6 +3,8 @@ import type { Payroll } from "../db/schema/payroll.js";
 export type PayrollLine = Payroll;
 
 export interface PayrollFilters {
+  /** Lines of these batches are hidden (Finance never sees a draft batch's lines). */
+  excludeBatchIds?: string[];
   period?: string;
   status?: string;
   empId?: string;

@@ -1,9 +1,11 @@
 import { useState } from "react";
+import { useOpenOnAction } from "@/features/quick-search/useOpenOnAction";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { ConfirmDialog } from "@/components/ui/confirm-dialog";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { DataTablePagination } from "@/components/refine-ui/data-table/data-table-pagination";
 import { NewWorkflowDialog } from "@/components/workflows/new-workflow-dialog";
 import { WorkflowStagePipeline } from "@/components/workflows/workflow-stage-pipeline";
 import { WorkflowDetailDialog } from "@/components/workflows/workflow-detail-dialog";
@@ -43,8 +45,9 @@ export default function AdminWorkflowsPage() {
     deleteTemplate,
     clearError,
   } = useWorkflowTemplates();
-  const { workflows, loading: workflowsLoading, reload, update, remove } = useActiveWorkflows();
+  const { workflows, pagination, loading: workflowsLoading, update, remove } = useActiveWorkflows();
   const [dialogOpen, setDialogOpen] = useState(false);
+  useOpenOnAction("new-workflow", () => setDialogOpen(true));
   const [editingWorkflow, setEditingWorkflow] = useState<Workflow | null>(null);
   // Admin decides LAST on most chains, so it is the role with the most prior
   // stages to read — the same detail dialog every other approver now opens.
@@ -169,6 +172,7 @@ export default function AdminWorkflowsPage() {
               </CardContent>
             </Card>
           ))}
+          {pagination.total > 0 && <DataTablePagination {...pagination} />}
         </TabsContent>
 
         <TabsContent value="templates" className="grid grid-cols-1 gap-4 md:grid-cols-2">
@@ -228,7 +232,6 @@ export default function AdminWorkflowsPage() {
         error={templatesError}
         onSubmit={async (input) => {
           const created = await createWorkflow(input);
-          if (created) await reload();
           return created;
         }}
       />

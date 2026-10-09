@@ -10,6 +10,23 @@ export const findAll = async () => {
   return await db.select().from(payrollBatches).orderBy(desc(payrollBatches.createdAt));
 };
 
+/** Approved batches of one period, newest first (same order as findAll). */
+export const findApprovedForPeriod = async (period: string) =>
+  db
+    .select()
+    .from(payrollBatches)
+    .where(and(eq(payrollBatches.status, "approved"), eq(payrollBatches.period, period)))
+    .orderBy(desc(payrollBatches.createdAt));
+
+/** Ids of batches HR is still building (status "draft") — id column only. */
+export const findDraftIds = async (): Promise<Set<string>> => {
+  const rows = await db
+    .select({ id: payrollBatches.id })
+    .from(payrollBatches)
+    .where(eq(payrollBatches.status, "draft"));
+  return new Set(rows.map((r) => r.id));
+};
+
 export const findById = async (id: string, client: Db = db) => {
   const [row] = await client.select().from(payrollBatches).where(eq(payrollBatches.id, id));
   return row ?? null;

@@ -2,6 +2,8 @@ import { NotFoundError, ValidationError } from "../utils/errors.js";
 import { assertProjectWritable, refreshProjectProgress } from "../lifecycle/service.js";
 import * as projectMemberRepo from "../project-members/repository.js";
 import * as repo from "./repository.js";
+import { designs as designsTable } from "../db/schema/designs.js";
+import { orderByFor, paginate, type PageRequest } from "../utils/pagination.js";
 import type {
   AssignedEngineer,
   CreateDesignInput,
@@ -62,6 +64,18 @@ export const getAll = async (filters: DesignFilters) => {
   const rows = await repo.findAll(filters);
   const memberships = await repo.findEngineersForDesigns(rows.map((r) => r.id));
   return attachEngineers(rows, memberships);
+};
+
+export const statusCounts = (filters: DesignFilters) => repo.statusCounts(filters);
+
+export const getPage = async (filters: DesignFilters, request: PageRequest) => {
+  const { items: rows, meta } = await paginate(
+    request,
+    () => repo.countFiltered(filters),
+    (window) => repo.findPage(filters, window, orderByFor(request, repo.DESIGN_SORT_COLUMNS, repo.defaultDesignOrder, designsTable.id)),
+  );
+  const memberships = await repo.findEngineersForDesigns(rows.map((r) => r.id));
+  return { items: attachEngineers(rows, memberships), meta };
 };
 
 export const getById = async (id: number) => {

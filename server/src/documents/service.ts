@@ -1,4 +1,6 @@
 import * as repo from "./repository.js";
+import { documents as documentsTable } from "../db/schema/documents.js";
+import { orderByFor, paginate, type PageRequest } from "../utils/pagination.js";
 import { assertProjectWritable, refreshProjectProgress } from "../lifecycle/service.js";
 import { deleteStoredFile } from "../uploads/service.js";
 import { NotFoundError } from "../utils/errors.js";
@@ -14,6 +16,15 @@ export const getAll = async (
 ) => {
   return repo.findAll(filters);
 };
+
+export const typeCounts = (filters: DocumentFilters) => repo.typeCounts(filters);
+
+export const getPage = async (filters: DocumentFilters, request: PageRequest) =>
+  paginate(
+    request,
+    () => repo.countFiltered(filters),
+    (window) => repo.findPage(filters, window, orderByFor(request, repo.DOCUMENT_SORT_COLUMNS, repo.defaultDocumentOrder, documentsTable.id)),
+  );
 
 export const findProjectCodesForPm = async (pmName: string) => {
   return repo.findProjectCodesForPm(pmName);

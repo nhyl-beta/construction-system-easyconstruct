@@ -1,7 +1,8 @@
-import { useCallback, useEffect, useState } from "react";
-import { ProjectRepository, type ProjectPage } from "../repositories/project.repository";
-import { ProjectService } from "../services/project.service";
-import type { ProjectsKpi } from "../types/project.types";
+import { useState } from "react";
+import { useServerList } from "@/hooks/use-server-list";
+import { qk } from "@/lib/query-keys";
+import { ProjectRepository } from "../repositories/project.repository";
+import type { Project, ProjectsKpi } from "../types/project.types";
 
 export const PAGE_SIZES = [10, 20, 50] as const;
 
@@ -13,103 +14,88 @@ export interface ProjectFilterState {
 }
 
 const NO_FILTERS: ProjectFilterState = { projectType: "all", deliveryType: "all", status: "all", risk: "all" };
+const NO_KPIS: ProjectsKpi = { total: 0, onTrack: 0, atRisk: 0, delayed: 0 };
+
+interface Options {
+  /**
+   * Which headline counts the strip shows: the whole portfolio regardless of
+   * search and filters ("portfolio", the All-projects table), or exactly the
+   * rows the search / toggles select ("filtered", the PM and Owner pages).
+   */
+  kpis?: "portfolio" | "filtered";
+  /** Offer the "Show archived" toggle (archived projects are hidden by default). */
+  archivedToggle?: boolean;
+  /** Offer the "Completed only" toggle (Owner's portfolio). */
+  completedToggle?: boolean;
+}
 
 /**
- * The All projects table: server-side search, filters and pagination.
- *
- * The KPI strip is computed from the whole (scoped) portfolio rather than from
- * the current page, so paging through the table doesn't change the headline
- * numbers.
+ * A projects table backed by the server: search (debounced), filters, page and
+ * page size go to GET /api/projects as page / limit / search / filters, the
+ * previous page stays on screen while the next one loads, and the headline
+ * counts come back in the response's `meta.kpis` - no full list is downloaded.
  */
-export function useProjectsPaged() {
-  const [query, setQuery] = useState("");
-  const [search, setSearch] = useState("");
+export function useProjectsPaged({ kpis = "portfolio", archivedToggle = false, completedToggle = false }: Options = {}) {
   const [filters, setFilters] = useState<ProjectFilterState>(NO_FILTERS);
-  const [page, setPage] = useState(1);
-  const [pageSize, setPageSize] = useState<number>(PAGE_SIZES[0]);
   const [view, setView] = useState<"table" | "grid">("table");
+  const [showArchived, setShowArchived] = useState(false);
+  const [completedOnly, setCompletedOnly] = useState(false);
 
-  const [data, setData] = useState<ProjectPage | null>(null);
-  const [kpis, setKpis] = useState<ProjectsKpi>({ total: 0, onTrack: 0, atRisk: 0, delayed: 0 });
-  const [loading, setLoading] = useState(false);
-  const [error, setError] = useState<Error | null>(null);
+  const list = useServerList<Project, ProjectsKpi | undefined>({
+    key: (params) => qk.projects.list({ ...params, kpis, archivedToggle }),
+    fetchPage: async (params) => {
+      const page = await ProjectRepository.listPage({
+        page: params.page,
+        pageSize: params.limit,
+        search: params.search,
+        projectType: filters.projectType,
+        deliveryType: filters.deliveryType,
+        risk: filters.risk,
+        status: completedOnly ? "Completed" : filters.status,
+        // Archived is the terminal phase: hidden unless asked for (or filtered to explicitly).
+        excludeArchived: archivedToggle ? !showArchived && filters.status !== "Archived" : filters.status !== "Archived",
+        kpis,
+      });
+      return { items: page.items, total: page.total, pages: page.pages, extra: page.kpis };
+    },
+    filters: { ...filters, showArchived, completedOnly },
+    initialPageSize: PAGE_SIZES[0],
+  });
 
-  // Debounce typing so every keystroke isn't a request, and go back to page 1
-  // whenever what is being looked at changes.
-  useEffect(() => {
-    const t = window.setTimeout(() => {
-      setSearch(query.trim());
-      setPage(1);
-    }, 300);
-    return () => window.clearTimeout(t);
-  }, [query]);
-
-  const load = useCallback(async () => {
-    setLoading(true);
-    setError(null);
-    try {
-      setData(
-        await ProjectRepository.listPage({
-          page,
-          pageSize,
-          search,
-          ...filters,
-          excludeArchived: filters.status !== "Archived",
-        }),
-      );
-    } catch (err) {
-      setError(err instanceof Error ? err : new Error("Failed to load projects"));
-    } finally {
-      setLoading(false);
-    }
-  }, [page, pageSize, search, filters]);
-
-  useEffect(() => {
-    void load();
-  }, [load]);
-
-  useEffect(() => {
-    ProjectService.fetchAll()
-      .then((all) => setKpis(ProjectService.calcKpis(all.filter((p) => p.status !== "Archived"))))
-      .catch(() => undefined);
-  }, []);
-
-  const setFilter = (key: keyof ProjectFilterState, value: string) => {
+  const setFilter = (key: keyof ProjectFilterState, value: string) =>
     setFilters((prev) => ({ ...prev, [key]: value }));
-    setPage(1);
-  };
 
   const clearFilters = () => {
     setFilters(NO_FILTERS);
-    setQuery("");
-    setSearch("");
-    setPage(1);
+    list.setSearchInput("");
   };
 
   const hasActiveFilters =
-    query.trim() !== "" || Object.values(filters).some((v) => v !== "all");
+    list.searchInput.trim() !== "" || Object.values(filters).some((v) => v !== "all");
 
   return {
-    projects: data?.items ?? [],
-    total: data?.total ?? 0,
-    pages: data?.pages ?? 1,
-    page: data?.page ?? page,
-    pageSize,
-    setPage,
-    setPageSize: (size: number) => {
-      setPageSize(size);
-      setPage(1);
-    },
-    query,
-    setQuery,
+    projects: list.pageItems,
+    total: list.total,
+    pages: list.pageCount,
+    page: list.currentPage,
+    pageSize: list.pageSize,
+    setPage: list.setCurrentPage,
+    setPageSize: list.setPageSize,
+    query: list.searchInput,
+    setQuery: list.setSearchInput,
     filters,
     setFilter,
     clearFilters,
     hasActiveFilters,
     view,
     setView,
-    kpis,
-    loading,
-    error,
+    showArchived: archivedToggle ? showArchived : false,
+    setShowArchived,
+    completedOnly: completedToggle ? completedOnly : false,
+    setCompletedOnly,
+    kpis: list.extra ?? NO_KPIS,
+    /** A request is in flight (also while the previous page is still shown). */
+    loading: list.fetching,
+    error: list.error,
   } as const;
 }

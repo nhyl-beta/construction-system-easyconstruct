@@ -37,6 +37,17 @@ describe("mergePending", () => {
   });
 });
 
+describe("purchase requests and reimbursements", () => {
+  test("they join the same oldest-first list under their own kinds", () => {
+    const pr = [item("pr-PR-0001", "Purchase request", 40, 5000)];
+    const rmb = [item("rmb-RMB-0001", "Reimbursement", 60, 300)];
+    const { items, total } = mergePending([[item("exp-1", "Expense", 5)], pr, rmb], now, 20);
+    assert.deepEqual(items.map((i) => i.id), ["rmb-RMB-0001", "pr-PR-0001", "exp-1"]);
+    assert.deepEqual(items.map((i) => i.kind), ["Reimbursement", "Purchase request", "Expense"]);
+    assert.equal(total, 3);
+  });
+});
+
 describe("helpers", () => {
   test("waiting hours are whole and never negative", () => {
     assert.equal(waitingHours(new Date(now.getTime() - 90 * 60_000), now), 1);

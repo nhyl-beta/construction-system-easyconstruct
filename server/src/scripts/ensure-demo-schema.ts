@@ -1,4 +1,5 @@
 import "dotenv/config";
+import fs from "node:fs";
 import pg from "pg";
 import { assertDemoDatabase } from "./demo-guard.js";
 
@@ -729,6 +730,11 @@ async function main() {
       ADD COLUMN IF NOT EXISTS completed_by varchar(100),
       ADD COLUMN IF NOT EXISTS completed_at timestamp;
   `);
+
+  // Purchase requests, procurement orders, reimbursements and expense sources:
+  // migration 0025 is additive and idempotent (ADD COLUMN IF NOT EXISTS, CREATE
+  // ... IF NOT EXISTS), so the demo top-up simply runs the same file.
+  await pool.query(fs.readFileSync(new URL("../../drizzle/0025_purchasing.sql", import.meta.url), "utf8"));
 
   console.log("Demo schema tables and compatibility columns are ready.");
 }

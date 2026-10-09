@@ -1,4 +1,5 @@
 import { useMemo, useRef, useState } from "react";
+import { useOpenOnAction } from "@/features/quick-search/useOpenOnAction";
 import {
   AlertCircle,
   CheckCircle2,
@@ -115,6 +116,7 @@ export default function AdvisoryDocsPage() {
   const { codes: staffedCodes } = useStaffedProjectCodes("consultant");
 
   const [showUploadForm, setShowUploadForm] = useState(false);
+  useOpenOnAction("upload-advisory", () => setShowUploadForm(true), { acceptNew: true });
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
 
   const [form, setForm] = useState<UploadForm>({

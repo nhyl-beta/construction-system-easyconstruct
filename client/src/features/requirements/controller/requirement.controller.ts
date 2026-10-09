@@ -5,7 +5,9 @@ import type {
   RequirementFilters,
   StructureRequirementInput,
 } from "../types/requirements.types";
-import { useEffect, useState } from "react";
+import { useMemo } from "react";
+import { useServerList } from "@/hooks/use-server-list";
+import { qk } from "@/lib/query-keys";
 import { RequirementRepository } from "../repositories/requirement.repository";
 
 export const RequirementService = {
@@ -30,50 +32,51 @@ export const RequirementService = {
   },
 };
 
-export function useRequirementsController() {
-  const [requirements, setRequirements] = useState<Requirement[]>([]);
-  const [loading, setLoading] = useState(true);
+export function useRequirementsController(options: { pageSize?: number } = {}) {
+  const list = useServerList<Requirement, { statusCounts: { key: string; count: number }[] }>({
+    key: (params) => qk.requirements.list(params),
+    initialPageSize: options.pageSize ?? 10,
+    fetchPage: async (params, signal) => {
+      const page = await RequirementRepository.listPage(params.page, params.limit, signal);
+      return { items: page.items, total: page.total, pages: page.pages, extra: { statusCounts: page.statusCounts } };
+    },
+  });
 
-  const load = async () => {
-    setLoading(true);
-    try {
-      setRequirements(await RequirementService.fetchAll());
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  useEffect(() => {
-    void load();
-  }, []);
-
+  // The writes below go through apiClient, which refreshes the cached lists
+  // ("requirements" is in the invalidation map), so the page needs no manual
+  // state patching.
   const createRequirement = async (payload: CreateRequirementInput) => {
-    const created = await RequirementService.createRequirement(payload);
-    setRequirements((current) => [created, ...current]);
+    await RequirementService.createRequirement(payload);
   };
-
-  const replace = (updated: Requirement) =>
-    setRequirements((current) => current.map((r) => (r.dbId === updated.dbId ? updated : r)));
 
   /** Draft → Under Review, i.e. into the Project Manager's approval queue. */
   const submitRequirement = async (dbId: number) => {
-    replace(await RequirementRepository.submit(dbId));
+    await RequirementRepository.submit(dbId);
   };
 
   const addAttachments = async (requirement: Requirement, added: RequirementAttachment[]) => {
-    replace(await RequirementRepository.setAttachments(requirement.dbId, [...requirement.attachments, ...added]));
+    await RequirementRepository.setAttachments(requirement.dbId, [...requirement.attachments, ...added]);
   };
 
   /** Rule-based structuring of a rough note; saves nothing. */
   const structureRequirement = (input: StructureRequirementInput) => RequirementRepository.structure(input);
 
+  // Headline counts over every requirement the caller can see (all pages).
+  const counts = useMemo(() => {
+    const rows = list.extra?.statusCounts ?? [];
+    const n = (key: string) => rows.find((r) => r.key === key)?.count ?? 0;
+    return { total: rows.reduce((sum, r) => sum + r.count, 0), approved: n("Approved"), underReview: n("Under Review"), drafts: n("Draft") };
+  }, [list.extra]);
+
   return {
-    requirements,
-    loading,
+    requirements: list.pageItems,
+    loading: list.loading,
+    counts,
+    pagination: list,
     createRequirement,
     submitRequirement,
     addAttachments,
     structureRequirement,
-    reload: load,
+    reload: list.reload,
   };
 }

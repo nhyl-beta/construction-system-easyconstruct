@@ -1,4 +1,5 @@
-import { createContext, useContext, useEffect, useMemo, useState, type ReactNode } from "react";
+import { createContext, useContext, useEffect, useMemo, useRef, useState, type ReactNode } from "react";
+import { queryClient } from "@/lib/query-client";
 import {
   EXPIRED_NOTICE_KEY,
   TOKEN_KEY,
@@ -26,6 +27,16 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   // Keeps an unchecked "Keep me signed in" session alive across tabs.
   useEffect(() => startHeartbeat(), []);
+
+  // Cached query data belongs to whoever fetched it: when the signed-in person
+  // changes (sign in, sign out, expiry, another tab), drop everything so the
+  // next account can never be shown the previous account's rows.
+  const previousUserId = useRef<number | null | undefined>(undefined);
+  useEffect(() => {
+    const id = user?.id ?? null;
+    if (previousUserId.current !== undefined && previousUserId.current !== id) queryClient.clear();
+    previousUserId.current = id;
+  }, [user?.id]);
 
   // Expired or revoked sessions must end in the login page, not in a screen
   // full of failing requests:

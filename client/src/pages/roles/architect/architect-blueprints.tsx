@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { useOpenOnAction } from "@/features/quick-search/useOpenOnAction";
 import { PageHeader } from "@/components/refine-ui/views/page-header";
 import { StatusBadge } from "@/components/ui/status-badge";
 import { Input } from "@/components/ui/input";
@@ -37,6 +38,7 @@ function NewBlueprintDialog({
   }) => Promise<boolean>;
 }) {
   const [open, setOpen] = useState(false);
+  useOpenOnAction("new-blueprint", () => setOpen(true));
   const [drawingNumber, setDrawingNumber] = useState("");
   const [title, setTitle] = useState("");
   const [folder, setFolder] = useState("");

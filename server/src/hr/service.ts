@@ -1,5 +1,7 @@
 import { ConflictError, NotFoundError, ValidationError } from "../utils/errors.js";
 import * as repo from "./repository.js";
+import * as aggregates from "./aggregates.js";
+import * as employeesRepo from "../employees/repository.js";
 import { getRules } from "../payroll/engine.js";
 import type {
   AttendanceInput,
@@ -304,55 +306,25 @@ export async function removeAttendance(id: number) {
 }
 
 export async function attendanceSummary(date: string) {
-  const [activeEmployees, logs] =
-    await Promise.all([
-      repo.findEmployees({
-        status: "Active",
-      }),
-      repo.findAttendance({
-        date,
-      }),
-    ]);
-
-  const verified = logs.filter(
-    (log) => log.status === "Verified",
-  ).length;
-
-  const pending = logs.filter(
-    (log) => log.status === "Pending",
-  ).length;
-
-  const flagged = logs.filter(
-    (log) =>
-      log.status === "Flagged" ||
-      log.geofence === "Outside" ||
-      log.photo === "Failed",
-  ).length;
-
-  const late = logs.filter(
-    (log) => log.clockIn > "08:00",
-  ).length;
+  const [totalEmployees, counts] = await Promise.all([
+    aggregates.activeEmployeeCount(),
+    aggregates.attendanceDayCounts(date),
+  ]);
+  const { recorded, verified, pending, flagged, late } = counts;
 
   return {
     date,
-    totalEmployees: activeEmployees.length,
-    recorded: logs.length,
+    totalEmployees,
+    recorded,
     verified,
     pending,
     flagged,
     late,
 
-    absent: Math.max(
-      activeEmployees.length - logs.length,
-      0,
-    ),
+    absent: Math.max(totalEmployees - recorded, 0),
 
-    onTimeRate: logs.length
-      ? Math.round(
-          ((logs.length - late) /
-            logs.length) *
-            1000,
-        ) / 10
+    onTimeRate: recorded
+      ? Math.round(((recorded - late) / recorded) * 1000) / 10
       : 0,
   };
 }
@@ -509,29 +481,7 @@ export async function getTracksheet(
     ),
   ];
 
-  const employeesById =
-    new Map(
-      (
-        await Promise.all(
-          employeeIds.map((id) =>
-            repo.findEmployeeByEmployeeId(
-              id,
-            ),
-          ),
-        )
-      )
-        .filter(
-          (
-            employee,
-          ): employee is NonNullable<
-            typeof employee
-          > => Boolean(employee),
-        )
-        .map((employee) => [
-          employee.employeeId,
-          employee,
-        ]),
-    );
+  const employeesById = await employeesRepo.findByEmployeeIds(employeeIds);
 
   return logs.map((log) => ({
     ...log,
@@ -605,177 +555,8 @@ export async function workforceReport(
   from?: string,
   to?: string,
 ) {
-  const [allEmployees, logs] =
-    await Promise.all([
-      repo.findEmployees({}),
-      repo.findAttendance({
-        from,
-        to,
-      }),
-    ]);
-
-  const byDepartment =
-    new Map<
-      string,
-      {
-        department: string;
-        headcount: number;
-        active: number;
-      }
-    >();
-
-  const bySite =
-    new Map<
-      string,
-      {
-        site: string;
-        headcount: number;
-        present: number;
-      }
-    >();
-
-  for (const employee of allEmployees) {
-    const department =
-      byDepartment.get(
-        employee.department,
-      ) ?? {
-        department:
-          employee.department,
-        headcount: 0,
-        active: 0,
-      };
-
-    department.headcount += 1;
-
-    if (
-      employee.status ===
-      "Active"
-    ) {
-      department.active += 1;
-    }
-
-    byDepartment.set(
-      employee.department,
-      department,
-    );
-
-    const site =
-      bySite.get(employee.site) ??
-      {
-        site: employee.site,
-        headcount: 0,
-        present: 0,
-      };
-
-    site.headcount += 1;
-
-    bySite.set(
-      employee.site,
-      site,
-    );
-  }
-
-  for (const log of logs) {
-    const employee =
-      allEmployees.find(
-        (candidate) =>
-          candidate.employeeId ===
-          log.employeeId,
-      );
-
-    if (employee) {
-      const site =
-        bySite.get(employee.site);
-
-      if (
-        site &&
-        log.status ===
-          "Verified"
-      ) {
-        site.present += 1;
-      }
-    }
-  }
-
-  const days =
-    new Map<
-      string,
-      {
-        date: string;
-        present: number;
-        late: number;
-        absent: number;
-      }
-    >();
-
-  const recordedByDay =
-    new Map<
-      string,
-      Set<string>
-    >();
-
-  for (const log of logs) {
-    const day =
-      days.get(log.logDate) ?? {
-        date: log.logDate,
-        present: 0,
-        late: 0,
-        absent: 0,
-      };
-
-    if (
-      log.status ===
-      "Verified"
-    ) {
-      day.present += 1;
-    }
-
-    if (
-      log.clockIn > "08:00"
-    ) {
-      day.late += 1;
-    }
-
-    days.set(
-      log.logDate,
-      day,
-    );
-
-    const recorded =
-      recordedByDay.get(
-        log.logDate,
-      ) ??
-      new Set<string>();
-
-    recorded.add(
-      log.employeeId,
-    );
-
-    recordedByDay.set(
-      log.logDate,
-      recorded,
-    );
-  }
-
-  const activeCount =
-    allEmployees.filter(
-      (employee) =>
-        employee.status ===
-        "Active",
-    ).length;
-
-  for (const [
-    date,
-    day,
-  ] of days) {
-    day.absent = Math.max(
-      activeCount -
-        (recordedByDay.get(
-          date,
-        )?.size ?? 0),
-      0,
-    );
-  }
+  const agg = await aggregates.workforceAggregates(from, to);
+  const activeCount = agg.totals.active;
 
   return {
     range: {
@@ -784,44 +565,30 @@ export async function workforceReport(
     },
 
     totals: {
-      headcount:
-        allEmployees.length,
-
-      active:
-        activeCount,
-
-      onLeave:
-        allEmployees.filter(
-          (employee) =>
-            employee.status ===
-            "On Leave",
-        ).length,
-
-      suspended:
-        allEmployees.filter(
-          (employee) =>
-            employee.status ===
-            "Suspended",
-        ).length,
-
-      attendanceRecords:
-        logs.length,
+      headcount: agg.totals.headcount,
+      active: activeCount,
+      onLeave: agg.totals.onLeave,
+      suspended: agg.totals.suspended,
+      attendanceRecords: agg.attendanceRecords,
     },
 
-    byDepartment: [
-      ...byDepartment.values(),
-    ],
+    byDepartment: agg.departments.map((d) => ({
+      department: d.department,
+      headcount: d.headcount,
+      active: d.active,
+    })),
 
-    bySite: [
-      ...bySite.values(),
-    ],
+    bySite: agg.sites.map((s) => ({
+      site: s.site,
+      headcount: s.headcount,
+      present: s.present,
+    })),
 
-    dailyAttendance: [
-      ...days.values(),
-    ].sort((a, b) =>
-      a.date.localeCompare(
-        b.date,
-      ),
-    ),
+    dailyAttendance: agg.days.map((day) => ({
+      date: day.date,
+      present: day.present,
+      late: day.late,
+      absent: Math.max(activeCount - day.recorded, 0),
+    })),
   };
 }

@@ -11,7 +11,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { useApprovals } from "@/features/workflows/hooks/useWorkflows";
 
 export function AwaitingApprovalCard() {
-  const { items, stats, loading } = useApprovals("pending");
+  const { items, stats, loading } = useApprovals("pending", 5);
   const navigate = useNavigate();
 
   return (

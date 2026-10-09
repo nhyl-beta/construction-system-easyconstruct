@@ -1,4 +1,5 @@
-import { and, eq, ilike, inArray, or, SQL } from "drizzle-orm";
+import { and, desc, eq, ilike, inArray, or, sql, SQL } from "drizzle-orm";
+import { countRows, inCodes, selectPage } from "../db/paged.js";
 import { db } from "../db/connection.js";
 import { designEngineers } from "../db/schema/design-engineers.js";
 import { designs } from "../db/schema/designs.js";
@@ -8,8 +9,21 @@ import type {
   UpdateDesignInput,
 } from "./types.js";
 
-export const findAll = async (filters: DesignFilters = {}) => {
+/** id → project code for just these designs (id and project_code columns only). */
+export const findProjectCodesByIds = async (ids: number[]): Promise<Map<number, string>> => {
+  const unique = [...new Set(ids)];
+  if (unique.length === 0) return new Map();
+  const rows = await db
+    .select({ id: designs.id, projectCode: designs.projectCode })
+    .from(designs)
+    .where(inArray(designs.id, unique));
+  return new Map(rows.map((r) => [r.id, r.projectCode]));
+};
+
+const buildConditions = (filters: DesignFilters): SQL[] => {
   const conditions: SQL[] = [];
+
+  if (filters.codes) conditions.push(inCodes(designs.projectCode, filters.codes));
 
   if (filters.status && filters.status !== "all")
     conditions.push(eq(designs.status, filters.status));
@@ -31,6 +45,44 @@ export const findAll = async (filters: DesignFilters = {}) => {
     );
   }
 
+  return conditions;
+};
+
+/** Designs per status inside a filter set (the KPI cards count what the list shows). */
+export const statusCounts = async (filters: DesignFilters = {}) => {
+  const conditions = buildConditions(filters);
+  const rows = await db
+    .select({ status: designs.status, count: sql<number>`count(*)::int` })
+    .from(designs)
+    .where(conditions.length ? and(...conditions) : undefined)
+    .groupBy(designs.status);
+  return rows.map((r) => ({ status: r.status, count: r.count }));
+};
+
+export const DESIGN_SORT_COLUMNS = {
+  name: designs.name,
+  code: designs.code,
+  status: designs.status,
+  discipline: designs.discipline,
+  projectCode: designs.projectCode,
+  createdAt: designs.createdAt,
+  updatedAt: designs.updatedAt,
+} as const;
+
+export const defaultDesignOrder = [desc(designs.id)];
+
+export const countFiltered = async (filters: DesignFilters = {}) => {
+  const conditions = buildConditions(filters);
+  return countRows(designs, conditions.length ? and(...conditions) : undefined);
+};
+
+export const findPage = async (filters: DesignFilters, window: { limit: number; offset: number }, orderBy: SQL[]) => {
+  const conditions = buildConditions(filters);
+  return selectPage(designs, conditions.length ? and(...conditions) : undefined, orderBy, window);
+};
+
+export const findAll = async (filters: DesignFilters = {}) => {
+  const conditions = buildConditions(filters);
   return conditions.length
     ? await db
         .select()

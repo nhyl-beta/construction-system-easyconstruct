@@ -48,6 +48,8 @@ export interface CreateRequirementInput {
 export interface UpdateRequirementInput extends Partial<CreateRequirementInput> {}
 
 export interface RequirementFilters {
+  /** Restrict to these project codes (visibility scope; set by the controller). */
+  codes?: string[];
   project?: string;
   category?: string;
   status?: string;

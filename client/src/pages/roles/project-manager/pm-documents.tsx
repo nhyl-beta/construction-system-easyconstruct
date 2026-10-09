@@ -1,5 +1,6 @@
 // src/pages/project-manager/pm-documents.tsx
-import { useMemo, useState } from "react";
+import { useState } from "react";
+import { useOpenOnAction } from "@/features/quick-search/useOpenOnAction";
 import {
   FileText,
   Upload,
@@ -17,11 +18,10 @@ import { Button }  from "@/components/ui/button";
 import { Input }   from "@/components/ui/input";
 import { UploadDocumentDialog } from "@/components/documents/upload-document-dialog";
 import { FilePreviewDialog } from "@/components/shared/file-preview-dialog";
-import { useFieldDocuments } from "@/features/documents/hooks/use-field-documents";
+import { useDocumentsPaged } from "@/features/documents/hooks/useDocumentsPaged";
 import type { DocumentRecord } from "@/features/documents/repositories/documents.repository";
 import { formatRelativeTime } from "@/lib/format-relative-time";
 import { DataTablePagination } from "@/components/refine-ui/data-table/data-table-pagination";
-import { usePagination } from "@/hooks/use-pagination";
 
 // Icon resolver — mapped from real `type` values (the schema's enum), not
 // a separate iconKey field that doesn't exist on this table.
@@ -34,34 +34,21 @@ const TYPE_ICONS: Record<string, LucideIcon> = {
 
 
 export default function DocumentsPage() {
-  const { documents, loading, uploading, upload } = useFieldDocuments();
   const [uploadOpen, setUploadOpen] = useState(false);
+  useOpenOnAction("upload-document", () => setUploadOpen(true));
   // Same viewer Consultant's advisory register uses — both read the same
   // `documents` table, so both hit the same missing-file and legacy-path
   // rows, and both now report that instead of opening a blank tab.
   const [previewing, setPreviewing] = useState<DocumentRecord | null>(null);
-  const [search, setSearch] = useState("");
   const [activeType, setActiveType] = useState<string | null>(null);
+  const { list, typeCounts, uploading, upload } = useDocumentsPaged(activeType);
+  const { loading, searchInput: search, setSearchInput: setSearch } = list;
+  const documents = list.pageItems;
 
-  // Real categories, grouped from the actual data — not a hardcoded folder
-  // list with invented counts.
-  const categories = useMemo(() => {
-    const counts = new Map<string, number>();
-    for (const d of documents) counts.set(d.type, (counts.get(d.type) ?? 0) + 1);
-    return Array.from(counts.entries()).map(([type, count]) => ({ type, count }));
-  }, [documents]);
-
-  const filtered = useMemo(() => {
-    return documents.filter((d) => {
-      if (activeType && d.type !== activeType) return false;
-      if (search && !d.title.toLowerCase().includes(search.toLowerCase())) return false;
-      return true;
-    });
-  }, [documents, activeType, search]);
-
-  // Was the full filtered list rendered in one pass — a repository that
-  // grows past a page or two of records had no way to page through it.
-  const pagination = usePagination(filtered, 10);
+  const categories = typeCounts;
+  const onFile = typeCounts.reduce((n, c) => n + c.count, 0);
+  const filtered = documents;
+  const pagination = list;
 
   return (
     <div className="flex-1 space-y-6 p-4 md:p-8">
@@ -70,7 +57,7 @@ export default function DocumentsPage() {
         <div>
           <h2 className="text-2xl font-semibold tracking-tight">Document repository</h2>
           <p className="text-sm text-muted-foreground">
-            {documents.length} document{documents.length === 1 ? "" : "s"} on file
+            {onFile} document{onFile === 1 ? "" : "s"} on file
           </p>
         </div>
         <Button onClick={() => setUploadOpen(true)}>

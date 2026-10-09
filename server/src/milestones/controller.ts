@@ -6,10 +6,20 @@ import { formatSuccess } from "../utils/response.js";
 import { logAudit } from "../utils/audit.js";
 import * as service from "./service.js";
 import type { AuthedRequest } from "../middleware/auth.js";
-import { assertProjectVisible, scopeRowsToVisible } from "../projects/service.js";
+import { assertProjectVisible, scopeRowsToVisible, scopedProjectCodes } from "../projects/service.js";
+import { parsePageRequest, sendPaged } from "../utils/pagination.js";
+import { MILESTONE_SORT_COLUMNS } from "./repository.js";
 
 export const getAll = async (req: AuthedRequest, res: Response, next: NextFunction) => {
   try {
+    const paging = parsePageRequest(req.query, { sortable: Object.keys(MILESTONE_SORT_COLUMNS) });
+    if (paging.requested) {
+      const codes = await scopedProjectCodes(req.authUser);
+      const projectCode = typeof req.query.projectCode === "string" && req.query.projectCode ? req.query.projectCode : undefined;
+      const { items, meta } = await service.getPage({ projectCode, ...(codes ? { codes } : {}) }, paging);
+      sendPaged(res, items, MSG.milestones.retrieved, meta);
+      return;
+    }
     const data = await scopeRowsToVisible(
       req.authUser,
       await service.getAll(req.query.projectCode as string | undefined),

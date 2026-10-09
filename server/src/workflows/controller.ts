@@ -7,11 +7,18 @@ import { formatError, formatSuccess } from "../utils/response.js";
 import { logAudit } from "../utils/audit.js";
 import * as service from "./service.js";
 import type { ApprovalScope } from "./types.js";
-import { assertProjectVisible, scopeRowsToVisible, visibleProjectCodes } from "../projects/service.js";
+import { assertProjectVisible, scopeRowsToVisible, scopedProjectCodes, visibleProjectCodes } from "../projects/service.js";
+import { parsePageRequest, sendPaged } from "../utils/pagination.js";
+import { ALL_DOMAIN, cached } from "../cache/index.js";
+import { userScope } from "../cache/scope.js";
+import { WORKFLOW_SORT_COLUMNS } from "./repository.js";
 
 export const getTemplates = async (_req: AuthedRequest, res: Response, next: NextFunction) => {
   try {
-    const data = await service.getTemplates();
+    // System configuration: identical for everyone, changes rarely. 5 min; any
+    // write (a workflow created or a template edited) invalidates it, because
+    // each template carries its active-workflow count.
+    const data = await cached("workflows", "all", 300, () => service.getTemplates(), { deps: ["config"] });
     res.json(formatSuccess(data, MSG.workflows.retrieved));
   } catch (err) {
     next(err);
@@ -60,6 +67,17 @@ const assertWorkflowVisible = async (req: AuthedRequest, workflowId: number) =>
 
 export const getAll = async (req: AuthedRequest, res: Response, next: NextFunction) => {
   try {
+    const paging = parsePageRequest(req.query, { sortable: Object.keys(WORKFLOW_SORT_COLUMNS) });
+    if (paging.requested) {
+      const codes = await scopedProjectCodes(req.authUser);
+      const text = (v: unknown) => (typeof v === "string" && v.trim() ? v.trim() : undefined);
+      const { items, meta } = await service.getActiveWorkflowsPage(
+        { ...(codes ? { codes } : {}), projectCode: text(req.query.projectCode), search: text(req.query.search) },
+        paging,
+      );
+      sendPaged(res, items, MSG.workflows.retrieved, meta);
+      return;
+    }
     const data = await scopeRowsToVisible(req.authUser, await service.getActiveWorkflows(), (w) => w.projectCode);
     res.json(formatSuccess(data, MSG.workflows.retrieved));
   } catch (err) {
@@ -192,12 +210,26 @@ export const resubmitStage = async (req: AuthedRequest, res: Response, next: Nex
   }
 };
 
+const text = (v: unknown) => (typeof v === "string" && v.trim() ? v.trim() : undefined);
+
 export const getApprovals = async (req: AuthedRequest, res: Response, next: NextFunction) => {
   try {
     const scope = (req.query.scope as ApprovalScope) ?? "pending";
     const role = req.authUser?.role ?? "";
     const name = req.authUser?.name ?? req.authUser?.email ?? "";
     const codes = await visibleProjectCodes(scopeOf(req));
+    const paging = parsePageRequest(req.query, { sortable: service.APPROVAL_SORTABLE });
+    if (paging.requested) {
+      const { items, meta } = await service.getApprovalQueuePage(scope, role, name, codes, paging, {
+        type: text(req.query.type),
+        requestedBy: text(req.query.requestedBy),
+        from: text(req.query.from),
+        to: text(req.query.to),
+        search: text(req.query.search),
+      });
+      sendPaged(res, items, MSG.workflows.retrieved, meta);
+      return;
+    }
     const data = await service.getApprovalQueue(scope, role, name, codes);
     res.json(formatSuccess(data, MSG.workflows.retrieved));
   } catch (err) {
@@ -209,8 +241,12 @@ export const getApprovalStats = async (req: AuthedRequest, res: Response, next: 
   try {
     const role = req.authUser?.role ?? "";
     const name = req.authUser?.name ?? req.authUser?.email ?? "";
-    const codes = await visibleProjectCodes(scopeOf(req));
-    const data = await service.getApprovalStats(role, name, codes);
+    // The sidebar / header badge asks for this on every page. It depends on the
+    // caller's role and visible projects, so the entry is per user; any write
+    // anywhere invalidates it (the `all` domain). 20 s.
+    const load = async () => service.getApprovalStats(role, name, await visibleProjectCodes(scopeOf(req)));
+    const scope = userScope(req.authUser);
+    const data = scope ? await cached("workflows", scope, 20, load, { query: { stats: true }, deps: [ALL_DOMAIN] }) : await load();
     res.json(formatSuccess(data, MSG.workflows.retrieved));
   } catch (err) {
     next(err);

@@ -1,89 +1,51 @@
 import { useMemo } from "react";
 
-import { useAuditLogs } from "@/features/audit-logs/hooks/useAuditLogs";
-import { useProjects } from "@/features/projects/hooks/useProjects";
-import { useProposals } from "@/features/proposals/hooks/useProposals";
-import { useActiveWorkflows, useApprovals } from "@/features/workflows/hooks/useWorkflows";
+import { usePayrollSummary } from "@/features/payroll-summary/hooks/usePayrollSummary";
+import { normalizeProject } from "@/features/projects/repositories/project.repository";
+import { useDashboardSummary, type ExecutiveSummary } from "../hooks/useDashboardSummary";
 
-// Owner is read-only, so this is the Admin controller's org-wide picture
-// minus everything Admin uses to act on it (notifications to triage, the
-// per-project drill-in). Every number below comes from a GET the Owner role
-// is actually authorized for.
+// Owner is read-only, so this is the Admin controller's org-wide picture minus
+// everything Admin uses to act on it. Every number comes from the server's
+// dashboard summary (one request); the payroll aggregate keeps its own
+// endpoint, /api/payroll/owner-summary, which only owner, admin and
+// it-designer may call.
 export const useOwnerDashboardController = () => {
-  const projects = useProjects();
-  const workflows = useActiveWorkflows();
-  const approvals = useApprovals("pending");
-  const auditLogs = useAuditLogs();
-  const proposals = useProposals();
+  const { summary, loading, error } = useDashboardSummary<ExecutiveSummary>();
+  const payroll = usePayrollSummary();
 
-  const overBudget = useMemo(
-    () => projects.projects.filter((p) => p.budget > 100).length,
-    [projects.projects],
-  );
-
-  const activeWorkflowCount = useMemo(
-    () => workflows.workflows.filter((w) => w.status === "active").length,
-    [workflows.workflows],
-  );
-
-  const completedWorkflowCount = useMemo(
-    () => workflows.workflows.filter((w) => w.status === "completed").length,
-    [workflows.workflows],
-  );
-
-  // Same risk-weighted ordering the Admin and PM dashboards use, so the
-  // executive view and the operational views agree on what "at risk" means.
-  const attentionSorted = useMemo(() => {
-    const riskWeight: Record<string, number> = { high: 2, medium: 1, low: 0 };
-    return [...projects.projects].sort((a, b) => {
-      const riskDiff = riskWeight[b.risk] - riskWeight[a.risk];
-      if (riskDiff !== 0) return riskDiff;
-      return b.budget - a.budget;
-    });
-  }, [projects.projects]);
-
-  const recentActivity = useMemo(() => auditLogs.logs.slice(0, 8), [auditLogs.logs]);
-
-  // The audit trail is the only org-wide record of who is doing what, so the
-  // executive view summarises it by actor rather than listing it twice.
-  const topActors = useMemo(() => {
-    const counts = new Map<string, number>();
-    for (const log of auditLogs.logs) {
-      counts.set(log.actor, (counts.get(log.actor) ?? 0) + 1);
-    }
-    return Array.from(counts, ([actor, count]) => ({ actor, count }))
-      .sort((a, b) => b.count - a.count)
-      .slice(0, 5);
-  }, [auditLogs.logs]);
-
-  const loading = projects.loading || workflows.loading || approvals.loading;
+  const topProjects = useMemo(() => (summary?.projects.top ?? []).map(normalizeProject), [summary]);
+  const recentActivity = useMemo(() => (summary?.audit.recent ?? []).slice(0, 8), [summary]);
 
   return {
     loading,
 
-    projectsLoading: projects.loading,
-    projectsError: projects.error,
-    kpis: projects.kpis,
-    overBudget,
-    totalProjectCount: projects.projects.length,
-    topProjects: attentionSorted.slice(0, 5),
+    projectsLoading: loading,
+    projectsError: error,
+    kpis: summary?.projects.kpis ?? { total: 0, onTrack: 0, atRisk: 0, delayed: 0 },
+    overBudget: summary?.projects.overBudget ?? 0,
+    totalProjectCount: summary?.projects.total ?? 0,
+    topProjects,
 
-    workflowsLoading: workflows.loading,
-    activeWorkflowCount,
-    completedWorkflowCount,
+    workflowsLoading: loading,
+    activeWorkflowCount: summary?.workflows.active ?? 0,
+    completedWorkflowCount: summary?.workflows.completed ?? 0,
 
-    approvalsLoading: approvals.loading,
-    pendingApprovals: approvals.stats?.pending ?? approvals.items.length,
-    overdueApprovals: approvals.stats?.overdue ?? 0,
+    approvalsLoading: loading,
+    pendingApprovals: summary?.approvals.pending ?? 0,
+    overdueApprovals: summary?.approvals.overdue ?? 0,
 
-    auditLogsLoading: auditLogs.loading,
-    auditLogsError: auditLogs.error,
-    auditEventCount: auditLogs.logs.length,
+    auditLogsLoading: loading,
+    auditLogsError: error,
+    auditEventCount: summary?.audit.total ?? 0,
     recentActivity,
-    topActors,
+    topActors: summary?.audit.topActors ?? [],
 
-    proposalsLoading: proposals.loading,
-    proposalsKpis: proposals.kpis,
+    proposalsLoading: loading,
+    proposalsKpis: summary?.proposals.kpis ?? { total: 0, pending: 0, approved: 0, revisionRequested: 0 },
+
+    payrollLoading: payroll.loading,
+    payrollError: payroll.error,
+    payrollSummary: payroll.summary,
   } as const;
 };
 

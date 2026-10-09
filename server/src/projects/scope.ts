@@ -76,8 +76,13 @@ export const scopeRowsByDesign = async <T>(
   ownCodeOf: (row: T) => string | null | undefined = () => null,
 ): Promise<T[]> => {
   if (!isAssignedScoped(auth)) return rows;
-  const [codes, designs] = await Promise.all([assignedCodesFor(auth), designsRepo.findAll()]);
-  const codeByDesign = new Map(designs.map((d) => [d.id, d.projectCode]));
+  const designIds = rows
+    .map((row) => designIdOf(row))
+    .filter((id): id is number => id != null);
+  const [codes, codeByDesign] = await Promise.all([
+    assignedCodesFor(auth),
+    designsRepo.findProjectCodesByIds(designIds),
+  ]);
   return filterRowsByCodes(rows, codes, (row) => {
     const own = ownCodeOf(row);
     if (own) return own;

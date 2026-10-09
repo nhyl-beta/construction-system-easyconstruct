@@ -5,10 +5,19 @@ import { logAudit } from "../utils/audit.js";
 import { formatSuccess } from "../utils/response.js";
 import * as service from "./service.js";
 import type { UserFilters } from "./types.js";
+import { parsePageRequest, sendPaged } from "../utils/pagination.js";
+import { USER_SORT_COLUMNS } from "./repository.js";
 
 export const getAll = async (req: Request, res: Response, next: NextFunction) => {
   try {
     const filters: UserFilters = { role: req.query.role as string };
+    const paging = parsePageRequest(req.query, { sortable: Object.keys(USER_SORT_COLUMNS), defaultOrder: "asc" });
+    if (paging.requested) {
+      const search = typeof req.query.search === "string" && req.query.search.trim() ? req.query.search.trim() : undefined;
+      const { items, meta } = await service.getPage({ ...filters, search }, paging);
+      sendPaged(res, items, "Users retrieved", meta);
+      return;
+    }
     const data = await service.getAll(filters);
     res.json(formatSuccess(data, "Users retrieved"));
   } catch (err) {

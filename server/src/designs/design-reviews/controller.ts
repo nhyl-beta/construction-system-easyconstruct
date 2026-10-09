@@ -3,6 +3,7 @@ import { HTTP } from "../../constants/http-status.js";
 import { MSG } from "../../constants/messages.js";
 import { formatSuccess } from "../../utils/response.js";
 import * as service from "./service.js";
+import { byDate, byString, respondList } from "../../utils/pagination.js";
 import type { AuthedRequest } from "../../middleware/auth.js";
 import { assertAssignedToDesign, scopeRowsByDesign } from "../../projects/scope.js";
 
@@ -16,7 +17,13 @@ export const getAll = async (req: Request, res: Response, next: NextFunction) =>
       }),
       (r) => r.designId,
     );
-    res.json(formatSuccess(data, MSG.designReviews.retrieved));
+    respondList(res, req.query, data, MSG.designReviews.retrieved, {
+      code: byString((r) => r.code),
+      status: byString((r) => r.status),
+      priority: byString((r) => r.priority),
+      submittedAt: byDate((r) => r.submittedAt),
+      dueDate: byDate((r) => r.dueDate),
+    });
   } catch (err) { next(err); }
 };
 export const getById = async (req: Request, res: Response, next: NextFunction) => {

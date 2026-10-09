@@ -4,6 +4,7 @@ import { HTTP } from "../constants/http-status.js";
 import { MSG } from "../constants/messages.js";
 import { formatSuccess } from "../utils/response.js";
 import * as service from "./service.js";
+import { byDate, byString, respondList } from "../utils/pagination.js";
 import type { AuthedRequest } from "../middleware/auth.js";
 import { assertAssignedToDesign, assertAssignedToProject, scopeRowsByDesign } from "../projects/scope.js";
 
@@ -19,7 +20,14 @@ export const getAll = async (req: Request, res: Response, next: NextFunction) =>
       (b) => b.designId,
       (b) => b.projectCode,
     );
-    res.json(formatSuccess(data, MSG.blueprints.retrieved));
+    respondList(res, req.query, data, MSG.blueprints.retrieved, {
+      title: byString((b) => b.title),
+      drawingNumber: byString((b) => b.drawingNumber),
+      folder: byString((b) => b.folder),
+      approval: byString((b) => b.approval),
+      status: byString((b) => b.status),
+      issueDate: byDate((b) => b.issueDate),
+    });
   } catch (err) { next(err); }
 };
 export const getById = async (req: Request, res: Response, next: NextFunction) => {

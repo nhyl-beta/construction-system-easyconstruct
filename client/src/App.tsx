@@ -1,4 +1,6 @@
 import { Refine } from "@refinedev/core";
+import { QueryClientProvider } from "@tanstack/react-query";
+import { queryClient } from "@/lib/query-client";
 import { lazy, Suspense } from "react";
 import { RefineKbar, RefineKbarProvider } from "@refinedev/kbar";
 
@@ -55,6 +57,7 @@ import ArchitectProjects from "./pages/roles/architect/architect-projects";
 import ArchitectProposals from "./pages/roles/architect/architect-proposals";
 import ArchitectRevisions from "./pages/roles/architect/architect-revisions";
 import SharedRequests from "./pages/roles/shared/shared-requests";
+import SharedClaims from "./pages/roles/shared/shared-claims";
 import SharedTransmittals from "./pages/roles/shared/shared-transmittals";
 import { RequestPrintPage, TransmittalPrintPage } from "./pages/roles/shared/print-pages";
 import { AttentionCard } from "./features/requests/components/AttentionCard";
@@ -124,6 +127,7 @@ import NotFoundPage from "./pages/not-found";
 
 function App() {
   return (
+    <QueryClientProvider client={queryClient}>
     <BrowserRouter>
       <AuthProvider>
         <RefineKbarProvider>
@@ -137,6 +141,8 @@ function App() {
               options={{
                 syncWithLocation: true,
                 warnWhenUnsavedChanges: true,
+                // Refine and the app's own data hooks share one query client.
+                reactQuery: { clientConfig: queryClient },
                 projectId: "2gnXaG-MhFPwx-oPqcp0",
                 title: {
                   text: "EasyConstruct",
@@ -297,6 +303,15 @@ function App() {
                   <Route path="/blueprints" element={<ArchitectBlueprints />} />
                   {/* RFI / RFA requests and transmittal cover sheets; every list is project-scoped on the server. */}
                   <Route path="/requests" element={<SharedRequests />} />
+                  {/* Reimbursement claims: the claimant's own. Finance works them on Expense Management. */}
+                  <Route
+                    path="/my-claims"
+                    element={
+                      <RequireRole allow={["engineer", "site_personnel", "project_manager", "architect", "human_resources"]}>
+                        <SharedClaims />
+                      </RequireRole>
+                    }
+                  />
                   <Route path="/transmittals" element={<SharedTransmittals />} />
 
                   {/* ── Engineer Routes ── */}
@@ -553,6 +568,7 @@ function App() {
         </RefineKbarProvider>
       </AuthProvider>
     </BrowserRouter>
+    </QueryClientProvider>
   );
 }
 

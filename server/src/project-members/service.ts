@@ -3,6 +3,9 @@ import * as projectsService from "../projects/service.js";
 import * as notificationsService from "../notifications/service.js";
 import { assertProjectWritable, refreshProjectProgress } from "../lifecycle/service.js";
 import * as repo from "./repository.js";
+import { asc } from "drizzle-orm";
+import { projectMembers as projectMembersTable } from "../db/schema/project-members.js";
+import { orderByFor, paginate, type PageRequest } from "../utils/pagination.js";
 import type { CreateProjectMemberInput, ProjectMemberFilters } from "./types.js";
 
 const PRIVILEGED_ROLES = ["admin", "it-designer"];
@@ -19,6 +22,13 @@ const assertCanManageProject = async (projectCode: string, requesterRole: string
 };
 
 export const getAll = async (filters: ProjectMemberFilters) => repo.findAll(filters);
+
+export const getPage = async (filters: ProjectMemberFilters, request: PageRequest) =>
+  paginate(
+    request,
+    () => repo.countFiltered(filters),
+    (window) => repo.findPage(filters, window, orderByFor(request, repo.MEMBER_SORT_COLUMNS, [asc(projectMembersTable.id)], projectMembersTable.id)),
+  );
 
 export const create = async (
   input: CreateProjectMemberInput,

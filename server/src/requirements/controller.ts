@@ -5,7 +5,9 @@ import { formatSuccess } from "../utils/response.js";
 import type { AuthedRequest } from "../middleware/auth.js";
 import * as service from "./service.js";
 import type { RequirementFilters } from "./types.js";
-import { assertProjectVisible, scopeRowsToVisible } from "../projects/service.js";
+import { assertProjectVisible, scopeRowsToVisible, scopedProjectCodes } from "../projects/service.js";
+import { parsePageRequest, sendPaged } from "../utils/pagination.js";
+import { REQUIREMENT_SORT_COLUMNS } from "./repository.js";
 import { FEATURES } from "../config/features.js";
 import { NotFoundError } from "../utils/errors.js";
 import { structureRequirement } from "./structuring.js";
@@ -18,6 +20,14 @@ export const getAll = async (req: Request, res: Response, next: NextFunction) =>
       status: req.query.status as string,
       search: req.query.search as string,
     };
+    const paging = parsePageRequest(req.query, { sortable: Object.keys(REQUIREMENT_SORT_COLUMNS) });
+    if (paging.requested) {
+      const codes = await scopedProjectCodes((req as AuthedRequest).authUser);
+      const { items, meta } = await service.getPage({ ...filters, ...(codes ? { codes } : {}) }, paging);
+      const statusCounts = req.query.counts === "1" ? await service.statusCounts({ ...filters, ...(codes ? { codes } : {}) }) : undefined;
+      sendPaged(res, items, MSG.requirements.retrieved, statusCounts ? { ...meta, statusCounts } : meta);
+      return;
+    }
     const data = await scopeRowsToVisible(
       (req as AuthedRequest).authUser,
       await service.findAll(filters),

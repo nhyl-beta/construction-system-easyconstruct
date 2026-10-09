@@ -72,7 +72,7 @@ export default function DashboardPage() {
         ]}
       />
 
-      <PmPortfolioCharts projects={c.projects} />
+      <PmPortfolioCharts phases={c.phases} workload={c.workload} loading={c.loading} />
 
       {/* ── Main grid — projects table + not-yet-connected AI panel ── */}
       <section className="grid grid-cols-1 gap-6 xl:grid-cols-3">

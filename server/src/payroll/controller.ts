@@ -6,7 +6,11 @@ import { logAudit } from "../utils/audit.js";
 import type { AuthedRequest } from "../middleware/auth.js";
 import { ValidationError } from "../utils/errors.js";
 import * as service from "./service.js";
+import * as ownerSummaryService from "./owner-summary.service.js";
 import type { PayrollFilters } from "./types.js";
+import { byDate, byString, parsePageRequest, respondList, sendPaged } from "../utils/pagination.js";
+import { PAYROLL_SORT_COLUMNS } from "./repository.js";
+import { cached } from "../cache/index.js";
 
 const actorOf = (req: AuthedRequest): service.Actor => ({
   name: req.authUser?.name ?? "unknown",
@@ -25,6 +29,12 @@ export const getAll = async (req: AuthedRequest, res: Response, next: NextFuncti
       empId: req.query.empId as string,
       batchId: req.query.batchId as string,
     };
+    const paging = parsePageRequest(req.query, { sortable: Object.keys(PAYROLL_SORT_COLUMNS) });
+    if (paging.requested) {
+      const { items, meta } = await service.getPage(filters, paging, actorOf(req), req.query.totals === "1");
+      sendPaged(res, items, MSG.payroll.retrieved, meta);
+      return;
+    }
     const data = await service.getAll(filters, actorOf(req));
     res.json(formatSuccess(data, MSG.payroll.retrieved));
   } catch (err) {
@@ -121,7 +131,12 @@ export const generate = async (req: AuthedRequest, res: Response, next: NextFunc
 export const listBatches = async (req: AuthedRequest, res: Response, next: NextFunction) => {
   try {
     const data = await service.listBatches(actorOf(req));
-    res.json(formatSuccess(data, MSG.payrollBatches.retrieved));
+    respondList(res, req.query, data, MSG.payrollBatches.retrieved, {
+      createdAt: byDate((b) => b.createdAt),
+      period: byString((b) => b.period),
+      status: byString((b) => b.status),
+      projectCode: byString((b) => b.projectCode),
+    });
   } catch (err) {
     next(err);
   }
@@ -188,6 +203,21 @@ export const contributionReport = async (req: Request, res: Response, next: Next
       throw new ValidationError("agency must be sss, philhealth or pagibig");
     if (!period) throw new ValidationError("period is required");
     res.json(formatSuccess(await service.contributionReport(agency, period), "Contribution report"));
+  } catch (err) {
+    next(err);
+  }
+};
+
+// Owner dashboard: aggregate-only payroll summary (no employee data). Viewing
+// is deliberately not audit-logged.
+export const getOwnerSummary = async (req: Request, res: Response, next: NextFunction) => {
+  try {
+    // Payroll aggregates for the owner dashboard (no individual pay data), same
+    // for the three roles allowed here. 30 s; payroll writes invalidate it.
+    const data = await cached("payroll", "all", 30, () => ownerSummaryService.getOwnerSummary(req.query.months), {
+      query: { months: req.query.months },
+    });
+    res.json(formatSuccess(data, "Payroll summary retrieved"));
   } catch (err) {
     next(err);
   }

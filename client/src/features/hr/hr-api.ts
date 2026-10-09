@@ -75,6 +75,36 @@ export async function listEmployees(query: EmployeeQuery = {}): Promise<Employee
   return raw.map(normalize);
 }
 
+export interface EmployeePageParams extends EmployeeQuery {
+  page: number;
+  limit: number;
+}
+
+/** One page of employees (server-side search, filters and paging). */
+export async function listEmployeesPage(
+  params: EmployeePageParams,
+): Promise<{ items: Employee[]; total: number; pages: number }> {
+  const qs = new URLSearchParams({ page: String(params.page), limit: String(params.limit) });
+  if (params.search) qs.set("search", params.search);
+  if (params.department && params.department !== "all") qs.set("department", params.department);
+  if (params.status && params.status !== "all") qs.set("status", params.status);
+  const json = (await apiClient.get(`/employees?${qs.toString()}`)) as {
+    data: BackendEmployee[];
+    meta: { total: number; pages: number };
+  };
+  return { items: json.data.map(normalize), total: json.meta.total, pages: json.meta.pages };
+}
+
+/** Every employee matching a filter, fetched a page of 100 at a time (for CSV export). */
+export async function listEmployeesAll(query: EmployeeQuery = {}): Promise<Employee[]> {
+  const all: Employee[] = [];
+  for (let page = 1; ; page++) {
+    const result = await listEmployeesPage({ ...query, page, limit: 100 });
+    all.push(...result.items);
+    if (page >= result.pages || result.items.length === 0) return all;
+  }
+}
+
 export async function getEmployee(id: number): Promise<Employee> {
   const raw = await unwrap<BackendEmployee>(apiClient.get(`/employees/${id}`));
   return normalize(raw);

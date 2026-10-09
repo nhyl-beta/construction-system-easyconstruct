@@ -1,13 +1,79 @@
-import { and, desc, eq, ilike, or } from "drizzle-orm";
+import { and, desc, eq, gte, ilike, or, sql, type SQL } from "drizzle-orm";
+import { countRows, selectPage } from "../../db/paged.js";
 import type { ExpenseDecision } from "./decision.js";
 import type { ExpenseLike } from "./anomaly.js";
 
 import { db } from "../../db/connection.js";
 import { expenses } from "../../db/schema/finance.js";
+import { nextId } from "../purchasing/ids.js";
 
 import type { CreateExpenseInput, ListExpensesQuery } from "./types.js";
 
+const expenseConditions = ({ query, category }: Pick<ListExpensesQuery, "query" | "category">) => {
+  const conditions = [];
+  if (query) {
+    conditions.push(
+      or(ilike(expenses.vendor, `%${query}%`), ilike(expenses.id, `%${query}%`)),
+    );
+  }
+  if (category && category !== "all") {
+    conditions.push(eq(expenses.category, category));
+  }
+  return conditions;
+};
+
+export const EXPENSE_SORT_COLUMNS = {
+  submittedAt: expenses.submittedAt,
+  vendor: expenses.vendor,
+  project: expenses.project,
+  category: expenses.category,
+  amount: expenses.amount,
+  status: expenses.status,
+} as const;
+
+export const defaultExpenseOrder = [desc(expenses.submittedAt)];
+
 export const expensesRepository = {
+  async countMany(params: Pick<ListExpensesQuery, "query" | "category">) {
+    const conditions = expenseConditions(params);
+    return countRows(expenses, conditions.length ? and(...conditions) : undefined);
+  },
+
+  /** Spend per category over a filter set (first appearance = newest expense first, like the list). */
+  async breakdown(params: Pick<ListExpensesQuery, "query" | "category">) {
+    const conditions = expenseConditions(params);
+    const rows = await db
+      .select({
+        category: expenses.category,
+        amount: sql<string>`coalesce(sum(${expenses.amount}), 0)`,
+      })
+      .from(expenses)
+      .where(conditions.length ? and(...conditions) : undefined)
+      .groupBy(expenses.category)
+      .orderBy(desc(sql`max(${expenses.submittedAt})`));
+    return rows.map((r) => ({ category: r.category, amount: Number(r.amount) }));
+  },
+
+  /** Expenses the anomaly rules flagged (score >= 0.4) within a filter set, newest first. */
+  async anomalies(params: Pick<ListExpensesQuery, "query" | "category">, limit: number) {
+    const conditions = [...expenseConditions(params), gte(expenses.anomalyScore, 0.4)];
+    return db
+      .select()
+      .from(expenses)
+      .where(and(...conditions))
+      .orderBy(desc(expenses.submittedAt))
+      .limit(limit);
+  },
+
+  async findPage(
+    params: Pick<ListExpensesQuery, "query" | "category">,
+    window: { limit: number; offset: number },
+    orderBy: SQL[],
+  ) {
+    const conditions = expenseConditions(params);
+    return selectPage(expenses, conditions.length ? and(...conditions) : undefined, orderBy, window);
+  },
+
   async findMany({
     query,
     category,
@@ -47,10 +113,47 @@ export const expensesRepository = {
   },
 
   async create(input: CreateExpenseInput) {
-    const id = `EXP-${Math.floor(1000 + Math.random() * 9000)}`;
+    const id = await nextId("EXP", db);
     const [row] = await db
       .insert(expenses)
       .values({ id, ...input, amount: input.amount, status: "pending" })
+      .returning();
+    return row;
+  },
+
+  /**
+   * An expense that is already approved because a payment created it
+   * (purchase order or reimbursement). (source_type, source_id) is unique, so
+   * paying twice cannot produce a second row: the insert conflicts and nothing
+   * is returned.
+   */
+  async createApprovedFromSource(
+    exec: Pick<typeof db, "insert" | "execute">,
+    input: {
+      vendor: string;
+      project: string;
+      category: string;
+      amount: number;
+      sourceType: "purchase-order" | "reimbursement";
+      sourceId: string;
+      receiptUrl?: string | null;
+    },
+  ) {
+    const id = await nextId("EXP", exec);
+    const [row] = await exec
+      .insert(expenses)
+      .values({
+        id,
+        vendor: input.vendor,
+        project: input.project,
+        category: input.category,
+        amount: input.amount,
+        status: "approved",
+        receiptUrl: input.receiptUrl ?? null,
+        sourceType: input.sourceType,
+        sourceId: input.sourceId,
+      })
+      .onConflictDoNothing()
       .returning();
     return row;
   },

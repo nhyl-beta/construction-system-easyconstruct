@@ -1,5 +1,7 @@
 // client/src/pages/finance/finance-expenses.tsx
 import { useState } from "react";
+import { useSearchParams } from "react-router";
+import { useOpenOnAction } from "@/features/quick-search/useOpenOnAction";
 import { PageContainer } from "@/components/refine-ui/views/page-container";
 import { PageHeader } from "@/components/refine-ui/views/page-header";
 import { PageContent } from "@/components/refine-ui/views/page-content";
@@ -35,11 +37,16 @@ import { ConfirmDialog } from "@/components/ui/confirm-dialog";
 import { DataTablePagination } from "@/components/refine-ui/data-table/data-table-pagination";
 import { usePagination } from "@/hooks/use-pagination";
 import { useExpensesController, type CreateExpenseInput } from "@/features/finance/hooks/use-expenses";
+import { usePurchaseRequests } from "@/features/finance/hooks/use-purchase-requests";
+import { useProcurement } from "@/features/finance/hooks/use-procurement";
+import { useReimbursements } from "@/features/finance/hooks/use-reimbursements";
+import { PurchaseRequestsPanel, type Notice } from "@/features/finance/components/PurchaseRequestsPanel";
+import { ProcurementPanel } from "@/features/finance/components/ProcurementPanel";
+import { ReimbursementsPanel } from "@/features/finance/components/ReimbursementsPanel";
+import { EXPENSE_CATEGORIES } from "@/config/expense-categories";
 import {
   Bar, BarChart, CartesianGrid, ResponsiveContainer, Tooltip, XAxis, YAxis,
 } from "recharts";
-
-const EXPENSE_CATEGORIES = ["Materials", "Equipment", "PPE", "Transport", "Services"];
 
 function RecordExpenseDialog({
   creating,
@@ -51,6 +58,7 @@ function RecordExpenseDialog({
   onCreate: (input: CreateExpenseInput) => Promise<boolean>;
 }) {
   const [open, setOpen] = useState(false);
+  useOpenOnAction("new-expense", () => setOpen(true));
   const [vendor, setVendor] = useState("");
   const [project, setProject] = useState("");
   const [category, setCategory] = useState("");
@@ -126,16 +134,41 @@ function RecordExpenseDialog({
   );
 }
 
+const TABS = ["tracking", "purchase-requests", "reimbursements", "procurement", "analytics"] as const;
+type Tab = (typeof TABS)[number];
+
 export default function FinanceExpensesPage() {
   const c = useExpensesController();
-  const [active, setActive] = useState("tracking");
+  // ?tab= lets the approvals queue and notifications open the right tab.
+  const [params, setParams] = useSearchParams();
+  const requested = params.get("tab");
+  const active: Tab = TABS.find((t) => t === requested) ?? "tracking";
+  const setActive = (tab: string) =>
+    setParams(
+      (prev) => {
+        const next = new URLSearchParams(prev);
+        if (tab === "tracking") next.delete("tab");
+        else next.set("tab", tab);
+        return next;
+      },
+      { replace: true },
+    );
+  const purchaseRequests = usePurchaseRequests();
+  const procurement = useProcurement();
+  const reimbursements = useReimbursements("all");
   const { user } = useAuth();
   // The server enforces this too (403); the buttons are simply not offered to other roles.
   const canDecide = user?.role === "finance-manager" || user?.role === "admin";
-  const pagination = usePagination(c.expenses, 10);
+  const pagination = c.pagination;
   const [pendingDecision, setPendingDecision] = useState<{ id: string; vendor: string; amount: number; decision: "approve" | "reject" } | null>(null);
   const [deciding, setDeciding] = useState(false);
-  const [notice, setNotice] = useState<{ tone: "warn" | "error"; text: string } | null>(null);
+  const [notice, setNotice] = useState<Notice>(null);
+
+  /** Jump to the ledger row a payment created. */
+  const openExpense = (expenseId: string) => {
+    c.setQuery(expenseId);
+    setActive("tracking");
+  };
 
   const runDecision = async () => {
     if (!pendingDecision) return;
@@ -175,17 +208,32 @@ export default function FinanceExpensesPage() {
         <KpiStrip
           items={[
             { label: "MTD spend (approved)", value: c.monthlyApproved === null ? "—" : formatCurrency(c.monthlyApproved), icon: Receipt },
-            { label: "Open requests", value: `${c.purchaseRequests.length}`, icon: ListChecks, tone: "warn" },
-            // eslint-disable-next-line @typescript-eslint/no-explicit-any
-            { label: "Reimbursements", value: formatCurrency(c.reimbursements.reduce((s: number, r: any) => s + r.amount, 0)), icon: Wallet },
-            { label: "Procurement in transit", value: `${c.procurement.length}`, icon: Truck },
+            {
+              label: "Open requests",
+              value: purchaseRequests.loading ? "\u2026" : `${purchaseRequests.waitingOnFinance.length}`,
+              icon: ListChecks,
+              tone: purchaseRequests.waitingOnFinance.length > 0 ? "warn" : "neutral",
+              hint: "Purchase requests waiting on Finance",
+            },
+            {
+              label: "Reimbursements",
+              value: reimbursements.loading ? "\u2026" : formatCurrency(reimbursements.openAmount),
+              icon: Wallet,
+              hint: "Claims to approve or pay",
+            },
+            {
+              label: "Procurement in transit",
+              value: procurement.loading ? "\u2026" : `${procurement.inTransit.length}`,
+              icon: Truck,
+              hint: "Ordered or in transit",
+            },
           ]}
         />
 
         <Tabs value={active} onValueChange={setActive}>
           <TabsList>
             <TabsTrigger value="tracking">Tracking</TabsTrigger>
-            <TabsTrigger value="requests">Purchase Requests</TabsTrigger>
+            <TabsTrigger value="purchase-requests">Purchase Requests</TabsTrigger>
             <TabsTrigger value="reimbursements">Reimbursements</TabsTrigger>
             <TabsTrigger value="procurement">Procurement</TabsTrigger>
             <TabsTrigger value="analytics">Analytics</TabsTrigger>
@@ -201,13 +249,13 @@ export default function FinanceExpensesPage() {
                     variant="outline"
                     size="sm"
                     className="h-8 text-xs"
-                    disabled={c.expenses.length === 0}
+                    disabled={pagination.total === 0}
                     title="Export the rows currently shown as CSV (opens in Excel)"
-                    onClick={() =>
+                    onClick={async () =>
                       downloadCsv(
                         "expenses",
                         ["ID", "Vendor", "Project", "Category", "Amount", "Submitted", "Status", "Anomaly score", "Anomaly reason"],
-                        c.expenses.map((e) => [e.id, e.vendor, e.project, e.category, e.amount, e.submittedAt, e.status, e.anomalyScore ?? "", e.anomalyReason ?? ""]),
+                        (await c.fetchAllMatching()).map((e) => [e.id, e.vendor, e.project, e.category, e.amount, e.submittedAt, e.status, e.anomalyScore ?? "", e.anomalyReason ?? ""]),
                       )
                     }
                   >
@@ -228,11 +276,11 @@ export default function FinanceExpensesPage() {
                     </SelectTrigger>
                     <SelectContent>
                       <SelectItem value="all">All categories</SelectItem>
-                      <SelectItem value="Materials">Materials</SelectItem>
-                      <SelectItem value="Equipment">Equipment</SelectItem>
-                      <SelectItem value="PPE">PPE</SelectItem>
-                      <SelectItem value="Transport">Transport</SelectItem>
-                      <SelectItem value="Services">Services</SelectItem>
+                      {EXPENSE_CATEGORIES.map((cat) => (
+                        <SelectItem key={cat} value={cat}>
+                          {cat}
+                        </SelectItem>
+                      ))}
                     </SelectContent>
                   </Select>
                 </>
@@ -244,7 +292,7 @@ export default function FinanceExpensesPage() {
                     <div key={i} className="h-10 animate-pulse rounded-lg bg-muted/40" />
                   ))}
                 </div>
-              ) : c.expenses.length === 0 ? (
+              ) : pagination.total === 0 ? (
                 <div className="p-6 text-center text-sm text-muted-foreground">
                   No expenses match your filters.
                 </div>
@@ -260,6 +308,7 @@ export default function FinanceExpensesPage() {
                       <TableHead>Submitted</TableHead>
                       <TableHead>Receipt</TableHead>
                       {FEATURES.ai && <TableHead>Anomaly</TableHead>}
+                      <TableHead>Source</TableHead>
                       <TableHead>Status</TableHead>
                       {canDecide && <TableHead className="text-right">Action</TableHead>}
                     </TableRow>
@@ -295,6 +344,19 @@ export default function FinanceExpensesPage() {
                             )}
                           </TableCell>
                         )}
+                        <TableCell className="text-xs">
+                          {e.sourceType === "purchase-order" && e.sourceId ? (
+                            <button type="button" className="font-mono text-primary-strong underline-offset-2 hover:underline" onClick={() => setActive("procurement")}>
+                              {e.sourceId}
+                            </button>
+                          ) : e.sourceType === "reimbursement" && e.sourceId ? (
+                            <button type="button" className="font-mono text-primary-strong underline-offset-2 hover:underline" onClick={() => setActive("reimbursements")}>
+                              {e.sourceId}
+                            </button>
+                          ) : (
+                            <span className="text-muted-foreground">Manual</span>
+                          )}
+                        </TableCell>
                         <TableCell><StatusBadge status={e.status} /></TableCell>
                         {canDecide && (
                           <TableCell className="text-right">
@@ -315,7 +377,7 @@ export default function FinanceExpensesPage() {
                   </TableBody>
                 </Table>
               )}
-              {c.expenses.length > 0 && <DataTablePagination {...pagination} />}
+              {pagination.total > 0 && <DataTablePagination {...pagination} />}
             </SectionCard>
           </TabsContent>
 
@@ -337,8 +399,7 @@ export default function FinanceExpensesPage() {
               {FEATURES.ai && (
                 <SectionCard title="Anomaly detection" subtitle="Rule-based: duplicate payments and amounts far above history. Advisory only.">
                   <ul className="space-y-2">
-                    {c.expenses
-                      .filter((e) => (e.anomalyScore ?? 0) >= 0.4)
+                    {c.anomalies
                       .map((e) => (
                         <li key={e.id} className="rounded-xl border bg-warning/5 p-3">
                           <div className="flex items-center gap-2 text-xs">
@@ -360,9 +421,23 @@ export default function FinanceExpensesPage() {
             </div>
           </TabsContent>
 
-          {/* requests / reimbursements / procurement tabs: wire up once
-              use-expenses.ts's stubbed purchaseRequests/reimbursements/procurement
-              arrays are backed by their own fetch calls (Phase 2 backend modules) */}
+          <TabsContent value="purchase-requests" className="mt-4">
+            <SectionCard title="Purchase requests" subtitle="Raised from approved requirements. Approving commits the amount on the project budget.">
+              <PurchaseRequestsPanel requests={purchaseRequests} orders={procurement} canDecide={canDecide} onNotice={setNotice} />
+            </SectionCard>
+          </TabsContent>
+
+          <TabsContent value="reimbursements" className="mt-4">
+            <SectionCard title="Reimbursement claims" subtitle="Out-of-pocket costs claimed by staff. Paying a claim books one approved expense.">
+              <ReimbursementsPanel claims={reimbursements} canAct={canDecide} onNotice={setNotice} onOpenExpense={openExpense} />
+            </SectionCard>
+          </TabsContent>
+
+          <TabsContent value="procurement" className="mt-4">
+            <SectionCard title="Procurement orders" subtitle="Order, ship, receive on site, then pay. Payment books one approved expense.">
+              <ProcurementPanel procurement={procurement} canAct={canDecide} onNotice={setNotice} onOpenExpense={openExpense} />
+            </SectionCard>
+          </TabsContent>
         </Tabs>
       </PageContent>
 

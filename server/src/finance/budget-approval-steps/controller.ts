@@ -3,6 +3,7 @@ import { HTTP } from "../../constants/http-status.js";
 import { MSG } from "../../constants/messages.js";
 import { formatSuccess } from "../../utils/response.js";
 import * as service from "./service.js";
+import { byDate, byString, respondList } from "../../utils/pagination.js";
 
 export const getAll = async (
   req: Request,
@@ -14,7 +15,10 @@ export const getAll = async (
       ? Number(req.query.budgetId)
       : undefined;
     const data = await service.getAll({ budgetId });
-    res.json(formatSuccess(data, MSG.budgetApprovalSteps.retrieved));
+    respondList(res, req.query, data, MSG.budgetApprovalSteps.retrieved, {
+      decidedAt: byDate((s) => s.decidedAt),
+      stage: byString((s) => s.stage),
+    });
   } catch (err) {
     next(err);
   }

@@ -1,3 +1,4 @@
+import { useDebouncedValue } from "@/hooks/use-debounced-value";
 import { useEffect, useMemo, useState } from "react";
 import { apiClient } from "@/services/api.client";
 import type { AdjustmentKind, BudgetAdjustment } from "../types/budget-adjustment.types";
@@ -6,6 +7,7 @@ export const useBudgetAdjustmentController = () => {
   const [items, setItems] = useState<BudgetAdjustment[]>([]);
   const [loading, setLoading] = useState(true);
   const [query, setQuery] = useState("");
+  const debouncedQuery = useDebouncedValue(query.trim(), 300);
   const [kind, setKind] = useState<AdjustmentKind | "all">("all");
   const [status, setStatus] = useState("all");
 
@@ -14,7 +16,7 @@ export const useBudgetAdjustmentController = () => {
     setLoading(true);
 
     const params = new URLSearchParams();
-    if (query) params.set("search", query);
+    if (debouncedQuery) params.set("search", debouncedQuery);
     if (kind !== "all") params.set("kind", kind);
     if (status !== "all") params.set("status", status);
 
@@ -30,7 +32,7 @@ export const useBudgetAdjustmentController = () => {
       .finally(() => setLoading(false));
 
     return () => controller.abort();
-  }, [query, kind, status]);
+  }, [debouncedQuery, kind, status]);
 
   const totals = useMemo(() => {
     const count = items.length;

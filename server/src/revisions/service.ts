@@ -1,6 +1,7 @@
 // server/src/revisions/service.ts
 import { ForbiddenError, NotFoundError, ValidationError } from "../utils/errors.js";
-import { resolvePage } from "../utils/paging.js";
+import { revisions as revisionsTable } from "../db/schema/revisions.js";
+import { orderByFor, paginate, resolveMeta, type PageRequest } from "../utils/pagination.js";
 import { assertProjectWritable } from "../lifecycle/service.js";
 import * as notificationsService from "../notifications/service.js";
 import { openStoredFile } from "../uploads/service.js";
@@ -48,20 +49,21 @@ const assertCanSee = (allowed: Set<string> | null, projectCode: string, what = "
 
 export const list = async (
   filters: Omit<RevisionFilters, "projectCodes">,
-  page: { page?: number; pageSize?: number },
+  request: PageRequest,
   actor: RevisionActor,
 ) => {
   const allowed = await allowedProjectCodes(actor);
   const scoped: RevisionFilters = { ...filters, ...(allowed ? { projectCodes: [...allowed] } : {}) };
   // A caller with no projects sees nothing (an empty IN list would be invalid SQL).
   if (allowed && allowed.size === 0) {
-    const empty = resolvePage(page, 0);
-    return { items: [] as Revision[], meta: { total: 0, page: empty.page, pageSize: empty.pageSize, pages: empty.pages } };
+    return { items: [] as Revision[], meta: resolveMeta(request, 0).meta };
   }
-  const total = await repo.countFiltered(scoped);
-  const meta = resolvePage(page, total);
-  const rows = await repo.findPage(scoped, meta.pageSize, meta.offset);
-  return { items: rows, meta: { total, page: meta.page, pageSize: meta.pageSize, pages: meta.pages } };
+  const orderBy = orderByFor(request, repo.REVISION_SORT_COLUMNS, repo.defaultRevisionOrder, revisionsTable.id);
+  return paginate(
+    request,
+    () => repo.countFiltered(scoped),
+    ({ limit, offset }) => repo.findPage(scoped, limit, offset, orderBy),
+  );
 };
 
 export const getById = async (id: number, actor: RevisionActor): Promise<RevisionDetail> => {

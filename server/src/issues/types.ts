@@ -33,6 +33,8 @@ export interface CreateIssueInput {
 }
 
 export interface IssueFilters {
+  /** Restrict to these project codes (visibility scope; set by the controller). */
+  codes?: string[];
   projectCode?: string;
   status?: string;
   reportedByUserId?: number;

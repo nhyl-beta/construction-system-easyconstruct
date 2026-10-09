@@ -21,7 +21,8 @@ async function unwrap<T>(promise: Promise<any>): Promise<T> {
 
 export const WorkflowRepository = {
   async listTemplates(): Promise<WorkflowTemplate[]> {
-    return unwrap<WorkflowTemplate[]>(apiClient.get("/workflows/templates"));
+    // Templates are configuration: cached for five minutes (a write to /workflows invalidates them).
+    return unwrap<WorkflowTemplate[]>(apiClient.get("/workflows/templates", { staleTime: 5 * 60_000 }));
   },
 
   /** Admin/IT Designer defining a new, reusable workflow template. */
@@ -36,6 +37,17 @@ export const WorkflowRepository = {
 
   async listActive(): Promise<Workflow[]> {
     return unwrap<Workflow[]>(apiClient.get("/workflows"));
+  },
+
+  /** One page of active workflows (server-side paging and search). */
+  async listActivePage(params: { page: number; limit: number; search?: string }): Promise<{ items: Workflow[]; total: number; pages: number }> {
+    const qs = new URLSearchParams({ page: String(params.page), limit: String(params.limit) });
+    if (params.search) qs.set("search", params.search);
+    const json = (await apiClient.get(`/workflows?${qs.toString()}`)) as {
+      data: Workflow[];
+      meta: { total: number; pages: number };
+    };
+    return { items: json.data, total: json.meta.total, pages: json.meta.pages };
   },
 
   async getById(id: number): Promise<Workflow> {
@@ -71,8 +83,10 @@ export const WorkflowRepository = {
     );
   },
 
-  async listApprovals(scope: ApprovalScope): Promise<ApprovalQueueItem[]> {
-    return unwrap<ApprovalQueueItem[]>(apiClient.get(`/workflows/approvals?scope=${scope}`));
+  async listApprovals(scope: ApprovalScope, limit?: number): Promise<ApprovalQueueItem[]> {
+    return unwrap<ApprovalQueueItem[]>(
+      apiClient.get(`/workflows/approvals?scope=${scope}${limit ? `&page=1&limit=${limit}` : ""}`),
+    );
   },
 
   async getApprovalStats(): Promise<ApprovalStats> {

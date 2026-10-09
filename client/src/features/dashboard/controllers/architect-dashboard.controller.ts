@@ -1,18 +1,13 @@
-import { useDesigns } from "@/features/designs/hooks/useDesigns";
-import { useProposals } from "@/features/proposals/hooks/useProposals";
+import { useDashboardSummary, type ArchitectSummary } from "../hooks/useDashboardSummary";
 
 export const useArchitectDashboardController = () => {
-  const designs = useDesigns();
-  const proposals = useProposals();
-
-  const recentDesigns = [...designs.designs]
-    .sort((a, b) => (b.createdAt ?? "").localeCompare(a.createdAt ?? ""))
-    .slice(0, 5);
+  const { summary, loading } = useDashboardSummary<ArchitectSummary>();
 
   return {
-    loading: designs.loading || proposals.loading,
-    kpis: designs.kpis,
-    proposalKpis: proposals.kpis,
-    recentDesigns,
+    loading,
+    kpis: summary?.designs.kpis ?? { total: 0, inReview: 0, approved: 0, revisionNeeded: 0 },
+    proposalKpis: summary?.proposals.kpis ?? { total: 0, pending: 0, approved: 0, revisionRequested: 0 },
+    // The five newest designs among the architect's assigned projects.
+    recentDesigns: summary?.designs.recent ?? [],
   };
 };

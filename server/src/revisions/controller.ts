@@ -9,6 +9,8 @@ import type { AuthedRequest } from "../middleware/auth.js";
 import * as service from "./service.js";
 import { REVISION_ITEM_TYPES, REVISION_STATUSES, type RevisionItemType, type RevisionStatus } from "./rules.js";
 import type { RevisionActor } from "./types.js";
+import { parsePageRequest, sendPaged } from "../utils/pagination.js";
+import { REVISION_SORT_COLUMNS } from "./repository.js";
 
 const actorOf = (req: AuthedRequest): RevisionActor => {
   const u = req.authUser;
@@ -43,10 +45,10 @@ export const getAll = async (req: AuthedRequest, res: Response, next: NextFuncti
         search: str(q.search),
         currentOnly: q.currentOnly === "1" || q.currentOnly === "true",
       },
-      { page: num(q.page) ?? 1, pageSize: num(q.pageSize) },
+      parsePageRequest(q, { enforce: true, sortable: Object.keys(REVISION_SORT_COLUMNS) }),
       actorOf(req),
     );
-    res.json({ ...formatSuccess(items, "Revisions retrieved"), meta });
+    sendPaged(res, items, "Revisions retrieved", meta);
   } catch (err) {
     next(err);
   }

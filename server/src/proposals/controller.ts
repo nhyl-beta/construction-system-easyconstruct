@@ -1,7 +1,11 @@
 import { Request, Response } from "express";
 import type { AuthedRequest } from "../middleware/auth.js";
 import { logAudit } from "../utils/audit.js";
-import { assertAssignedToProject, scopeRowsToAssigned } from "../projects/scope.js";
+import { assertAssignedToProject, assignedCodesFor, isAssignedScoped, scopeRowsToAssigned } from "../projects/scope.js";
+import { parsePageRequest } from "../utils/pagination.js";
+import { cached } from "../cache/index.js";
+import { userScope } from "../cache/scope.js";
+import { PROPOSAL_SORT_COLUMNS } from "./repository.js";
 
 import {
   proposalService,
@@ -12,16 +16,46 @@ export const proposalController = {
     req: Request,
     res: Response,
   ) {
-    const data = await scopeRowsToAssigned(
-      (req as AuthedRequest).authUser,
-      await proposalService.getAll(),
-      (p) => p.projectCode,
-    );
+    const auth = (req as AuthedRequest).authUser;
+    const paging = parsePageRequest(req.query, { sortable: Object.keys(PROPOSAL_SORT_COLUMNS) });
+    const text = (v: unknown) => (typeof v === "string" && v.trim() ? v.trim() : undefined);
 
-    return res.json({
-      success: true,
-      data,
-    });
+    const load = async () => {
+      if (paging.requested) {
+        const { items, meta } = await proposalService.getPage(
+          {
+            ...(isAssignedScoped(auth) ? { codes: [...(await assignedCodesFor(auth))] } : {}),
+            projectCode: text(req.query.projectCode),
+            status: text(req.query.status),
+            search: text(req.query.search),
+            excludeStatus: text(req.query.excludeStatus),
+            reviewQueue: req.query.queue === "consultant",
+          },
+          paging,
+        );
+        if (req.query.counts === "1") {
+          const statusCounts = await proposalService.statusCounts({
+            ...(isAssignedScoped(auth) ? { codes: [...(await assignedCodesFor(auth))] } : {}),
+            projectCode: text(req.query.projectCode),
+          });
+          return { data: items, meta: { ...meta, statusCounts } };
+        }
+        return { data: items, meta };
+      }
+      const data = await scopeRowsToAssigned(
+        auth,
+        await proposalService.getAll(),
+        (p) => p.projectCode,
+      );
+      return { data, meta: undefined };
+    };
+
+    // 60 s. Only an architect gets a narrowed list (its assigned projects), so
+    // an architect's entry is its own; every other role shares one.
+    const scope = isAssignedScoped(auth) ? userScope(auth) : "all";
+    const result = scope ? await cached("proposals", scope, 60, load, { query: req.query }) : await load();
+
+    return res.json(result.meta ? { success: true, data: result.data, meta: result.meta } : { success: true, data: result.data });
   },
 
   async getById(

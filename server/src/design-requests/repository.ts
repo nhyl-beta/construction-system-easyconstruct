@@ -42,6 +42,14 @@ export const findById = async (id: number): Promise<DesignRequest | null> => {
   return row ?? null;
 };
 
+/** Several requests in one query, keyed by id. */
+export const findByIds = async (ids: number[]): Promise<Map<number, DesignRequest>> => {
+  const unique = [...new Set(ids)];
+  if (unique.length === 0) return new Map();
+  const rows = await db.select().from(designRequests).where(inArray(designRequests.id, unique));
+  return new Map(rows.map((r) => [r.id, r]));
+};
+
 export const findFollowUps = async (id: number) =>
   db.select().from(designRequests).where(eq(designRequests.followUpOfId, id)).orderBy(asc(designRequests.id));
 
@@ -118,6 +126,16 @@ export const findOpenByProject = async (projectCode: string): Promise<DesignRequ
     .from(designRequests)
     .where(and(eq(designRequests.projectCode, projectCode), notInArray(designRequests.status, FINISHED)))
     .orderBy(asc(designRequests.id));
+
+/** Open requests across several projects in one query (id order, like findOpenByProject). */
+export const findOpenByProjects = async (projectCodes: string[]): Promise<DesignRequest[]> =>
+  projectCodes.length === 0
+    ? []
+    : db
+        .select()
+        .from(designRequests)
+        .where(and(inArray(designRequests.projectCode, projectCodes), notInArray(designRequests.status, FINISHED)))
+        .orderBy(asc(designRequests.id));
 
 export const findOverdueUnnotified = async (now: Date): Promise<DesignRequest[]> =>
   db
