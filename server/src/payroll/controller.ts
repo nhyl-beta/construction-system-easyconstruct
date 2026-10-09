@@ -8,6 +8,8 @@ import { ValidationError } from "../utils/errors.js";
 import * as service from "./service.js";
 import * as ownerSummaryService from "./owner-summary.service.js";
 import type { PayrollFilters } from "./types.js";
+import { byDate, byString, parsePageRequest, respondList, sendPaged } from "../utils/pagination.js";
+import { PAYROLL_SORT_COLUMNS } from "./repository.js";
 
 const actorOf = (req: AuthedRequest): service.Actor => ({
   name: req.authUser?.name ?? "unknown",
@@ -26,6 +28,12 @@ export const getAll = async (req: AuthedRequest, res: Response, next: NextFuncti
       empId: req.query.empId as string,
       batchId: req.query.batchId as string,
     };
+    const paging = parsePageRequest(req.query, { sortable: Object.keys(PAYROLL_SORT_COLUMNS) });
+    if (paging.requested) {
+      const { items, meta } = await service.getPage(filters, paging, actorOf(req));
+      sendPaged(res, items, MSG.payroll.retrieved, meta);
+      return;
+    }
     const data = await service.getAll(filters, actorOf(req));
     res.json(formatSuccess(data, MSG.payroll.retrieved));
   } catch (err) {
@@ -122,7 +130,12 @@ export const generate = async (req: AuthedRequest, res: Response, next: NextFunc
 export const listBatches = async (req: AuthedRequest, res: Response, next: NextFunction) => {
   try {
     const data = await service.listBatches(actorOf(req));
-    res.json(formatSuccess(data, MSG.payrollBatches.retrieved));
+    respondList(res, req.query, data, MSG.payrollBatches.retrieved, {
+      createdAt: byDate((b) => b.createdAt),
+      period: byString((b) => b.period),
+      status: byString((b) => b.status),
+      projectCode: byString((b) => b.projectCode),
+    });
   } catch (err) {
     next(err);
   }

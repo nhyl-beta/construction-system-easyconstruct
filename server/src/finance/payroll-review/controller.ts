@@ -4,6 +4,7 @@ import * as service from "./service.js";
 import { sendSuccess } from "../../utils/response.js";
 import { logAudit } from "../../utils/audit.js";
 import type { AuthedRequest } from "../../middleware/auth.js";
+import { byDate, byString, respondList } from "../../utils/pagination.js";
 
 /**
  * Route parameters
@@ -28,7 +29,12 @@ export const listPayrollBatches = async (
       projectCode: projectCode as string | undefined,
     });
 
-    return sendSuccess(res, batches);
+    return respondList(res, req.query, batches, "OK", {
+      createdAt: byDate((b) => b.createdAt),
+      period: byString((b) => b.period),
+      status: byString((b) => b.status),
+      projectCode: byString((b) => b.projectCode),
+    });
   } catch (err) {
     return next(err);
   }

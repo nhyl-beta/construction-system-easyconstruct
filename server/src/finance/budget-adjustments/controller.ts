@@ -4,6 +4,7 @@ import { MSG } from "../../constants/messages.js";
 import { formatSuccess } from "../../utils/response.js";
 import * as service from "./service.js";
 import type { BudgetAdjustmentFilters } from "./types.js";
+import { byDate, byString, respondList } from "../../utils/pagination.js";
 
 export const getAll = async (
   req: Request,
@@ -17,12 +18,11 @@ export const getAll = async (
       status: req.query.status as string,
       search: req.query.search as string,
     };
-    res.json(
-      formatSuccess(
-        await service.getAll(filters),
-        MSG.budgetAdjustments.retrieved,
-      ),
-    );
+    respondList(res, req.query, await service.getAll(filters), MSG.budgetAdjustments.retrieved, {
+      requestedAt: byDate((a) => a.requestedAt),
+      status: byString((a) => a.status),
+      kind: byString((a) => a.kind),
+    });
   } catch (err) {
     next(err);
   }

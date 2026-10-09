@@ -3,6 +3,8 @@ import { requirements } from "../db/schema/requirements.js";
 import { projects } from "../db/schema/projects.js";
 import { and, desc, eq, ilike, SQL } from "drizzle-orm";
 import { ForbiddenError, NotFoundError, ValidationError } from "../utils/errors.js";
+import * as repo from "./repository.js";
+import { orderByFor, paginate, type PageRequest } from "../utils/pagination.js";
 import * as projectMemberRepo from "../project-members/repository.js";
 import { assertSitePersonnelMayCreate, assertSitePersonnelMayUpdate } from "./permissions.js";
 import { assertProjectWritable, refreshProjectProgress } from "../lifecycle/service.js";
@@ -32,24 +34,15 @@ const assertCanSetStatus = (status: string | undefined, actorRole: string) => {
   );
 };
 
-export const findAll = async (filters: RequirementFilters = {}) => {
-  const conditions: SQL[] = [];
-  if (filters.project && filters.project !== "all") {
-    conditions.push(eq(requirements.project, filters.project));
-  }
-  if (filters.category && filters.category !== "all") {
-    conditions.push(eq(requirements.category, filters.category));
-  }
-  if (filters.status && filters.status !== "all") {
-    conditions.push(eq(requirements.status, filters.status));
-  }
-  if (filters.search) {
-    conditions.push(ilike(requirements.title, `%${filters.search}%`));
-  }
+// The filter logic lives in repository.ts (one copy, shared with the paged read).
+export const findAll = async (filters: RequirementFilters = {}) => repo.findAll(filters);
 
-  const query = db.select().from(requirements).orderBy(desc(requirements.updatedAt));
-  return conditions.length ? await query.where(and(...conditions)) : await query;
-};
+export const getPage = async (filters: RequirementFilters, request: PageRequest) =>
+  paginate(
+    request,
+    () => repo.countFiltered(filters),
+    (window) => repo.findPage(filters, window, orderByFor(request, repo.REQUIREMENT_SORT_COLUMNS, repo.defaultRequirementOrder, requirements.id)),
+  );
 
 export const findById = async (id: number) => {
   const [row] = await db.select().from(requirements).where(eq(requirements.id, id));

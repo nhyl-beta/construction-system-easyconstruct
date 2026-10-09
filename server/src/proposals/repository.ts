@@ -4,9 +4,51 @@ import {
   type NewProposal,
 } from "../db/schema/proposals.js";
 
-import { desc, eq } from "drizzle-orm";
+import { and, desc, eq, ilike, or, SQL } from "drizzle-orm";
+import { countRows, inCodes, selectPage } from "../db/paged.js";
+
+export interface ProposalFilters {
+  /** Restrict to these project codes (assigned-project scope; set by the controller). */
+  codes?: string[];
+  projectCode?: string;
+  status?: string;
+  search?: string;
+}
+
+const buildConditions = (filters: ProposalFilters): SQL[] => {
+  const conditions: SQL[] = [];
+  if (filters.codes) conditions.push(inCodes(proposals.projectCode, filters.codes));
+  if (filters.projectCode) conditions.push(eq(proposals.projectCode, filters.projectCode));
+  if (filters.status && filters.status !== "all") conditions.push(eq(proposals.status, filters.status));
+  if (filters.search) {
+    const s = `%${filters.search}%`;
+    conditions.push(or(ilike(proposals.title, s), ilike(proposals.proposalId, s), ilike(proposals.projectCode, s))!);
+  }
+  return conditions;
+};
+
+export const PROPOSAL_SORT_COLUMNS = {
+  id: proposals.id,
+  title: proposals.title,
+  projectCode: proposals.projectCode,
+  status: proposals.status,
+  createdAt: proposals.createdAt,
+  updatedAt: proposals.updatedAt,
+} as const;
+
+export const defaultProposalOrder = [desc(proposals.id)];
 
 export const proposalRepository = {
+  async countFiltered(filters: ProposalFilters = {}) {
+    const conditions = buildConditions(filters);
+    return countRows(proposals, conditions.length ? and(...conditions) : undefined);
+  },
+
+  async findPage(filters: ProposalFilters, window: { limit: number; offset: number }, orderBy: SQL[]) {
+    const conditions = buildConditions(filters);
+    return selectPage(proposals, conditions.length ? and(...conditions) : undefined, orderBy, window);
+  },
+
   async findAll() {
     // Explicit descending order by id, so a newly-submitted proposal appears
     // at the top of the table instead of at the bottom where reviewers were

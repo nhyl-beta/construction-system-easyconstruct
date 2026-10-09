@@ -1,7 +1,9 @@
 import { Request, Response } from "express";
 import type { AuthedRequest } from "../middleware/auth.js";
 import { logAudit } from "../utils/audit.js";
-import { assertAssignedToProject, scopeRowsToAssigned } from "../projects/scope.js";
+import { assertAssignedToProject, assignedCodesFor, isAssignedScoped, scopeRowsToAssigned } from "../projects/scope.js";
+import { parsePageRequest } from "../utils/pagination.js";
+import { PROPOSAL_SORT_COLUMNS } from "./repository.js";
 
 import {
   proposalService,
@@ -12,6 +14,22 @@ export const proposalController = {
     req: Request,
     res: Response,
   ) {
+    const paging = parsePageRequest(req.query, { sortable: Object.keys(PROPOSAL_SORT_COLUMNS) });
+    if (paging.requested) {
+      const auth = (req as AuthedRequest).authUser;
+      const text = (v: unknown) => (typeof v === "string" && v.trim() ? v.trim() : undefined);
+      const { items, meta } = await proposalService.getPage(
+        {
+          ...(isAssignedScoped(auth) ? { codes: [...(await assignedCodesFor(auth))] } : {}),
+          projectCode: text(req.query.projectCode),
+          status: text(req.query.status),
+          search: text(req.query.search),
+        },
+        paging,
+      );
+      return res.json({ success: true, data: items, meta });
+    }
+
     const data = await scopeRowsToAssigned(
       (req as AuthedRequest).authUser,
       await proposalService.getAll(),

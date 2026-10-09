@@ -44,6 +44,7 @@ import milestoneRoutes from "./milestones/routes.js";
 import myActionsRoutes from "./lifecycle/my-actions.js";
 import aiValidationRoutes from "./ai-validation/routes.js";
 import calendarRoutes from "./calendar/routes.js";
+import dashboardRoutes from "./dashboard/routes.js";
 
 import uploadRoutes from "./uploads/routes.js";
 
@@ -122,6 +123,8 @@ app.use("/api/calendar", calendarRoutes);
 // ai-signals E6: admin-only manual refresh of the cached cost catalog.
 app.use("/api/ai-validation", aiValidationRoutes);
 app.use("/api/uploads", uploadRoutes);
+// Role-aware dashboard totals (replaces downloading full lists to count them in the browser).
+app.use("/api/dashboard", dashboardRoutes);
 
 
 app.use(errorMiddleware);

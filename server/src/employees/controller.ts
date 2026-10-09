@@ -6,6 +6,8 @@ import { logAudit } from "../utils/audit.js";
 import * as service from "./service.js";
 import type { EmployeeFilters } from "./types.js";
 import { AuthedRequest } from "../middleware/auth.js";
+import { parsePageRequest, sendPaged } from "../utils/pagination.js";
+import { EMPLOYEE_SORT_COLUMNS } from "./repository.js";
 
 export const getAll = async (
   req: Request,
@@ -15,9 +17,16 @@ export const getAll = async (
   try {
     const filters: EmployeeFilters = {
       search: req.query.search as string,
+      employeeId: typeof req.query.employeeId === "string" && req.query.employeeId ? req.query.employeeId : undefined,
       department: req.query.department as string,
       status: req.query.status as string,
     };
+    const paging = parsePageRequest(req.query, { sortable: Object.keys(EMPLOYEE_SORT_COLUMNS), defaultOrder: "asc" });
+    if (paging.requested) {
+      const { items, meta } = await service.getPage(filters, paging);
+      sendPaged(res, items, MSG.employees.retrieved, meta);
+      return;
+    }
     const data = await service.getAll(filters);
     res.json(formatSuccess(data, MSG.employees.retrieved));
   } catch (err) {

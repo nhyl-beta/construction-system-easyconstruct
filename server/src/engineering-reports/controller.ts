@@ -5,7 +5,9 @@ import { formatSuccess } from "../utils/response.js";
 import type { AuthedRequest } from "../middleware/auth.js";
 import * as service from "./service.js";
 import type { EngineeringReportFilters } from "./types.js";
-import { assertProjectVisible, scopeRowsToVisible } from "../projects/service.js";
+import { assertProjectVisible, scopeRowsToVisible, scopedProjectCodes } from "../projects/service.js";
+import { parsePageRequest, sendPaged } from "../utils/pagination.js";
+import { REPORT_SORT_COLUMNS } from "./repository.js";
 
 export const getAll = async (req: Request, res: Response, next: NextFunction) => {
   try {
@@ -15,6 +17,13 @@ export const getAll = async (req: Request, res: Response, next: NextFunction) =>
       status: req.query.status as string,
       search: req.query.search as string,
     };
+    const paging = parsePageRequest(req.query, { sortable: Object.keys(REPORT_SORT_COLUMNS) });
+    if (paging.requested) {
+      const codes = await scopedProjectCodes((req as AuthedRequest).authUser);
+      const { items, meta } = await service.getPage({ ...filters, ...(codes ? { codes } : {}) }, paging);
+      sendPaged(res, items, MSG.engineeringReports.retrieved, meta);
+      return;
+    }
     const data = await scopeRowsToVisible(
       (req as AuthedRequest).authUser,
       await service.getAll(filters),

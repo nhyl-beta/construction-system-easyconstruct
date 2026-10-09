@@ -5,6 +5,10 @@ import { formatSuccess } from "../utils/response.js";
 import type { AuthedRequest } from "../middleware/auth.js";
 import * as service from "./service.js";
 import type { ProjectFilters } from "./types.js";
+import { parsePageRequest, sendPaged } from "../utils/pagination.js";
+import { PROJECT_SORT_COLUMNS } from "./repository.js";
+
+const PROJECT_SORTABLE = Object.keys(PROJECT_SORT_COLUMNS);
 
 const scopeOf = (req: AuthedRequest) =>
   req.authUser
@@ -24,22 +28,17 @@ export const getAll = async (
       deliveryType: req.query.deliveryType as string,
       excludeArchived: req.query.excludeArchived === "1",
       search: req.query.search as string,
+      code: typeof req.query.code === "string" && req.query.code ? req.query.code : undefined,
     };
     // Consultant is scoped to the projects it advises on, with commercial
     // fields stripped — see projects/service.ts getAll.
     const scope = scopeOf(req);
-    // Server-side pagination is opt-in (page/pageSize); every other caller
-    // keeps receiving the plain array.
-    if (req.query.page !== undefined || req.query.pageSize !== undefined) {
-      const { items, meta } = await service.getPage(
-        {
-          ...filters,
-          page: Number(req.query.page) || 1,
-          pageSize: Number(req.query.pageSize) || 10,
-        },
-        scope,
-      );
-      res.json({ ...formatSuccess(items, MSG.projects.retrieved), meta });
+    // Server-side pagination is opt-in (page / limit, or the older pageSize);
+    // every other caller keeps receiving the plain array.
+    const paging = parsePageRequest(req.query, { sortable: PROJECT_SORTABLE });
+    if (paging.requested) {
+      const { items, meta } = await service.getPage(filters, scope, paging);
+      sendPaged(res, items, MSG.projects.retrieved, meta);
       return;
     }
     const data = await service.getAll(filters, scope);

@@ -10,6 +10,7 @@ import * as attendanceRepo from "../attendance/repository.js";
 import * as notifications from "../notifications/service.js";
 import { refreshProjectProgress } from "../lifecycle/service.js";
 import * as repo from "./repository.js";
+import { orderByFor, paginate, type PageRequest } from "../utils/pagination.js";
 import * as batchRepo from "./batch-repository.js";
 import { computeLine, getRules, periodEndDate, round2, type PayrollRules } from "./engine.js";
 import { validateBatchLines } from "./validation.js";
@@ -134,6 +135,18 @@ const draftBatchIds = async (actor: Actor): Promise<Set<string>> =>
 export const getAll = async (filters: PayrollFilters, actor: Actor = SYSTEM_ACTOR) => {
   const [rows, hidden] = await Promise.all([repo.findAll(filters), draftBatchIds(actor)]);
   return rows.filter((l) => !l.batchId || !hidden.has(l.batchId));
+};
+
+/** One page of lines; the Finance draft-batch exclusion is part of the query, so counts match what is shown. */
+export const getPage = async (filters: PayrollFilters, request: PageRequest, actor: Actor = SYSTEM_ACTOR) => {
+  const hidden = await draftBatchIds(actor);
+  const scoped: PayrollFilters = { ...filters, ...(hidden.size ? { excludeBatchIds: [...hidden] } : {}) };
+  return paginate(
+    request,
+    () => repo.countFiltered(scoped),
+    (window) =>
+      repo.findPage(scoped, window, orderByFor(request, repo.PAYROLL_SORT_COLUMNS, repo.defaultPayrollOrder, payroll.id)),
+  );
 };
 
 export const getById = async (id: number, actor: Actor = SYSTEM_ACTOR) => {

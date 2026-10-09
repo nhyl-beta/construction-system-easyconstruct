@@ -5,14 +5,23 @@ import { logAudit } from "../utils/audit.js";
 import type { AuthedRequest } from "../middleware/auth.js";
 import * as service from "./service.js";
 import type { ProjectMemberRole } from "./types.js";
+import { parsePageRequest, sendPaged } from "../utils/pagination.js";
+import { MEMBER_SORT_COLUMNS } from "./repository.js";
 
 export const getAll = async (req: AuthedRequest, res: Response, next: NextFunction) => {
   try {
-    const data = await service.getAll({
+    const filters = {
       projectCode: req.query.projectCode as string,
       userId: req.query.userId ? Number(req.query.userId) : undefined,
       role: req.query.role as ProjectMemberRole | undefined,
-    });
+    };
+    const paging = parsePageRequest(req.query, { sortable: Object.keys(MEMBER_SORT_COLUMNS), defaultOrder: "asc" });
+    if (paging.requested) {
+      const { items, meta } = await service.getPage(filters, paging);
+      sendPaged(res, items, "Project members retrieved", meta);
+      return;
+    }
+    const data = await service.getAll(filters);
     res.json(formatSuccess(data, "Project members retrieved"));
   } catch (err) {
     next(err);

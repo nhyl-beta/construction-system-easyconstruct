@@ -8,6 +8,8 @@ export interface PublicUserRecord {
 
 export interface UserFilters {
   role?: string;
+  /** Name or email contains this text (paged lists only). */
+  search?: string;
 }
 
 export interface CreateUserInput {

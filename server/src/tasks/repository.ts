@@ -2,13 +2,43 @@
 import { and, desc, eq, inArray, SQL } from "drizzle-orm";
 import { db } from "../db/connection.js";
 import { tasks } from "../db/schema/task.js";
+import { countRows, inCodes, selectPage } from "../db/paged.js";
 import type { CreateTaskInput, TaskFilters, UpdateTaskInput } from "./types.js";
 
-export const findAll = async (filters: TaskFilters = {}) => {
+const buildConditions = (filters: TaskFilters): SQL[] => {
   const conditions: SQL[] = [];
+  if (filters.codes) conditions.push(inCodes(tasks.projectCode, filters.codes));
   if (filters.projectCode) conditions.push(eq(tasks.projectCode, filters.projectCode));
   if (filters.status && filters.status !== "all") conditions.push(eq(tasks.status, filters.status));
   if (filters.assignedToUserId) conditions.push(eq(tasks.assignedToUserId, filters.assignedToUserId));
+  return conditions;
+};
+
+export const TASK_SORT_COLUMNS = {
+  id: tasks.id,
+  title: tasks.title,
+  status: tasks.status,
+  priority: tasks.priority,
+  dueDate: tasks.dueDate,
+  projectCode: tasks.projectCode,
+  createdAt: tasks.createdAt,
+  updatedAt: tasks.updatedAt,
+} as const;
+
+export const defaultTaskOrder = [desc(tasks.id)];
+
+export const countFiltered = async (filters: TaskFilters = {}) => {
+  const conditions = buildConditions(filters);
+  return countRows(tasks, conditions.length ? and(...conditions) : undefined);
+};
+
+export const findPage = async (filters: TaskFilters, window: { limit: number; offset: number }, orderBy: SQL[]) => {
+  const conditions = buildConditions(filters);
+  return selectPage(tasks, conditions.length ? and(...conditions) : undefined, orderBy, window);
+};
+
+export const findAll = async (filters: TaskFilters = {}) => {
+  const conditions = buildConditions(filters);
 
   // Newest first, and applied here (not client-side) so it survives refetch.
   return conditions.length

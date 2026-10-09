@@ -62,6 +62,8 @@ export interface CreateDesignInput {
 export interface UpdateDesignInput extends Partial<CreateDesignInput> {}
 
 export interface DesignFilters {
+  /** Restrict to these project codes (assigned-project scope; set by the controller). */
+  codes?: string[];
   status?: string;
   discipline?: string;
   projectCode?: string;

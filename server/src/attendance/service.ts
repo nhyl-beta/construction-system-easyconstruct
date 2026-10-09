@@ -3,7 +3,8 @@
  */
 
 import { eq } from "drizzle-orm";
-import { resolvePage } from "./paging.js";
+import { attendance } from "../db/schema/attendance.js";
+import { orderByFor, paginate, type PageRequest } from "../utils/pagination.js";
 import { buildHeatmap, lastDays } from "./heatmap.js";
 
 import { db } from "../db/connection.js";
@@ -117,17 +118,17 @@ export const getAll = async (
 };
 
 /** E1: one page of the filtered list plus counts across the whole filtered set. */
-export const getPage = async (
-  filters: AttendanceFilters,
-  requested: { page?: number; pageSize?: number },
-) => {
-  const total = await repo.countFiltered(filters);
-  const meta = resolvePage(requested, total);
-  const [items, summary] = await Promise.all([
-    repo.findPage(filters, meta.pageSize, meta.offset),
+export const getPage = async (filters: AttendanceFilters, request: PageRequest) => {
+  const orderBy = orderByFor(request, repo.ATTENDANCE_SORT_COLUMNS, repo.defaultAttendanceOrder, attendance.id);
+  const [{ items, meta }, summary] = await Promise.all([
+    paginate(
+      request,
+      () => repo.countFiltered(filters),
+      ({ limit, offset }) => repo.findPage(filters, limit, offset, orderBy),
+    ),
     repo.summarize(filters),
   ]);
-  return { items, meta: { total, page: meta.page, pageSize: meta.pageSize, pages: meta.pages, summary } };
+  return { items, meta: { ...meta, summary } };
 };
 
 const HEATMAP_DAYS = 14;

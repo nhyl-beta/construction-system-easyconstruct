@@ -2,13 +2,43 @@
 import { and, desc, eq, isNotNull, SQL } from "drizzle-orm";
 import { db } from "../db/connection.js";
 import { issues } from "../db/schema/issues.js";
+import { countRows, inCodes, selectPage } from "../db/paged.js";
 import type { CreateIssueInput, IssueFilters } from "./types.js";
 
-export const findAll = async (filters: IssueFilters = {}) => {
+const buildConditions = (filters: IssueFilters): SQL[] => {
   const conditions: SQL[] = [];
+  if (filters.codes) conditions.push(inCodes(issues.projectCode, filters.codes));
   if (filters.projectCode) conditions.push(eq(issues.projectCode, filters.projectCode));
   if (filters.status && filters.status !== "all") conditions.push(eq(issues.status, filters.status));
   if (filters.reportedByUserId) conditions.push(eq(issues.reportedByUserId, filters.reportedByUserId));
+  return conditions;
+};
+
+export const ISSUE_SORT_COLUMNS = {
+  id: issues.id,
+  title: issues.title,
+  status: issues.status,
+  severity: issues.severity,
+  category: issues.category,
+  projectCode: issues.projectCode,
+  createdAt: issues.createdAt,
+  updatedAt: issues.updatedAt,
+} as const;
+
+export const defaultIssueOrder = [desc(issues.createdAt), desc(issues.id)];
+
+export const countFiltered = async (filters: IssueFilters = {}) => {
+  const conditions = buildConditions(filters);
+  return countRows(issues, conditions.length ? and(...conditions) : undefined);
+};
+
+export const findPage = async (filters: IssueFilters, window: { limit: number; offset: number }, orderBy: SQL[]) => {
+  const conditions = buildConditions(filters);
+  return selectPage(issues, conditions.length ? and(...conditions) : undefined, orderBy, window);
+};
+
+export const findAll = async (filters: IssueFilters = {}) => {
+  const conditions = buildConditions(filters);
 
   return conditions.length
     ? await db.select().from(issues).where(and(...conditions))

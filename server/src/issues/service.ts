@@ -6,6 +6,8 @@ import { ForbiddenError, NotFoundError, ValidationError } from "../utils/errors.
 import { assertProjectWritable, refreshProjectProgress } from "../lifecycle/service.js";
 import * as notificationsService from "../notifications/service.js";
 import * as repo from "./repository.js";
+import { issues as issuesTable } from "../db/schema/issues.js";
+import { orderByFor, paginate, type PageRequest } from "../utils/pagination.js";
 import { projectCodesForPm } from "../projects/service.js";
 import type { CreateIssueInput, IssueFilters } from "./types.js";
 import { FEATURES } from "../config/features.js";
@@ -44,6 +46,13 @@ export const getPrecedentsForIssue = async (
 };
 
 export const getAll =async (filters: IssueFilters) => repo.findAll(filters);
+
+export const getPage = async (filters: IssueFilters, request: PageRequest) =>
+  paginate(
+    request,
+    () => repo.countFiltered(filters),
+    (window) => repo.findPage(filters, window, orderByFor(request, repo.ISSUE_SORT_COLUMNS, repo.defaultIssueOrder, issuesTable.id)),
+  );
 
 export const getById = async (id: number) => {
   const issue = await repo.findById(id);

@@ -14,6 +14,8 @@ import * as budgetAdjustmentsService from "../finance/budget-adjustments/service
 import * as projectsRepo from "../projects/repository.js";
 import { expensesRepository } from "../finance/expenses/repository.js";
 import * as repo from "./repository.js";
+import { workflows as workflowsTable } from "../db/schema/workflows.js";
+import { orderByFor, paginate, paginateRows, byDate, byString, type PageRequest } from "../utils/pagination.js";
 import type {
   ApprovalQueueItem,
   ApprovalScope,
@@ -262,6 +264,25 @@ export const getWorkflowProjectCode = async (id: number): Promise<string> => {
 export const getActiveWorkflows = async (): Promise<WorkflowWithStages[]> => {
   const rows = await repo.findWorkflows("active");
   return attachStages(rows);
+};
+
+/** One page of active workflows; stages, attachments and line items are loaded for this page's ids only. */
+export const getActiveWorkflowsPage = async (
+  filters: Omit<repo.WorkflowListFilters, "status">,
+  request: PageRequest,
+) => {
+  const scoped = { ...filters, status: "active" };
+  const { items: rows, meta } = await paginate(
+    request,
+    () => repo.countWorkflows(scoped),
+    (window) =>
+      repo.findWorkflowsPage(
+        scoped,
+        window,
+        orderByFor(request, repo.WORKFLOW_SORT_COLUMNS, repo.defaultWorkflowOrder, workflowsTable.id),
+      ),
+  );
+  return { items: await attachStages(rows), meta };
 };
 
 export const getWorkflowById = async (id: number): Promise<WorkflowWithStages> => {
@@ -749,13 +770,14 @@ const ageLabel = (from: Date | null): string => {
 // role in routes.ts), which is what "read-only" means for this role.
 const PRIVILEGED_READ_ROLES = ["admin", "it-designer"];
 
-export const getApprovalQueue = async (
+type QueueRow = Awaited<ReturnType<typeof repo.findPendingStagesForRole>>[number];
+
+const loadQueueRows = async (
   scope: ApprovalScope,
   requesterRole: string,
   requesterName: string,
-  /** Project codes the caller may see; null/undefined = no restriction (admin, HR, Finance…). */
   visibleCodes?: ReadonlySet<string> | null,
-): Promise<ApprovalQueueItem[]> => {
+): Promise<QueueRow[]> => {
   const allRows =
     scope === "pending"
       ? await repo.findPendingStagesForRole(requesterRole, PRIVILEGED_READ_ROLES.includes(requesterRole))
@@ -763,26 +785,18 @@ export const getApprovalQueue = async (
         ? await repo.findDecidedStagesBy(requesterName)
         : await repo.findAllDecidedStages();
   // A stage owner only sees the queue entries of projects they may see.
-  const rows = filterRowsToCodes(allRows, visibleCodes ?? null, (r) => r.workflow.projectCode);
+  return filterRowsToCodes(allRows, visibleCodes ?? null, (r) => r.workflow.projectCode);
+};
 
-  // A queue row that does not say whether anything was submitted gives the
-  // approver no reason to open the detail view at all.
+// A queue row that does not say whether anything was submitted gives the
+// approver no reason to open the detail view at all, so each row carries the
+// attachment and line-item counts of its workflow.
+const toQueueItems = async (rows: QueueRow[]): Promise<ApprovalQueueItem[]> => {
   const workflowIds = [...new Set(rows.map((r) => r.workflow.id))];
-  const [attachmentRows, lineItemRows] = await Promise.all([
-    repo.findAttachmentsForWorkflows(workflowIds),
-    repo.findLineItemsForWorkflows(workflowIds),
+  const [attachmentCounts, lineItemCounts] = await Promise.all([
+    repo.countAttachmentsByWorkflow(workflowIds),
+    repo.countLineItemsByWorkflow(workflowIds),
   ]);
-  const attachmentCounts = new Map<number, number>();
-  for (const { attachment } of attachmentRows) {
-    attachmentCounts.set(
-      attachment.workflowId,
-      (attachmentCounts.get(attachment.workflowId) ?? 0) + 1,
-    );
-  }
-  const lineItemCounts = new Map<number, number>();
-  for (const item of lineItemRows) {
-    lineItemCounts.set(item.workflowId, (lineItemCounts.get(item.workflowId) ?? 0) + 1);
-  }
 
   return rows.map(({ stage, workflow }) => ({
     stageId: stage.id,
@@ -807,36 +821,54 @@ export const getApprovalQueue = async (
   }));
 };
 
-export const getApprovalStats = async (
+export const getApprovalQueue = async (
+  scope: ApprovalScope,
   requesterRole: string,
   requesterName: string,
+  /** Project codes the caller may see; null/undefined = no restriction (admin, HR, Finance…). */
+  visibleCodes?: ReadonlySet<string> | null,
+): Promise<ApprovalQueueItem[]> =>
+  toQueueItems(await loadQueueRows(scope, requesterRole, requesterName, visibleCodes));
+
+export const APPROVAL_SORTABLE = ["createdAt", "decidedAt", "title", "projectCode"] as const;
+
+const QUEUE_SORTERS: Record<string, (a: QueueRow, b: QueueRow) => number> = {
+  createdAt: byDate<QueueRow>((r) => r.stage.createdAt),
+  decidedAt: byDate<QueueRow>((r) => r.stage.decidedAt),
+  title: byString<QueueRow>((r) => r.workflow.title),
+  projectCode: byString<QueueRow>((r) => r.workflow.projectCode),
+};
+
+/** One page of the queue; attachment / line-item counts are computed for this page's workflows only. */
+export const getApprovalQueuePage = async (
+  scope: ApprovalScope,
+  requesterRole: string,
+  requesterName: string,
+  visibleCodes: ReadonlySet<string> | null | undefined,
+  request: PageRequest,
+) => {
+  // The queue's own order (oldest pending first / newest decision first) is the default.
+  const rows = await loadQueueRows(scope, requesterRole, requesterName, visibleCodes);
+  const { items, meta } = paginateRows(rows, request, QUEUE_SORTERS);
+  return { items: await toQueueItems(items), meta };
+};
+
+export const getApprovalStats = async (
+  requesterRole: string,
+  _requesterName: string,
   visibleCodes?: ReadonlySet<string> | null,
 ) => {
-  const pending = await getApprovalQueue("pending", requesterRole, requesterName, visibleCodes);
-  const history = await getApprovalQueue("history", requesterRole, requesterName, visibleCodes);
-
-  const overdue = pending.filter((p) => {
-    if (!p.createdAt) return false;
-    return Date.now() - p.createdAt.getTime() > 48 * 60 * 60 * 1000;
-  }).length;
-
-  const decidedWithDuration = history.filter((h) => h.createdAt && h.decidedAt);
-  const avgCycleDays =
-    decidedWithDuration.length === 0
-      ? 0
-      : decidedWithDuration.reduce((sum, h) => {
-          const ms = h.decidedAt!.getTime() - h.createdAt!.getTime();
-          return sum + ms / (1000 * 60 * 60 * 24);
-        }, 0) / decidedWithDuration.length;
-
-  const weekAgo = Date.now() - 7 * 24 * 60 * 60 * 1000;
-  const thisWeek = history.filter((h) => h.decidedAt && h.decidedAt.getTime() >= weekAgo).length;
+  const stats = await repo.findApprovalStats(
+    requesterRole,
+    PRIVILEGED_READ_ROLES.includes(requesterRole),
+    visibleCodes ? [...visibleCodes] : null,
+  );
 
   return {
-    pending: pending.length,
-    overdue,
-    avgCycleDays: Number(avgCycleDays.toFixed(1)),
-    thisWeek,
+    pending: stats.pending,
+    overdue: stats.overdue,
+    avgCycleDays: Number(stats.avgDays.toFixed(1)),
+    thisWeek: stats.thisWeek,
   };
 };
 

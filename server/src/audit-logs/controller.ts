@@ -2,6 +2,8 @@ import { NextFunction, Request, Response } from "express";
 import { MSG } from "../constants/messages.js";
 import { formatSuccess } from "../utils/response.js";
 import * as service from "./service.js";
+import { parsePageRequest } from "../utils/pagination.js";
+import { AUDIT_SORT_COLUMNS } from "./repository.js";
 
 const str = (v: unknown): string | undefined => (typeof v === "string" && v.length > 0 ? v : undefined);
 const num = (v: unknown): number | undefined => {
@@ -11,7 +13,7 @@ const num = (v: unknown): number | undefined => {
 
 export const getAll = async (req: Request, res: Response, next: NextFunction) => {
   try {
-    const result = await service.getAll({
+    const filters = {
       entityType: str(req.query.entityType),
       entityId: str(req.query.entityId),
       projectCode: str(req.query.projectCode),
@@ -19,9 +21,16 @@ export const getAll = async (req: Request, res: Response, next: NextFunction) =>
       actor: str(req.query.actor),
       dateFrom: str(req.query.dateFrom),
       dateTo: str(req.query.dateTo),
-      page: num(req.query.page),
-      perPage: num(req.query.perPage),
-    });
+    };
+    // Paging is opt-in (page / limit, or the older perPage): the dashboards
+    // that count across the whole trail still call without it.
+    const paging = parsePageRequest(req.query, { sortable: Object.keys(AUDIT_SORT_COLUMNS) });
+    if (paging.requested) {
+      const { result, meta } = await service.getPage(filters, paging);
+      res.json({ ...formatSuccess(result, MSG.auditLogs.retrieved), meta });
+      return;
+    }
+    const result = await service.getAll(filters);
     res.json(formatSuccess(result, MSG.auditLogs.retrieved));
   } catch (err) { next(err); }
 };

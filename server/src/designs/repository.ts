@@ -1,4 +1,5 @@
-import { and, eq, ilike, inArray, or, SQL } from "drizzle-orm";
+import { and, desc, eq, ilike, inArray, or, SQL } from "drizzle-orm";
+import { countRows, inCodes, selectPage } from "../db/paged.js";
 import { db } from "../db/connection.js";
 import { designEngineers } from "../db/schema/design-engineers.js";
 import { designs } from "../db/schema/designs.js";
@@ -19,8 +20,10 @@ export const findProjectCodesByIds = async (ids: number[]): Promise<Map<number, 
   return new Map(rows.map((r) => [r.id, r.projectCode]));
 };
 
-export const findAll = async (filters: DesignFilters = {}) => {
+const buildConditions = (filters: DesignFilters): SQL[] => {
   const conditions: SQL[] = [];
+
+  if (filters.codes) conditions.push(inCodes(designs.projectCode, filters.codes));
 
   if (filters.status && filters.status !== "all")
     conditions.push(eq(designs.status, filters.status));
@@ -42,6 +45,33 @@ export const findAll = async (filters: DesignFilters = {}) => {
     );
   }
 
+  return conditions;
+};
+
+export const DESIGN_SORT_COLUMNS = {
+  name: designs.name,
+  code: designs.code,
+  status: designs.status,
+  discipline: designs.discipline,
+  projectCode: designs.projectCode,
+  createdAt: designs.createdAt,
+  updatedAt: designs.updatedAt,
+} as const;
+
+export const defaultDesignOrder = [desc(designs.id)];
+
+export const countFiltered = async (filters: DesignFilters = {}) => {
+  const conditions = buildConditions(filters);
+  return countRows(designs, conditions.length ? and(...conditions) : undefined);
+};
+
+export const findPage = async (filters: DesignFilters, window: { limit: number; offset: number }, orderBy: SQL[]) => {
+  const conditions = buildConditions(filters);
+  return selectPage(designs, conditions.length ? and(...conditions) : undefined, orderBy, window);
+};
+
+export const findAll = async (filters: DesignFilters = {}) => {
+  const conditions = buildConditions(filters);
   return conditions.length
     ? await db
         .select()

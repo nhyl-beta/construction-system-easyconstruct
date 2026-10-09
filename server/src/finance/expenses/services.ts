@@ -1,6 +1,8 @@
 import { NotFoundError, ValidationError } from "../../utils/errors.js";
 import { assertProjectWritable } from "../../lifecycle/service.js";
-import { expensesRepository } from "./repository.js";
+import { expensesRepository, EXPENSE_SORT_COLUMNS, defaultExpenseOrder } from "./repository.js";
+import { expenses as expensesTable } from "../../db/schema/finance.js";
+import { orderByFor, paginate, type PageRequest } from "../../utils/pagination.js";
 import type { CreateExpenseInput, ListExpensesQuery } from "./types.js";
 import { scoreExpense } from "./anomaly.js";
 import { FEATURES } from "../../config/features.js";
@@ -23,6 +25,20 @@ async function scoreAndStore(id: string) {
 export const expensesService = {
   async list(queryParams: ListExpensesQuery) {
     return expensesRepository.findMany(queryParams);
+  },
+
+  /** The same list with its total: the page window comes from the shared pagination request. */
+  async listPage(params: Pick<ListExpensesQuery, "query" | "category">, request: PageRequest) {
+    return paginate(
+      request,
+      () => expensesRepository.countMany(params),
+      (window) =>
+        expensesRepository.findPage(
+          params,
+          window,
+          orderByFor(request, EXPENSE_SORT_COLUMNS, defaultExpenseOrder, expensesTable.id),
+        ),
+    );
   },
 
   async create(input: CreateExpenseInput) {

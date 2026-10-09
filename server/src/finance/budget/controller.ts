@@ -6,6 +6,7 @@ import { logAudit } from "../../utils/audit.js";
 import type { AuthedRequest } from "../../middleware/auth.js";
 import * as service from "./service.js";
 import type { BudgetFilters, BudgetStatus } from "./types.js";
+import { byDate, byNumber, byString, respondList } from "../../utils/pagination.js";
 
 const validStatuses: readonly BudgetStatus[] = [
   "draft",
@@ -45,7 +46,13 @@ export const getAll = async (
 
     const data = await service.getAll(filters);
 
-    res.json(formatSuccess(data, MSG.budgets.retrieved));
+    respondList(res, req.query, data, MSG.budgets.retrieved, {
+      project: byString((b) => b.project),
+      category: byString((b) => b.category),
+      status: byString((b) => b.status),
+      planned: byNumber((b) => b.planned),
+      updatedAt: byDate((b) => b.updatedAt),
+    });
   } catch (err) {
     next(err);
   }

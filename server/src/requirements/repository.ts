@@ -1,5 +1,6 @@
 import { db } from "../db/connection.js";
 import { requirements } from "../db/schema/requirements.js";
+import { countRows, inCodes, selectPage } from "../db/paged.js";
 import { and, desc, eq, ilike, SQL } from "drizzle-orm";
 import type {
   CreateRequirementInput,
@@ -7,8 +8,9 @@ import type {
   RequirementFilters,
 } from "./types.js";
 
-export const findAll = async (filters: RequirementFilters = {}) => {
+const buildConditions = (filters: RequirementFilters): SQL[] => {
   const conditions: SQL[] = [];
+  if (filters.codes) conditions.push(inCodes(requirements.project, filters.codes));
   if (filters.project && filters.project !== "all") {
     conditions.push(eq(requirements.project, filters.project));
   }
@@ -21,7 +23,32 @@ export const findAll = async (filters: RequirementFilters = {}) => {
   if (filters.search) {
     conditions.push(ilike(requirements.title, `%${filters.search}%`));
   }
+  return conditions;
+};
 
+export const REQUIREMENT_SORT_COLUMNS = {
+  title: requirements.title,
+  status: requirements.status,
+  category: requirements.category,
+  project: requirements.project,
+  createdAt: requirements.createdAt,
+  updatedAt: requirements.updatedAt,
+} as const;
+
+export const defaultRequirementOrder = [desc(requirements.updatedAt), desc(requirements.id)];
+
+export const countFiltered = async (filters: RequirementFilters = {}) => {
+  const conditions = buildConditions(filters);
+  return countRows(requirements, conditions.length ? and(...conditions) : undefined);
+};
+
+export const findPage = async (filters: RequirementFilters, window: { limit: number; offset: number }, orderBy: SQL[]) => {
+  const conditions = buildConditions(filters);
+  return selectPage(requirements, conditions.length ? and(...conditions) : undefined, orderBy, window);
+};
+
+export const findAll = async (filters: RequirementFilters = {}) => {
+  const conditions = buildConditions(filters);
   const query = db.select().from(requirements).orderBy(desc(requirements.updatedAt));
   return conditions.length ? await query.where(and(...conditions)) : await query;
 };

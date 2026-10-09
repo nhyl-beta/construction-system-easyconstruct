@@ -36,6 +36,8 @@ export interface UpdateEmployeeInput extends Partial<CreateEmployeeInput> {}
 
 export interface EmployeeFilters {
   search?: string;
+  /** Exact employee code (e.g. "EMP-001") — resolves a code under pagination; additive to `search`. */
+  employeeId?: string;
   department?: string;
   status?: string;
 }

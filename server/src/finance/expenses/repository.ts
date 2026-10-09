@@ -1,4 +1,5 @@
-import { and, desc, eq, ilike, or } from "drizzle-orm";
+import { and, desc, eq, ilike, or, type SQL } from "drizzle-orm";
+import { countRows, selectPage } from "../../db/paged.js";
 import type { ExpenseDecision } from "./decision.js";
 import type { ExpenseLike } from "./anomaly.js";
 
@@ -7,7 +8,45 @@ import { expenses } from "../../db/schema/finance.js";
 
 import type { CreateExpenseInput, ListExpensesQuery } from "./types.js";
 
+const expenseConditions = ({ query, category }: Pick<ListExpensesQuery, "query" | "category">) => {
+  const conditions = [];
+  if (query) {
+    conditions.push(
+      or(ilike(expenses.vendor, `%${query}%`), ilike(expenses.id, `%${query}%`)),
+    );
+  }
+  if (category && category !== "all") {
+    conditions.push(eq(expenses.category, category));
+  }
+  return conditions;
+};
+
+export const EXPENSE_SORT_COLUMNS = {
+  submittedAt: expenses.submittedAt,
+  vendor: expenses.vendor,
+  project: expenses.project,
+  category: expenses.category,
+  amount: expenses.amount,
+  status: expenses.status,
+} as const;
+
+export const defaultExpenseOrder = [desc(expenses.submittedAt)];
+
 export const expensesRepository = {
+  async countMany(params: Pick<ListExpensesQuery, "query" | "category">) {
+    const conditions = expenseConditions(params);
+    return countRows(expenses, conditions.length ? and(...conditions) : undefined);
+  },
+
+  async findPage(
+    params: Pick<ListExpensesQuery, "query" | "category">,
+    window: { limit: number; offset: number },
+    orderBy: SQL[],
+  ) {
+    const conditions = expenseConditions(params);
+    return selectPage(expenses, conditions.length ? and(...conditions) : undefined, orderBy, window);
+  },
+
   async findMany({
     query,
     category,

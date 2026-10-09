@@ -3,6 +3,8 @@ import { ConflictError, ForbiddenError, NotFoundError } from "../utils/errors.js
 import * as notificationsService from "../notifications/service.js";
 import { assertProjectWritable, refreshProjectProgress } from "../lifecycle/service.js";
 import * as repo from "./repository.js";
+import { milestones as milestonesTable } from "../db/schema/milestones.js";
+import { orderByFor, paginate, type PageRequest } from "../utils/pagination.js";
 import * as projectMemberRepo from "../project-members/repository.js";
 import { assertEngineerMayUpdate, openLinkedTasks } from "./permissions.js";
 import * as tasksRepo from "../tasks/repository.js";
@@ -28,6 +30,13 @@ const NOTIFY_ROLES_BY_STATUS: Partial<Record<MilestoneStatus, string[]>> = {
 };
 
 export const getAll = async (projectCode?: string) => repo.findAll(projectCode);
+
+export const getPage = async (filters: repo.MilestoneFilters, request: PageRequest) =>
+  paginate(
+    request,
+    () => repo.countFiltered(filters),
+    (window) => repo.findPage(filters, window, orderByFor(request, repo.MILESTONE_SORT_COLUMNS, repo.defaultMilestoneOrder, milestonesTable.id)),
+  );
 
 export const getById = async (id: number) => {
   const milestone = await repo.findById(id);

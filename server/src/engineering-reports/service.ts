@@ -1,4 +1,6 @@
 import * as repo from "./repository.js";
+import { orderByFor, paginate, type PageRequest } from "../utils/pagination.js";
+import { engineeringReports as engineeringReportsTable } from "../db/schema/engineering-reports.js";
 import { ForbiddenError, NotFoundError, ValidationError } from "../utils/errors.js";
 import { refreshProjectProgress } from "../lifecycle/service.js";
 import * as projectsRepo from "../projects/repository.js";
@@ -26,6 +28,13 @@ const assertCanSetStatus = (status: string | undefined, actorRole: string) => {
 export const getAll = async (filters: EngineeringReportFilters) => {
   return await repo.findAll(filters);
 };
+
+export const getPage = async (filters: EngineeringReportFilters, request: PageRequest) =>
+  paginate(
+    request,
+    () => repo.countFiltered(filters),
+    (window) => repo.findPage(filters, window, orderByFor(request, repo.REPORT_SORT_COLUMNS, repo.defaultReportOrder, engineeringReportsTable.id)),
+  );
 
 export const getById = async (id: number) => {
   const report = await repo.findById(id);

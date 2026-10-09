@@ -25,6 +25,8 @@ const buildConditions = (filters: ProjectFilters): SQL[] => {
 
   if (filters.codes) conditions.push(inArray(projects.code, filters.codes));
 
+  if (filters.code) conditions.push(eq(projects.code, filters.code));
+
   if (filters.search) {
     const s = `%${filters.search}%`;
     conditions.push(
@@ -66,11 +68,42 @@ export const findCodesForPm = async (pmUserId: number, pmName?: string): Promise
 // Same ordering rule as projects/ordering.ts compareProjects, expressed in SQL:
 // live work first, then Completed, Cancelled, Archived; most recently updated
 // first inside a group (a null updated_at counts as oldest); id breaks ties.
-const orderClause = [
+export const PROJECT_SORT_COLUMNS = {
+  name: projects.name,
+  code: projects.code,
+  status: projects.status,
+  risk: projects.risk,
+  progress: projects.progress,
+  budget: projects.budget,
+  due: projects.due,
+  pm: projects.pm,
+  createdAt: projects.createdAt,
+  updatedAt: projects.updatedAt,
+} as const;
+
+export const defaultOrder = [
   sql`case ${projects.status} when 'Completed' then 1 when 'Cancelled' then 2 when 'Archived' then 3 else 0 end`,
   sql`coalesce(${projects.updatedAt}, 'epoch'::timestamp) desc`,
   sql`${projects.id} desc`,
 ];
+
+/** Status / risk / budget / progress columns only, in the list's own order (dashboards need no text columns). */
+export const findNarrow = async (filters: ProjectFilters) => {
+  if (filters.codes && filters.codes.length === 0) return [];
+  const conditions = buildConditions(filters);
+  return db
+    .select({
+      id: projects.id,
+      code: projects.code,
+      status: projects.status,
+      risk: projects.risk,
+      budget: projects.budget,
+      progress: projects.progress,
+    })
+    .from(projects)
+    .where(conditions.length ? and(...conditions) : undefined)
+    .orderBy(...defaultOrder);
+};
 
 export const countFiltered = async (filters: ProjectFilters): Promise<number> => {
   if (filters.codes && filters.codes.length === 0) return 0;
@@ -82,14 +115,19 @@ export const countFiltered = async (filters: ProjectFilters): Promise<number> =>
   return row?.n ?? 0;
 };
 
-export const findPageSorted = async (filters: ProjectFilters, limit: number, offset: number) => {
+export const findPageSorted = async (
+  filters: ProjectFilters,
+  limit: number,
+  offset: number,
+  orderBy: SQL[] = defaultOrder,
+) => {
   if (filters.codes && filters.codes.length === 0) return [];
   const conditions = buildConditions(filters);
   return db
     .select()
     .from(projects)
     .where(conditions.length ? and(...conditions) : undefined)
-    .orderBy(...orderClause)
+    .orderBy(...orderBy)
     .limit(limit)
     .offset(offset);
 };

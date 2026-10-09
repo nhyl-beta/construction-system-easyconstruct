@@ -1,4 +1,5 @@
-import { and, eq, inArray, SQL } from "drizzle-orm";
+import { and, desc, eq, inArray, isNull, notInArray, or, SQL } from "drizzle-orm";
+import { countRows, selectPage } from "../db/paged.js";
 import { db } from "../db/connection.js";
 import { payroll } from "../db/schema/payroll.js";
 import type { PayrollFilters } from "./types.js";
@@ -6,7 +7,7 @@ import type { PayrollFilters } from "./types.js";
 // Either the shared pool-backed db or a transaction handle.
 export type Db = Pick<typeof db, "select" | "insert" | "update" | "delete">;
 
-export const findAll = async (filters: PayrollFilters = {}) => {
+const buildConditions = (filters: PayrollFilters): SQL[] => {
   const conditions: SQL[] = [];
 
   if (filters.period) conditions.push(eq(payroll.period, filters.period));
@@ -14,6 +15,35 @@ export const findAll = async (filters: PayrollFilters = {}) => {
   if (filters.batchId) conditions.push(eq(payroll.batchId, filters.batchId));
   if (filters.status && filters.status !== "all")
     conditions.push(eq(payroll.status, filters.status));
+  if (filters.excludeBatchIds?.length)
+    conditions.push(or(isNull(payroll.batchId), notInArray(payroll.batchId, filters.excludeBatchIds))!);
+  return conditions;
+};
+
+export const PAYROLL_SORT_COLUMNS = {
+  name: payroll.name,
+  empId: payroll.empId,
+  period: payroll.period,
+  status: payroll.status,
+  gross: payroll.gross,
+  net: payroll.net,
+  createdAt: payroll.createdAt,
+} as const;
+
+export const defaultPayrollOrder = [desc(payroll.id)];
+
+export const countFiltered = async (filters: PayrollFilters = {}) => {
+  const conditions = buildConditions(filters);
+  return countRows(payroll, conditions.length ? and(...conditions) : undefined);
+};
+
+export const findPage = async (filters: PayrollFilters, window: { limit: number; offset: number }, orderBy: SQL[]) => {
+  const conditions = buildConditions(filters);
+  return selectPage(payroll, conditions.length ? and(...conditions) : undefined, orderBy, window);
+};
+
+export const findAll = async (filters: PayrollFilters = {}) => {
+  const conditions = buildConditions(filters);
 
   return conditions.length
     ? await db.select().from(payroll).where(and(...conditions))

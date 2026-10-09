@@ -1,5 +1,6 @@
 import { db } from "../db/connection.js";
 import { engineeringReports } from "../db/schema/engineering-reports.js";
+import { countRows, inCodes, selectPage } from "../db/paged.js";
 import { and, desc, eq, ilike, SQL } from "drizzle-orm";
 import type {
   CreateEngineeringReportInput,
@@ -7,8 +8,9 @@ import type {
   EngineeringReportFilters,
 } from "./types.js";
 
-export const findAll = async (filters: EngineeringReportFilters = {}) => {
+const buildConditions = (filters: EngineeringReportFilters): SQL[] => {
   const conditions: SQL[] = [];
+  if (filters.codes) conditions.push(inCodes(engineeringReports.project, filters.codes));
   if (filters.project && filters.project !== "all") {
     conditions.push(eq(engineeringReports.project, filters.project));
   }
@@ -21,7 +23,34 @@ export const findAll = async (filters: EngineeringReportFilters = {}) => {
   if (filters.search) {
     conditions.push(ilike(engineeringReports.title, `%${filters.search}%`));
   }
+  return conditions;
+};
 
+export const REPORT_SORT_COLUMNS = {
+  title: engineeringReports.title,
+  type: engineeringReports.type,
+  project: engineeringReports.project,
+  priority: engineeringReports.priority,
+  status: engineeringReports.status,
+  date: engineeringReports.date,
+  createdAt: engineeringReports.createdAt,
+  updatedAt: engineeringReports.updatedAt,
+} as const;
+
+export const defaultReportOrder = [desc(engineeringReports.updatedAt), desc(engineeringReports.id)];
+
+export const countFiltered = async (filters: EngineeringReportFilters = {}) => {
+  const conditions = buildConditions(filters);
+  return countRows(engineeringReports, conditions.length ? and(...conditions) : undefined);
+};
+
+export const findPage = async (filters: EngineeringReportFilters, window: { limit: number; offset: number }, orderBy: SQL[]) => {
+  const conditions = buildConditions(filters);
+  return selectPage(engineeringReports, conditions.length ? and(...conditions) : undefined, orderBy, window);
+};
+
+export const findAll = async (filters: EngineeringReportFilters = {}) => {
+  const conditions = buildConditions(filters);
   const query = db
     .select()
     .from(engineeringReports)

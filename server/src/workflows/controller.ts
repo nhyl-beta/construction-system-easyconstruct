@@ -7,7 +7,9 @@ import { formatError, formatSuccess } from "../utils/response.js";
 import { logAudit } from "../utils/audit.js";
 import * as service from "./service.js";
 import type { ApprovalScope } from "./types.js";
-import { assertProjectVisible, scopeRowsToVisible, visibleProjectCodes } from "../projects/service.js";
+import { assertProjectVisible, scopeRowsToVisible, scopedProjectCodes, visibleProjectCodes } from "../projects/service.js";
+import { parsePageRequest, sendPaged } from "../utils/pagination.js";
+import { WORKFLOW_SORT_COLUMNS } from "./repository.js";
 
 export const getTemplates = async (_req: AuthedRequest, res: Response, next: NextFunction) => {
   try {
@@ -60,6 +62,17 @@ const assertWorkflowVisible = async (req: AuthedRequest, workflowId: number) =>
 
 export const getAll = async (req: AuthedRequest, res: Response, next: NextFunction) => {
   try {
+    const paging = parsePageRequest(req.query, { sortable: Object.keys(WORKFLOW_SORT_COLUMNS) });
+    if (paging.requested) {
+      const codes = await scopedProjectCodes(req.authUser);
+      const text = (v: unknown) => (typeof v === "string" && v.trim() ? v.trim() : undefined);
+      const { items, meta } = await service.getActiveWorkflowsPage(
+        { ...(codes ? { codes } : {}), projectCode: text(req.query.projectCode), search: text(req.query.search) },
+        paging,
+      );
+      sendPaged(res, items, MSG.workflows.retrieved, meta);
+      return;
+    }
     const data = await scopeRowsToVisible(req.authUser, await service.getActiveWorkflows(), (w) => w.projectCode);
     res.json(formatSuccess(data, MSG.workflows.retrieved));
   } catch (err) {
@@ -198,6 +211,12 @@ export const getApprovals = async (req: AuthedRequest, res: Response, next: Next
     const role = req.authUser?.role ?? "";
     const name = req.authUser?.name ?? req.authUser?.email ?? "";
     const codes = await visibleProjectCodes(scopeOf(req));
+    const paging = parsePageRequest(req.query, { sortable: service.APPROVAL_SORTABLE });
+    if (paging.requested) {
+      const { items, meta } = await service.getApprovalQueuePage(scope, role, name, codes, paging);
+      sendPaged(res, items, MSG.workflows.retrieved, meta);
+      return;
+    }
     const data = await service.getApprovalQueue(scope, role, name, codes);
     res.json(formatSuccess(data, MSG.workflows.retrieved));
   } catch (err) {

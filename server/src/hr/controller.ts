@@ -3,6 +3,7 @@ import { HTTP } from "../constants/http-status.js";
 import { formatSuccess } from "../utils/response.js";
 import { ValidationError } from "../utils/errors.js";
 import * as service from "./service.js";
+import { byString, paginateRows, parsePageRequest, respondList } from "../utils/pagination.js";
 import {
   attendanceQuerySchema,
   payrollQuerySchema,
@@ -35,7 +36,12 @@ export const listEmployees = async (req: Request, res: Response, next: NextFunct
       department: req.query.department as string,
       status: req.query.status as string,
     });
-    res.json(formatSuccess(data, "Employees retrieved"));
+    respondList(res, req.query, data, "Employees retrieved", {
+      name: byString((e) => e.name),
+      employeeId: byString((e) => e.employeeId),
+      department: byString((e) => e.department),
+      status: byString((e) => e.status),
+    });
   } catch (error) { next(error); }
 };
 
@@ -61,10 +67,18 @@ export const deleteEmployee = async (req: Request, res: Response, next: NextFunc
 
 export const listAttendance = async (req: Request, res: Response, next: NextFunction) => {
   try {
-    res.json(formatSuccess(
+    respondList(
+      res,
+      req.query,
       await service.listAttendance(parseQuery(attendanceQuerySchema, req.query)),
       "Attendance retrieved",
-    ));
+      {
+        logDate: byString((a) => a.logDate),
+        employeeId: byString((a) => a.employeeId),
+        site: byString((a) => a.site),
+        status: byString((a) => a.status),
+      },
+    );
   }
   catch (error) { next(error); }
 };
@@ -95,7 +109,20 @@ export const deleteAttendance = async (req: Request, res: Response, next: NextFu
 export const listPayroll = async (req: Request, res: Response, next: NextFunction) => {
   try {
     const query = parseQuery(payrollQuerySchema, req.query);
-    res.json(formatSuccess(await service.getPayroll(query), "Payroll retrieved"));
+    const payroll = await service.getPayroll(query);
+    const paging = parsePageRequest(req.query, { sortable: ["name", "period", "gross", "net"] });
+    if (!paging.requested) {
+      res.json(formatSuccess(payroll, "Payroll retrieved"));
+      return;
+    }
+    // Totals stay the totals of the whole period; only `rows` is windowed.
+    const { items, meta } = paginateRows(payroll.rows, paging, {
+      name: (a, b) => a.name.localeCompare(b.name),
+      period: (a, b) => a.period.localeCompare(b.period),
+      gross: (a, b) => Number(a.gross) - Number(b.gross),
+      net: (a, b) => Number(a.net) - Number(b.net),
+    });
+    res.json({ ...formatSuccess({ rows: items, totals: payroll.totals }, "Payroll retrieved"), meta });
   } catch (error) { next(error); }
 };
 

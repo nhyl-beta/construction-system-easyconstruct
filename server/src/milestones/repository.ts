@@ -1,5 +1,6 @@
 // server/src/milestones/repository.ts — NEW
-import { and, asc, eq, inArray } from "drizzle-orm";
+import { and, asc, eq, inArray, SQL } from "drizzle-orm";
+import { countRows, inCodes, selectPage } from "../db/paged.js";
 import { db } from "../db/connection.js";
 import { milestones, milestoneLinks } from "../db/schema/milestones.js";
 import { tasks } from "../db/schema/task.js";
@@ -8,6 +9,39 @@ import type { CreateMilestoneInput, CreateMilestoneLinkInput, UpdateMilestoneInp
 export const findAll = async (projectCode?: string) => {
   const query = db.select().from(milestones).orderBy(asc(milestones.createdAt));
   return projectCode ? query.where(eq(milestones.projectCode, projectCode)) : query;
+};
+
+export interface MilestoneFilters {
+  /** Restrict to these project codes (visibility scope; set by the controller). */
+  codes?: string[];
+  projectCode?: string;
+}
+
+const buildConditions = (filters: MilestoneFilters): SQL[] => {
+  const conditions: SQL[] = [];
+  if (filters.codes) conditions.push(inCodes(milestones.projectCode, filters.codes));
+  if (filters.projectCode) conditions.push(eq(milestones.projectCode, filters.projectCode));
+  return conditions;
+};
+
+export const MILESTONE_SORT_COLUMNS = {
+  title: milestones.title,
+  status: milestones.status,
+  projectCode: milestones.projectCode,
+  estimatedCompletionDate: milestones.estimatedCompletionDate,
+  createdAt: milestones.createdAt,
+} as const;
+
+export const defaultMilestoneOrder = [asc(milestones.createdAt), asc(milestones.id)];
+
+export const countFiltered = async (filters: MilestoneFilters = {}) => {
+  const conditions = buildConditions(filters);
+  return countRows(milestones, conditions.length ? and(...conditions) : undefined);
+};
+
+export const findPage = async (filters: MilestoneFilters, window: { limit: number; offset: number }, orderBy: SQL[]) => {
+  const conditions = buildConditions(filters);
+  return selectPage(milestones, conditions.length ? and(...conditions) : undefined, orderBy, window);
 };
 
 /** Milestones of several projects in one query, grouped by project code (each group oldest first). */

@@ -60,13 +60,31 @@ export const countFiltered = async (filters: AttendanceFilters): Promise<number>
   return row?.n ?? 0;
 };
 
-export const findPage = async (filters: AttendanceFilters, limit: number, offset: number) => {
+export const ATTENDANCE_SORT_COLUMNS = {
+  logDate: attendance.logDate,
+  clockIn: attendance.clockIn,
+  employeeId: attendance.employeeId,
+  site: attendance.site,
+  projectCode: attendance.projectCode,
+  status: attendance.status,
+  attendanceStatus: attendance.attendanceStatus,
+  hours: attendance.hours,
+} as const;
+
+export const defaultAttendanceOrder = [desc(attendance.logDate), desc(attendance.clockIn), desc(attendance.id)];
+
+export const findPage = async (
+  filters: AttendanceFilters,
+  limit: number,
+  offset: number,
+  orderBy: SQL[] = defaultAttendanceOrder,
+) => {
   const conditions = buildConditions(filters);
   return db
     .select()
     .from(attendance)
     .where(conditions.length ? and(...conditions) : undefined)
-    .orderBy(desc(attendance.logDate), desc(attendance.clockIn), desc(attendance.id))
+    .orderBy(...orderBy)
     .limit(limit)
     .offset(offset);
 };

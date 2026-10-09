@@ -5,6 +5,7 @@ import { formatSuccess } from "../utils/response.js";
 import { UnauthorizedError } from "../utils/errors.js";
 import type { AuthedRequest } from "../middleware/auth.js";
 import * as service from "./service.js";
+import { byDate, byString, respondList } from "../utils/pagination.js";
 
 const actorOf = (req: AuthedRequest): service.Actor => {
   const u = req.authUser;
@@ -35,7 +36,16 @@ export const list = wrap(async (req, res) => {
     },
     actorOf(req),
   );
-  res.json(formatSuccess(data, "Requests retrieved"));
+  // Visibility and the overdue flag are applied per row after the read, so
+  // the page is cut from the scoped rows (the response is bounded).
+  respondList(res, q, data, "Requests retrieved", {
+    number: byString((r: service.DesignRequestView) => r.number),
+    subject: byString((r: service.DesignRequestView) => r.subject),
+    projectCode: byString((r: service.DesignRequestView) => r.projectCode),
+    status: byString((r: service.DesignRequestView) => r.status),
+    dueDate: byDate((r: service.DesignRequestView) => r.dueDate),
+    createdAt: byDate((r: service.DesignRequestView) => r.createdAt),
+  });
 });
 
 export const getById = wrap(async (req, res) => {
